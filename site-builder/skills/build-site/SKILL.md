@@ -56,4 +56,10 @@ After each real build, if you hit a reusable gotcha or a better step, append it 
 ## References
 - `references/stack.md` — exact stack, pinned commands, Windows notes.
 - `references/brief-schema.md` — the `brief.yaml` contract.
+- `references/patterns.md` — **premium motion patterns** (video hero, glass CTA, animated
+  headline, particle/aurora backgrounds, tactile micro-interactions, MotionSites.ai +
+  video download/remux, "lab" pages for client picks). Read this when a build needs to feel
+  impressive/modern, not flat.
+- `assets/patterns/` — drop-in React components for the above (HeroVideo, CtaSection,
+  LogicChain, Divider, AnimatedHeadline, HeroParticles, CTAButton). Copy into `src/components/`.
 - `assets/brief.template.yaml` — copy-and-fill starting point.
