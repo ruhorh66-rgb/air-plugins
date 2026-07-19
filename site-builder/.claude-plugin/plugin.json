@@ -1,9 +1,18 @@
 {
   "name": "site-builder",
   "version": "0.1.0",
-  "description": "Brief-in, website-out. Scaffolds a dynamic Next.js site from a brief, styled by the vendored UI/UX Pro Max design skills and the 21st.dev MCP (component generation), with Framer Motion. Built for occasional, zero-recall reuse.",
+  "description": "Brief-in, website-out. Scaffolds a dynamic Next.js site from a brief, styled by the vendored UI/UX Pro Max design skills and 21st.dev Magic MCP components, with Framer Motion. Built for occasional, zero-recall reuse.",
   "author": { "name": "AIR OS" },
   "license": "MIT",
   "keywords": ["website", "nextjs", "ui", "design", "scaffold", "21st.dev", "framer-motion"],
-  "defaultEnabled": false
+  "defaultEnabled": false,
+  "userConfig": {
+    "magic_api_key": {
+      "type": "string",
+      "title": "21st.dev Magic API key",
+      "description": "API key from https://21st.dev/magic/console. Used by the bundled Magic MCP to generate UI components. Free tier is small; leave empty to skip Magic and rely on the vendored design skills only.",
+      "sensitive": true,
+      "required": false
+    }
+  }
 }

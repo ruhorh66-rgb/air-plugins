@@ -14,4 +14,4 @@ Why vendored (not runtime-installed): durability. This capability is used occasi
 
 ## Magic MCP (21st.dev)
 
-Declared in `.mcp.json`, run via `npx -y mcp-remote https://21st.dev/api/mcp` (OAuth, no API key — 21st.dev's recommended keyless setup). Not vendored — it's a hosted service. Config taken from the official 21st.dev CLI & MCP page (https://21st.dev/mcp), verified 2026-07-19.
+Declared in `.mcp.json`, run via `npx -y @21st-dev/magic@latest` (official). Not vendored — it's a hosted service needing an API key (`magic_api_key`). Config taken from official 21st.dev docs (https://21st.dev/magic), verified 2026-07-19.
