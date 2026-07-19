@@ -7,7 +7,7 @@ Dynamic site stack (LPR chose dynamic over static, 2026-07-19).
 - **shadcn/ui** — component primitives (Magic MCP also emits shadcn/Tailwind, so they compose).
 - **Framer Motion** — animation.
 - Design intelligence: sibling skills `design-system`, `ui-ux-pro-max`, `ui-styling`.
-- UI generation: `magic` MCP (21st.dev), optional (needs API key).
+- UI generation: `magic` MCP (21st.dev via mcp-remote/OAuth), optional (no API key).
 
 ## Scaffold commands (run in the target parent dir)
 
@@ -25,7 +25,7 @@ npx shadcn@latest init
 
 ## Windows / SRVLM01 notes
 - Node.js: `C:\Program Files\nodejs` (v24). npm/npx available.
-- Magic MCP runs via `npx -y @21st-dev/magic@latest` with `API_KEY` (plugin `magic_api_key` config). If `npx` stdio flakes on Windows, the fallback is hand-building from `ui-styling` + shadcn — Magic is an accelerator, not a hard dependency.
+- Magic MCP runs via `npx -y mcp-remote https://21st.dev/api/mcp` (OAuth sign-in on first use — no key). MCP servers load at Claude Code session start, so after enabling the plugin, a session restart is needed before the 21st tools appear. If `npx`/mcp-remote flakes on Windows, the fallback is hand-building from `ui-styling` + shadcn — Magic is an accelerator, not a hard dependency.
 - Keep the generated project OFF the `E:\-4-` tooling contour; put site projects in a work/projects location (ask the user; for KEG, inside the KEG working area or a dedicated `sites/` dir they choose).
 
 ## Design-token wiring

@@ -17,7 +17,7 @@ Invocation: `/site <brief-folder>` (see the `site` command) or just describe the
 ## Preconditions (check first, fix if missing)
 
 1. **Node.js** on PATH (`node -v`). On SRVLM01 it is at `C:\Program Files\nodejs` (v24). If missing, stop and tell the user.
-2. **Magic MCP** (optional but recommended): needs the `magic_api_key` plugin config (21st.dev). If empty/unset, proceed WITHOUT Magic — build UI from the `ui-ux-pro-max`/`ui-styling` skills + shadcn/ui directly, and say so in the report. Do not block on it.
+2. **Magic MCP** (optional but recommended): the 21st.dev MCP via mcp-remote/OAuth (no API key; sign in on first use). Loads at session start — if just enabled, restart the session for its tools to appear. If unavailable, proceed WITHOUT Magic — build UI from the `ui-ux-pro-max`/`ui-styling` skills + shadcn/ui directly, and say so in the report. Do not block on it.
 3. **Design skills present**: the sibling skills `design-system`, `ui-ux-pro-max`, `ui-styling` ship in this plugin — invoke them, do not reinvent their databases.
 
 ## Phases
