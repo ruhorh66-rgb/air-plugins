@@ -1,0 +1,9 @@
+{
+  "name": "markitdown",
+  "version": "0.1.0",
+  "description": "Convert PDFs, Office docs, images and more to clean Markdown *locally* before feeding them to the model — so you don't burn tokens (or leak sensitive files to a cloud) on raw documents. Wraps the local MarkItDown install on E:\\-4-; the recipe (when/how) lives here in the shareable catalog.",
+  "author": { "name": "AIR OS" },
+  "license": "MIT",
+  "keywords": ["markitdown", "pdf", "docx", "xlsx", "pptx", "ocr", "markdown", "tokens", "document-extraction", "local"],
+  "defaultEnabled": false
+}

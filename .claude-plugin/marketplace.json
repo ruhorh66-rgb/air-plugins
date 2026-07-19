@@ -9,6 +9,11 @@
       "name": "site-builder",
       "source": "./site-builder",
       "description": "Brief-in, website-out: dynamic Next.js site scaffolder with vendored UI/UX Pro Max design skills + 21st.dev Magic MCP + Framer Motion."
+    },
+    {
+      "name": "markitdown",
+      "source": "./markitdown",
+      "description": "Convert PDFs/Office docs/images to Markdown locally before reading them into the model — save tokens, keep sensitive files off cloud extractors. Recipe wrapping the local MarkItDown install (E:\\-4-)."
     }
   ]
 }
