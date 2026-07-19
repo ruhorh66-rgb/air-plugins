@@ -1,0 +1,28 @@
+# Copy this file into a new brief folder, rename to brief.yaml, fill it in.
+name: ""                    # (required)
+purpose: ""                 # (required) landing | product-showcase | lead-gen | portfolio
+audience: ""                # (required) clients | partners | investors
+language: [ru]              # (required) [ru] | [en] | [ru, en]
+
+pages:                      # (required)
+  - slug: home
+    goal: ""
+    sections: [hero, about, offer, cta]
+
+tone: ""
+
+brand:                      # optional — leave empty to auto-generate a design system
+  logo: ""
+  colors: []
+  fonts: []
+  style_hint: ""
+
+content:
+  docs: []                  # local content files (DOCX/PDF ok — extracted via MarkItDown)
+  notes: ""
+
+constraints:
+  no_publish: true          # keep true until you explicitly decide to deploy
+  deploy_target: none       # vercel | netlify | none
+
+output_dir: ""              # (required) e.g. E:\-3-\Projects\<site>  (NOT on E:\-4-)

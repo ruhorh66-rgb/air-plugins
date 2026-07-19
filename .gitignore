@@ -1,0 +1,29 @@
+# Secrets — never commit
+.env
+*.env
+**/.env
+*.key
+*.pem
+.credentials.json
+
+# Node / build
+node_modules/
+.next/
+dist/
+build/
+
+# Python runtime (should not live here anyway)
+venv/
+__pycache__/
+*.pyc
+
+# Heavy artifacts that belong on E:\-4-, never here
+*.gguf
+*.safetensors
+*_cache/
+downloads/
+outputs/
+
+# OS
+.DS_Store
+Thumbs.db

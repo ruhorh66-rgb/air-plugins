@@ -1,0 +1,14 @@
+{
+  "name": "air-plugins",
+  "owner": { "name": "ruhorh66-rgb" },
+  "metadata": {
+    "description": "AIR OS plugin/skill catalog (E:\\-7-) — shareable Claude Code plugins and skills, kept separate from the private runtime/models on E:\\-4-."
+  },
+  "plugins": [
+    {
+      "name": "site-builder",
+      "source": "./site-builder",
+      "description": "Brief-in, website-out: dynamic Next.js site scaffolder with vendored UI/UX Pro Max design skills + 21st.dev Magic MCP + Framer Motion."
+    }
+  ]
+}
