@@ -21,6 +21,17 @@ dispatcher.py retry --failed
 dispatcher.py show --job 17
 ```
 
+## What is here
+
+| File | Role |
+|---|---|
+| `llm_client.py` | slot semaphore — stops callers oversubscribing the server's parallel slots |
+| `dispatcher.py` | the queue on top of it: priorities, restart survival, retry, visibility |
+| `nightly_vault_fill.py` | unattended overnight run driven by a manifest |
+
+All three keep their state and their site-specific configuration in the data directory,
+never beside the code.
+
 ## Requirements
 
 - a local OpenAI-compatible server (built against `llama-server`);
@@ -41,6 +52,25 @@ this repository. That separation is deliberate: results contain whatever was pro
 and that is exactly what must not follow the code into a public repo.
 
 Without the variable, everything sits beside the script — fine for a scratch setup.
+
+`nightly_vault_fill.py` additionally reads `nightly_config.json` from the data directory:
+
+```json
+{
+  "air_vault_skill_scripts": "/path/to/skill/scripts",
+  "python": "/path/to/python-with-requests",
+  "llama_health_url": "http://127.0.0.1:8080/health",
+  "llama_start_bat": "/path/to/start-server script"
+}
+```
+
+Every value may also come from an environment variable instead. **Nothing has a
+hard-coded default naming a real directory** — a default pointing at the wrong place
+fails later and more confusingly than a missing-setting error at startup, and a default
+naming a real machine leaks its layout into this repository.
+
+The manifest of projects to process (`nightly_scan_projects.json`) is likewise data:
+it names vaults and source roots, and stays private.
 
 ## Behaviour worth knowing
 
