@@ -17,7 +17,7 @@ exactly as it already does for the Magic/Glif MCPs.
 
 | Skill | Repo | License | Layer it adds | Plugs into |
 |---|---|---|---|---|
-| **Taste Skill** | `Leonxlnx/taste-skill` (tasteskill.dev) | open-source — **confirm LICENSE before vendoring** | "anti-slop" design *direction*: reads the brief, infers a design language, tunes VARIANCE / MOTION / DENSITY dials, ships GSAP code skeletons + a redesign-audit protocol | Phase 1 (design direction) and Phase 3 (build) |
+| **Taste Skill** | `Leonxlnx/taste-skill` (tasteskill.dev) | **MIT** (Copyright (c) 2026 Leonxlnx; confirmed 2026-07-20) | "anti-slop" design *direction*: reads the brief, infers a design language, tunes VARIANCE / MOTION / DENSITY dials, ships GSAP code skeletons + a redesign-audit protocol | Phase 1 (design direction) and Phase 3 (build) |
 | **Impeccable** | `pbakaus/impeccable` (impeccable.style) | **Apache-2.0** | deterministic design **quality audit + polish**: `/impeccable init\|audit\|polish\|…` (23 commands), a shared `.impeccable/design.json` spec and a Live Mode | Phase 4 (review / polish gate) |
 | **Emil animations** | `emilkowalski/skills` | **MIT** | **animation craft**: `emil-design-eng`, `review-animations`, `improve-animations`, `find-animation-opportunities`, `animation-vocabulary`, `apple-design`. Enforces <300ms UI motion, custom easing, "when NOT to animate" | Phase 3 (animation) and Phase 4 (animation audit) |
 
@@ -65,8 +65,11 @@ description-match, same as any skill.
 3. Copy the upstream LICENSE into the skill folder.
 4. Record source URL, license, version and pinned commit in `site-builder/VENDOR.md`
    (see the "Candidate external design skills" section there).
-Only do this for a permissive license you have read: Impeccable (Apache-2.0) and Emil
-(MIT) are clear; **Taste Skill's LICENSE must be checked first.**
+All three licenses are permissive and confirmed (read from each repo's LICENSE on
+2026-07-20): Impeccable **Apache-2.0**, Taste Skill **MIT**, Emil **MIT** — all safe to
+vendor. Byte-faithful vendoring still has to run where the repos can be cloned (a fresh
+session with the repo as the initial source, or the machine that owns `E:\-7-`); a scoped
+session cannot clone cross-owner repos.
 
 ## How `build-site` uses them (optional-layer contract)
 See `../SKILL.md` phases. In short: if the skill is present, invoke it at the phase

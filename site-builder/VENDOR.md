@@ -27,9 +27,9 @@ To vendor one, clone it, pin a commit, copy its `.claude/skills/<name>/` tree in
 
 | Skill | Source | License | Status |
 |---|---|---|---|
-| Taste Skill | https://github.com/Leonxlnx/taste-skill (tasteskill.dev) | open-source — **read LICENSE before vendoring** | documented + wired optional; not vendored |
-| Impeccable | https://github.com/pbakaus/impeccable (impeccable.style) | Apache-2.0 | documented + wired optional; not vendored (safe to vendor) |
-| Emil animations | https://github.com/emilkowalski/skills | MIT | documented + wired optional; not vendored (safe to vendor) |
+| Taste Skill | https://github.com/Leonxlnx/taste-skill (tasteskill.dev) | **MIT** (Copyright (c) 2026 Leonxlnx; confirmed 2026-07-20) | documented + wired optional; not vendored (safe to vendor) |
+| Impeccable | https://github.com/pbakaus/impeccable (impeccable.style) | Apache-2.0 (confirmed 2026-07-20) | documented + wired optional; not vendored (safe to vendor) |
+| Emil animations | https://github.com/emilkowalski/skills | MIT (confirmed 2026-07-20) | documented + wired optional; not vendored (safe to vendor) |
 
 Verified against each repo's public page on 2026-07-20. Runtime-install alternative:
 `npx skills@latest add emilkowalski/skills`, `npx impeccable install`.
