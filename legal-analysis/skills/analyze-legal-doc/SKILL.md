@@ -89,14 +89,27 @@ Record one of five outcomes: `confirmed` · `defect` · `reinforced` · `unresol
 question is not evidence that a citation was invented. `unverifiable` requires a
 `coverage_note` explaining why the check is impossible.
 
-Persist every check so it is not repeated:
+**Never generate a verbatim quote — retrieve it.** A quote may be emitted only if it is
+already in the verified-norm store; otherwise state the norm in your own words and mark
+it unresolved. Removing the opportunity to invent a citation works; asking for care does
+not.
 
 ```bash
-python scripts/learning_store.py record-norm --input norm.json
 python scripts/learning_store.py lookup-norm --act "ГК РФ" --article "431.2"
+python scripts/learning_store.py record-norm --input norm.json
 ```
 
 `unresolved` is recorded too — a fruitless search, written down, is a result.
+
+**A missing source blocks the analysis, it does not soften it.** No source → say what is
+missing and stop. A confident answer built on an incomplete base is indistinguishable
+from a complete one, which is exactly what makes it dangerous.
+
+**Do not call something a defect from analogy.** Numbering does not transfer between
+codes — unconditional grounds sit in ГПК ч. 4 ст. 330, АПК ч. 4 ст. 270 but КАС **ч. 1**
+ст. 310. Likewise, an act you do not recognise is not thereby invented: your knowledge
+has a cutoff, the document may be newer. Check before accusing; a false accusation of
+fabrication costs more than the error it imagines.
 
 **Watch for the new factual question.** When verification produces `reinforced`, it often
 implies a fact nobody established — e.g. a rule that turns on *who drafted the clause*

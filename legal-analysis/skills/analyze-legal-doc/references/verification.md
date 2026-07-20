@@ -15,6 +15,47 @@ Check in this order and stop at the highest available:
 
 A position resting only on levels 3–4 is not verified. Mark it `candidate`.
 
+## Quote whitelist: never generate a citation, only retrieve one
+
+The strongest available defence against fabricated citations, and it is structural rather
+than exhortative: **a verbatim quote may only be emitted if it already exists in the
+verified-norm store.** The model does not produce the quote — it looks it up.
+
+```bash
+python scripts/learning_store.py lookup-norm --act "ГК РФ" --article "431.2"
+```
+
+Rules:
+
+- a quote not present in the store is **not quoted**. State the norm in your own words
+  and mark it `unresolved` until the text is read from a primary source and recorded;
+- when a norm is verified, record it with `record-norm` **including the exact wording
+  relied on**, so the next session retrieves rather than re-derives it;
+- never assemble a quote from non-adjacent fragments — that is the standard mechanism by
+  which a plausible fabrication is produced;
+- an empty store is not a licence to improvise. If nothing is recorded and no primary
+  source can be read in this session, the analysis is blocked, not guessed.
+
+Asking a model to "be careful with citations" does not work. Removing its opportunity to
+invent one does.
+
+*Adopted from a partner's system specification reviewed 2026-07-20 (FILE-031-00066); its
+whitelist design was stronger than this skill's original approach and is taken directly.*
+
+## Fail-closed: absence blocks, it does not soften
+
+When a required source is missing, the correct output is a **block with a stated gap**,
+not a hedged answer:
+
+```text
+нет источника        → вывод заблокирован, перечислить чего не хватает
+источник не покрывает → unverifiable + coverage_note
+источник противоречит → defect + опровергающая ссылка
+```
+
+A confident answer assembled from an incomplete base is worse than no answer, because it
+is indistinguishable from a complete one.
+
 ## What "verified" requires
 
 All three, or the unit is not verified:
