@@ -6,6 +6,13 @@
       "env": {
         "API_KEY": "${user_config.magic_api_key}"
       }
+    },
+    "glif": {
+      "command": "npx",
+      "args": ["-y", "@glifxyz/glif-mcp-server@latest"],
+      "env": {
+        "GLIF_API_TOKEN": "${user_config.glif_api_token}"
+      }
     }
   }
 }
