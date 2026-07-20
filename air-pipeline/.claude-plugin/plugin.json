@@ -1,0 +1,18 @@
+{
+  "name": "air-pipeline",
+  "version": "0.1.0",
+  "description": "AIR OS knowledge-pipeline skills. v0.1 ships idea-card: create atomic, cross-project Idea Cards in the 002_Ideas_Wiki vault from external inputs (video/article/post), enforcing the mandatory relevance gate (relevant_projects non-empty + a non-generic applicability section). Further pipeline steps (vault-init, graphify, cross-link, session-handoff) are roadmapped and deliberately not shipped until their real source procedures are provided — see ROADMAP.md.",
+  "author": { "name": "AIR OS" },
+  "license": "MIT",
+  "keywords": ["air-os", "obsidian", "wiki", "knowledge-cards", "idea-card", "pipeline", "capture"],
+  "defaultEnabled": false,
+  "userConfig": {
+    "ideas_vault_path": {
+      "type": "string",
+      "title": "Path to the 002_Ideas_Wiki vault",
+      "description": "Absolute path to the local 002_Ideas_Wiki vault (its 01_CARDS/ folder receives new cards). Kept OUTSIDE this public repo on purpose. If empty, the skill asks where to write and can also target the vault via its git remote when run in a Claude Code session that has it in scope.",
+      "sensitive": false,
+      "required": false
+    }
+  }
+}

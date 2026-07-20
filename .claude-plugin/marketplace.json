@@ -19,6 +19,11 @@
       "name": "legal-analysis",
       "source": "./legal-analysis",
       "description": "Verification-first review of legal documents: local text extraction, decomposition into checkable theses, verification of every legal qualification against the primary source, and knowledge cards marked verified or candidate."
+    },
+    {
+      "name": "air-pipeline",
+      "source": "./air-pipeline",
+      "description": "AIR OS knowledge-pipeline skills. v0.1 ships idea-card: atomic cross-project Idea Cards in 002_Ideas_Wiki with the mandatory relevance gate. Other pipeline steps roadmapped (need their source procedures)."
     }
   ]
 }
