@@ -15,3 +15,21 @@ Why vendored (not runtime-installed): durability. This capability is used occasi
 ## Magic MCP (21st.dev)
 
 Declared in `.mcp.json`, run via `npx -y @21st-dev/magic@latest` (official). Not vendored — it's a hosted service needing an API key (`magic_api_key`). Config taken from official 21st.dev docs (https://21st.dev/magic), verified 2026-07-19.
+
+## Candidate external design skills (optional — NOT yet vendored)
+
+`build-site` can layer three external Claude Code design skills on top of the vendored
+base (see `skills/build-site/references/external-design-skills.md`). They are documented
+and wired as **optional** but not vendored here yet — they live under other GitHub owners
+and were not clonable from the scoped session that added this integration (2026-07-20).
+To vendor one, clone it, pin a commit, copy its `.claude/skills/<name>/` tree into
+`site-builder/skills/<name>/`, add its LICENSE, and record it below.
+
+| Skill | Source | License | Status |
+|---|---|---|---|
+| Taste Skill | https://github.com/Leonxlnx/taste-skill (tasteskill.dev) | open-source — **read LICENSE before vendoring** | documented + wired optional; not vendored |
+| Impeccable | https://github.com/pbakaus/impeccable (impeccable.style) | Apache-2.0 | documented + wired optional; not vendored (safe to vendor) |
+| Emil animations | https://github.com/emilkowalski/skills | MIT | documented + wired optional; not vendored (safe to vendor) |
+
+Verified against each repo's public page on 2026-07-20. Runtime-install alternative:
+`npx skills@latest add emilkowalski/skills`, `npx impeccable install`.

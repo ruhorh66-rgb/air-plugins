@@ -6,6 +6,7 @@ Brief-in, website-out. Built for **occasional, zero-recall reuse** — you feed 
 - **skill `build-site`** — the orchestrator recipe (input→output contract, phases). Entry point: `/site <brief-folder>`.
 - **vendored design skills** (`ui-ux-pro-max`, `design-system`, `ui-styling`, `design`, `brand`, `slides`, `banner-design`) — pinned copy of the official [UI/UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (MIT). Provides the design database (styles, palettes, font pairings). See `VENDOR.md`.
 - **`magic` MCP** (`.mcp.json`) — [21st.dev Magic](https://21st.dev/magic), generates polished shadcn/Tailwind UI. Needs an API key (plugin config `magic_api_key`, from https://21st.dev/magic/console). Optional — without it the design skills + shadcn still build the site.
+- **optional external design skills** — [taste-skill](https://github.com/Leonxlnx/taste-skill) (design *direction*), [impeccable](https://github.com/pbakaus/impeccable) (quality audit/polish), [Emil Kowalski's animation skills](https://github.com/emilkowalski/skills) (motion craft). Layered on top of the vendored base if installed; fall back to the vendored path if not. See `skills/build-site/references/external-design-skills.md` and `VENDOR.md`.
 - **agent `site-builder`** — runs a build in an isolated context.
 
 ## Stack
