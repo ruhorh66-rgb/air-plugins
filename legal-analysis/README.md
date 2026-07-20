@@ -47,17 +47,62 @@ Both are reported. A review that only produces criticism is doing half the work.
 
 This repository is public. It carries the **method** only.
 
-Vault paths, target projects, house quality standards and the accumulated base of
-verified norms live in a private config outside this repo, referenced through the
-`config_path` user setting. Without that config the skill runs generically and asks
-where to put results.
+Vault paths, target projects and house quality standards live in a private config
+**outside any git working tree**, referenced through the `config_path` user setting or
+the `LEGAL_ANALYSIS_CONFIG` environment variable. Without that config the skill runs
+generically and asks where to put results.
+
+Keeping it outside a working tree is deliberate, not tidiness. A config that a running
+tool reads by absolute path, stored inside a repository, is deleted from disk by any
+branch switch — the tool then runs unconfigured with no error pointing at the cause.
+Store runtime configuration in a runtime location.
+
+The accumulated base of verified norms is not in the config at all: it lives in the
+skill's local learning database (see below), which is likewise outside git.
 
 Document text is extracted **locally**. The document itself is never uploaded for
 conversion. Web access is used only to read published legal sources — statutes and
 court guidance — never to send the material under review.
 
+## Learning store
+
+The skill keeps a local SQLite database of what it proposed, what the decision-maker
+corrected, and the rules derived from those corrections — plus an accumulating base of
+norms already checked against a primary source, so the same article is not re-verified
+from scratch every session and fruitless searches are not repeated.
+
+```
+python scripts/learning_store.py init
+python scripts/learning_store.py lookup-norm --act "ГК РФ" --article "431.2"
+python scripts/learning_store.py record-norm --input norm.json
+python scripts/learning_store.py export-context
+```
+
+An `unresolved` verification is recorded as a result, not discarded — that is what stops
+the next session repeating a search that already came back empty.
+
+The database implements a shared cross-skill contract so one analyzer can read every
+skill's store in a single pass: a `learning_meta` passport, `feedback` (raw corrections)
+and `patterns` (derived rules with confirmation and counterexample counters). It never
+stores document text, extracted bodies, attachment bytes or credentials — external
+objects are referenced only through an HMAC of their locator.
+
 ## Status
 
-v0.1.0 — derived from a real review run (13-slide legal deck, 2026-07-20) that
-produced four defects, one reinforcement and eleven knowledge cards. Not yet exercised
-across multiple document types.
+**v1.0.0** — 2026-07-20.
+
+The jump from 0.1.0 is a MAJOR bump, not inflation: the thesis model changed in a way
+that breaks backward compatibility. A factual claim now requires a character-offset span
+to be promoted at all, a legal qualification is stored as a three-slot syllogism rather
+than a sentence, and verification returns one of five outcomes instead of two. Artifacts
+produced by 0.1.0 do not satisfy the new model — they are not upgradeable in place, only
+re-derivable. Under semantic versioning that is MAJOR by definition.
+
+Derived from two real review runs: a 13-slide legal deck and four recovered documents by
+the same author, together producing four defects, three reinforcements, twenty-two
+knowledge cards and two decision forks. The reinforcement cases shaped the method —
+verification is treated as an amplifier, not only a filter.
+
+Not yet exercised on: contracts, court decisions, scanned originals requiring OCR, or
+any document outside a single author's work-product. The learning store is live but
+holds one rule and no episodes — the skill has not yet been corrected by anyone.
