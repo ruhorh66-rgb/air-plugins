@@ -9,6 +9,11 @@
       "name": "site-builder",
       "source": "./site-builder",
       "description": "Brief-in, website-out: dynamic Next.js site scaffolder with vendored UI/UX Pro Max design skills + 21st.dev Magic MCP + Framer Motion."
+    },
+    {
+      "name": "legal-analysis",
+      "source": "./legal-analysis",
+      "description": "Verification-first review of legal documents: local text extraction, decomposition into checkable theses, verification of every legal qualification against the primary source, and knowledge cards marked verified or candidate."
     }
   ]
 }
