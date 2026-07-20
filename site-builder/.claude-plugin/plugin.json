@@ -1,16 +1,23 @@
 {
   "name": "site-builder",
   "version": "0.1.0",
-  "description": "Brief-in, website-out. Scaffolds a dynamic Next.js site from a brief, styled by the vendored UI/UX Pro Max design skills and 21st.dev Magic MCP components, with Framer Motion. Built for occasional, zero-recall reuse.",
+  "description": "Brief-in, website-out. Scaffolds a dynamic Next.js site from a brief, styled by the vendored UI/UX Pro Max design skills and 21st.dev Magic MCP components, with Framer Motion and Glif-generated visuals. Built for occasional, zero-recall reuse.",
   "author": { "name": "AIR OS" },
   "license": "MIT",
-  "keywords": ["website", "nextjs", "ui", "design", "scaffold", "21st.dev", "framer-motion"],
+  "keywords": ["website", "nextjs", "ui", "design", "scaffold", "21st.dev", "framer-motion", "glif", "image-generation"],
   "defaultEnabled": false,
   "userConfig": {
     "magic_api_key": {
       "type": "string",
       "title": "21st.dev Magic API key",
       "description": "API key from https://21st.dev/magic/console. Used by the bundled Magic MCP to generate UI components. Free tier is small; leave empty to skip Magic and rely on the vendored design skills only.",
+      "sensitive": true,
+      "required": false
+    },
+    "glif_api_token": {
+      "type": "string",
+      "title": "Glif API token",
+      "description": "API token from https://glif.app/settings/api-tokens. Used by the bundled Glif MCP to generate site visuals (hero images, illustrations, icons, OG images). Leave empty to skip visual generation and fall back to explicit placeholders.",
       "sensitive": true,
       "required": false
     }

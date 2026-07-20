@@ -1,0 +1,18 @@
+{
+  "name": "legal-analysis",
+  "version": "0.1.0",
+  "description": "Verification-first analysis of legal documents. Extracts text locally, decomposes the material into checkable theses, verifies every legal qualification against the primary source (statute + supreme-court guidance), separates established fact from hypothesis, and emits knowledge cards marked verified or candidate. Built for reviewing incoming work-product before it enters an accepted knowledge layer.",
+  "author": { "name": "AIR OS" },
+  "license": "MIT",
+  "keywords": ["legal", "analysis", "verification", "due-diligence", "knowledge-cards", "primary-source", "document-review"],
+  "defaultEnabled": false,
+  "userConfig": {
+    "config_path": {
+      "type": "string",
+      "title": "Path to the private profile config",
+      "description": "Absolute path to a local legal-analysis.toml holding vault paths, target projects and house quality standards. Kept OUTSIDE this repository on purpose — this plugin is published publicly and must not carry private paths or proprietary methodology. If empty, the skill runs in generic mode and asks where to write results.",
+      "sensitive": false,
+      "required": false
+    }
+  }
+}

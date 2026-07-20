@@ -1,0 +1,53 @@
+# legal-analysis — profile config EXAMPLE
+#
+# Copy this file OUTSIDE the repository, fill in real values, and point the plugin's
+# `config_path` user setting at the copy.
+#
+# This repository is public. Never commit a filled-in config: vault paths, project
+# names and house standards are private. The example carries placeholders only.
+
+version = 1
+
+[extraction]
+# Local converter for documents with a text layer.
+converter_command = "<absolute path to a local markitdown-class converter>"
+# Local OCR fallback for scans and images. Must be local — see references/extraction.md.
+ocr_command = "<absolute path to a local OCR converter>"
+ocr_languages = ["rus", "eng"]
+# Reject an extraction whose yield is implausibly small for the document size.
+min_chars_warning = 500
+
+[verification]
+# Sources consulted for statutory text and higher-court guidance, in preference order.
+primary_sources = ["<legal database 1>", "<legal database 2>"]
+# Never assert a norm from model memory — see references/verification.md.
+require_session_read = true
+# Record an unresolved search as a result rather than discarding it.
+record_unresolved = true
+
+[vaults]
+# Where emitted cards go. One entry per project this skill serves.
+default_project = "<PROJECT_ID>"
+
+[vaults.projects.<PROJECT_ID>]
+path = "<absolute path to the project vault>"
+method_cards = "<relative path for method cards>"
+legal_cards = "<relative path for legal knowledge cards>"
+source_cards = "<relative path for source cards>"
+registry = "<relative path to the card registry>"
+originals = "<relative path for originals>"
+originals_in_git = false
+
+[standards]
+# House quality standards enforced on emitted material. Reference card ids in the
+# private vault; the rules themselves are proprietary and stay out of this repo.
+fact_vs_hypothesis_marking = true
+require_supreme_court_backing_for_external = true
+one_norm_per_card = true
+
+[gates]
+# Nothing below happens without a separate explicit instruction.
+write_to_accepted_layer = "confirm"
+create_task = "confirm"
+send_outward = "confirm"
+emit_case_layer = "forbidden"

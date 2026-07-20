@@ -6,6 +6,12 @@
 *.pem
 .credentials.json
 
+# Filled-in profile configs — carry private vault paths, project names and
+# proprietary house standards. Only *.example.toml may be published.
+legal-analysis/config/*.toml
+!legal-analysis/config/*.example.toml
+**/config/local.toml
+
 # Node / build
 node_modules/
 .next/

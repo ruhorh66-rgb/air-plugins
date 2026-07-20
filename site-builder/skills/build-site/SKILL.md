@@ -1,6 +1,6 @@
 ---
 name: build-site
-description: Build a website end-to-end from a brief — brief-in, site-out. Use when the user wants to create/generate a website, landing page, or marketing site from content + requirements. Scaffolds a dynamic Next.js app, applies a design system via the bundled UI/UX Pro Max skills, generates polished UI with the 21st.dev Magic MCP, adds Framer Motion animation, previews, and hands off the source.
+description: Build a website end-to-end from a brief — brief-in, site-out. Use when the user wants to create/generate a website, landing page, or marketing site from content + requirements. Scaffolds a dynamic Next.js app, applies a design system via the bundled UI/UX Pro Max skills, generates polished UI with the 21st.dev Magic MCP, generates matching visuals with the Glif MCP, adds Framer Motion animation, previews, and hands off the source.
 ---
 
 # Build Site
@@ -18,7 +18,8 @@ Invocation: `/site <brief-folder>` (see the `site` command) or just describe the
 
 1. **Node.js** on PATH (`node -v`). On SRVLM01 it is at `C:\Program Files\nodejs` (v24). If missing, stop and tell the user.
 2. **Magic MCP** (optional but recommended): needs the `magic_api_key` plugin config (21st.dev). If empty/unset, proceed WITHOUT Magic — build UI from the `ui-ux-pro-max`/`ui-styling` skills + shadcn/ui directly, and say so in the report. Do not block on it.
-3. **Design skills present**: the sibling skills `design-system`, `ui-ux-pro-max`, `ui-styling` ship in this plugin — invoke them, do not reinvent their databases.
+3. **Glif MCP** (optional): needs the `glif_api_token` plugin config (glif.app). Covers generated visuals — hero imagery, illustrations, icons, OG images. If empty/unset, proceed WITHOUT Glif: use explicit, clearly-marked placeholders and list them in the report so the user can supply real assets. Do not block on it, and never silently ship a placeholder as final.
+4. **Design skills present**: the sibling skills `design-system`, `ui-ux-pro-max`, `ui-styling` ship in this plugin — invoke them, do not reinvent their databases.
 
 ## Phases
 
@@ -38,11 +39,20 @@ For each page in the brief:
 - Apply **Framer Motion** for section transitions/entrance animations (tasteful, not gratuitous).
 - Keep it accessible (semantic HTML, contrast per `ui-ux-pro-max` guidelines, keyboard nav).
 
+### Phase 3b — Visual assets (Glif)
+Components from Phase 3 are structure; this step fills the imagery they frame. For each visual the brief calls for (hero, section illustrations, icons, OG/social preview):
+- Find a fitting workflow with `search_workflows` / `list_featured_workflows`, then `run_workflow`. Prefer one workflow family across the whole site so the visuals read as one set, not a stock-image grab bag.
+- Feed the Phase 1 design system into the prompt (palette, mood, style name) — the generated art must sit inside the same system as the type and color, not beside it.
+- Save into the project (e.g. `public/images/`) and reference locally. Do not hotlink generated URLs — they expire.
+- Record in the report which images are generated vs. supplied by the user. Generated art is a **draft asset**: brand-critical marks (logo, legal/marketing imagery) are never generated — ask for the real thing.
+
+If the Glif token is unset, skip generation and emit marked placeholders instead (see Precondition 3).
+
 ### Phase 4 — Verify (drive it, don't assume — Module_01 п. 6.28)
 `npm run build` must pass; start `npm run dev` and open the preview to confirm it renders (use the browser/preview tools). Fix errors before declaring done. Check responsive (mobile + desktop) and light/dark if in scope.
 
 ### Phase 5 — Hand off
-Write `SITE_REPORT.md`: what was built (pages, chosen style/palette/fonts, whether Magic was used), how to `npm run dev` / build, and deployment notes. **Publishing/deploying externally is a separate explicit user decision** — do not deploy without it.
+Write `SITE_REPORT.md`: what was built (pages, chosen style/palette/fonts, whether Magic was used), which images are Glif-generated vs. user-supplied vs. still placeholders, how to `npm run dev` / build, and deployment notes. **Publishing/deploying externally is a separate explicit user decision** — do not deploy without it.
 
 ## Non-goals / guardrails
 - Do not deploy or publish without explicit user go-ahead.
