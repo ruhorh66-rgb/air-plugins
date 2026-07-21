@@ -8,7 +8,7 @@
     {
       "name": "site-builder",
       "source": "./site-builder",
-      "description": "Brief-in, website-out: dynamic Next.js site scaffolder with vendored UI/UX Pro Max design skills + shadcn/ui + Framer Motion, optional Glif MCP for generated visuals."
+      "description": "Brief-in, website-out: dynamic Next.js site scaffolder with vendored UI/UX Pro Max design skills, a vendored taste layer (design direction) and animation-craft layer + shadcn/ui + Framer Motion, optional Glif MCP for generated visuals."
     },
     {
       "name": "markitdown",
