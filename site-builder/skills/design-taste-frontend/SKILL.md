@@ -334,7 +334,7 @@ Landing pages live on the **first impression**, not the full read. Cut ruthlessl
 
 * **Max 3 lines** of quote body. Never 6. If the original quote is longer → cut it. A landing-page quote is a snippet, not the full review.
 * For very small font sizes (e.g. footer-style testimonials), the line cap can stretch slightly. Spirit: "fits in a glance."
-* **No em-dashes inside the quote text** as design flourish (long pauses, kinetic em-dashes, em-dash-bullets). See Section 9.G - em-dash is completely banned.
+* **No em-dashes inside the quote text** as design flourish (long pauses, kinetic em-dashes, em-dash-bullets). See Section 9.G - banned outright in English copy, and in other languages banned only where the dash is decorative rather than grammatical.
 * Attribution: name + role + (optionally) company. Never name only ("- Sarah").
 * Quote marks: use real typographic quotes ( " " ) or none at all. Not straight ASCII ( " ).
 
@@ -646,7 +646,7 @@ These patterns came out of real LLM-generated landing-page tests. They are the s
 * **NO decorative colored status dots on every list/nav/badge.** A colored dot before "ONE Q4 SLOT OPEN" or before every nav link, or every task row - banned by default. Acceptable only when the dot conveys actual semantic state (a server status, an availability flag) and is used sparingly.
 
 **Em-dashes & typography flourishes**
-* **NO em-dash (`—`) as a design element OR anywhere else.** See Section 9.G below for the complete, non-negotiable ban. The em-dash character is forbidden in headlines, eyebrows, pills, body copy, quotes, attribution, captions, button text, and alt text. Use the regular hyphen (`-`).
+* **NO em-dash (`—`) as a design element.** See Section 9.G below, including its language-scope note. In English copy the character is forbidden outright in headlines, eyebrows, pills, body copy, quotes, attribution, captions, button text and alt text - use the regular hyphen (`-`). In languages where the dash is required punctuation (Russian and other Cyrillic-script languages), only decorative use is banned.
 * **NO `<br>`-broken-and-italicized headlines** as a default "design move." "for thirty\<br\>*years.*" type splits. Headlines should read naturally first, get clever only when the brief demands it.
 * **NO vertical rotated text** ("INDEX OF WORK, 2018 - 2026" rotated 90°). Agency-portfolio cliché. Use it only when the brief is explicitly agency / Awwwards / experimental AND it serves a real composition purpose.
 * **NO crosshair / hairline grid lines as decoration.** Vertical and horizontal lines drawn just to make the page "feel designed" - banned. Use them only when they organize real content.
@@ -684,7 +684,30 @@ These patterns came out of real LLM-generated landing-page tests. They are the s
 
 ### 9.G EM-DASH BAN (the single most-violated Tell)
 
-**Em-dash (`—`) is COMPLETELY banned.** It is the LLM's signature stylistic crutch and it is the #1 visual Tell in production tests. There is no "limited use" allowance, no "natural language frequency" allowance, no "in body copy is fine" allowance. None.
+**SCOPE: this rule applies to English-language copy only.** It is a stylistic
+anti-tell, not a typographic law, and it does not transfer to languages whose
+orthography requires the dash. Before applying it, check the language of the
+visible copy:
+
+* **English (and other languages where the dash is optional style):** the ban
+  below applies in full, exactly as written.
+* **Russian, Ukrainian, Belarusian, Bulgarian:** **do not apply this rule.**
+  The dash (`—`, тире) is mandatory punctuation, not a flourish. It marks the
+  omitted copula (`Наш подход — надстройка, а не замена`), introduces direct
+  speech, and separates an explanatory clause. Replacing it with a hyphen makes
+  the text illiterate, which on a professional site costs far more than any
+  hypothetical AI-tell.
+* **French, Spanish, Polish, Portuguese:** the dash carries real functions
+  (dialogue, parenthetical asides). Apply the ban to decorative use only, never
+  to grammatical use.
+* **Mixed-language pages:** judge per string, by the language of that string.
+
+The point of the rule is to stop the model reaching for `—` as a *rhythm
+device* when a comma, colon or period would do. It is not a licence to break
+another language's grammar. If you cannot tell whether a given dash is
+grammatical or decorative, leave it and say so in the report.
+
+**In English copy, em-dash (`—`) is COMPLETELY banned.** It is the LLM's signature stylistic crutch and it is the #1 visual Tell in production tests. There is no "limited use" allowance, no "natural language frequency" allowance, no "in body copy is fine" allowance. None.
 
 * **Banned in headlines.** Use a period or a comma.
 * **Banned in eyebrows / labels / pills / button text / image captions / nav items.** Replace with line breaks, columns, or hairlines.
@@ -696,9 +719,9 @@ The ONLY permitted dash characters on the page are:
 * Regular hyphen `-` (for compound words, ranges, line dividers in markup)
 * Minus sign in math (`-5°C`)
 
-If your output contains a single `—` or `–` anywhere visible to the user, the output fails the Pre-Flight Check and must be rewritten.
+If your **English** output contains a single `—` or `–` anywhere visible to the user, the output fails the Pre-Flight Check and must be rewritten.
 
-This rule is non-negotiable. The agent has historically ignored em-dash limits when phrased as "use sparingly." The phrasing here is binary: zero em-dashes.
+Within English copy this rule is non-negotiable. The agent has historically ignored em-dash limits when phrased as "use sparingly," so the phrasing here is binary: zero em-dashes. That binary applies to the language, not across languages — see the scope note at the top of this section.
 
 ---
 
@@ -917,7 +940,7 @@ Run this matrix before outputting code. This is the last filter.
 - [ ] **Dial values** explicit and reasoned from the brief, not silently using baseline?
 - [ ] **Design system** chosen from Section 2 if applicable, or aesthetic labeled honestly?
 - [ ] **Redesign mode** detected and audit performed (if applicable, Section 11)?
-- [ ] **ZERO em-dashes (`—`) anywhere on the page.** Headlines, eyebrows, pills, body, quotes, attribution, captions, buttons, alt text. Zero. (Section 9.G - non-negotiable.)
+- [ ] **ZERO em-dashes (`—`) in ENGLISH copy on the page.** Headlines, eyebrows, pills, body, quotes, attribution, captions, buttons, alt text. Zero. For Russian / Ukrainian / Belarusian / Bulgarian copy this box is N/A - the dash is mandatory punctuation there, see the scope note in Section 9.G. Do not strip grammatical dashes to tick this box.
 - [ ] **Page Theme Lock**: ONE theme (light, dark, or auto) for the whole page. No section flips to inverted mode mid-page (Section 4.11)?
 - [ ] **Color Consistency Lock**: one accent color used identically across all sections (Section 4.2)?
 - [ ] **Shape Consistency Lock**: one corner-radius system applied consistently (Section 4.4)?
