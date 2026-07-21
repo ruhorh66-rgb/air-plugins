@@ -150,9 +150,20 @@ Notarial and registry documents, handwritten inserts, foreign-language originals
 document outside the Russian procedural/contract contour. No episode yet originates from a
 decision-maker's correction — both recorded episodes are self-corrections from measurement.
 
-One environmental limit is worth stating plainly, because it caps what "verified" can mean
-here: on the workstation these runs were made, the reference legal systems, the official
-publication portal and the case index were all unreachable, and every norm was read from a
-single tier-3 publisher of statutory text. That is recorded in each norm's
-`verified_against` rather than smoothed over, and it is why the one thesis needing
+One environmental limit shaped these runs and is worth stating, because of how it was
+found and what it cost: on the workstation they were made, the reference legal systems, the
+official publication portal and the case index were all unreachable, so every norm was read
+from a single tier-3 publisher of statutory text — recorded in each norm's
+`verified_against` rather than smoothed over, and the reason the one thesis needing
 higher-court guidance stayed `unresolved`.
+
+It turned out not to be censorship or DNS. TCP connections to those hosts completed
+through the tunnel while HTTPS requests timed out — the signature of application-layer
+geo-filtering against a foreign egress, fixed by routing those destinations directly rather
+than by anything the skill could do. Two norms were then re-read at a reference system and
+their provenance raised.
+
+The transferable part is the diagnostic: **when a legal source "does not respond", check
+whether TCP completes before concluding the source is blocked or gone.** The three cases —
+unreachable, geo-filtered, and genuinely absent — call for completely different actions, and
+only the third is a statement about the law.

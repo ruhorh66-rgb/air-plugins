@@ -60,6 +60,26 @@ Rules for that situation:
 Unreachability is an environment fault, not a licence to reason from memory. The rule
 that a missing source blocks the analysis is unchanged by *why* it is missing.
 
+### Diagnose the silence before accepting it
+
+A source that "does not respond" is three different situations, and they call for three
+different actions:
+
+| Symptom | Likely cause | Action |
+|---|---|---|
+| TCP connect fails or times out | Network path, DNS, or the host is gone | Environment problem; report it |
+| **TCP connects, HTTPS times out** | Application-layer filtering of your egress | Route or exit differently — the source is fine |
+| Page loads, article absent | The source genuinely does not cover it | `unverifiable` with a `coverage_note` |
+
+The middle row is the one that gets misread as the third. In the run above, every "dead"
+legal source completed a TCP handshake and then stalled on the request: the sites were
+serving normally and declining a foreign exit point. One routing exception restored all of
+them. Time spent recording `unresolved` verdicts was time spent documenting a network
+setting.
+
+Check which of the three you have before writing the verdict down — an `unverifiable` that
+was really a routing problem is a false statement about the law, filed permanently.
+
 ## Quote whitelist: never generate a citation, only retrieve one
 
 The strongest available defence against fabricated citations, and it is structural rather
