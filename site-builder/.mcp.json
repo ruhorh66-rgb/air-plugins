@@ -1,10 +1,10 @@
 {
   "mcpServers": {
     "glif": {
-      "command": "npx",
-      "args": ["-y", "@glifxyz/glif-mcp-server@latest"],
-      "env": {
-        "GLIF_API_TOKEN": "${user_config.glif_api_token}"
+      "type": "http",
+      "url": "https://glif.app/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${user_config.glif_api_token}"
       }
     }
   }
