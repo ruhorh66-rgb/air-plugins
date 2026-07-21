@@ -1,10 +1,10 @@
 {
   "name": "site-builder",
-  "version": "0.1.0",
-  "description": "Brief-in, website-out. Scaffolds a dynamic Next.js site from a brief, styled by the vendored UI/UX Pro Max design skills, with Framer Motion and Glif-generated visuals. Built for occasional, zero-recall reuse.",
+  "version": "0.2.0",
+  "description": "Brief-in, website-out. Scaffolds a dynamic Next.js site from a brief, styled by the vendored UI/UX Pro Max design skills plus a vendored taste layer (design direction) and animation-craft layer, with Framer Motion and Glif-generated visuals. Built for occasional, zero-recall reuse.",
   "author": { "name": "AIR OS" },
   "license": "MIT",
-  "keywords": ["website", "nextjs", "ui", "design", "scaffold", "framer-motion", "glif", "image-generation"],
+  "keywords": ["website", "nextjs", "ui", "design", "scaffold", "framer-motion", "glif", "image-generation", "animation", "design-taste"],
   "defaultEnabled": false,
   "userConfig": {
     "glif_api_token": {

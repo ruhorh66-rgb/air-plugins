@@ -20,10 +20,11 @@ Dynamic **Next.js (App Router) + TypeScript + Tailwind + shadcn/ui + Framer Moti
 
 ## Install (local marketplace, same pattern as air-os-governance)
 ```
-claude plugin marketplace add "E:/-4-/site-builder"
-claude plugin install site-builder@site-builder-local
+claude plugin marketplace add "E:/-7-"
+claude plugin install site-builder@air-plugins
 ```
+Already installed? A plugin update only re-copies when the version in `.claude-plugin/plugin.json` changes — bump it, then `claude plugin marketplace update air-plugins && claude plugin update site-builder@air-plugins`. Editing files in `E:\-7-` alone does **not** affect the running plugin; it runs from a cache copy under `~/.claude/plugins/cache/air-plugins/`.
 `defaultEnabled: false` — it connects to an external service (glif.app), so it installs disabled; enable it deliberately. Verify with `claude plugin list`.
 
 ## Status
-v0.1.0 skeleton (2026-07-19). First real run planned: the 031_KEG site. The recipe self-improves — real-build gotchas get appended to `skills/build-site/references/stack.md`.
+v0.2.0 (2026-07-20) — vendored taste + animation layers on top of the v0.1.0 skeleton (2026-07-19). First real run planned: the 031_KEG site. The recipe self-improves — real-build gotchas get appended to `skills/build-site/references/stack.md`.
