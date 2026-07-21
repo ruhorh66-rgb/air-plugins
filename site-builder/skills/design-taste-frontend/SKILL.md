@@ -253,8 +253,32 @@ LLMs default to "static successful state only." Always implement full cycles:
 * **EYEBROW RESTRAINT (mandatory, the #1 violated rule in production tests).** An "eyebrow" is the small uppercase wide-tracking label sitting above a section headline (e.g. `FOUR COLORWAYS`, `SELECTED WORK`, `THE HARDWARE`, `Git-native task management`). Typical CSS signature: `text-[11px] uppercase tracking-[0.18em]`, `font-mono text-[10.5px] uppercase tracking-[0.22em]`. Every AI-built site puts an eyebrow above EVERY section header, producing the same templated rhythm. Hard rule:
   - **Maximum 1 eyebrow per 3 sections.** Hero counts as 1. So a page with 9 sections may use at most 3 eyebrows total.
   - If section A has an eyebrow, the next 2 sections cannot have one.
-  - **Pre-Flight Check is mechanical:** count instances of `uppercase tracking` (or similar small-caps mono labels above headlines) across all section components. If count > ceil(sectionCount / 3), the output fails.
+  - **Counting: grep first, then classify. Never act on the raw grep number.**
+    `grep "uppercase tracking"` is the way to FIND candidates, not the count
+    itself. The same CSS signature is used all over a normal page by things that
+    are not eyebrows, and deleting them on a raw count destroys working markup.
+    **A candidate counts as an eyebrow only if ALL of these hold:**
+    1. it sits at section level, immediately before that section's headline;
+    2. it labels the section as a whole, not an item inside it;
+    3. removing it would cost no information the headline does not already carry.
+  - **Explicitly NOT eyebrows (never count, never delete):** footer column
+    headers (`Разделы`, `Contact`, `Legal`); nav or logo-lockup sub-labels;
+    `<dt>` / definition terms and field labels inside cards; captions under
+    figures, metrics or images; badge and pill text (`Наш контур`, `Beta`);
+    table column headers; form labels; any `<h2>`/`<h3>` that happens to be
+    styled uppercase — that is a heading, not an eyebrow.
+  - **Report both numbers.** State the raw grep count and the classified count,
+    e.g. *"24 candidates, 11 real eyebrows across 15 sections, limit 5."* A single
+    unexplained number hides whether the check was actually performed.
+  - **Count per page, not per site.** The limit is `ceil(sectionsOnThisPage / 3)`.
+    A 5-page site is five separate budgets; summing across pages produces a
+    meaningless number and a false failure.
   - **What to do instead of an eyebrow:** drop it entirely. The headline alone is enough. If you need to categorize a section, the section's location on the page already categorizes it; no label needed.
+  - **Exception worth taking:** if a section has an eyebrow and NO headline, the
+    eyebrow is doing the headline's job. Promote it to a real `<h2>` rather than
+    deleting it — that satisfies this rule and fixes the document outline, which
+    was broken anyway. Deleting it leaves an unnamed section, which is worse than
+    the eyebrow you started with.
 * **SPLIT-HEADER BAN (mandatory).** The pattern "left big headline + right small explainer paragraph" as a section header (left col-span-7/8, right col-span-4/5 with a small body paragraph floating in the right column) is **banned as default**. Sections should have ONE focused message. If you genuinely need both a headline and an explainer paragraph, stack them vertically (headline on top, body below, max-width 65ch). Reach for the split-header pattern only when there is a real compositional reason (e.g., the right column carries a visual or interactive element, not just filler text).
 * **Bento Background Diversity (mandatory).** Bento and feature-grid sections cannot be 6 white-on-white cards with text inside. At least 2-3 cells in any multi-cell grid need real visual variation: a real image, a brand-appropriate gradient (not AI-purple), a pattern, a tinted background. A cream-on-cream bento with only typography inside reads as boring AI default, even when the rest of the page is good.
 * **Mobile collapse must be explicit per section.** For every multi-column layout, declare the `< 768px` fallback in the same component. No "it'll work, Tailwind handles it" assumptions.
@@ -953,7 +977,7 @@ Run this matrix before outputting code. This is the last filter.
 - [ ] **Hero fits the viewport**: headline ≤ 2 lines, subtext ≤ 20 words AND ≤ 4 lines, CTA visible without scroll, font scale planned around image?
 - [ ] **Hero top padding**: max `pt-24` at desktop, hero content does not float halfway down the viewport?
 - [ ] **Hero stack discipline**: max 4 text elements in hero (eyebrow OR brand strip, headline, subtext, CTAs)? No tiny tagline below CTAs, no trust micro-strip in hero?
-- [ ] **EYEBROW COUNT (mechanical)**: count instances of `uppercase tracking` micro-labels above section headlines across all components. Count ≤ ceil(sectionCount / 3)? Hero counts as 1.
+- [ ] **EYEBROW COUNT (grep, then classify)**: grep `uppercase tracking` to find candidates, then classify each against the exclusion list in Section 4.7 (footer column headers, nav sub-labels, `<dt>` and field labels, captions, badges, table headers, uppercase headings are NOT eyebrows). Classified count ≤ ceil(sectionsOnThisPage / 3)? Hero counts as 1. Budget is per page, not per site. Report raw and classified counts both - a bare number means the classification step was skipped.
 - [ ] **Split-Header Ban**: no "left big headline + right small explainer paragraph" pattern as a section header (vertical stack instead)?
 - [ ] **Zigzag Alternation Cap**: no 3+ consecutive sections with the same image+text-split layout?
 - [ ] **No Duplicate CTA Intent**: no two CTAs with the same intent ("Get in touch" + "Let's talk" both on page = Fail)?
