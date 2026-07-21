@@ -14,12 +14,26 @@ converter_command = "<absolute path to a local markitdown-class converter>"
 # Local OCR fallback for scans and images. Must be local — see references/extraction.md.
 ocr_command = "<absolute path to a local OCR converter>"
 ocr_languages = ["rus", "eng"]
+# Language data for OCR, when it does not live beside the binary.
+tessdata_prefix = "<absolute path to tessdata>"
+# Converter output is written to a file in this encoding, never piped through a console:
+# a legacy code page turns a successful extraction into a UnicodeEncodeError.
+output_encoding = "utf-8"
 # Reject an extraction whose yield is implausibly small for the document size.
 min_chars_warning = 500
+# OCR renders some Cyrillic words in Latin homoglyphs; normalise before regexes and
+# before offsets are taken, or rule-based extraction silently under-reports.
+normalise_homoglyphs = true
 
 [verification]
-# Sources consulted for statutory text and higher-court guidance, in preference order.
-primary_sources = ["<legal database 1>", "<legal database 2>"]
+# Statutory text and higher-court guidance, in preference order: official publication
+# first, reference legal systems second — see references/verification.md.
+primary_sources = ["<official publication portal>", "<legal database 1>", "<legal database 2>"]
+# Publishers of statutory text used only when nothing above is reachable. A read from
+# here is recorded as such and never presented as a check against the official text.
+fallback_sources = ["<statute publisher>"]
+# Facts come from registers, not from the same page as the norm.
+fact_sources = ["<company register>", "<case index>", "<enforcement register>", "<insolvency register>"]
 # Never assert a norm from model memory — see references/verification.md.
 require_session_read = true
 # Record an unresolved search as a result rather than discarding it.

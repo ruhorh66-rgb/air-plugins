@@ -241,6 +241,10 @@ def cmd_record_norm(args: argparse.Namespace) -> dict:
             raise SystemExit(f"missing required field: {field}")
     if payload["outcome"] not in VALID_OUTCOMES:
         raise SystemExit(f"outcome must be one of: {', '.join(sorted(VALID_OUTCOMES))}")
+    # An `unverifiable` without a reason is indistinguishable from laziness, so the
+    # documented requirement is enforced here rather than left to the caller.
+    if payload["outcome"] == "unverifiable" and not payload.get("coverage_note"):
+        raise SystemExit("outcome 'unverifiable' requires coverage_note")
 
     database = connect(state_dir())
     create_schema(database)
@@ -254,14 +258,15 @@ def cmd_record_norm(args: argparse.Namespace) -> dict:
     if existing:
         database.execute(
             "UPDATE verified_norms SET outcome=?, summary=?, verified_against=?,"
-            " source_url=?, card_ref=?, usage_count=usage_count+1, updated_at=?"
-            " WHERE norm_id=?",
+            " source_url=?, card_ref=?, coverage_note=?, usage_count=usage_count+1,"
+            " updated_at=? WHERE norm_id=?",
             (
                 payload["outcome"],
                 payload["summary"],
                 payload["verified_against"],
                 payload.get("source_url"),
                 payload.get("card_ref"),
+                payload.get("coverage_note"),
                 timestamp,
                 existing["norm_id"],
             ),
@@ -273,8 +278,8 @@ def cmd_record_norm(args: argparse.Namespace) -> dict:
     norm_id = next_id(database, "verified_norms", "norm_id", NORM_PREFIX)
     database.execute(
         "INSERT INTO verified_norms(norm_id, act, article, outcome, summary,"
-        " verified_against, source_url, card_ref, usage_count, verified_at, updated_at)"
-        " VALUES(?,?,?,?,?,?,?,?,1,?,?)",
+        " verified_against, source_url, card_ref, coverage_note, usage_count,"
+        " verified_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,1,?,?)",
         (
             norm_id,
             payload["act"],
@@ -284,6 +289,7 @@ def cmd_record_norm(args: argparse.Namespace) -> dict:
             payload["verified_against"],
             payload.get("source_url"),
             payload.get("card_ref"),
+            payload.get("coverage_note"),
             timestamp,
             timestamp,
         ),
@@ -484,8 +490,8 @@ def cmd_export_context(args: argparse.Namespace) -> dict:
         " ORDER BY pattern_id"
     ).fetchall()
     norms = database.execute(
-        "SELECT act, article, outcome, summary, verified_against, card_ref, usage_count"
-        " FROM verified_norms ORDER BY act, article"
+        "SELECT act, article, outcome, summary, verified_against, card_ref,"
+        " coverage_note, usage_count FROM verified_norms ORDER BY act, article"
     ).fetchall()
     return {
         "schema_version": SCHEMA_VERSION,

@@ -52,11 +52,16 @@ never goes out.
 - clean first (HTML, PDF artifacts, hyphenation, whitespace), **then** take offsets;
 - write the cleaned text to a companion `.txt` beside the original and record its hash —
   spans point at that file, not at the binary;
-- verify the yield: a 13-slide deck returning 200 characters means extraction failed,
-  not that the deck is empty;
+- verify the yield **in both directions**: too little text means extraction failed; too
+  much means OCR read stamps and tables as body text and invented data nobody asserted;
+- **scans** go through the local OCR branch (rasterise → `tesseract -l rus+eng`), and OCR
+  output is normalised for Latin homoglyphs *before* offsets are taken — otherwise `ГК РФ`
+  comes back with a Latin `K` and every rule-based check over it silently misses;
+- when a scan has a text-layer twin of the same text, anchor spans to the twin and use the
+  OCR only for what only the signed copy carries;
 - hash the original (SHA-256), keep it outside version control.
 
-Read `references/extraction.md` for formats, failure modes and encoding traps.
+Read `references/extraction.md` for formats, the OCR branch, failure modes and encoding traps.
 
 ## Decompose
 
@@ -116,8 +121,14 @@ implies a fact nobody established — e.g. a rule that turns on *who drafted the
 when no material says who drafted it. That question is a fork, not a footnote: surface it
 explicitly.
 
-Read `references/verification.md` for source hierarchy, precision-over-force and the
-two recurring error shapes.
+**Norm from the primary source, fact from the register.** Statutory text comes from the
+official publication or a reference legal system; company, case and enforcement facts come
+from ЕГРЮЛ / kad.arbitr / ФССП / ЕФРСБ. If the tier you need is unreachable from this
+machine, say so in `verified_against` and leave the thesis `unresolved` — unreachable is a
+statement about the network, not about the law.
+
+Read `references/verification.md` for source hierarchy, where the text is actually read,
+precision-over-force and the two recurring error shapes.
 
 ## Review
 

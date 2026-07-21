@@ -15,6 +15,51 @@ Check in this order and stop at the highest available:
 
 A position resting only on levels 3–4 is not verified. Mark it `candidate`.
 
+## Where the text is actually read (RU contour)
+
+The hierarchy above says *what* counts. This says *where* to get it, in order:
+
+1. **Official publication** — `pravo.gov.ru` / `publication.pravo.gov.ru` for the act as
+   published, and the court's own site (`vsrf.ru`, `arbitr.ru`, `kad.arbitr.ru`) for
+   judicial acts. This is the only tier that is authoritative on wording.
+2. **Reference legal systems** — КонсультантПлюс, ГАРАНТ: current consolidated text with
+   edition markers, plus higher-court guidance. In practice the working tier.
+3. **Other publishers of the statutory text** — sites that reproduce the code article by
+   article. Usable to *read* a norm; not authoritative on the current edition.
+4. **Practice aggregators** (sudact and similar) — for locating an act, then read it at
+   its source.
+
+Facts come from registers, never from the same page as the norm: ЕГРЮЛ, `kad.arbitr.ru`,
+ФССП, ЕФРСБ. **Norm from the primary source, fact from the register** — a document
+asserting both is one source making two different kinds of claim.
+
+### When the source tier you need is unreachable
+
+Network reality is part of verification, and it is not a detail to paper over. Measured on
+one workstation on 2026-07-21: the two major reference legal systems, the official
+publication portal and the case index all timed out, while general internet access was
+fine; exactly one publisher of statutory text answered. Ten norms were read that session —
+every one of them from a single tier-3 source.
+
+That is workable for statutory text and **not** workable for practice: a site that
+publishes codes does not publish plenum guidance, so a thesis needing level 2 of the
+hierarchy stays `unresolved`, with the reason recorded.
+
+Rules for that situation:
+
+- record what you actually read, naming the publisher and the fact that it was the only
+  reachable one — `verified_against` is what makes a re-check possible, so an inflated
+  provenance is worse than a modest one;
+- do not upgrade a tier-3 read into "checked against the official text";
+- a thesis that needs higher-court guidance is `unresolved` with a `coverage_note`
+  distinguishing *unreachable from here* from *does not exist* — the second is a claim
+  about the law, the first is a claim about the network;
+- when two publishers are reachable, read both and treat a discrepancy as a stop
+  condition, not as an average.
+
+Unreachability is an environment fault, not a licence to reason from memory. The rule
+that a missing source blocks the analysis is unchanged by *why* it is missing.
+
 ## Quote whitelist: never generate a citation, only retrieve one
 
 The strongest available defence against fabricated citations, and it is structural rather
@@ -71,7 +116,7 @@ legal_norms_verified: true
 verified_against: "<act>, <article/paragraph> (<source>), checked <YYYY-MM-DD>"
 ```
 
-## Four outcomes
+## Five outcomes
 
 | Outcome | Meaning | Action |
 |---|---|---|
@@ -79,6 +124,11 @@ verified_against: "<act>, <article/paragraph> (<source>), checked <YYYY-MM-DD>"
 | `defect` | Fails or is materially imprecise against the source | Report with the defeating source; do not emit as knowledge |
 | `reinforced` | Holds, and rests on a rule the author did not cite | Emit, and tell the author what strengthened it |
 | `unresolved` | No direct guidance located | Record as a result: "no direct guidance found"; keep as candidate |
+| `unverifiable` | The source cannot answer this in principle | Record with a `coverage_note` saying why |
+
+`unverifiable` without a `coverage_note` is rejected by the store rather than stored
+half-filled — the note is the whole difference between "this cannot be checked" and
+"nobody checked".
 
 `unresolved` is a finding, not a failure. Recording it prevents the same fruitless
 search being repeated later.

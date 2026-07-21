@@ -76,6 +76,7 @@ python scripts/learning_store.py init
 python scripts/learning_store.py lookup-norm --act "ГК РФ" --article "431.2"
 python scripts/learning_store.py record-norm --input norm.json
 python scripts/learning_store.py export-context
+python scripts/test_learning_store.py     # self-check, no framework needed
 ```
 
 An `unresolved` verification is recorded as a result, not discarded — that is what stops
@@ -89,20 +90,69 @@ objects are referenced only through an HMAC of their locator.
 
 ## Status
 
-**v1.0.0** — 2026-07-20.
+**v1.1.0** — 2026-07-21. MINOR: the thesis model and the verification outcomes are
+unchanged, so v1.0.0 artifacts remain valid. What changed is coverage — an OCR branch for
+scans, a stated retrieval order for reading Russian legal sources, and the corrections
+that came out of running the skill on material it had never seen.
 
-The jump from 0.1.0 is a MAJOR bump, not inflation: the thesis model changed in a way
-that breaks backward compatibility. A factual claim now requires a character-offset span
-to be promoted at all, a legal qualification is stored as a three-slot syllogism rather
-than a sentence, and verification returns one of five outcomes instead of two. Artifacts
-produced by 0.1.0 do not satisfy the new model — they are not upgradeable in place, only
-re-derivable. Under semantic versioning that is MAJOR by definition.
+### v1.0.0 (2026-07-20) — where the model came from
 
-Derived from two real review runs: a 13-slide legal deck and four recovered documents by
-the same author, together producing four defects, three reinforcements, twenty-two
-knowledge cards and two decision forks. The reinforcement cases shaped the method —
+The jump from 0.1.0 was a MAJOR bump, not inflation: a factual claim now requires a
+character-offset span to be promoted at all, a legal qualification is stored as a
+three-slot syllogism rather than a sentence, and verification returns one of five outcomes
+instead of two. Artifacts produced by 0.1.0 are not upgradeable in place, only re-derivable.
+
+It was derived from two review runs on one author's work-product — a 13-slide legal deck
+and four recovered documents — producing four defects, three reinforcements, twenty-two
+knowledge cards and two decision forks. The reinforcement cases shaped the method:
 verification is treated as an amplifier, not only a filter.
 
-Not yet exercised on: contracts, court decisions, scanned originals requiring OCR, or
-any document outside a single author's work-product. The learning store is live but
-holds one rule and no episodes — the skill has not yet been corrected by anyone.
+### v1.1.0 — exercised on the document types it had never seen
+
+Eight real documents across four project vaults, six distinct authors:
+
+| Type | Document | Extraction |
+|---|---|---|
+| Court act | Определение об оставлении встречного иска без движения, АС СПб и ЛО | text layer, 3 724 chars |
+| Contract | Договор подряда (проект), группа заказчика | text layer, 94 075 chars |
+| Scanned original | Тот же договор, подписанный экземпляр, 36 стр., 14.9 MB | OCR fallback, 121 380 chars |
+| Cross-author set | 4 определения трёх арбитражных судов + досудебная претензия контрагента | text layer |
+
+Produced: **1 defect in the reviewed material, 2 reinforcements, 3 forks, 1 unresolved**
+(recorded as a result, not discarded), plus **2 defects in this skill's own code and
+documentation**, both fixed here:
+
+- `record-norm` accepted a `coverage_note`, the table had the column, and the INSERT
+  dropped it — so `unverifiable`, the outcome whose entire meaning is *why* the check is
+  impossible, was stored without its reason. Now persisted, required, exported, and
+  covered by `scripts/test_learning_store.py`.
+- `references/verification.md` documented four outcomes where the model has five.
+
+Extraction findings, measured against a ground-truth pair (the same contract as draft text
+and as a signed scan — 99.4% shared distinct words, 10 of 12 sampled 15-word fragments
+verbatim):
+
+- 0.77% of OCR words came back rendered entirely in Latin homoglyphs (`MK` for `ГК`);
+  normalising recovered a statutory reference the deterministic pass had lost;
+- OCR **over**-extraction turned out to matter as much as under-extraction: 7 distinct
+  percentage values in the text layer became 17 in the OCR, ten of them artefacts of
+  stamps and tables.
+
+The learning store is no longer empty of experience: **15 verified norms** (13 confirmed,
+1 reinforced, 1 unresolved), **5 active patterns**, **2 recorded episodes**. Norms cover
+АПК ст. 128 / 129 / 132 / ч. 4 ст. 270, ГПК ч. 4 ст. 330, КАС ч. 1 ст. 310 — the three
+codes that make the "numbering does not transfer" trap concrete — and ГК ст. 395, 397,
+407, 431.2, 855, НК ст. 76.
+
+### What is still not exercised
+
+Notarial and registry documents, handwritten inserts, foreign-language originals, and any
+document outside the Russian procedural/contract contour. No episode yet originates from a
+decision-maker's correction — both recorded episodes are self-corrections from measurement.
+
+One environmental limit is worth stating plainly, because it caps what "verified" can mean
+here: on the workstation these runs were made, the reference legal systems, the official
+publication portal and the case index were all unreachable, and every norm was read from a
+single tier-3 publisher of statutory text. That is recorded in each norm's
+`verified_against` rather than smoothed over, and it is why the one thesis needing
+higher-court guidance stayed `unresolved`.
