@@ -4,10 +4,10 @@ Dynamic site stack (LPR chose dynamic over static, 2026-07-19).
 
 ## Core stack
 - **Next.js** (App Router) + **TypeScript** + **Tailwind CSS** — the base.
-- **shadcn/ui** — component primitives (Magic MCP also emits shadcn/Tailwind, so they compose).
+- **shadcn/ui** — component primitives.
 - **Framer Motion** — animation.
 - Design intelligence: sibling skills `design-system`, `ui-ux-pro-max`, `ui-styling`.
-- UI generation: `magic` MCP (21st.dev), optional (needs API key).
+- Visual generation: `glif` MCP, optional (needs API token).
 
 ## Scaffold commands (run in the target parent dir)
 
@@ -25,7 +25,8 @@ npx shadcn@latest init
 
 ## Windows / SRVLM01 notes
 - Node.js: `C:\Program Files\nodejs` (v24). npm/npx available.
-- Magic MCP runs via `npx -y @21st-dev/magic@latest` with `API_KEY` (plugin `magic_api_key` config). If `npx` stdio flakes on Windows, the fallback is hand-building from `ui-styling` + shadcn — Magic is an accelerator, not a hard dependency.
+- Glif MCP runs via `npx -y @glifxyz/glif-mcp-server@latest` with `GLIF_API_TOKEN` (plugin `glif_api_token` config). If `npx` stdio flakes on Windows, fall back to marked placeholders — generated visuals are an accelerator, not a hard dependency.
+- 21st.dev Magic was dropped 2026-07-20 (LPR decision): its AI generation is paid-plan-only, and the vendored `ui-ux-pro-max` / `ui-styling` skills already cover UI construction. Do not re-add it as a dependency.
 - Keep the generated project OFF the `E:\-4-` tooling contour; put site projects in a work/projects location (ask the user; for KEG, inside the KEG working area or a dedicated `sites/` dir they choose).
 
 ## Design-token wiring

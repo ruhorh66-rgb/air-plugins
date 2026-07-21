@@ -8,7 +8,7 @@
     {
       "name": "site-builder",
       "source": "./site-builder",
-      "description": "Brief-in, website-out: dynamic Next.js site scaffolder with vendored UI/UX Pro Max design skills + 21st.dev Magic MCP + Framer Motion."
+      "description": "Brief-in, website-out: dynamic Next.js site scaffolder with vendored UI/UX Pro Max design skills + shadcn/ui + Framer Motion, optional Glif MCP for generated visuals."
     },
     {
       "name": "markitdown",

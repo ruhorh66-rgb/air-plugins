@@ -1,11 +1,11 @@
 ---
 name: build-site
-description: Build a website end-to-end from a brief — brief-in, site-out. Use when the user wants to create/generate a website, landing page, or marketing site from content + requirements. Scaffolds a dynamic Next.js app, applies a design system via the bundled UI/UX Pro Max skills, generates polished UI with the 21st.dev Magic MCP, generates matching visuals with the Glif MCP, adds Framer Motion animation, previews, and hands off the source.
+description: Build a website end-to-end from a brief — brief-in, site-out. Use when the user wants to create/generate a website, landing page, or marketing site from content + requirements. Scaffolds a dynamic Next.js app, applies a design system via the bundled UI/UX Pro Max skills, builds UI with shadcn/ui + Tailwind, generates matching visuals with the Glif MCP, adds Framer Motion animation, previews, and hands off the source.
 ---
 
 # Build Site
 
-Turn a **brief** (what the site is, its content, audience, brand) into a **working dynamic website**. This skill is the orchestrator; the design intelligence lives in the sibling vendored skills (`design-system`, `ui-ux-pro-max`, `ui-styling`, `design`, `brand`) and in the `magic` MCP. You do not need to remember the recipe between projects — it is all here.
+Turn a **brief** (what the site is, its content, audience, brand) into a **working dynamic website**. This skill is the orchestrator; the design intelligence lives in the sibling vendored skills (`design-system`, `ui-ux-pro-max`, `ui-styling`, `design`, `brand`). You do not need to remember the recipe between projects — it is all here.
 
 ## Contract (input → output)
 
@@ -17,9 +17,9 @@ Invocation: `/site <brief-folder>` (see the `site` command) or just describe the
 ## Preconditions (check first, fix if missing)
 
 1. **Node.js** on PATH (`node -v`). On SRVLM01 it is at `C:\Program Files\nodejs` (v24). If missing, stop and tell the user.
-2. **Magic MCP** (optional but recommended): needs the `magic_api_key` plugin config (21st.dev). If empty/unset, proceed WITHOUT Magic — build UI from the `ui-ux-pro-max`/`ui-styling` skills + shadcn/ui directly, and say so in the report. Do not block on it.
-3. **Glif MCP** (optional): needs the `glif_api_token` plugin config (glif.app). Covers generated visuals — hero imagery, illustrations, icons, OG images. If empty/unset, proceed WITHOUT Glif: use explicit, clearly-marked placeholders and list them in the report so the user can supply real assets. Do not block on it, and never silently ship a placeholder as final.
-4. **Design skills present**: the sibling skills `design-system`, `ui-ux-pro-max`, `ui-styling` ship in this plugin — invoke them, do not reinvent their databases.
+2. **Glif MCP** (optional): needs the `glif_api_token` plugin config (glif.app). Covers generated visuals — hero imagery, illustrations, icons, OG images. If empty/unset, proceed WITHOUT Glif: use explicit, clearly-marked placeholders and list them in the report so the user can supply real assets. Do not block on it, and never silently ship a placeholder as final.
+3. **Design skills present**: the sibling skills `design-system`, `ui-ux-pro-max`, `ui-styling` ship in this plugin — invoke them, do not reinvent their databases.
+4. **Taste/craft layers present**: `design-taste-frontend` (design direction) and Emil Kowalski's `emil-design-eng` / `review-animations` / `improve-animations` (motion craft) are **vendored in this plugin** — treat them as available, same as the skills above. `impeccable` (quality audit/polish) is **not** vendored: it ships its own installer and hooks, so it is genuinely optional — use it at Phase 4 only if the user has installed it, and never block on it. See `references/external-design-skills.md`.
 
 ## Phases
 
@@ -29,14 +29,17 @@ Read `brief.yaml` + content docs. If a required field is missing or ambiguous (p
 ### Phase 1 — Design system first
 Invoke the **`design-system`** skill (and `ui-ux-pro-max` for style/palette/font selection) to produce a tailored design system for this brief: palette, typography pair, spacing/radius scale, component specs → emit as Tailwind theme + CSS variables (`design-tokens`). This is the "designer taste" layer. Pick a concrete style from the UI/UX Pro Max database that fits the brand; record the choice in the report.
 
+**Design direction (`design-taste-frontend`).** Run it *before* freezing the tokens: it reads the brief, infers a design language and tunes the VARIANCE / MOTION / DENSITY dials. Let it choose the direction; keep `ui-ux-pro-max` as the accessibility/rules check on top. Pick **one** direction-setter (`design-taste-frontend` **or** the UI/UX Pro Max style pick) — do not impose two design languages at once. Record the chosen dials in the report.
+
 ### Phase 2 — Scaffold the app
 Create a Next.js App-Router + TypeScript + Tailwind project in the target dir (see `references/stack.md` for exact commands and pinned choices). Wire the design tokens from Phase 1 into `tailwind.config` and globals. Add `framer-motion`.
 
 ### Phase 3 — Build pages/components
 For each page in the brief:
-- Generate polished components with the **`magic` MCP** (21st.dev `/ui` — glassmorphism, gradients, motion-ready, shadcn/ui + Tailwind). If Magic is unavailable, hand-build with `ui-styling` + shadcn/ui.
+- Build components with **`ui-styling` + shadcn/ui + Tailwind**, following the Phase 1 design system. Reach for `assets/patterns/` and `references/patterns.md` when a section needs to feel premium rather than flat.
 - Fill real content from the brief (never lorem ipsum for final; mark placeholders explicitly if content is missing and ask).
 - Apply **Framer Motion** for section transitions/entrance animations (tasteful, not gratuitous).
+- **Animation craft (`emil-design-eng`).** Use it to guide the motion: UI animations under ~300ms, custom easing (not CSS defaults), and its "when NOT to animate" rule. This owns the motion axis — it is the single source of animation taste over Framer Motion.
 - Keep it accessible (semantic HTML, contrast per `ui-ux-pro-max` guidelines, keyboard nav).
 
 ### Phase 3b — Visual assets (Glif)
@@ -46,13 +49,18 @@ Components from Phase 3 are structure; this step fills the imagery they frame. F
 - Save into the project (e.g. `public/images/`) and reference locally. Do not hotlink generated URLs — they expire.
 - Record in the report which images are generated vs. supplied by the user. Generated art is a **draft asset**: brand-critical marks (logo, legal/marketing imagery) are never generated — ask for the real thing.
 
-If the Glif token is unset, skip generation and emit marked placeholders instead (see Precondition 3).
+If the Glif token is unset, skip generation and emit marked placeholders instead (see Precondition 2).
 
 ### Phase 4 — Verify (drive it, don't assume — Module_01 п. 6.28)
 `npm run build` must pass; start `npm run dev` and open the preview to confirm it renders (use the browser/preview tools). Fix errors before declaring done. Check responsive (mobile + desktop) and light/dark if in scope.
 
+**Design + motion audit (checkers, not generators).** After the build renders:
+- **Emil `review-animations` → `improve-animations`** (vendored, always run) — audit the motion and apply the prioritized fixes.
+- **`impeccable`** (optional, only if the user installed it) — `/impeccable audit` then `/impeccable polish` for a deterministic design-quality pass. Use its audit/polish only; do NOT let it re-impose a second design language over Phase 1's direction.
+Record which audits ran (and their headline findings) in the report.
+
 ### Phase 5 — Hand off
-Write `SITE_REPORT.md`: what was built (pages, chosen style/palette/fonts, whether Magic was used), which images are Glif-generated vs. user-supplied vs. still placeholders, how to `npm run dev` / build, and deployment notes. **Publishing/deploying externally is a separate explicit user decision** — do not deploy without it.
+Write `SITE_REPORT.md`: what was built (pages, chosen style/palette/fonts), which images are Glif-generated vs. user-supplied vs. still placeholders, how to `npm run dev` / build, and deployment notes. **Publishing/deploying externally is a separate explicit user decision** — do not deploy without it.
 
 ## Non-goals / guardrails
 - Do not deploy or publish without explicit user go-ahead.
@@ -64,6 +72,7 @@ Write `SITE_REPORT.md`: what was built (pages, chosen style/palette/fonts, wheth
 After each real build, if you hit a reusable gotcha or a better step, append it to `references/stack.md` or this file (Core §2.5 self-documentation) so the next project — months later — benefits without you remembering it.
 
 ## References
+- `references/external-design-skills.md` — the **taste/craft/audit layers** (`design-taste-frontend`, Emil animations, `impeccable`): what each adds, which phase it plugs into, licenses, and which are vendored vs. external.
 - `references/stack.md` — exact stack, pinned commands, Windows notes.
 - `references/brief-schema.md` — the `brief.yaml` contract.
 - `references/patterns.md` — **premium motion patterns** (video hero, glass CTA, animated

@@ -1,12 +1,5 @@
 {
   "mcpServers": {
-    "magic": {
-      "command": "npx",
-      "args": ["-y", "@21st-dev/magic@latest"],
-      "env": {
-        "API_KEY": "${user_config.magic_api_key}"
-      }
-    },
     "glif": {
       "command": "npx",
       "args": ["-y", "@glifxyz/glif-mcp-server@latest"],
