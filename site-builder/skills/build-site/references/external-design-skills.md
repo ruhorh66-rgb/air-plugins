@@ -12,7 +12,7 @@ replacements** — UI/UX Pro Max stays the base and these layer on top.
 | Skill | Repo | License | Layer it adds | Plugs into | Status here |
 |---|---|---|---|---|---|
 | **Taste Skill** | `Leonxlnx/taste-skill` (tasteskill.dev) | **MIT** (© 2026 Leonxlnx) | "anti-slop" design *direction*: reads the brief, infers a design language, tunes VARIANCE / MOTION / DENSITY dials, ships GSAP code skeletons + a redesign-audit protocol | Phase 1 (design direction) | **vendored** → `skills/design-taste-frontend/` |
-| **Emil animations** | `emilkowalski/skills` | **MIT** (© 2026 Emil Kowalski) | **animation craft**: enforces <300ms UI motion, custom easing, "when NOT to animate" | Phase 3 (animation), Phase 4 (motion audit) | **vendored** → `skills/emil-design-eng/`, `skills/review-animations/`, `skills/improve-animations/` |
+| **Emil animations** | `emilkowalski/skills` | **MIT** (© 2026 Emil Kowalski) | **animation craft**: enforces <300ms UI motion, custom easing, "when NOT to animate" | Phase 3 (animation), Phase 4 (motion audit) | **vendored** → `skills/emil-design-eng/`, `skills/improve-animations/`, `skills/review-animations/` (last one user-invocable only, see below) |
 | **Impeccable** | `pbakaus/impeccable` (impeccable.style) | **Apache-2.0** | deterministic design **quality audit + polish**: `/impeccable init\|audit\|polish\|…`, a shared `.impeccable/design.json` spec and a Live Mode | Phase 4 (review / polish gate) | **not vendored — external, optional** |
 
 ### Why each is a complement, not a duplicate
@@ -68,6 +68,21 @@ providers and project-vs-global scope, and install the edit hook):
 ```bash
 npx impeccable install
 ```
+
+## Invocability and side-effects of the vendored Emil skills
+
+Found by reading the vendored frontmatter after the first install (2026-07-20) — both
+facts contradict the obvious reading of the skill names, so check them before wiring:
+
+- **`review-animations` cannot be called by the model.** Upstream sets
+  `disable-model-invocation: true`, making it user-only (`/review-animations`). A phase
+  that says "run review-animations" silently does nothing. It reviews a *diff* against
+  `STANDARDS.md` — offer it to the user as a manual gate, never schedule it.
+- **`improve-animations` does not improve anything by itself.** It is read-only by
+  design ("No mutating operations… Read-only analysis only") and emits an `AUDIT.md`
+  plus per-issue implementation plans meant to be executed by another agent. `build-site`
+  invokes it and then applies the plans itself. Do not report its audit as a fix.
+- **`emil-design-eng`** is a plain guide skill — no flags, safe to invoke at build time.
 
 ## Refreshing a vendored skill
 Re-clone upstream, copy the skill folder over the vendored one, and bump the pinned

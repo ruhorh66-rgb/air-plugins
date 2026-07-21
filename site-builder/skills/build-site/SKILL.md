@@ -19,7 +19,7 @@ Invocation: `/site <brief-folder>` (see the `site` command) or just describe the
 1. **Node.js** on PATH (`node -v`). On SRVLM01 it is at `C:\Program Files\nodejs` (v24). If missing, stop and tell the user.
 2. **Glif MCP** (optional): needs the `glif_api_token` plugin config (glif.app). Covers generated visuals — hero imagery, illustrations, icons, OG images. If empty/unset, proceed WITHOUT Glif: use explicit, clearly-marked placeholders and list them in the report so the user can supply real assets. Do not block on it, and never silently ship a placeholder as final.
 3. **Design skills present**: the sibling skills `design-system`, `ui-ux-pro-max`, `ui-styling` ship in this plugin — invoke them, do not reinvent their databases.
-4. **Taste/craft layers present**: `design-taste-frontend` (design direction) and Emil Kowalski's `emil-design-eng` / `review-animations` / `improve-animations` (motion craft) are **vendored in this plugin** — treat them as available, same as the skills above. `impeccable` (quality audit/polish) is **not** vendored: it ships its own installer and hooks, so it is genuinely optional — use it at Phase 4 only if the user has installed it, and never block on it. See `references/external-design-skills.md`.
+4. **Taste/craft layers present**: `design-taste-frontend` (design direction) and Emil Kowalski's `emil-design-eng` (build-time motion guide) + `improve-animations` (motion audit) are **vendored in this plugin** — treat them as available, same as the skills above. `review-animations` is vendored too but is **user-invocable only** (`disable-model-invocation: true` upstream) — you cannot call it; suggest it, do not schedule it. `impeccable` (quality audit/polish) is **not** vendored: it ships its own installer and hooks, so it is genuinely optional — use it at Phase 4 only if the user has installed it, and never block on it. See `references/external-design-skills.md`.
 
 ## Phases
 
@@ -55,9 +55,10 @@ If the Glif token is unset, skip generation and emit marked placeholders instead
 `npm run build` must pass; start `npm run dev` and open the preview to confirm it renders (use the browser/preview tools). Fix errors before declaring done. Check responsive (mobile + desktop) and light/dark if in scope.
 
 **Design + motion audit (checkers, not generators).** After the build renders:
-- **Emil `review-animations` → `improve-animations`** (vendored, always run) — audit the motion and apply the prioritized fixes.
+- **`improve-animations`** (vendored, always run) — invoke it on the built project. It is **read-only by design**: it emits a prioritized `AUDIT.md` plus self-contained implementation plans, and applies nothing. **You** then apply the plans it produced — do not report the audit as if it were the fix.
 - **`impeccable`** (optional, only if the user installed it) — `/impeccable audit` then `/impeccable polish` for a deterministic design-quality pass. Use its audit/polish only; do NOT let it re-impose a second design language over Phase 1's direction.
-Record which audits ran (and their headline findings) in the report.
+- **`review-animations`** — do **not** try to invoke this one: upstream ships it with `disable-model-invocation: true`, so only the user can run it, as `/review-animations`. It reviews a diff against Emil's `STANDARDS.md`. Offer it as a manual gate before hand-off; never block on it.
+Record which audits ran, which plans you applied, and their headline findings in the report.
 
 ### Phase 5 — Hand off
 Write `SITE_REPORT.md`: what was built (pages, chosen style/palette/fonts), which images are Glif-generated vs. user-supplied vs. still placeholders, how to `npm run dev` / build, and deployment notes. **Publishing/deploying externally is a separate explicit user decision** — do not deploy without it.
