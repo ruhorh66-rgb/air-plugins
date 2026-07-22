@@ -14,6 +14,7 @@ source_url: ""
 captured_at: YYYY-MM-DD
 relevant_projects: []
 tags: []
+gtd: someday        # someday | next | promoted:TASK-OBS-XXXX  (GTD: ideas = Someday/Maybe)
 ---
 
 # Короткое название идеи

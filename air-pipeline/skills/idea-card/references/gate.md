@@ -40,3 +40,10 @@ Never leave `relevant_projects` empty to "fix later" — that is exactly what fa
 Each bullet names a concrete mechanism, artifact, stage or number tying the idea to that
 project. If you cannot write that, the idea may simply not be relevant to that project —
 drop the project rather than pad the list.
+
+## Поле `gtd` (GTD-статус, не часть гейта)
+
+Каждая idea-карточка несёт `gtd: someday | next | promoted:TASK-OBS-XXXX` (по умолчанию
+`someday`). Это GTD-метка (002_Ideas = Someday/Maybe); гейт её не требует, но скил проставляет
+`someday` по умолчанию. При промоушене идеи в работу — завести задачу в 010 (TASK-OBS через
+Master Task Template) и поставить `gtd: promoted:TASK-OBS-XXXX`. Стандарт: 010 `STD-010-011`.

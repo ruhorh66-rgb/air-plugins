@@ -44,6 +44,7 @@ source_url: "..."
 captured_at: YYYY-MM-DD
 relevant_projects: [Vault_Map_key, ...]   # MANDATORY, non-empty — see references/gate.md
 tags: []
+gtd: someday   # someday | next | promoted:TASK-OBS-XXXX  (GTD; default someday — see 010 STD-010-011)
 ---
 ```
 
