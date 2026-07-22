@@ -1,0 +1,24 @@
+# Пример приватного конфига. Скопируйте рядом как bip-monitor.toml — он в .gitignore.
+# Ничего секретного тут быть не должно: только пути и пороги.
+
+[runtime]
+# CDP-порт запущенного BiP Desktop
+cdp_url = "http://localhost:9222"
+# локальная LLM с OpenAI-совместимым API
+llm_url = "http://localhost:8080/v1/chat/completions"
+
+[storage]
+# Тексты сообщений. ОБЯЗАТЕЛЬНО вне git и вне индексируемого хранилища знаний.
+output_jsonl = 'E:\-4-\bip\triage.jsonl'
+# База выученных правил. По умолчанию %LOCALAPPDATA%\Tech77\BipTriage
+# state_dir = 'E:\-4-\bip\store'
+
+[triage]
+# опрос списка чатов, секунд
+poll_sec = 8
+# сколько последних сообщений ленты брать в режиме --chat
+chat_limit = 50
+
+[learning]
+# сколько подтверждений переводит правило из provisional в verified
+verified_threshold = 3

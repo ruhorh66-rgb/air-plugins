@@ -1,0 +1,9 @@
+# ПДн / состояние обучения / рантайм — публичный репозиторий, сюда ничего этого не кладём
+*.jsonl
+*.sqlite3
+*.key
+profile/
+config/*.toml
+!config/*.example.toml
+__pycache__/
+*.pyc
