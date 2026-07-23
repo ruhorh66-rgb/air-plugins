@@ -496,21 +496,39 @@ def cmd_export_context(args: argparse.Namespace) -> dict:
     return {
         "schema_version": SCHEMA_VERSION,
         "skill_id": SKILL_ID,
-        "active_patterns": [
-            {
-                "pattern_id": row["pattern_id"],
-                "status": row["status"],
-                "scope": {"type": row["scope_type"], "value": row["scope_value"]},
-                "trigger": json.loads(row["trigger_json"]),
-                "expected": json.loads(row["expected_json"]),
-                "forbidden_actions": json.loads(row["forbidden_actions_json"]),
-                "confirmations": row["confirmations"],
-                "counterexamples": row["counterexamples"],
-            }
-            for row in patterns
-        ],
+        "active_patterns": [export_pattern(row) for row in patterns],
         "verified_norms": [dict(row) for row in norms],
     }
+
+
+def export_pattern(row: sqlite3.Row) -> dict:
+    """One pattern as the session receives it.
+
+    The machine slots (trigger/expected/forbidden) are not the whole rule. A rule
+    stated by the decision-maker lives in its prose: `content` holds the wording,
+    and `title`/`description` are what make it readable in bulk — which is exactly
+    why store_schema adds those columns. Exporting the three JSON slots alone
+    delivered a human rule stripped to its machine skeleton, so the session applied
+    a summary of the instruction rather than the instruction.
+    """
+    exported = {
+        "pattern_id": row["pattern_id"],
+        "status": row["status"],
+        "origin": row["origin"],
+        "locked": bool(row["locked"]),
+        "scope": {"type": row["scope_type"], "value": row["scope_value"]},
+        "trigger": json.loads(row["trigger_json"]),
+        "expected": json.loads(row["expected_json"]),
+        "forbidden_actions": json.loads(row["forbidden_actions_json"]),
+        "confirmations": row["confirmations"],
+        "counterexamples": row["counterexamples"],
+    }
+    # Prose is optional per row — derived patterns often carry none. Omit the keys
+    # rather than emitting nulls the reader has to filter.
+    for field in ("title", "description", "content"):
+        if row[field]:
+            exported[field] = row[field]
+    return exported
 
 
 def main() -> None:

@@ -70,10 +70,33 @@ def main():
         assert "coverage_note" in context["result"]["verified_norms"][0], \
             "export-context hides coverage_note from the next session"
 
+        # Same class of silent loss, found 2026-07-22 on the other table: a rule
+        # stated by the decision-maker keeps its wording in `content`, and export
+        # emitted only trigger/expected/forbidden — so the session received the
+        # machine skeleton of the instruction instead of the instruction.
+        wording = ("Нет точной нормы — формулировать близко к правовой конструкции, "
+                   "но БЕЗ номера статьи. Приблизительная ссылка хуже её отсутствия.")
+        rule = {
+            "title": "Нет точной нормы — писать близко, но без ссылки",
+            "description": "Правило ЛПР: ссылка только на прочитанную норму.",
+            "content": wording,
+            "scope": {"type": "global", "value": "*"},
+        }
+        assert run(state_dir, "add-rule", payload=rule).returncode == 0, "add-rule failed"
+
+        context = json.loads(run(state_dir, "export-context").stdout)
+        human = [p for p in context["result"]["active_patterns"]
+                 if p.get("origin") == "human"]
+        assert human, "export-context does not mark human-authored rules"
+        assert human[0].get("content") == wording, \
+            "export-context delivers a human rule without its wording"
+        assert human[0].get("locked") is True, "human rule exported as unlocked"
+
         # Windows will not delete the temp directory while the handle is open.
         database.close()
 
     print("ok: coverage_note persists, survives update, is required, and is exported")
+    print("ok: a decision-maker's rule reaches the session with its wording intact")
 
 
 if __name__ == "__main__":
