@@ -198,34 +198,32 @@ JS_ATTACH_STATE = """
 def send_file(needle: str, path: str, caption: str = "") -> bool:
     """Отправить ОДИН файл в чат BiP.
 
-    ⚠️ НЕ РАБОТАЕТ на текущей сборке (Electron 22 / Chrome 108, проверено 2026-07-23).
-    Код доведён до конца и корректен, упирается в ограничение платформы.
+    Порядок (проверен 2026-07-23, работает):
 
-    Что установлено проверкой:
-      * меню вложений открывается: `.p-speeddial-button` → `.p-speeddial-action`
-        с aria-label «Документ» (есть также «Фото и видео»);
-      * клик по «Документ» ПЕРЕКЛЮЧАЕТ уже существующий `input[type=file]`:
-        accept меняется с `image/*,video/*` на `document`. Отдельного input для
-        документов в DOM нет, элемент переиспользуется;
-      * `Page.setInterceptFileChooserDialog` команду ПРИНИМАЕТ, но событие
-        `Page.fileChooserOpened` не приходит (ждали 15 с);
-      * `DOM.setFileInputFiles` принимает и objectId, и nodeId, ошибки НЕ возвращает —
-        и не делает ничего: `input.files.length` остаётся 0. Проверено на пути с
-        кириллицей и на коротком ASCII-пути, разницы нет.
+      1) `.p-speeddial-button` — открыть меню вложений;
+      2) `.p-speeddial-action` с aria-label «Документ» — ПЕРЕКЛЮЧАЕТ accept уже
+         существующего `input[type=file]` с `image/*,video/*` на `document`.
+         Отдельного input для документов нет, элемент переиспользуется;
+      3) `DOM.setFileInputFiles` по nodeId — прикрепляет файл;
+      4) открывается окно предпросмотра;
+      5) отправка — клик по `a.send-media-button` внутри `div.send-media`
+         (aria-label «Send Media», правый нижний угол).
 
-    То есть Electron реализует эти методы CDP формально. Тот же класс, что описан в
-    bip_cdp.py про Browser.setDownloadBehavior и Playwright: часть протокола заявлена,
-    но не действует.
+    ⚠️ **Как НЕ проверять, что файл прикрепился** (ERR-2026-000068). Два индикатора
+    выглядят очевидными и оба лгут:
 
-    Рабочие пути отправки файла, если он понадобится:
-      1) ЛПР отправляет вручную — одно действие, ничего дописывать не нужно;
-      2) computer-use: клик мышью по скрепке и ввод пути в системном диалоге. Требует
-         отдельного разрешения на приложение и устойчив к смене вёрстки хуже, чем CDP;
-      3) отправить содержимое ТЕКСТОМ через send() — годится для короткой выжимки,
-         не для документа на несколько страниц.
+      * `input.files.length` — остаётся 0. BiP переносит файл в собственное состояние
+        и чистит input, поэтому ноль здесь не значит ничего;
+      * поиск окна предпросмотра по `[role=dialog]`, `[class*=modal]`,
+        `[class*=preview]` — BiP использует другие классы, и «не нашёл» читается как
+        «не прикрепилось».
 
-    Функция оставлена целиком намеренно: разведка DOM в ней верная, и если сборку BiP
-    обновят до Electron с рабочим DOM.setFileInputFiles, она заработает без правок.
+    На этих двух индикаторах функция была ошибочно объявлена неработающей, а
+    возможность — закрытой. Проверять надо появление `div.send-media`: он существует
+    только когда есть что отправлять.
+
+    `Page.setInterceptFileChooserDialog` при этом действительно не шлёт события
+    `fileChooserOpened` — но он и не нужен: клик по «Документ» диалога не открывает.
     """
     file_path = Path(path).resolve()
     if not file_path.is_file():
@@ -268,33 +266,31 @@ def send_file(needle: str, path: str, caption: str = "") -> bool:
                 return False
 
             page.send("DOM.setFileInputFiles", {"files": [str(file_path)], "nodeId": node})
-            time.sleep(2)
+            time.sleep(3)
 
-            # Проверка ДО точки невозврата: команда проходит без ошибки даже когда
-            # ничего не делает, поэтому верим только состоянию элемента.
-            accepted = page.evaluate(
-                '(() => { const e=[...document.querySelectorAll("input[type=file]")]'
-                '.find(x=>x.accept==="document"); return e ? e.files.length : -1; })()')
-            if not accepted or accepted < 1:
-                print("СТОП: файл не принят элементом (files=%s). На Electron 22 команда "
-                      "DOM.setFileInputFiles не действует — см. docstring, отправлять "
-                      "нечем." % accepted, file=sys.stderr)
+            # Проверка ДО точки невозврата. Смотрим на появление кнопки отправки медиа:
+            # она существует только когда приложение приняло вложение. input.files и
+            # поиск «модалки» по типовым классам здесь врут — см. docstring.
+            ready = page.evaluate(
+                '(() => !!document.querySelector("div.send-media a.send-media-button"))()')
+            if not ready:
+                print("СТОП: вложение не принято — кнопка отправки не появилась",
+                      file=sys.stderr)
                 return False
+            print("файл прикреплён, предпросмотр открыт")
         finally:
             # вернуть штатное поведение, иначе следующий выбор файла в BiP руками зависнет
             page.send("Page.setInterceptFileChooserDialog", {"enabled": False})
-
-        time.sleep(4)
-        state = page.evaluate(JS_ATTACH_STATE)
-        print(f"состояние после подстановки: {state}")
 
         if caption:
             page.send("Input.insertText", {"text": caption})
             time.sleep(1)
 
-        # точка невозврата
-        press_enter(page)
-        time.sleep(5)
+        # точка невозврата: у вложения своя кнопка, Enter здесь не отправляет
+        page.evaluate(
+            '(() => { const b=document.querySelector("div.send-media a.send-media-button");'
+            ' if(!b) return false; b.click(); return true; })()')
+        time.sleep(6)
 
         last = page.evaluate(JS_LAST_ANY)
         ok = bool(last and last.get("outgoing"))
@@ -320,6 +316,108 @@ JS_LAST_ANY = """
 """
 
 
+JS_FIND_BUBBLE = """
+(() => {
+  const b = [...document.querySelectorAll('[itemtype="DocumentBubble"],[itemtype="TextBubble"]')]
+    .filter(e => (e.innerText || '').includes(%s) &&
+                 e.querySelector("[class*='message_status__icon']"))   // только исходящие
+    .pop();
+  if (!b) return null;
+  const r = b.getBoundingClientRect();
+  return {txt: (b.innerText || '').trim().slice(0, 60),
+          cx: Math.round(r.x + r.width / 2), cy: Math.round(r.y + r.height / 2),
+          dotsX: Math.round(r.right - 14), dotsY: Math.round(r.top + 12)};
+})()
+"""
+
+JS_MENU_ITEMS = """
+(() => [...document.querySelectorAll('[class*="popperContainer__menu__item"],[role=menuitem]')]
+  .filter(e => e.getBoundingClientRect().width > 0)
+  .map(e => (e.innerText || '').trim()).filter(Boolean))()
+"""
+
+
+def delete_message(chat: str, needle: str, for_everyone: bool = True) -> bool:
+    """Удалить СВОЁ отправленное сообщение: последний ИСХОДЯЩИЙ пузырь с `needle`.
+
+    Необратимо, и у собеседника тоже.
+
+    Путь, установленный 2026-07-23:
+      1) навести мышь на пузырь — элементы управления появляются только при hover;
+      2) кликнуть «три точки» в правом верхнем углу пузыря (координата, не селектор:
+         поиск по классам даёт reactionEmoji, а не меню);
+      3) в меню выбрать «Удалить» — рядом там же «Информация о сообщении»,
+         «Переслать», «Ответить», «Скачать», «Pin»;
+      4) в подтверждении выбрать «Удалить от всех» либо «Удалить у меня».
+         Третья кнопка — «Сдавайся», это машинный перевод «Отмена», не нажимать.
+
+    Диалог после удаления может остаться на экране — снимается Escape; факт удаления
+    проверяется исчезновением пузыря, а не закрытием окна.
+    """
+    with BipPage() as page:
+        opened = page.evaluate(JS_OPEN % json.dumps(chat.lower(), ensure_ascii=False))
+        if not opened:
+            print(f"СТОП: чат по подстроке {chat!r} не найден", file=sys.stderr)
+            return False
+        print(f"чат: {opened['chat']}")
+        time.sleep(3)
+
+        target = page.evaluate(JS_FIND_BUBBLE % json.dumps(needle, ensure_ascii=False))
+        if not target:
+            print(f"СТОП: исходящее сообщение с {needle!r} не найдено", file=sys.stderr)
+            return False
+        print(f"цель: {target['txt']}")
+
+        page.send("Input.dispatchMouseEvent",
+                  {"type": "mouseMoved", "x": target["cx"], "y": target["cy"]})
+        time.sleep(1)
+        page.send("Input.dispatchMouseEvent",
+                  {"type": "mouseMoved", "x": target["dotsX"], "y": target["dotsY"]})
+        time.sleep(0.5)
+        for ev in ("mousePressed", "mouseReleased"):
+            page.send("Input.dispatchMouseEvent",
+                      {"type": ev, "x": target["dotsX"], "y": target["dotsY"],
+                       "button": "left", "clickCount": 1})
+        time.sleep(1.5)
+
+        items = page.evaluate(JS_MENU_ITEMS)
+        if not any("удал" in i.lower() for i in items):
+            print(f"СТОП: меню не открылось (пункты: {items})", file=sys.stderr)
+            return False
+
+        page.evaluate("""(() => {
+          const el = [...document.querySelectorAll('[class*="popperContainer__menu__item"],[role=menuitem]')]
+            .find(e => (e.innerText || '').trim().toLowerCase().includes('удал'));
+          if (el) el.click();
+          return !!el;
+        })()""")
+        time.sleep(2)
+
+        wanted = "от всех" if for_everyone else "у меня"
+        clicked = page.evaluate("""(() => {
+          const b = [...document.querySelectorAll('button,[role=button],a')]
+            .filter(e => e.getBoundingClientRect().width > 0)
+            .find(e => (e.innerText || '').trim().toLowerCase().includes(%s));
+          if (b) b.click();
+          return !!b;
+        })()""" % json.dumps(wanted, ensure_ascii=False))
+        if not clicked:
+            print(f"СТОП: кнопка «{wanted}» не найдена", file=sys.stderr)
+            return False
+        time.sleep(4)
+
+        left = page.evaluate(JS_FIND_BUBBLE % json.dumps(needle, ensure_ascii=False))
+        for _ in range(2):                    # диалог иногда остаётся на экране
+            for t in ("keyDown", "keyUp"):
+                page.send("Input.dispatchKeyEvent", {"type": t, "key": "Escape",
+                                                     "code": "Escape",
+                                                     "windowsVirtualKeyCode": 27})
+            time.sleep(0.5)
+
+        print("УДАЛЕНО" if left is None else "НЕ ПОДТВЕРЖДЕНО: пузырь на месте")
+        return left is None
+
+
 def selftest():
     """Проверка без BiP: JS собирается корректно и подстрока экранируется."""
     js = JS_OPEN % json.dumps("о'брайен", ensure_ascii=False)
@@ -336,6 +434,10 @@ if __name__ == "__main__":
     ap.add_argument("--text", help="точный текст сообщения")
     ap.add_argument("--file", metavar="ПУТЬ", help="файл-вложение (документ)")
     ap.add_argument("--caption", default="", help="подпись к файлу")
+    ap.add_argument("--delete", metavar="ФРАГМЕНТ",
+                    help="удалить СВОЁ сообщение по фрагменту текста или имени файла")
+    ap.add_argument("--only-me", action="store_true",
+                    help="с --delete: удалить только у себя, не у собеседника")
     ap.add_argument("--yes", action="store_true", help="подтверждение: действие необратимо")
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
@@ -344,10 +446,12 @@ if __name__ == "__main__":
         selftest()
     elif args.text and args.file:
         ap.error("--text и --file вместе не отправляются: для файла есть --caption")
-    elif not (args.chat and (args.text or args.file)):
-        ap.error("нужны --chat и (--text либо --file)")
+    elif not (args.chat and (args.text or args.file or args.delete)):
+        ap.error("нужны --chat и (--text, --file либо --delete)")
     elif not args.yes:
         ap.error("необратимое действие: добавьте --yes")
+    elif args.delete:
+        sys.exit(0 if delete_message(args.chat, args.delete, not args.only_me) else 1)
     elif args.file:
         sys.exit(0 if send_file(args.chat, args.file, args.caption) else 1)
     else:
