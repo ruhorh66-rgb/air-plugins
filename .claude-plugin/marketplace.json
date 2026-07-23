@@ -21,6 +21,9 @@
       "description": "Triage your own BiP work chats with a local LLM, learning from the owner's corrections. Reads chats by attaching to BiP Desktop over CDP (chat list is strictly read-only; opening a conversation is opt-in because it sends read receipts), applies learned rules deterministically, and keeps message texts out of git and out of the knowledge vault. Sending is one message per explicit command — no autoreplies."
     },
     {
+      "_moved": "llm-queue переехал 2026-07-23 в приватный маркетплейс air-runtime (репозиторий ruhorh66-rgb/llm-queue, каталог E:\\-8-\\llm-queue). Причина: очередь стала управлять и локальной CPU-нагрузкой, а сколько ядер машина может отдать и какие сервисы на ней падают при насыщении — описание инфраструктуры, а не публичный рецепт. История публичной версии остаётся в этом репозитории."
+    },
+    {
       "name": "air-pipeline",
       "source": "./air-pipeline",
       "description": "AIR OS knowledge-pipeline skills. v0.1 ships idea-card: atomic cross-project Idea Cards in 002_Ideas_Wiki with the mandatory relevance gate. Other pipeline steps roadmapped (need their source procedures)."
