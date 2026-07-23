@@ -70,6 +70,33 @@ JS_LAST = """
 """
 
 
+def press_enter(page) -> None:
+    """Enter, который BiP действительно понимает как «отправить».
+
+    Найдено 2026-07-23. Без поля `text` Chromium НЕ генерирует событие keypress: браузер
+    обрабатывает такой Enter как перенос строки в contenteditable, а приложение его вообще
+    не видит. Внешне это неотличимо от отправки — поле выглядит так же, — но сообщение не
+    уходит, а в черновик добавляется \\n (было видно по росту длины на 3 символа).
+
+    Нужны все три события подряд, включая `type: "char"`. Ctrl+Enter не помогает: он
+    убирает перенос, но отправку тоже не запускает.
+    """
+    page.send("Input.dispatchKeyEvent", {
+        "type": "keyDown", "key": "Enter", "code": "Enter",
+        "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13,
+        "text": "\r", "unmodifiedText": "\r",
+    })
+    page.send("Input.dispatchKeyEvent", {
+        "type": "char", "key": "Enter",
+        "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13,
+        "text": "\r", "unmodifiedText": "\r",
+    })
+    page.send("Input.dispatchKeyEvent", {
+        "type": "keyUp", "key": "Enter", "code": "Enter",
+        "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13,
+    })
+
+
 def send(needle: str, text: str) -> bool:
     with BipPage() as page:
         # ensure_ascii=False: кириллица идёт в JS как есть, кавычки при этом экранируются
@@ -100,11 +127,7 @@ def send(needle: str, text: str) -> bool:
         print(f"текст в поле сверен ({len(text)} символов), отправляю")
 
         # точка невозврата
-        for t in ("keyDown", "keyUp"):
-            page.send("Input.dispatchKeyEvent", {
-                "type": t, "key": "Enter", "code": "Enter",
-                "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13,
-            })
+        press_enter(page)
         time.sleep(3)
 
         # подтверждаем фактом, а не предположением (Module_01 п. 6.28)
@@ -246,11 +269,7 @@ def send_file(needle: str, path: str, caption: str = "") -> bool:
             time.sleep(1)
 
         # точка невозврата
-        for t in ("keyDown", "keyUp"):
-            page.send("Input.dispatchKeyEvent", {
-                "type": t, "key": "Enter", "code": "Enter",
-                "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13,
-            })
+        press_enter(page)
         time.sleep(5)
 
         last = page.evaluate(JS_LAST_ANY)
