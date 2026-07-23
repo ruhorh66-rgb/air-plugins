@@ -8,8 +8,11 @@
 
 # Filled-in profile configs — carry private vault paths, project names and
 # proprietary house standards. Only *.example.toml may be published.
-legal-analysis/config/*.toml
-!legal-analysis/config/*.example.toml
+# (legal-analysis moved to its own private repository 2026-07-22; its rule went
+# with it. Keep this pattern generic so the next plugin with a profile config is
+# covered without anyone remembering to add a line.)
+**/config/*.toml
+!**/config/*.example.toml
 **/config/local.toml
 
 # Node / build

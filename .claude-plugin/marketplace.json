@@ -16,11 +16,6 @@
       "description": "Convert PDFs/Office docs/images to Markdown locally before reading them into the model — save tokens, keep sensitive files off cloud extractors. Recipe wrapping the local MarkItDown install (E:\\-4-)."
     },
     {
-      "name": "legal-analysis",
-      "source": "./legal-analysis",
-      "description": "Verification-first review of legal documents: local text extraction, decomposition into checkable theses, verification of every legal qualification against the primary source, and knowledge cards marked verified or candidate."
-    },
-    {
       "name": "bip-monitor",
       "source": "./bip-monitor",
       "description": "Triage your own BiP work chats with a local LLM, learning from the owner's corrections. Reads chats by attaching to BiP Desktop over CDP (chat list is strictly read-only; opening a conversation is opt-in because it sends read receipts), applies learned rules deterministically, and keeps message texts out of git and out of the knowledge vault. Sending is one message per explicit command — no autoreplies."
