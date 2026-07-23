@@ -22,6 +22,7 @@ import argparse
 import json
 import sys
 import time
+from pathlib import Path
 
 from bip_cdp import BipPage
 
@@ -116,6 +117,166 @@ def send(needle: str, text: str) -> bool:
         return bool(ok)
 
 
+JS_OPEN_DIAL = """
+(() => {
+  const b = document.querySelector('.p-speeddial-button');
+  if (!b) return null;
+  b.click();
+  return true;
+})()
+"""
+
+JS_PICK_DOC = """
+(() => {
+  const a = [...document.querySelectorAll('.p-speeddial-action')]
+    .find(e => (e.getAttribute('aria-label') || '').trim() === 'Документ');
+  if (!a) return null;
+  a.click();
+  return true;
+})()
+"""
+
+JS_ATTACH_STATE = """
+(() => {
+  const box = [...document.querySelectorAll('[data-lexical-editor]')]
+    .find(e => e.getAttribute('contenteditable') === 'true');
+  const names = [...document.querySelectorAll('[class*="attach"],[class*="preview"],[class*="file"]')]
+    .map(e => (e.innerText || '').trim())
+    .filter(t => t && t.length < 120);
+  return {draft: box ? box.innerText.trim() : null, labels: [...new Set(names)].slice(0, 6)};
+})()
+"""
+
+
+def send_file(needle: str, path: str, caption: str = "") -> bool:
+    """Отправить ОДИН файл в чат BiP.
+
+    ⚠️ НЕ РАБОТАЕТ на текущей сборке (Electron 22 / Chrome 108, проверено 2026-07-23).
+    Код доведён до конца и корректен, упирается в ограничение платформы.
+
+    Что установлено проверкой:
+      * меню вложений открывается: `.p-speeddial-button` → `.p-speeddial-action`
+        с aria-label «Документ» (есть также «Фото и видео»);
+      * клик по «Документ» ПЕРЕКЛЮЧАЕТ уже существующий `input[type=file]`:
+        accept меняется с `image/*,video/*` на `document`. Отдельного input для
+        документов в DOM нет, элемент переиспользуется;
+      * `Page.setInterceptFileChooserDialog` команду ПРИНИМАЕТ, но событие
+        `Page.fileChooserOpened` не приходит (ждали 15 с);
+      * `DOM.setFileInputFiles` принимает и objectId, и nodeId, ошибки НЕ возвращает —
+        и не делает ничего: `input.files.length` остаётся 0. Проверено на пути с
+        кириллицей и на коротком ASCII-пути, разницы нет.
+
+    То есть Electron реализует эти методы CDP формально. Тот же класс, что описан в
+    bip_cdp.py про Browser.setDownloadBehavior и Playwright: часть протокола заявлена,
+    но не действует.
+
+    Рабочие пути отправки файла, если он понадобится:
+      1) ЛПР отправляет вручную — одно действие, ничего дописывать не нужно;
+      2) computer-use: клик мышью по скрепке и ввод пути в системном диалоге. Требует
+         отдельного разрешения на приложение и устойчив к смене вёрстки хуже, чем CDP;
+      3) отправить содержимое ТЕКСТОМ через send() — годится для короткой выжимки,
+         не для документа на несколько страниц.
+
+    Функция оставлена целиком намеренно: разведка DOM в ней верная, и если сборку BiP
+    обновят до Electron с рабочим DOM.setFileInputFiles, она заработает без правок.
+    """
+    file_path = Path(path).resolve()
+    if not file_path.is_file():
+        print(f"СТОП: файла нет — {file_path}", file=sys.stderr)
+        return False
+    size = file_path.stat().st_size
+    print(f"файл: {file_path.name} ({size:,} байт)")
+
+    with BipPage() as page:
+        target = page.evaluate(JS_OPEN % json.dumps(needle.lower(), ensure_ascii=False))
+        if not target:
+            print(f"СТОП: чат по подстроке {needle!r} не найден", file=sys.stderr)
+            return False
+        print(f"чат: {target['chat']}")
+        time.sleep(3)
+
+        page.send("Page.enable")
+        page.send("DOM.enable")
+        page.send("Page.setInterceptFileChooserDialog", {"enabled": True})
+
+        try:
+            if not page.evaluate(JS_OPEN_DIAL):
+                print("СТОП: кнопка вложений не найдена", file=sys.stderr)
+                return False
+            time.sleep(1.5)
+
+            if not page.evaluate(JS_PICK_DOC):
+                print("СТОП: пункт «Документ» не найден", file=sys.stderr)
+                return False
+
+            # Клик по «Документ» переключает accept существующего input на 'document'.
+            # Событие fileChooserOpened Electron не шлёт, поэтому не ждём его, а работаем
+            # с input напрямую — и сразу проверяем, принял ли он файл.
+            page.send("DOM.enable")
+            root = page.send("DOM.getDocument", {"depth": -1})["root"]["nodeId"]
+            node = page.send("DOM.querySelector",
+                             {"nodeId": root, "selector": 'input[accept="document"]'}).get("nodeId")
+            if not node:
+                print("СТОП: input для документов не появился", file=sys.stderr)
+                return False
+
+            page.send("DOM.setFileInputFiles", {"files": [str(file_path)], "nodeId": node})
+            time.sleep(2)
+
+            # Проверка ДО точки невозврата: команда проходит без ошибки даже когда
+            # ничего не делает, поэтому верим только состоянию элемента.
+            accepted = page.evaluate(
+                '(() => { const e=[...document.querySelectorAll("input[type=file]")]'
+                '.find(x=>x.accept==="document"); return e ? e.files.length : -1; })()')
+            if not accepted or accepted < 1:
+                print("СТОП: файл не принят элементом (files=%s). На Electron 22 команда "
+                      "DOM.setFileInputFiles не действует — см. docstring, отправлять "
+                      "нечем." % accepted, file=sys.stderr)
+                return False
+        finally:
+            # вернуть штатное поведение, иначе следующий выбор файла в BiP руками зависнет
+            page.send("Page.setInterceptFileChooserDialog", {"enabled": False})
+
+        time.sleep(4)
+        state = page.evaluate(JS_ATTACH_STATE)
+        print(f"состояние после подстановки: {state}")
+
+        if caption:
+            page.send("Input.insertText", {"text": caption})
+            time.sleep(1)
+
+        # точка невозврата
+        for t in ("keyDown", "keyUp"):
+            page.send("Input.dispatchKeyEvent", {
+                "type": t, "key": "Enter", "code": "Enter",
+                "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13,
+            })
+        time.sleep(5)
+
+        last = page.evaluate(JS_LAST_ANY)
+        ok = bool(last and last.get("outgoing"))
+        print(f"последний пузырь: {last}")
+        print("ОТПРАВЛЕНО" if ok else "НЕ ПОДТВЕРЖДЕНО — проверить клиент вручную")
+        return ok
+
+
+JS_LAST_ANY = """
+(() => {
+  const items = [...document.querySelectorAll('[itemtype]')]
+    .filter(e => /Bubble$/.test(e.getAttribute('itemtype') || ''))
+    .map(e => ({el: e, top: e.getBoundingClientRect().top}))
+    .sort((a, b) => a.top - b.top);
+  const last = items[items.length - 1]?.el;
+  if (!last) return null;
+  return {
+    kind: last.getAttribute('itemtype'),
+    outgoing: !!last.querySelector("[class*='message_status__icon']"),
+    text: (last.innerText || '').trim().slice(0, 80),
+  };
+})()
+"""
+
+
 def selftest():
     """Проверка без BiP: JS собирается корректно и подстрока экранируется."""
     js = JS_OPEN % json.dumps("о'брайен", ensure_ascii=False)
@@ -127,18 +288,24 @@ def selftest():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    ap = argparse.ArgumentParser(description="Отправить ОДНО сообщение в чат BiP")
+    ap = argparse.ArgumentParser(description="Отправить ОДНО сообщение или файл в чат BiP")
     ap.add_argument("--chat", metavar="ИМЯ", help="часть имени чата")
     ap.add_argument("--text", help="точный текст сообщения")
+    ap.add_argument("--file", metavar="ПУТЬ", help="файл-вложение (документ)")
+    ap.add_argument("--caption", default="", help="подпись к файлу")
     ap.add_argument("--yes", action="store_true", help="подтверждение: действие необратимо")
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
 
     if args.selftest:
         selftest()
-    elif not (args.chat and args.text):
-        ap.error("нужны --chat и --text")
+    elif args.text and args.file:
+        ap.error("--text и --file вместе не отправляются: для файла есть --caption")
+    elif not (args.chat and (args.text or args.file)):
+        ap.error("нужны --chat и (--text либо --file)")
     elif not args.yes:
         ap.error("необратимое действие: добавьте --yes")
+    elif args.file:
+        sys.exit(0 if send_file(args.chat, args.file, args.caption) else 1)
     else:
         sys.exit(0 if send(args.chat, args.text) else 1)

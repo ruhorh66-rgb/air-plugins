@@ -8,6 +8,7 @@ supported" (проверено 2026-07-21, playwright 1.61.0). Поэтому г
 Зависимость: websocket-client.
 """
 import json
+import time
 import urllib.request
 
 import websocket
@@ -16,13 +17,19 @@ CDP_URL = "http://localhost:9222"
 
 
 class BipPage:
-    """Подключение к странице BiP по CDP. Только чтение: единственный метод — evaluate()."""
+    """Подключение к странице BiP по CDP.
+
+    Базовый метод — evaluate() (чтение). send() открывает произвольные CDP-команды,
+    wait_event() — приём событий страницы; вместе они нужны для отправки файла, где
+    диалог выбора перехватывается, а не открывается пользователю.
+    """
 
     def __init__(self, cdp_url: str = CDP_URL, timeout: int = 30):
         self.cdp_url = cdp_url
         self.timeout = timeout
         self._ws = None
         self._id = 0
+        self._events = []
         self.url = None
 
     def connect(self) -> "BipPage":
@@ -42,17 +49,50 @@ class BipPage:
 
     def send(self, method: str, params: dict = None):
         """Произвольная CDP-команда. Нужна для Input.* — Lexical-редактор не принимает
-        присваивание значения, текст в него вводится только настоящими событиями ввода."""
+        присваивание значения, текст в него вводится только настоящими событиями ввода.
+
+        События страницы, пришедшие в ожидании ответа, не выбрасываются, а копятся в
+        `_events`: иначе перехват file chooser невозможен — событие приходит между
+        отправкой клика и ответом на него."""
         self._id += 1
         req_id = self._id
         self._ws.send(json.dumps({"id": req_id, "method": method, "params": params or {}}))
         while True:
             msg = json.loads(self._ws.recv())
             if msg.get("id") != req_id:
-                continue  # события страницы нам не нужны
+                if "method" in msg:
+                    self._events.append(msg)
+                continue
             if "error" in msg:
                 raise RuntimeError(f"CDP error ({method}): {msg['error']}")
             return msg.get("result", {})
+
+    def wait_event(self, method: str, timeout: float = 15.0) -> dict:
+        """Дождаться события CDP (например Page.fileChooserOpened).
+
+        Сначала смотрит уже накопленное: событие часто приходит РАНЬШЕ, чем ответ на
+        команду, которая его вызвала, и к моменту вызова уже лежит в буфере.
+        """
+        for i, ev in enumerate(self._events):
+            if ev.get("method") == method:
+                return self._events.pop(i).get("params", {})
+
+        deadline = time.monotonic() + timeout
+        old_timeout = self._ws.gettimeout()
+        try:
+            while time.monotonic() < deadline:
+                self._ws.settimeout(max(0.1, deadline - time.monotonic()))
+                try:
+                    msg = json.loads(self._ws.recv())
+                except websocket.WebSocketTimeoutException:
+                    break
+                if msg.get("method") == method:
+                    return msg.get("params", {})
+                if "method" in msg:
+                    self._events.append(msg)
+        finally:
+            self._ws.settimeout(old_timeout)
+        raise TimeoutError(f"событие {method} не пришло за {timeout} с")
 
     def evaluate(self, expression: str):
         """Выполнить JS в странице и вернуть значение (returnByValue)."""
