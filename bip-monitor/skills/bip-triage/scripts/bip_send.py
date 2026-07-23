@@ -70,8 +70,30 @@ JS_LAST = """
 """
 
 
+JS_FOCUS_END = """
+(() => {
+  const box = [...document.querySelectorAll('[data-lexical-editor]')]
+    .find(e => e.getAttribute('contenteditable') === 'true');
+  if (!box) return false;
+  box.focus();
+  const sel = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(box);
+  range.collapse(false);           // каретку в конец
+  sel.removeAllRanges();
+  sel.addRange(range);
+  return true;
+})()
+"""
+
+
 def press_enter(page) -> None:
     """Enter, который BiP действительно понимает как «отправить».
+
+    Перед нажатием ОБЯЗАТЕЛЬНО вернуть фокус и поставить каретку в конец поля. Без этого
+    отправка срабатывает через раз: фокус теряется между Input.insertText и клавишей,
+    Enter уходит «в никуда», текст остаётся в поле. Поймано 2026-07-23 на втором
+    сообщении подряд — первое ушло, второе нет, при одинаковом коде.
 
     Найдено 2026-07-23. Без поля `text` Chromium НЕ генерирует событие keypress: браузер
     обрабатывает такой Enter как перенос строки в contenteditable, а приложение его вообще
@@ -81,6 +103,8 @@ def press_enter(page) -> None:
     Нужны все три события подряд, включая `type: "char"`. Ctrl+Enter не помогает: он
     убирает перенос, но отправку тоже не запускает.
     """
+    page.evaluate(JS_FOCUS_END)
+    time.sleep(0.5)
     page.send("Input.dispatchKeyEvent", {
         "type": "keyDown", "key": "Enter", "code": "Enter",
         "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13,
