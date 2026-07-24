@@ -37,6 +37,49 @@ JS_OPEN = """
 })()
 """
 
+JS_SEARCH_FOCUS = """
+(() => {
+  const i = [...document.querySelectorAll('input')]
+    .find(e => (e.getAttribute('placeholder') || '').includes('Поиск'));
+  if (!i) return false;
+  i.focus();
+  return true;
+})()
+"""
+
+JS_SEARCH_PICK = """
+(() => {
+  const c = [...document.querySelectorAll('[class*="_contact_"]')]
+    .find(e => (e.innerText || '').toLowerCase().includes(%s)
+            && e.getBoundingClientRect().width > 0);
+  if (!c) return null;
+  c.click();
+  return {chat: (c.innerText || '').trim().split('\\n')[0]};
+})()
+"""
+
+
+def open_chat(page, needle: str):
+    """Открыть чат по части имени. Возвращает {'chat': ...} либо None.
+
+    Список чатов ВИРТУАЛИЗОВАН: в DOM лежит только видимая часть (порядка 18 строк),
+    поэтому поиск по отрисованным ChatListRow находит не все чаты — отсутствие строки
+    в выборке не означает отсутствия чата (`ERR-2026-000071`). Если прямого совпадения
+    нет, добираем через штатный поиск BiP «Поиск контактов или групп»: результаты
+    рендерятся классом `_contact_`, а не ChatListRow, и кликом по ним чат открывается.
+    """
+    needle = needle.lower()
+    target = page.evaluate(JS_OPEN % json.dumps(needle, ensure_ascii=False))
+    if target:
+        return target
+
+    if not page.evaluate(JS_SEARCH_FOCUS):
+        return None
+    page.send("Input.insertText", {"text": needle})
+    time.sleep(2.5)
+    return page.evaluate(JS_SEARCH_PICK % json.dumps(needle, ensure_ascii=False))
+
+
 JS_BOX = """
 (() => {
   const box = [...document.querySelectorAll('[data-lexical-editor]')]
@@ -124,7 +167,7 @@ def press_enter(page) -> None:
 def send(needle: str, text: str) -> bool:
     with BipPage() as page:
         # ensure_ascii=False: кириллица идёт в JS как есть, кавычки при этом экранируются
-        target = page.evaluate(JS_OPEN % json.dumps(needle.lower(), ensure_ascii=False))
+        target = open_chat(page, needle)
         if not target:
             print(f"СТОП: чат по подстроке {needle!r} не найден", file=sys.stderr)
             return False
@@ -233,7 +276,7 @@ def send_file(needle: str, path: str, caption: str = "") -> bool:
     print(f"файл: {file_path.name} ({size:,} байт)")
 
     with BipPage() as page:
-        target = page.evaluate(JS_OPEN % json.dumps(needle.lower(), ensure_ascii=False))
+        target = open_chat(page, needle)
         if not target:
             print(f"СТОП: чат по подстроке {needle!r} не найден", file=sys.stderr)
             return False
@@ -355,7 +398,7 @@ def delete_message(chat: str, needle: str, for_everyone: bool = True) -> bool:
     проверяется исчезновением пузыря, а не закрытием окна.
     """
     with BipPage() as page:
-        opened = page.evaluate(JS_OPEN % json.dumps(chat.lower(), ensure_ascii=False))
+        opened = open_chat(page, chat)
         if not opened:
             print(f"СТОП: чат по подстроке {chat!r} не найден", file=sys.stderr)
             return False
