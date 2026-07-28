@@ -1,4 +1,4 @@
-# ruflo-bridge
+# air-ruflo-bridge
 
 Плагин-мост к [`ruvnet/ruflo`](https://github.com/ruvnet/ruflo) (бывш. `claude-flow`, MIT) —
 кандидату на роль оркестрационного движка контура.
