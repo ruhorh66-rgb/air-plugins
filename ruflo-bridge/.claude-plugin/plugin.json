@@ -1,0 +1,9 @@
+{
+  "name": "ruflo-bridge",
+  "version": "0.1.0",
+  "description": "Bridge to ruvnet/ruflo (MIT, github.com/ruvnet/ruflo) as a candidate orchestration engine. Status 28.07.2026: engine accepted by LPR decision for continued piloting (context of the contour overall, not a proven technical win on the one small pilot run so far — see ROADMAP.md). Ships no skills yet: the one thing tested (a governance script built through ruflo's dual-mode) is documented, not packaged, until the human-gate approval stage and independent status-verification are in place. Verification/control of ruflo's own state is owned by VERA (AIR_OS/10_AUTOMATION/vera), not duplicated here.",
+  "author": { "name": "AIR OS" },
+  "license": "MIT",
+  "keywords": ["air-os", "ruflo", "claude-flow", "orchestration", "pilot"],
+  "defaultEnabled": false
+}
