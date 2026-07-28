@@ -16,9 +16,7 @@
       "description": "Convert PDFs/Office docs/images to Markdown locally before reading them into the model — save tokens, keep sensitive files off cloud extractors. Recipe wrapping the local MarkItDown install (E:\\-4-)."
     },
     {
-      "name": "legal-analysis",
-      "source": "./legal-analysis",
-      "description": "Verification-first review of legal documents: local text extraction, decomposition into checkable theses, verification of every legal qualification against the primary source, and knowledge cards marked verified or candidate."
+      "_moved": "legal-analysis переехал 2026-07-22 в приватный репозиторий legal-analysis (маркетплейс air-legal, каталог E:\\-8-\\legal-analysis). Причина: продукт вырос, появилась коммерческая перспектива, своя линия релизов. История перенесена subtree split целиком — опубликованное не отзывается, версии v1.0.0..v1.1.0 остаются в истории этого репозитория, она не переписывается. Найдено 28.07.2026: запись здесь была стале почти неделю — тот же класс, что ERR-2026-000056."
     },
     {
       "name": "air-ruflo-bridge",
