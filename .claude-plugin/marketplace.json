@@ -19,6 +19,11 @@
       "name": "legal-analysis",
       "source": "./legal-analysis",
       "description": "Verification-first review of legal documents: local text extraction, decomposition into checkable theses, verification of every legal qualification against the primary source, and knowledge cards marked verified or candidate."
+    },
+    {
+      "name": "air-ruflo-bridge",
+      "source": "./air-ruflo-bridge",
+      "description": "Bridge to ruvnet/ruflo (MIT) as a candidate orchestration engine, accepted 28.07.2026 for continued piloting. Ships no skills yet — manifest and roadmap only; see air-ruflo-bridge/README.md for what the one real pilot run found."
     }
   ]
 }
