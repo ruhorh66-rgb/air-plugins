@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Task,
     [Parameter()][ValidateRange(1,64)][int]$MaxAgents = 2,
@@ -82,6 +82,33 @@ try {
     Write-Output "EXECUTED. Report: $ReportPath"
 } finally {
     Pop-Location
+
+    # ПРОВЕРКА НА УТЕЧКУ СЕКРЕТОВ. Рой пишет файлы автономно, и никто не смотрит,
+    # не утащил ли он токен в рабочее дерево. Прогоняется ВСЕГДА, в том числе
+    # после падения: упавший прогон успевает наследить не меньше удачного.
+    # Результат дописывается в отчёт и никогда не подменяет исход самого прогона —
+    # но и не замалчивается: «проверить не смог» пишется так же громко, как находка.
+    $scanner = Join-Path $PSScriptRoot 'scan_secrets.ps1'
+    if ((Test-Path -LiteralPath $scanner) -and $Approval) {
+        try {
+            $scanJson = & $scanner -Path $WorkDir -ReportPath (
+                Join-Path $ProjectRoot "leaks-$PID.json") 2>&1 | Out-String
+            $scan = $scanJson | ConvertFrom-Json
+            $verdict = switch ($scan.outcome) {
+                'clean'  { "СЕКРЕТОВ НЕ НАЙДЕНО ($($scan.seconds) c, $($scan.verifiedBy))" }
+                'leaks'  { "НАЙДЕНА УТЕЧКА: находок $($scan.findings). Значения не выводятся — смотреть по файлу и строке в $($scan.report)" }
+                default  { "ПРОВЕРИТЬ НЕ СМОГ: $($scan.reason). Это НЕ «чисто»." }
+            }
+            $transcript.Add("## Secret scan`n$verdict`n~~~json`n$scanJson~~~")
+            $transcript | Set-Content -LiteralPath $ReportPath -Encoding utf8
+            Write-Output "SECRET SCAN: $verdict"
+        } catch {
+            $transcript.Add("## Secret scan`nПРОВЕРИТЬ НЕ СМОГ: $($_.Exception.Message). Это НЕ «чисто».")
+            $transcript | Set-Content -LiteralPath $ReportPath -Encoding utf8
+            Write-Output "SECRET SCAN: ПРОВЕРИТЬ НЕ СМОГ — $($_.Exception.Message)"
+        }
+    }
+
     # Замок снимается ВСЕГДА, в том числе после падения: иначе следующая сессия
     # упрётся в мёртвый замок и решит, что рой занят.
     if (Test-Path -LiteralPath $hiveSingle) {
