@@ -7,6 +7,45 @@ description: Run a coding or shell task through an installed Ruflo/claude-flow r
 
 Use the real Ruflo CLI; do not implement a swarm or orchestration substitute.
 
+## One swarm for the whole contour — не обсуждается
+
+Состояние ruflo привязано к РАБОЧЕМУ КАТАЛОГУ: команда, поданная из другого cwd,
+заводит там свой `.hive-mind` и `.claude-flow` и считает себя отдельным роем. Так
+на 05.08.2026 в контуре оказалось **девять каталогов состояния при нуле живых
+процессов**, три из них рапортовали `running: true`.
+
+Канонический корень — `E:\-4-\ruflo-hive`. Он стоит умолчанием в `run_task.ps1` и
+`install_ruflo.ps1`; передавать `-ProjectRoot` не нужно. Другой корень скрипт
+**отвергает с кодом 5**, а не берёт молча: тихое согласие вернуло бы ту же россыпь.
+
+Отсюда следует то, ради чего всё и делалось: **рой накапливает опыт в одном месте**,
+а не начинает с нуля в каждом каталоге.
+
+Две вещи, которые раньше путались и теперь разведены:
+
+| | |
+|---|---|
+| `-ProjectRoot` | где живёт СОСТОЯНИЕ роя — всегда канонический корень |
+| `-WorkDir` | где выполняется КОМАНДА — каталог проекта, по умолчанию текущий |
+
+Перед прогоном `run_task.ps1` сам берёт замок и снимает его в `finally`, в том числе
+после падения. Занятый замок живой сессии — команда **присоединиться**, а не поднять
+второй демон: выход 4 означает «рой уже работает», а не «ошибка».
+
+```
+scripts\hive_single.ps1 -Action status        # где рой, жив ли, кто держит
+scripts\hive_single.ps1 -Action sweep         # каталоги вне канона (только показ)
+scripts\hive_single.ps1 -Action sweep -Fix    # ПЕРЕНОС их в archive, не удаление
+```
+
+**Перед любой уборкой** — `python scripts\consolidate_hives.py`. В каталогах роёв
+лежат их ОБЪЕКТИВЫ, то есть постановки задач, которых больше нигде нет; сборщик
+кладёт их в `E:\-4-\ruflo-hive\hives.sqlite` вместе с сырьём, по ключу SHA-256,
+и повторный прогон ничего не задваивает. Удалять до слияния нельзя.
+
+Каталоги ЧУЖИХ живых сессий уборка не трогает без явного `-IncludeForeign`: снять
+историю роя у работающей рядом сессии — сломать ей работу, а не навести порядок.
+
 ## Install only when needed
 
 Run `scripts/install_ruflo.ps1`. It detects an existing `.claude-flow` installation or cached CLI and exits without changing it. For a fresh project, provide a trusted cached `claude-flow/bin/cli.js`; it runs the piloted non-interactive initializer. Do not alter the pilot at `E:\-4-\ruflo-pilot`.

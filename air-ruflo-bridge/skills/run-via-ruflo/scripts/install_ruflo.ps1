@@ -1,11 +1,14 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
-    [Parameter()][string]$ProjectRoot = (Get-Location).Path,
+    # Тот же канонический корень, что у run_task.ps1: установка в cwd плодила
+    # рой на каждый каталог, откуда её случайно запустили.
+    [Parameter()][string]$ProjectRoot = 'E:\-4-\ruflo-hive',
     [Parameter()][string]$CliPath,
     [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not (Test-Path -LiteralPath $ProjectRoot)) { New-Item -ItemType Directory -Path $ProjectRoot -Force | Out-Null }
 $ProjectRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
 
 function Find-RufloCli([string]$Root) {

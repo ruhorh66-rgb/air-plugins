@@ -4,7 +4,16 @@ param(
     [Parameter()][ValidateRange(1,64)][int]$MaxAgents = 2,
     [Parameter()][string[]]$Roles = @('architect','implementer'),
     [Parameter(Mandatory)][string]$CliPath,
-    [Parameter()][string]$ProjectRoot = (Get-Location).Path,
+    # ГДЕ ЖИВЁТ РОЙ. Раньше здесь стояло (Get-Location).Path, и это была причина
+    # разрастания: состояние ruflo привязано к рабочему каталогу, поэтому каждая
+    # сессия из своего cwd заводила СВОЙ рой. За неделю так набралось девять
+    # каталогов при нуле живых процессов. Теперь корень один и по умолчанию
+    # канонический — рой накапливает опыт в одном месте, а не начинает с нуля.
+    [Parameter()][string]$ProjectRoot = 'E:\-4-\ruflo-hive',
+    # ГДЕ ИДЁТ РАБОТА. Это РАЗНЫЕ вещи, и их смешение всё и ломало: команда
+    # выполняется в каталоге проекта, а состояние роя остаётся в каноническом.
+    [Parameter()][string]$WorkDir = (Get-Location).Path,
+    [Parameter()][switch]$AllowForeignHive,
     [Parameter(Mandatory)][string]$ReportPath,
     [Parameter()][string]$Command,
     [Parameter()][ValidateSet('I_APPROVE_RUFLO_PLAN')][string]$Approval
@@ -12,7 +21,32 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if (-not (Test-Path -LiteralPath $CliPath)) { throw "CLI not found: $CliPath" }
+$CanonicalHive = 'E:\-4-\ruflo-hive'
+if (-not (Test-Path -LiteralPath $ProjectRoot)) {
+    New-Item -ItemType Directory -Path $ProjectRoot -Force | Out-Null
+}
 $ProjectRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
+$WorkDir = (Resolve-Path -LiteralPath $WorkDir).Path
+
+# ЖЁСТКИЙ ЗАПРЕТ. Отказ громче удобства: молчаливое согласие на чужой корень
+# вернуло бы ровно ту россыпь роёв, ради которой всё это и делалось.
+if ($ProjectRoot -ne $CanonicalHive -and -not $AllowForeignHive) {
+    [pscustomobject]@{
+        outcome='refused'; reason='рой заводится только в каноническом корне'
+        requested=$ProjectRoot; canonical=$CanonicalHive
+        advice='убрать -ProjectRoot, либо осознанно передать -AllowForeignHive'
+    } | ConvertTo-Json -Compress
+    exit 5
+}
+
+# Замок: живой держатель означает «присоединяйся», а не «подними второй демон».
+$hiveSingle = Join-Path $PSScriptRoot 'hive_single.ps1'
+if (Test-Path -LiteralPath $hiveSingle) {
+    $claim = & $hiveSingle -Action claim -Root $ProjectRoot -Owner "run_task-$PID" 2>$null
+    if ($LASTEXITCODE -eq 4) {
+        $claim; exit 4
+    }
+}
 $reportDirectory = Split-Path -Parent $ReportPath
 if ($reportDirectory -and -not (Test-Path -LiteralPath $reportDirectory)) { New-Item -ItemType Directory -Path $reportDirectory -Force | Out-Null }
 $transcript = [System.Collections.Generic.List[string]]::new()
@@ -40,8 +74,17 @@ try {
         exit 10
     }
     if (-not $Command) { throw 'Execution was approved but -Command is missing.' }
-    Invoke-RufloTool 'terminal_execute' @{ command=$Command; cwd=$ProjectRoot } | Out-Null
+    # cwd = каталог РАБОТЫ, а не роя: команда должна выполняться там, где лежит
+    # проект, иначе она не найдёт ни кода, ни данных.
+    Invoke-RufloTool 'terminal_execute' @{ command=$Command; cwd=$WorkDir } | Out-Null
     $transcript.Add("## Execution`nterminal_execute was invoked only after the exact approval token was supplied. This report does not claim that roles executed independently; inspect Ruflo agent/process evidence before making that claim.")
     $transcript | Set-Content -LiteralPath $ReportPath -Encoding utf8
     Write-Output "EXECUTED. Report: $ReportPath"
-} finally { Pop-Location }
+} finally {
+    Pop-Location
+    # Замок снимается ВСЕГДА, в том числе после падения: иначе следующая сессия
+    # упрётся в мёртвый замок и решит, что рой занят.
+    if (Test-Path -LiteralPath $hiveSingle) {
+        & $hiveSingle -Action release -Root $ProjectRoot -Force 2>$null | Out-Null
+    }
+}
