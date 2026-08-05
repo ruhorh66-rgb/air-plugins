@@ -83,13 +83,63 @@ zero-knowledge ХРАНИЛИЩЕ секретов, а не сканер. Он �
 
 Run `scripts/install_ruflo.ps1`. It detects an existing `.claude-flow` installation or cached CLI and exits without changing it. For a fresh project, provide a trusted cached `claude-flow/bin/cli.js`; it runs the piloted non-interactive initializer. Do not alter the pilot at `E:\-4-\ruflo-pilot`.
 
+## Canonical command, not our own orchestration
+
+Переписано 05.08.2026 по решению ЛПР: контур не собирает `swarm_init`/`task_create` вручную —
+используется штатная команда самого движка, `hive-mind spawn --claude -o "<цель>"`. Она сама
+решает состав роя из цели; наша обвязка не придумывает роли/топологию.
+
+## Одно окно — один рой на весь контур
+
+`hive-mind spawn` не умеет исполнять в другом каталоге — состояние жёстко привязано к cwd
+вызова. Поэтому рой **всегда** запускается из канонического `E:\-4-\ruflo-hive`
+(`$ProjectRoot` в `run_task.ps1`), а реальный путь работы (`$TargetPath`) вписывается
+**текстом в цель** — запущенная сессия сама переходит туда первым действием. Это даёт то,
+что нужно контуру: одна очередь, один живой рой, не россыпь каталогов по проектам.
+
+## Обязательная разовая настройка ПЕРЕД первым реальным запуском
+
+`--claude` без регистрации MCP-сервера в `$ProjectRoot` тихо запускает не рой, а одну
+обычную дорогую сессию без единого `mcp__claude-flow__*` инструмента — задокументированный
+отказ (`005_Ruflo_Wiki`, «Пилот 04.08.2026»). Один раз для канонического каталога:
+
+```
+cd E:\-4-\ruflo-hive
+claude mcp add -s project claude-flow -- node "<CliPath>" mcp start
+```
+
+Затем одобрить в `~/.claude.json` → `projects["E:\-4-\ruflo-hive"].enabledMcpjsonServers`
+(добавить `"claude-flow"`) — либо один раз открыть интерактивную сессию в этом каталоге и
+подтвердить запрос глазами. `run_task.ps1` проверяет присутствие в `.mcp.json` и отказывает
+реальному запуску, если проверка не прошла (`exit 6`), но **не может проверить сам факт
+одобрения** — это подтверждается только логом первого реального прогона
+(`grep '"name":"mcp__claude-flow__' <лог>`), не самоотчётом сессии и не `claude mcp list`
+(та команда показывает устаревшее состояние).
+
 ## Mandatory human gate
 
-First run `scripts/run_task.ps1` **without** `-Approval`. It may call only `swarm_init` and `task_create`, writes the proposed topology, role assignments, task descriptions, and budget (`maxAgents`) to its report, then stops with exit code 10.
+First run `scripts/run_task.ps1` **without** `-Approval` — mandatory `-Objective` and
+`-TargetPath`. It calls `hive-mind spawn --claude -o "<цель+TargetPath>" --dry-run`, writes
+the proposal (objective text, worker count, coordination prompt) to its report, then stops
+with exit code 10. Claude Code is NOT launched at this stage.
 
-Show the complete proposal/report to the human and wait for an explicit approval. Do not infer approval from silence or from a prior request. Only after approval, re-run with the literal `-Approval I_APPROVE_RUFLO_PLAN` and an explicit `-Command`. The script is the only path here that calls `terminal_execute`; it refuses to call it before the gate.
+Show the complete proposal/report to the human and wait for an explicit approval. Do not infer
+approval from silence or from a prior request. Only after approval, re-run with the literal
+`-Approval I_APPROVE_RUFLO_PLAN`. The script is the only path here that launches Claude Code
+for real; it refuses to before the gate, and refuses again (`exit 6`) if MCP registration is
+missing.
 
-Never say roles were actually distributed merely because Ruflo proposed them or `task_create` succeeded. Require evidence of distinct Ruflo agent IDs and distinct OS process IDs/calls before making that claim; otherwise say only “roles proposed”. Likewise, do not report a successful run solely from Ruflo output—verify the requested artifact/test independently.
+**Why the real run does NOT pass `--no-auto-permissions`:** the engine's own default
+(`--dangerously-skip-permissions: true`) exists so a headless launch doesn't hang on an
+internal prompt nobody can answer. Our external dry-run-then-explicit-approval gate already
+supplies the human checkpoint that internal prompt would have provided — disabling the
+engine's default here would just make the approved run hang, not make it safer.
+
+Never say roles were actually distributed merely because Ruflo proposed them or `hive-mind
+spawn` printed a worker table. Require evidence — grep the run's log for
+`"name":"mcp__claude-flow__"` — before making that claim; otherwise say only “roles proposed”.
+Likewise, do not report a successful run solely from Ruflo output — verify the requested
+artifact/test independently.
 
 ## Daemon status without waking it
 
