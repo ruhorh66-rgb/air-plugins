@@ -93,6 +93,17 @@ if ($reportDir -and -not (Test-Path -LiteralPath $reportDir)) {
 $args = @('dir', $Path, '--no-banner', '--redact', '--exit-code', '0',
           '--report-format', 'json', '--report-path', $report)
 
+# Если в сканируемом каталоге лежит свой .gitleaks.toml — подать его явно.
+# Без --config gitleaks не гарантированно подхватывает конфиг из чужого cwd
+# (мы не меняем cwd под $Path). Найдено 06.08.2026: вендоренная документация
+# сторонних API (пример-значения токенов в OpenAPI-спецификациях) даёт
+# стабильные ложные срабатывания — конфиг с allowlist по пути решает это
+# без ослабления проверки остального дерева.
+$localConfig = Join-Path $Path '.gitleaks.toml'
+if (Test-Path -LiteralPath $localConfig) {
+    $args += @('--config', $localConfig)
+}
+
 $started = Get-Date
 try {
     $proc = Start-Process -FilePath $exe -ArgumentList $args -NoNewWindow -PassThru `
