@@ -26,6 +26,24 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Движок проверяет доступность Claude Code вызовом `execSync('which claude')`
+# (dist/src/commands/hive-mind.js) — ЮНИКСОВЫЙ `which`, которого в Windows нет
+# по умолчанию. Проверено 06.08.2026 дважды: ни prepend каталога с claude.exe,
+# ни что-либо ещё не помогает, пока самого `which` нет в PATH — движок падает
+# в тихую деградацию ("Falling back to displaying instructions"), exit 0,
+# реальная сессия не запускается, а отчёт без отдельной проверки врёт "EXECUTED".
+# Рабочий рецепт — из проверенного `codex-shim`-шаблона: Git for Windows везёt
+# свой which.exe в usr\bin, плюс каталог с настоящим claude.exe для самого
+# исполнения (не только для проверки).
+$GitBin      = 'C:\Program Files\Git\usr\bin'
+$ClaudeExeDir = 'C:\Users\admin_loc\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\bin'
+if ((Test-Path -LiteralPath (Join-Path $GitBin 'which.exe')) -and (Test-Path -LiteralPath (Join-Path $ClaudeExeDir 'claude.exe'))) {
+    $env:Path = "$GitBin;$ClaudeExeDir;$env:Path"
+} else {
+    Write-Warning "which.exe ($GitBin) или claude.exe ($ClaudeExeDir) не найдены — реальный запуск, скорее всего, откажет так же, как раньше"
+}
+
 if (-not (Test-Path -LiteralPath $CliPath)) { throw "CLI not found: $CliPath" }
 if (-not (Test-Path -LiteralPath $TargetPath)) { throw "TargetPath not found: $TargetPath" }
 $CanonicalHive = 'E:\-4-\ruflo-hive'
@@ -110,6 +128,17 @@ try {
     # виснет на первом же внутреннем запросе разрешения, которого некому одобрить.
     $runOut = & node $CliPath hive-mind spawn --claude -o $fullObjective 2>&1 | Out-String
     $transcript.Add("## Execution`n~~~text`n$runOut`n~~~`nПроверять реальность роя — по логу (`"name`":`"mcp__claude-flow__`"), не по самоотчёту сессии.")
+
+    # НЕ верить exit-коду и факту "команда отработала" — движок сам может тихо
+    # не запустить Claude Code и просто напечатать инструкции, при этом exit
+    # остаётся 0. Проверено 06.08.2026: отчёт писал "EXECUTED" при реально
+    # несостоявшемся запуске (см. runOut ниже). Ищем маркер деградации явно.
+    if ($runOut -match 'Claude Code CLI not found' -or $runOut -match 'Falling back to displaying instructions') {
+        $transcript.Add("## Execution FAILED (silent degradation)`nДвижок не нашёл claude.exe и не запустил сессию — рой НЕ РАБОТАЛ, несмотря на то что процесс сам завершился без ошибки. См. вывод выше.")
+        $transcript | Set-Content -LiteralPath $ReportPath -Encoding utf8
+        Write-Output "EXECUTION FAILED (Claude Code was not actually launched). Report: $ReportPath"
+        exit 7
+    }
     $transcript | Set-Content -LiteralPath $ReportPath -Encoding utf8
     Write-Output "EXECUTED. Report: $ReportPath"
 } finally {
