@@ -1,0 +1,281 @@
+"""Слушатель подтверждений: ловит нажатие кнопки в Telegram и запускает заявку.
+
+Работает фоном (задача планировщика либо ручной запуск на время сессии).
+Опрашивает Telegram long polling'ом, ждёт нажатия кнопки под заявкой, которую
+положил `approve_via_telegram.py create`.
+
+ЧТО ОН МОЖЕТ И ЧЕГО НЕ МОЖЕТ — это главное в файле.
+
+МОЖЕТ: взять из очереди заявку с известным id и выполнить СОХРАНЁННУЮ В НЕЙ
+команду — ту самую, что подготовил dry-run на этой машине.
+
+НЕ МОЖЕТ, и это не настраивается:
+  - выполнить текст, пришедший из чата. Сообщения не разбираются как команды
+    вообще; читается только callback_data вида run:<id> / no:<id>;
+  - выполнить что-либо по нажатию от чужого chat_id — сверка строгая, чужие
+    нажатия игнорируются молча (ответ подтвердил бы существование канала);
+  - выполнить заявку дважды или просроченную — статус переводится сразу,
+    повторное нажатие получает отказ.
+
+Если этот файл кто-то расширит до «выполнить произвольную команду из
+сообщения» — механизм превратится из удобного гейта в удалённое исполнение
+кода на SRVLM01 по факту владения токеном бота. Ограничение выше — не
+перестраховка, а условие, при котором канал вообще допустим.
+"""
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+SERVICE = "air-comms-telegram-bot"
+QUEUE = r"E:\-4-\skill-state\ruflo-approvals"
+TTL_SECONDS = 12 * 3600
+OFFSET_FILE = os.path.join(QUEUE, "_offset.txt")
+
+
+def _secret(account: str) -> str:
+    import keyring
+    value = keyring.get_password(SERVICE, account)
+    if not value:
+        raise SystemExit(f"нет {SERVICE}/{account} в keyring")
+    return value
+
+
+def _api(method: str, payload: dict | None = None, timeout: int = 70) -> dict:
+    token = _secret("botfather-token")
+    url = f"https://api.telegram.org/bot{token}/{method}"
+    data = json.dumps(payload).encode("utf-8") if payload else None
+    headers = {"Content-Type": "application/json"} if data else {}
+    req = urllib.request.Request(url, data=data, headers=headers,
+                                 method="POST" if data else "GET")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        return {"ok": False, "error": exc.read().decode("utf-8", "replace")[:200]}
+    except Exception as exc:  # сеть моргнула — не роняем слушателя
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _answer(callback_id: str, text: str) -> None:
+    """Всплывающее уведомление на кнопку. show_alert=True — заметно.
+
+    Без него Telegram показывает еле заметную полоску вверху, и ЛПР
+    справедливо сказал, что «не совсем явно видно, прошла ли заявка».
+    """
+    _api("answerCallbackQuery",
+         {"callback_query_id": callback_id, "text": text, "show_alert": True}, timeout=20)
+
+
+def _edit(chat_id, message_id: int, text: str, keep_buttons: bool = False) -> None:
+    """Переписать само сообщение с заявкой — чтобы его вид отражал состояние.
+
+    Кнопка, которая продолжает висеть после нажатия, выглядит как «ничего не
+    произошло»: именно это и наблюдал ЛПР. После решения кнопки снимаются, а
+    текст сообщения становится статусом — заявка перестаёт выглядеть свежей.
+    """
+    payload = {"chat_id": int(chat_id), "message_id": message_id, "text": text}
+    if not keep_buttons:
+        payload["reply_markup"] = {"inline_keyboard": []}
+    _api("editMessageText", payload, timeout=20)
+
+
+def _notify(text: str) -> None:
+    try:
+        _api("sendMessage", {"chat_id": int(_secret("chat_id")), "text": text}, timeout=20)
+    except Exception:
+        pass
+
+
+def _load_offset() -> int:
+    try:
+        with open(OFFSET_FILE, encoding="utf-8") as fh:
+            return int(fh.read().strip() or 0)
+    except (OSError, ValueError):
+        return 0
+
+
+def _save_offset(value: int) -> None:
+    os.makedirs(QUEUE, exist_ok=True)
+    try:
+        with open(OFFSET_FILE, "w", encoding="utf-8") as fh:
+            fh.write(str(value))
+    except OSError:
+        pass
+
+
+RUN_TASK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "run_task.ps1")
+CLI_PATH = (r"E:\-4-\ruflo-pilot\.npm-cache-3.34.0\_npx\2ed56890c96f58f7"
+            r"\node_modules\@claude-flow\cli\bin\cli.js")
+
+
+def _run_request(req: dict) -> None:
+    """Собрать вызов run_task.ps1 ИЗ ПАРАМЕТРОВ заявки и выполнить.
+
+    Строки команды в заявке нет и быть не может (см. заголовок файла): здесь
+    фиксированный шаблон, в который подставляются только цель, каталог и числа.
+    Параметры валидируются повторно — заявка могла быть создана давно, а файл
+    цели за это время исчезнуть.
+    """
+    objective_file = req.get("objective_file", "")
+    target = req.get("target_path", "")
+    workers = int(req.get("workers", 5))
+    priority = str(req.get("priority", "high"))
+    if not os.path.isfile(objective_file) or not os.path.isdir(target):
+        _notify(f"⚠ Заявка {req['id']}: цель или каталог задачи исчезли, не запускаю")
+        return
+    if not (1 <= workers <= 32) or priority not in ("normal", "high", "critical"):
+        _notify(f"⚠ Заявка {req['id']}: недопустимые параметры, не запускаю")
+        return
+    command = (
+        f'& "{RUN_TASK}" '
+        f'-Objective (Get-Content "{objective_file}" -Raw) '
+        f'-TargetPath "{target}" '
+        f'-CliPath "{CLI_PATH}" '
+        f'-ReportPath "{req.get("report", "")}" '
+        f'-Workers {workers} -Priority {priority} '
+        f'-Approval I_APPROVE_RUFLO_PLAN'
+    )
+    started = time.time()
+    proc = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    took = int(time.time() - started)
+    mins = f"{took // 60} мин {took % 60} с" if took >= 60 else f"{took} с"
+    out = (proc.stdout or "").strip()
+
+    # Итог человеческим языком, а не обрывком вывода: коды выхода run_task.ps1
+    # осмысленные, и ЛПР должен видеть СМЫСЛ, а не число. Хвост вывода —
+    # ниже и коротко, для тех случаев, когда важны детали.
+    codes = {
+        0: "✅ Рой отработал",
+        4: "ℹ Рой уже занят другой задачей — эта присоединится к очереди",
+        6: "⚠ Не запущено: MCP не зарегистрирован для канонического роя",
+        7: "⚠ Не запущено: движок не нашёл Claude Code (тихая деградация)",
+        8: "⚠ Не запущено: истекла авторизация Claude Code — нужен claude auth login",
+        9: "⚠ Queen-сессия завершилась с ошибкой",
+        11: "⚠ Отработало, НО роя не было: ни одного вызова mcp__claude-flow__",
+    }
+    head = codes.get(proc.returncode, f"⚠ Код выхода {proc.returncode}")
+    verdict = ""
+    for line in out.splitlines():
+        if "Рой работал" in line or "РОЯ НЕ БЫЛО" in line or "SECRET SCAN" in line:
+            verdict += "\n" + line.strip()
+    _notify(f"{head} — заявка {req['id']}, заняло {mins}{verdict[:600]}\n\n"
+            f"Отчёт: {req.get('report', '')}")
+
+
+def poll_once(chat_id: str) -> int:
+    offset = _load_offset()
+    resp = _api("getUpdates", {"offset": offset, "timeout": 50, "allowed_updates": ["callback_query"]})
+    if not resp.get("ok"):
+        time.sleep(5)
+        return 0
+    handled = 0
+    for upd in resp.get("result", []):
+        _save_offset(upd["update_id"] + 1)
+        cq = upd.get("callback_query")
+        if not cq:
+            continue
+        # ЧУЖОЙ ОТПРАВИТЕЛЬ — молча мимо, без ответа.
+        sender = str((cq.get("from") or {}).get("id", ""))
+        if sender != str(chat_id):
+            continue
+        data = str(cq.get("data") or "")
+        if ":" not in data:
+            continue
+        action, rid = data.split(":", 1)
+        path = os.path.join(QUEUE, f"{rid}.json")
+        if not os.path.isfile(path):
+            _answer(cq["id"], "Заявка не найдена")
+            continue
+        with open(path, encoding="utf-8") as fh:
+            req = json.load(fh)
+        if req.get("status") != "pending":
+            _answer(cq["id"], f"Уже {req.get('status')}")
+            continue
+        msg = cq.get("message") or {}
+        mid = msg.get("message_id")
+        title = req.get("title", "Запуск роя")
+        stamp = time.strftime("%H:%M")
+        if time.time() - req.get("created_at", 0) > TTL_SECONDS:
+            req["status"] = "expired"
+            _answer(cq["id"], "Заявка просрочена — подтвердить уже нельзя")
+            if mid:
+                _edit(sender, mid, f"⌛ {title}\n\nЗаявка {rid} просрочена, не запущена.")
+        elif action == "run":
+            req["status"] = "approved"
+            _answer(cq["id"], "Принято. Запускаю рой — итог придёт сюда же.")
+            if mid:
+                _edit(sender, mid,
+                      f"🐝 {title}\n\n✅ ПРИНЯТО В РАБОТУ в {stamp}\n"
+                      f"Заявка {rid}, воркеров: {req.get('workers')}.\n"
+                      f"Рой запускается. Здесь же придёт итог — ждать не нужно.")
+        elif action == "no":
+            req["status"] = "rejected"
+            _answer(cq["id"], "Отклонено. Рой не запускается.")
+            if mid:
+                _edit(sender, mid, f"✖ {title}\n\nЗаявка {rid} отклонена в {stamp}, рой не запускался.")
+        else:
+            continue
+        req["decided_at"] = time.time()
+        req["message_id"] = mid
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(req, fh, ensure_ascii=False, indent=1)
+        handled += 1
+        if req["status"] == "approved":
+            _run_request(req)
+    return handled
+
+
+def main() -> int:
+    """Два режима.
+
+    Без аргументов — постоянный слушатель (задача планировщика).
+    `--once <минуты>` — РАЗОВЫЙ: ждёт решения по текущим заявкам заданное время
+    и завершается. ЛПР предпочёл этот режим: постоянный процесс ради кнопки,
+    нажимаемой несколько раз в день, — лишняя сущность в контуре. Разовый
+    живёт ровно столько, сколько длится ожидание ответа на конкретную заявку.
+    """
+    chat_id = _secret("chat_id")
+    os.makedirs(QUEUE, exist_ok=True)
+    once = "--once" in sys.argv
+    deadline = None
+    if once:
+        idx = sys.argv.index("--once")
+        minutes = int(sys.argv[idx + 1]) if len(sys.argv) > idx + 1 else 30
+        deadline = time.time() + minutes * 60
+        print(f"разовый обработчик: жду решения {minutes} мин", flush=True)
+    else:
+        print(f"слушатель запущен, очередь: {QUEUE}", flush=True)
+    while True:
+        try:
+            handled = poll_once(chat_id)
+            if once:
+                if handled:
+                    print("решение получено и обработано", flush=True)
+                    return 0
+                if deadline and time.time() > deadline:
+                    print("время ожидания истекло, решения не было", flush=True)
+                    return 3
+        except KeyboardInterrupt:
+            print("остановлен", flush=True)
+            return 0
+        except Exception as exc:  # noqa: BLE001 — обработчик не должен умирать
+            print(f"сбой цикла: {type(exc).__name__}: {exc}", flush=True)
+            time.sleep(10)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
