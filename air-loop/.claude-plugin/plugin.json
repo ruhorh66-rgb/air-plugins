@@ -1,9 +1,18 @@
 {
   "name": "air-loop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Canonical verification loop for AIR OS plugins: goal, gate, turn limit, one final hand-off. Ships the loop runner that counts turns and holds the limit instead of trusting memory — a failing gate stops with diagnostics rather than looping forever or going quiet. Distinct from external control: this is self-check by the same model that did the work.",
-  "author": { "name": "AIR OS" },
+  "author": {
+    "name": "AIR OS"
+  },
   "license": "MIT",
-  "keywords": ["verification-loop", "loop-engineering", "self-check", "gate", "quality", "air-os"],
+  "keywords": [
+    "verification-loop",
+    "loop-engineering",
+    "self-check",
+    "gate",
+    "quality",
+    "air-os"
+  ],
   "defaultEnabled": false
 }
