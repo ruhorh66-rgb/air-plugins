@@ -1,4 +1,4 @@
-# run_task.ps1 — одно окно, один рой.
+﻿# run_task.ps1 — одно окно, один рой.
 #
 # ПЕРЕПИСАН 05.08.2026 по решению ЛПР: контур не пишет свою оркестрацию поверх
 # ruflo (swarm_init/task_create вручную) — используется КАНОНИЧЕСКАЯ команда
@@ -22,7 +22,17 @@ param(
     [Parameter()][switch]$AllowForeignHive,
     [Parameter(Mandatory)][string]$CliPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [Parameter()][ValidateSet('I_APPROVE_RUFLO_PLAN')][string]$Approval
+    [Parameter()][ValidateSet('I_APPROVE_RUFLO_PLAN')][string]$Approval,
+    # Сколько воркеров завести под задачу. ДО 08.08.2026 не передавалось вовсе —
+    # движок брал свой дефолт 1 (`-n, --count ... [default: 1]`), поэтому каждый
+    # прогон контура шёл ОДНИМ воркером, а 18 накопленных сидели idle с нулём
+    # выполненных задач. Значение 5 — из официального примера самого движка
+    # (`claude-flow hive-mind spawn -n 5`), не выдумано нами.
+    [Parameter()][int]$Workers = 5,
+    [Parameter()][ValidateSet('normal','high','critical')][string]$Priority = 'high',
+    # autopilot держит агентов в работе, пока не закрыты ВСЕ задачи
+    # ("Persistent swarm completion"). Выключается осознанно, не по умолчанию.
+    [Parameter()][switch]$NoAutopilot
 )
 
 $ErrorActionPreference = 'Stop'
@@ -105,7 +115,12 @@ try {
         "он не относится к задаче. ЗАДАЧА: $Objective"
 
     $dryOut = & node $CliPath hive-mind spawn --claude -o $fullObjective --dry-run 2>&1 | Out-String
-    $transcript.Insert(0, "# Ruflo proposal (canonical hive-mind spawn)`n`nTargetPath: $TargetPath`nProjectRoot: $ProjectRoot`nMCP registered: $mcpConfigured`n`n~~~text`n$dryOut`n~~~")
+    $planned = "ЧТО БУДЕТ ЗАПУЩЕНО ПРИ -Approval (три шага, не один):`n" +
+        "  1. hive-mind spawn -n $Workers        — завести $Workers воркеров под задачу`n" +
+        "  2. hive-mind task -d <цель> -p $Priority   — положить задачу в очередь роя`n" +
+        "  3. autopilot enable                   — $(if ($NoAutopilot) {'ОТКЛЮЧЕНО флагом -NoAutopilot'} else {'держать агентов до закрытия ВСЕХ задач'})`n" +
+        "  4. hive-mind spawn --claude -o <цель> — Queen-сессия, раздаёт работу через MCP`n"
+    $transcript.Insert(0, "# Ruflo proposal (canonical hive-mind spawn)`n`nTargetPath: $TargetPath`nProjectRoot: $ProjectRoot`nMCP registered: $mcpConfigured`n`n$planned`n~~~text`n$dryOut`n~~~")
     if ($LASTEXITCODE -ne 0) { throw "hive-mind spawn --dry-run failed ($LASTEXITCODE)" }
 
     if (-not $Approval) {
@@ -122,7 +137,32 @@ try {
         exit 6
     }
 
-    # Реальный запуск: наш внешний гейт (dry-run -> явное решение человека) уже
+    # --- Реальный запуск: ТРИ шага, а не один -------------------------------
+    # Найдено 08.08.2026 разбором справки самого движка после указания ЛПР
+    # «не придумывать, смотреть первоисточник» (ERR-2026-000192). До этой правки
+    # вызывался ТОЛЬКО третий шаг, поэтому: воркеров всегда 1 (дефолт движка),
+    # очередь задач роя пустая, координатору некого координировать и нечего
+    # раздавать. Статистика подтвердила: 18 воркеров, все idle, Completed=0.
+    #
+    #   1) spawn -n N     — завести воркеров под задачу
+    #   2) task -d "цель" — положить задачу В ОЧЕРЕДЬ РОЯ (`Submit tasks to the hive`)
+    #   3) spawn --claude — поднять Queen-сессию, которая раздаёт работу через MCP
+
+    $spawnOut = & node $CliPath hive-mind spawn -n $Workers 2>&1 | Out-String
+    $transcript.Add("## 1. Spawn workers (-n $Workers)`n~~~text`n$spawnOut`n~~~")
+    if ($LASTEXITCODE -ne 0) { throw "hive-mind spawn -n $Workers failed ($LASTEXITCODE)" }
+
+    $taskOut = & node $CliPath hive-mind task -d $fullObjective -p $Priority 2>&1 | Out-String
+    $transcript.Add("## 2. Submit task to hive queue (-p $Priority)`n~~~text`n$taskOut`n~~~")
+    if ($LASTEXITCODE -ne 0) { throw "hive-mind task failed ($LASTEXITCODE)" }
+
+    if (-not $NoAutopilot) {
+        $autoOut = & node $CliPath autopilot enable 2>&1 | Out-String
+        $transcript.Add("## 3. Autopilot (persistent completion)`n~~~text`n$autoOut`n~~~")
+        if ($LASTEXITCODE -ne 0) { $transcript.Add("ВНИМАНИЕ: autopilot enable вернул $LASTEXITCODE — рой не будет держать задачи до полного закрытия.") }
+    }
+
+    # Queen-сессия. Наш внешний гейт (dry-run -> явное решение человека) уже
     # сыграл роль подтверждения — поэтому дефолт движка (--dangerously-skip-permissions)
     # НЕ отключается: отключить его здесь значило бы, что headless-сессия молча
     # виснет на первом же внутреннем запросе разрешения, которого некому одобрить.
