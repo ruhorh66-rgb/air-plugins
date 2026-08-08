@@ -163,6 +163,14 @@ def _resolve(path_or_link: str) -> str:
                 if candidate == name or candidate == name + ".md":
                     return os.path.join(root, candidate)
         raise SystemExit(f"по ссылке [[{name}]] страница не найдена")
+    # Абсолютный путь тоже принимается: задание не обязано лежать в платформе 010.
+    # Заявки на доработку плагинов живут в самих репозиториях плагинов рядом с кодом,
+    # и заводить в 010 страницу-обёртку ради ссылки — это дубль, который завтра
+    # разойдётся с оригиналом.
+    if os.path.isabs(name):
+        if not os.path.isfile(name):
+            raise SystemExit(f"нет файла задания: {name}")
+        return name
     full = os.path.join(PLATFORM, name)
     if not os.path.isfile(full):
         raise SystemExit(f"нет файла задания: {name}")
