@@ -228,6 +228,8 @@ def queue(argv: list[str]) -> int:
                 d = json.load(fh)
         except (OSError, ValueError):
             continue
+        if not isinstance(d, dict):
+            continue  # синтаксически валидный, но не объект — тоже мусор
         st = d.get("status", "?")
         if st == "pending" and now - d.get("created_at", 0) > TTL_SECONDS:
             st = "expired"

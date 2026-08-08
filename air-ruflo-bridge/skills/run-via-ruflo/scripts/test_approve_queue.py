@@ -57,12 +57,25 @@ def test_pending_never_silently_dropped():
 
 
 def test_done_trimmed_before_pending():
-    """Завершённые уходят под нож первыми, нерешённые остаются целиком."""
-    recs = [{"status": "pending", "title": f"ждёт-{i}", "age_min": 1} for i in range(3)]
-    recs += [{"status": "approved", "title": "с" * 200, "age_min": 30} for _ in range(5)]
+    """Завершённые уходят под нож ПЕРВЫМИ — при реально исчерпанном бюджете.
+
+    Прошлая редакция этой проверки была ложно-зелёной (codex review, minor):
+    три pending и пять done укладывались в бюджет целиком, и она проходила
+    даже с удалённым циклом обрезки. Здесь pending набирают почти весь бюджет,
+    так что done обязаны быть вытеснены — иначе сводка вылезет за лимит.
+    """
+    recs = [{"status": "pending", "title": f"ждёт-{i:02d}-" + "д" * 60, "age_min": 1}
+            for i in range(35)]
+    recs += [{"status": "approved", "title": "готово-" + "г" * 60, "age_min": 30}
+             for _ in range(5)]
     out = _summary(recs)
-    for i in range(3):
-        assert f"ждёт-{i}" in out, f"нерешённая ждёт-{i} пропала из сводки"
+    assert len(out) < 4096, f"сводка вышла за лимит: {len(out)}"
+    for i in range(35):
+        assert f"ждёт-{i:02d}-" in out, f"нерешённая ждёт-{i:02d} вытеснена раньше завершённых"
+    # Обрезка снимает ровно столько завершённых, сколько нужно, — не все подряд.
+    shown_done = out.count("готово-")
+    assert shown_done < 5, "бюджет исчерпан, а ни одна завершённая не вытеснена"
+    assert "завершённых ранее" in out, "вытесненные завершённые не посчитаны"
 
 
 def test_old_done_hidden_with_count():
@@ -83,6 +96,27 @@ def test_broken_json_does_not_break_summary():
                        "created_at": time.time()}, fh)
         with open(os.path.join(tmp, "broken.json"), "w", encoding="utf-8") as fh:
             fh.write('{"id": "brok')
+        old, m.QUEUE = m.QUEUE, tmp
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                m.queue([])
+        finally:
+            m.QUEUE = old
+    assert "живая" in buf.getvalue()
+
+
+def test_non_object_json_skipped():
+    """Валидный JSON, но не объект — тоже мусор, и он не должен ронять сводку."""
+    import io
+    import contextlib
+    import approve_via_telegram as m
+    with tempfile.TemporaryDirectory() as tmp:
+        with open(os.path.join(tmp, "list.json"), "w", encoding="utf-8") as fh:
+            fh.write('["не объект"]')
+        with open(os.path.join(tmp, "ok.json"), "w", encoding="utf-8") as fh:
+            json.dump({"id": "ok", "status": "pending", "title": "живая",
+                       "created_at": time.time()}, fh)
         old, m.QUEUE = m.QUEUE, tmp
         buf = io.StringIO()
         try:
