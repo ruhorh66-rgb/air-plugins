@@ -82,6 +82,40 @@ $reportDirectory = Split-Path -Parent $ReportPath
 if ($reportDirectory -and -not (Test-Path -LiteralPath $reportDirectory)) { New-Item -ItemType Directory -Path $reportDirectory -Force | Out-Null }
 $transcript = [System.Collections.Generic.List[string]]::new()
 
+# --- Дефект отчёта, найден и закрыт 08.08.2026 ------------------------------
+# Симптом: реальный прогон упал на четвёртом шаге, а отчёт оборвался на третьем —
+# причину (протухший OAuth в Claude Code) пришлось искать руками, повторяя вызов
+# в консоли. Корень двойной:
+#   1) $ErrorActionPreference = 'Stop': когда node пишет в stderr, PowerShell
+#      бросает исключение ДО присваивания переменной, и вывод шага теряется целиком;
+#   2) транскрипт писался в файл лишь на некоторых ветках, а не на всех.
+# Лечится здесь: вызовы движка идут через Invoke-Ruflo (вывод и код возвращаются
+# всегда, исключение не бросается), а запись отчёта вынесена в Save-Report и
+# вызывается в finally безусловно.
+function Invoke-Ruflo {
+    param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$Stage)
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $out = & node $CliPath @Arguments 2>&1 | Out-String
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+    $transcript.Add("## $Stage`n~~~text`n$out`n~~~`nexit: $code")
+    [pscustomobject]@{ Output = $out; ExitCode = $code }
+}
+
+$script:reportSaved = $false
+function Save-Report {
+    try {
+        $transcript | Set-Content -LiteralPath $ReportPath -Encoding utf8
+        $script:reportSaved = $true
+    } catch {
+        Write-Warning "не удалось записать отчёт $ReportPath : $($_.Exception.Message)"
+    }
+}
+
 Push-Location $ProjectRoot
 try {
     # hive-mind init один раз на канонический рой — идемпотентно по факту наличия .hive-mind
@@ -114,25 +148,25 @@ try {
         "запущена из $ProjectRoot (канонический рой контура) — файлы этого каталога НЕ ТРОГАТЬ, " +
         "он не относится к задаче. ЗАДАЧА: $Objective"
 
-    $dryOut = & node $CliPath hive-mind spawn --claude -o $fullObjective --dry-run 2>&1 | Out-String
-    $planned = "ЧТО БУДЕТ ЗАПУЩЕНО ПРИ -Approval (три шага, не один):`n" +
+    $dry = Invoke-Ruflo -Arguments @('hive-mind','spawn','--claude','-o',$fullObjective,'--dry-run') -Stage 'Dry run'
+    $planned = "ЧТО БУДЕТ ЗАПУЩЕНО ПРИ -Approval (четыре шага, не один):`n" +
         "  1. hive-mind spawn -n $Workers        — завести $Workers воркеров под задачу`n" +
         "  2. hive-mind task -d <цель> -p $Priority   — положить задачу в очередь роя`n" +
         "  3. autopilot enable                   — $(if ($NoAutopilot) {'ОТКЛЮЧЕНО флагом -NoAutopilot'} else {'держать агентов до закрытия ВСЕХ задач'})`n" +
         "  4. hive-mind spawn --claude -o <цель> — Queen-сессия, раздаёт работу через MCP`n"
-    $transcript.Insert(0, "# Ruflo proposal (canonical hive-mind spawn)`n`nTargetPath: $TargetPath`nProjectRoot: $ProjectRoot`nMCP registered: $mcpConfigured`n`n$planned`n~~~text`n$dryOut`n~~~")
-    if ($LASTEXITCODE -ne 0) { throw "hive-mind spawn --dry-run failed ($LASTEXITCODE)" }
+    $transcript.Insert(0, "# Ruflo proposal (canonical hive-mind spawn)`n`nTargetPath: $TargetPath`nProjectRoot: $ProjectRoot`nMCP registered: $mcpConfigured`n`n$planned")
+    if ($dry.ExitCode -ne 0) { throw "hive-mind spawn --dry-run failed ($($dry.ExitCode))" }
 
     if (-not $Approval) {
         $transcript.Add("## Human gate`nSTOPPED: proposal above must be shown to a human. Re-run only with -Approval I_APPROVE_RUFLO_PLAN. Claude Code was NOT launched.")
-        $transcript | Set-Content -LiteralPath $ReportPath -Encoding utf8
+        Save-Report
         Write-Output "STOPPED FOR HUMAN APPROVAL. Report: $ReportPath"
         exit 10
     }
 
     if (-not $mcpConfigured) {
         $transcript.Add("## Refused`nMCP не зарегистрирован для $ProjectRoot — реальный запуск дал бы одну дорогую сессию без роя, не запускаю. Разово: claude mcp add -s project claude-flow -- node `"$CliPath`" mcp start (из $ProjectRoot), затем одобрить в ~/.claude.json.")
-        $transcript | Set-Content -LiteralPath $ReportPath -Encoding utf8
+        Save-Report
         Write-Output "REFUSED: MCP not registered for $ProjectRoot. Report: $ReportPath"
         exit 6
     }
@@ -148,26 +182,27 @@ try {
     #   2) task -d "цель" — положить задачу В ОЧЕРЕДЬ РОЯ (`Submit tasks to the hive`)
     #   3) spawn --claude — поднять Queen-сессию, которая раздаёт работу через MCP
 
-    $spawnOut = & node $CliPath hive-mind spawn -n $Workers 2>&1 | Out-String
-    $transcript.Add("## 1. Spawn workers (-n $Workers)`n~~~text`n$spawnOut`n~~~")
-    if ($LASTEXITCODE -ne 0) { throw "hive-mind spawn -n $Workers failed ($LASTEXITCODE)" }
+    $r1 = Invoke-Ruflo -Arguments @('hive-mind','spawn','-n',"$Workers") -Stage "1. Spawn workers (-n $Workers)"
+    if ($r1.ExitCode -ne 0) { throw "hive-mind spawn -n $Workers failed ($($r1.ExitCode))" }
 
-    $taskOut = & node $CliPath hive-mind task -d $fullObjective -p $Priority 2>&1 | Out-String
-    $transcript.Add("## 2. Submit task to hive queue (-p $Priority)`n~~~text`n$taskOut`n~~~")
-    if ($LASTEXITCODE -ne 0) { throw "hive-mind task failed ($LASTEXITCODE)" }
+    $r2 = Invoke-Ruflo -Arguments @('hive-mind','task','-d',$fullObjective,'-p',$Priority) -Stage "2. Submit task to hive queue (-p $Priority)"
+    if ($r2.ExitCode -ne 0) { throw "hive-mind task failed ($($r2.ExitCode))" }
 
     if (-not $NoAutopilot) {
-        $autoOut = & node $CliPath autopilot enable 2>&1 | Out-String
-        $transcript.Add("## 3. Autopilot (persistent completion)`n~~~text`n$autoOut`n~~~")
-        if ($LASTEXITCODE -ne 0) { $transcript.Add("ВНИМАНИЕ: autopilot enable вернул $LASTEXITCODE — рой не будет держать задачи до полного закрытия.") }
+        $r3 = Invoke-Ruflo -Arguments @('autopilot','enable') -Stage "3. Autopilot (persistent completion)"
+        if ($r3.ExitCode -ne 0) { $transcript.Add("ВНИМАНИЕ: autopilot enable вернул $($r3.ExitCode) — рой не будет держать задачи до полного закрытия.") }
     }
 
     # Queen-сессия. Наш внешний гейт (dry-run -> явное решение человека) уже
     # сыграл роль подтверждения — поэтому дефолт движка (--dangerously-skip-permissions)
     # НЕ отключается: отключить его здесь значило бы, что headless-сессия молча
     # виснет на первом же внутреннем запросе разрешения, которого некому одобрить.
-    $runOut = & node $CliPath hive-mind spawn --claude -o $fullObjective 2>&1 | Out-String
-    $transcript.Add("## Execution`n~~~text`n$runOut`n~~~`nПроверять реальность роя — по логу (`"name`":`"mcp__claude-flow__`"), не по самоотчёту сессии.")
+    # --non-interactive обязателен: запуск идёт из скрипта, TTY нет, и без флага
+    # сессия может встать на внутреннем интерактивном промпте, которого некому
+    # ответить. Проверено 08.08.2026 — с флагом exit 0 и результат возвращается.
+    $run = Invoke-Ruflo -Arguments @('hive-mind','spawn','--claude','-o',$fullObjective,'--non-interactive') -Stage '4. Execution (Queen session)'
+    $runOut = $run.Output
+    $transcript.Add("Проверять реальность роя — по логу (`"name`":`"mcp__claude-flow__`") и по росту Completed в hive-mind status, не по самоотчёту сессии.")
 
     # НЕ верить exit-коду и факту "команда отработала" — движок сам может тихо
     # не запустить Claude Code и просто напечатать инструкции, при этом exit
@@ -175,12 +210,34 @@ try {
     # несостоявшемся запуске (см. runOut ниже). Ищем маркер деградации явно.
     if ($runOut -match 'Claude Code CLI not found' -or $runOut -match 'Falling back to displaying instructions') {
         $transcript.Add("## Execution FAILED (silent degradation)`nДвижок не нашёл claude.exe и не запустил сессию — рой НЕ РАБОТАЛ, несмотря на то что процесс сам завершился без ошибки. См. вывод выше.")
-        $transcript | Set-Content -LiteralPath $ReportPath -Encoding utf8
+        Save-Report
         Write-Output "EXECUTION FAILED (Claude Code was not actually launched). Report: $ReportPath"
         exit 7
     }
-    $transcript | Set-Content -LiteralPath $ReportPath -Encoding utf8
+    # Отдельно — отказ авторизации. Проверено 08.08.2026: истёкшая OAuth-сессия
+    # Claude Code роняет ЧЕТВЁРТЫЙ шаг с кодом 1, при этом первые три проходят
+    # штатно, и без явного разбора это выглядит как «рой не поехал непонятно почему».
+    if ($runOut -match 'OAuth session expired' -or $runOut -match 'authentication_failed' -or $runOut -match 'Failed to authenticate') {
+        $transcript.Add("## Execution FAILED (authentication)`nУ Claude Code истекла авторизация — Queen-сессия не поднялась. Шаги 1–3 (воркеры, задача в очереди, autopilot) при этом ОТРАБОТАЛИ, состояние роя сохранено. Лечится в обычном PowerShell: claude auth login --claudeai, затем повторить запуск.")
+        Save-Report
+        Write-Output "EXECUTION FAILED (Claude Code auth expired — run: claude auth login --claudeai). Report: $ReportPath"
+        exit 8
+    }
+    if ($run.ExitCode -ne 0) {
+        $transcript.Add("## Execution FAILED`nQueen-сессия завершилась с кодом $($run.ExitCode). Полный вывод шага — выше, причина ищется там, а не повторным прогоном руками.")
+        Save-Report
+        Write-Output "EXECUTION FAILED (exit $($run.ExitCode)). Report: $ReportPath"
+        exit 9
+    }
+    Save-Report
     Write-Output "EXECUTED. Report: $ReportPath"
+} catch {
+    # Раньше исключение уносило с собой весь транскрипт: отчёт обрывался на
+    # последнем успешном шаге, и причину падения приходилось искать вручную.
+    $transcript.Add("## ПРЕРВАНО ИСКЛЮЧЕНИЕМ`n~~~text`n$($_.Exception.Message)`n~~~`nСтрока: $($_.InvocationInfo.ScriptLineNumber). Всё, что успело выполниться, — выше.")
+    Save-Report
+    Write-Output "FAILED: $($_.Exception.Message). Report: $ReportPath"
+    exit 1
 } finally {
     Pop-Location
 
@@ -196,16 +253,24 @@ try {
                 default  { "ПРОВЕРИТЬ НЕ СМОГ: $($scan.reason). Это НЕ «чисто»." }
             }
             $transcript.Add("## Secret scan`n$verdict`n~~~json`n$scanJson~~~")
-            $transcript | Set-Content -LiteralPath $ReportPath -Encoding utf8
+            Save-Report
             Write-Output "SECRET SCAN: $verdict"
         } catch {
             $transcript.Add("## Secret scan`nПРОВЕРИТЬ НЕ СМОГ: $($_.Exception.Message). Это НЕ «чисто».")
-            $transcript | Set-Content -LiteralPath $ReportPath -Encoding utf8
+            Save-Report
             Write-Output "SECRET SCAN: ПРОВЕРИТЬ НЕ СМОГ — $($_.Exception.Message)"
         }
     }
 
     if (Test-Path -LiteralPath $hiveSingle) {
         & $hiveSingle -Action release -Root $ProjectRoot -Force 2>$null | Out-Null
+    }
+
+    # Последняя страховка: если ни одна ветка выше отчёт не записала (падение до
+    # try, отказ ещё на проверках, что угодно) — пишем здесь. Пустой отчёт хуже
+    # неудобного: сегодня из-за потерянного транскрипта причину искали руками.
+    if (-not $script:reportSaved -and $transcript.Count -gt 0) {
+        $transcript.Add("## Примечание`nОтчёт записан страховочной веткой в finally — основной путь записи не отработал.")
+        Save-Report
     }
 }
