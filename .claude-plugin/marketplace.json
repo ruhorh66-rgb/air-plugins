@@ -19,6 +19,11 @@
       "_moved": "legal-analysis переехал 2026-07-22 в приватный репозиторий legal-analysis (маркетплейс air-legal, каталог E:\\-8-\\legal-analysis). Причина: продукт вырос, появилась коммерческая перспектива, своя линия релизов. История перенесена subtree split целиком — опубликованное не отзывается, версии v1.0.0..v1.1.0 остаются в истории этого репозитория, она не переписывается. Найдено 28.07.2026: запись здесь была стале почти неделю — тот же класс, что ERR-2026-000056."
     },
     {
+      "name": "air-loop",
+      "source": "./air-loop",
+      "description": "Canonical verification loop for every AIR OS plugin — goal, gate, turn limit, one final hand-off — plus the runner that actually counts the turns. Written after a single job burned seven overnight runs reformatting output because nobody held the goal or counted the rounds."
+    },
+    {
       "name": "air-ruflo-bridge",
       "source": "./air-ruflo-bridge",
       "description": "Bridge to ruvnet/ruflo (MIT) as a candidate orchestration engine, accepted 28.07.2026 for continued piloting. Ships no skills yet — manifest and roadmap only; see air-ruflo-bridge/README.md for what the one real pilot run found."

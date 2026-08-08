@@ -224,3 +224,17 @@ artifact/test independently.
 ## Daemon status without waking it
 
 Do not call Ruflo's daemon-status command for a simple status check: it can start workers. Run `scripts/verify_daemon_state.ps1` instead. It reads the state file and compares its PID to `Get-CimInstance Win32_Process`; it reports exactly one of `confirmed`, `contradicted`, or `unverifiable`. Treat `unverifiable` as unknown, not stopped.
+
+## Цикл
+
+```text
+цель   — рой отработал и НЕ оставил секретов в каталоге
+гейт   — skills\run-via-ruflo\scripts\scan_secrets.ps1 (clean=0 / leaks=1 / unverifiable=3)
+предел — 2 круга: утечка чинится один раз, второй отказ несётся ЛПР
+показ  — один итог: что запускалось, вердикт сканера, файл отчёта
+```
+
+**`unverifiable` — не «чисто».** Отсутствие сканера, отказ запуска и таймаут дают
+третий исход, а не первый, и цикл на нём не закрывается.
+
+Канонический текст цикла — скилл `verification-loop` (плагин `air-loop`, `E:\-7-\air-loop`). Раннер, считающий круги: `E:\-7-\air-loop\scripts\loop_run.py`.

@@ -83,3 +83,14 @@ After each real build, if you hit a reusable gotcha or a better step, append it 
 - `assets/patterns/` — drop-in React components for the above (HeroVideo, CtaSection,
   LogicChain, Divider, AnimatedHeadline, HeroParticles, CTAButton). Copy into `src/components/`.
 - `assets/brief.template.yaml` — copy-and-fill starting point.
+
+## Цикл
+
+```text
+цель   — вёрстка использует токены дизайн-системы, а не произвольные значения
+гейт   — python skills\design-system\scripts\html-token-validator.py <файл.html>
+предел — 5 кругов
+показ  — один итог: что не проходило, что исправлено, чем подтверждено
+```
+
+Канонический текст цикла — скилл `verification-loop` (плагин `air-loop`, `E:\-7-\air-loop`). Раннер, считающий круги: `E:\-7-\air-loop\scripts\loop_run.py`.
