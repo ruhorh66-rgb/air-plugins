@@ -28,7 +28,9 @@
 from __future__ import annotations
 
 import json
+import pathlib
 import re
+import subprocess
 import sys
 
 try:
@@ -64,6 +66,122 @@ def read_payload() -> dict:
     return data if isinstance(data, dict) else {}
 
 
+# Установка версии плагина. Ловим и update, и install — оба доводят версию до сессий.
+PLUGIN_INSTALL = re.compile(
+    r"\bclaude\s+plugins?\s+(?:update|install|i)\s+([A-Za-z0-9._-]+)(?:@([A-Za-z0-9._-]+))?",
+    re.I)
+MARKETPLACES = pathlib.Path.home() / ".claude" / "plugins" / "known_marketplaces.json"
+
+
+def _local_marketplaces(only: str | None = None) -> list[pathlib.Path]:
+    """Каталоги маркетплейсов, лежащие на диске. Чужие github-плагины не наши.
+
+    `only` — имя маркетплейса из команды (`plugin@market`). Сужать по нему
+    обязательно: одно и то же имя плагина встречается в контуре дважды, и первая
+    редакция нашла брошенную копию `legal-analysis` 1.0.0 в `E:\\-7-` вместо живой
+    1.2.0 в `E:\\-8-`. Проверка судила бы о теге по чужому каталогу.
+    """
+    try:
+        data = json.loads(MARKETPLACES.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    roots = []
+    for key, entry in (data.get("marketplaces") or data).items():
+        if only and key != only:
+            continue
+        source = (entry or {}).get("source") or {}
+        if source.get("source") == "directory" and source.get("path"):
+            roots.append(pathlib.Path(source["path"]))
+    return roots
+
+
+def _plugin_source(name: str, market: str | None = None) -> tuple[pathlib.Path, str] | None:
+    """(каталог плагина, версия) по имени — только для локальных источников.
+
+    Маркетплейс в команде не назван и совпадений больше одного — НЕ судим: блокировать
+    по догадке дороже, чем пропустить. Такое бывает при брошенных копиях плагина
+    (`legal-analysis` лежит и в `E:\\-7-`, и в `E:\\-8-`).
+    """
+    if market is None:
+        matches = []
+        for root in _local_marketplaces():
+            if not root.is_dir():
+                continue
+            for manifest in list(root.glob("*/.claude-plugin/plugin.json")) + \
+                    list(root.glob("*/*/.claude-plugin/plugin.json")):
+                try:
+                    data = json.loads(manifest.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    continue
+                if data.get("name") == name and data.get("version"):
+                    matches.append((manifest.parent.parent, str(data["version"])))
+        if len(matches) != 1:
+            return None
+        return matches[0]
+    for root in _local_marketplaces(market):
+        if not root.is_dir():
+            continue
+        for manifest in list(root.glob("*/.claude-plugin/plugin.json")) + \
+                list(root.glob("*/*/.claude-plugin/plugin.json")):
+            try:
+                data = json.loads(manifest.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if data.get("name") == name and data.get("version"):
+                return manifest.parent.parent, str(data["version"])
+    return None
+
+
+def check_release_tag(command: str) -> str | None:
+    """Версия не ставится сессиям, пока у неё нет тега релиза.
+
+    ЗАЧЕМ. Правило «релиз — это тег, а стабильная точка называется явно» записано в
+    AIR_VIBECODING § «Разработка не мешает эксплуатации». Оно существовало и не
+    соблюдалось: на 08.08.2026 в контуре не было НИ ОДНОГО тега релиза ни у одного
+    плагина — и когда `air-comms 1.1.0` остановил разбор почты, откатываться оказалось
+    некуда. Сломали за минуту, чинили часами (ERR-2026-000206).
+
+    Указание ЛПР: раз правило не соблюдали — сделать так, чтобы отклониться было
+    нельзя. Проверка ровно об этом: тег обязан существовать ДО того, как версия
+    доедет до сессий.
+
+    Замена существует и штатная — `claude plugin tag`, она же сверяет манифест с
+    записью маркетплейса. Это не изобретение обходного пути, а требование сделать
+    один шаг, который и так предусмотрен инструментом.
+
+    ЧУЖИЕ ПЛАГИНЫ НЕ ТРОГАЕМ: ponytail, codex, claude-video приходят из github, их
+    релизами мы не управляем, и требовать от них наш тег бессмысленно.
+    """
+    match = PLUGIN_INSTALL.search(command)
+    if not match:
+        return None
+    name, market = match.group(1), match.group(2)
+    found = _plugin_source(name, market)
+    if not found:
+        return None  # источник не локальный либо маркетплейс чужой — не наш релиз
+    path, version = found
+    tag = f"{name}--v{version}"
+    try:
+        res = subprocess.run(["git", "-C", str(path), "tag", "-l", tag],
+                             capture_output=True, text=True, timeout=15)
+    except Exception:
+        return None  # git недоступен — не выдумываем находку
+    if res.returncode != 0 or res.stdout.strip():
+        return None
+    return (
+        f"air-ruflo-bridge: у версии {version} нет тега релиза — установка отклонена.\n"
+        f"Правило AIR_VIBECODING § «Разработка не мешает эксплуатации»: релиз — это ТЕГ, "
+        f"а не поднятый номер. Без тега нет точки отката, и поломка чинится часами "
+        f"вместо секунд (ERR-2026-000206: так встал разбор почты).\n"
+        f"Сначала пометить релиз — команда штатная, она же сверит манифест с "
+        f"маркетплейсом:\n"
+        f'  claude plugin tag "{path}" -m "чем эта версия подтверждена" --push\n'
+        f"В сообщении тега писать НЕ «что изменилось», а ЧЕМ ПОДТВЕРЖДЕНА: на каком "
+        f"живом потоке проверено. «Собралось и самопроверка прошла» подтверждением не "
+        f"является — сегодняшний хук проходил самопроверку при остановленном контуре."
+    )
+
+
 def strip_data(command: str) -> str:
     """Убрать из команды то, что является ДАННЫМИ, а не командой.
 
@@ -82,6 +200,9 @@ def check(command: str) -> str | None:
     if not command:
         return None
     payload = strip_data(command)
+    note = check_release_tag(payload)
+    if note:
+        return note
     if not LAUNCH.search(payload) or WRAPPER.search(payload):
         return None
     return DENY
@@ -120,6 +241,23 @@ def _selftest() -> None:
     # …но настоящий запуск рядом с heredoc всё равно ловится.
     assert check("cat <<TXT\nпросто текст\nTXT\nnode cli.js hive-mind spawn --claude -o x"), \
         "команда после heredoc проверяется как обычно"
+
+    # Требование тега релиза — на настоящем состоянии контура, а не на выдумке.
+    assert check_release_tag("git status") is None
+    assert check_release_tag("claude plugin list") is None
+    assert check_release_tag('claude plugin tag hr -m "проверено" --push') is None, \
+        "тегирование не должно блокироваться — это и есть законный путь"
+    assert check_release_tag("claude plugin update ponytail@ponytail") is None, \
+        "чужой github-плагин не наш релиз"
+    if _plugin_source("air-ruflo-bridge", "air-plugins"):
+        # Свой же плагин: если тег на текущую версию есть — молчим, нет — запрещаем.
+        _path, _version = _plugin_source("air-ruflo-bridge", "air-plugins")
+        _tagged = subprocess.run(
+            ["git", "-C", str(_path), "tag", "-l", f"air-ruflo-bridge--v{_version}"],
+            capture_output=True, text=True).stdout.strip()
+        _note = check_release_tag("claude plugin update air-ruflo-bridge@air-plugins")
+        assert (_note is None) == bool(_tagged), \
+            "решение проверки обязано совпадать с фактическим наличием тега"
     # Хук не должен падать ни на каком входе.
     assert main() is not None or True
     print("selftest ok")
