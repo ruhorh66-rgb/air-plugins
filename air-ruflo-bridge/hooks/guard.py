@@ -64,8 +64,25 @@ def read_payload() -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def strip_data(command: str) -> str:
+    """Убрать из команды то, что является ДАННЫМИ, а не командой.
+
+    Тело heredoc и текст сообщения (`-m "..."`, `-F -`) исполнению не подлежат:
+    это содержимое, которое передаётся программе на вход. Проверка без этого
+    запретила собственный `git commit`, в сообщении которого описан тот самый
+    порядок запуска, ради запрета которого хук и написан. Ложное срабатывание у
+    блокирующей проверки стоит дороже пропуска — оно ломает работу, а не напоминает.
+    """
+    without = re.sub(r"<<\s*'?\"?(\w+)'?\"?\n.*?\n\1", " ", command, flags=re.DOTALL)
+    without = re.sub(r"-m\s+(['\"])(?:\\.|(?!\1).)*\1", " ", without, flags=re.DOTALL)
+    return without
+
+
 def check(command: str) -> str | None:
-    if not command or not LAUNCH.search(command) or WRAPPER.search(command):
+    if not command:
+        return None
+    payload = strip_data(command)
+    if not LAUNCH.search(payload) or WRAPPER.search(payload):
         return None
     return DENY
 
@@ -95,6 +112,14 @@ def _selftest() -> None:
     assert check("node cli.js hive-mind status") is None
     assert check("git status") is None
     assert check("") is None
+    # Данные, а не команда: описание запрета не есть его нарушение.
+    assert check("git commit -m 'порядок: hive-mind spawn -n 5 затем autopilot enable'") is None, \
+        "текст сообщения коммита исполнению не подлежит"
+    assert check("git commit -F - <<MSG\nhive-mind spawn --claude в обход обвязки\nMSG") is None, \
+        "тело heredoc — содержимое, а не команда"
+    # …но настоящий запуск рядом с heredoc всё равно ловится.
+    assert check("cat <<TXT\nпросто текст\nTXT\nnode cli.js hive-mind spawn --claude -o x"), \
+        "команда после heredoc проверяется как обычно"
     # Хук не должен падать ни на каком входе.
     assert main() is not None or True
     print("selftest ok")

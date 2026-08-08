@@ -45,6 +45,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 APPROVE = os.path.join(HERE, "approve_via_telegram.py")
 RUN_TASK = os.path.join(HERE, "run_task.ps1")
 REPORTS = r"E:\-4-\ruflo-hive"
+# Путь к движку — обязательный параметр run_task.ps1. Держим тот же, что у слушателя
+# (approve_listener.CLI_PATH): два разных пути означали бы два разных движка, и
+# dry-run проверял бы не то, что потом исполнится.
+CLI_PATH = (r"E:\-4-\ruflo-pilot\.npm-cache-3.34.0\_npx\2ed56890c96f58f7"
+            r"\node_modules\@claude-flow\cli\bin\cli.js")
 OMSK = timezone(timedelta(hours=6))  # контур живёт по Омску, машина — по Pacific
 
 COLUMNS = ["task_id", "action", "objective", "work_dir", "workers", "priority", "by"]
@@ -188,17 +193,41 @@ def cmd_push(argv: list[str]) -> int:
     workers = row["workers"] if str(row["workers"]).isdigit() else "5"
     priority = row["priority"] if row["priority"] in ("normal", "high", "critical") else "high"
 
-    dry = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", RUN_TASK,
-         "-Objective", open(objective, encoding="utf-8").read(),
-         "-TargetPath", work_dir, "-ReportPath", report,
-         "-Workers", workers, "-Priority", priority],
-        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    # ВЫВОД В ФАЙЛЫ, А НЕ В КАНАЛЫ — иначе dry-run висит вечно.
+    # Первый запуск это и показал: `hive-mind spawn` оставляет после себя живого
+    # демона (node, claude-flow), тот наследует наши stdout/stderr, и capture_output
+    # ждёт EOF, которого не будет, пока демон жив. Процесс висел без единого
+    # дочернего — снаружи выглядело как зависший python, хотя PowerShell давно
+    # отработал. Файлы этой связи не создают.
+    out_path = os.path.join(REPORTS, f"{row['task_id'].lower()}-dryrun.out")
+    err_path = os.path.join(REPORTS, f"{row['task_id'].lower()}-dryrun.err")
+    os.makedirs(REPORTS, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as fout, \
+            open(err_path, "w", encoding="utf-8") as ferr:
+        code = subprocess.call(
+            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", RUN_TASK,
+             "-Objective", open(objective, encoding="utf-8").read(),
+             "-TargetPath", work_dir, "-ReportPath", report, "-CliPath", CLI_PATH,
+             "-Workers", workers, "-Priority", priority],
+            stdout=fout, stderr=ferr, stdin=subprocess.DEVNULL, timeout=900)
+
+    class _Result:  # тот же интерфейс, что был у CompletedProcess
+        returncode = code
+        stdout = open(out_path, encoding="utf-8", errors="replace").read()
+        stderr = open(err_path, encoding="utf-8", errors="replace").read()
+
+    dry = _Result()
     # 10 — «предложение готово, человек не подтверждал»: ШТАТНЫЙ исход dry-run,
     # обвязка намеренно останавливается до запуска.
     if dry.returncode not in (10, 0):
+        # Печатаем ОБА потока: отказ по параметрам PowerShell пишет только в stderr,
+        # и первая редакция показала голое «код 1» без причины — пришлось выяснять
+        # отдельным прогоном то, что уже было известно скрипту.
         print(f"dry-run не прошёл, код {dry.returncode}", file=sys.stderr)
-        print((dry.stdout or "")[-800:], file=sys.stderr)
+        for name, stream in (("stdout", dry.stdout), ("stderr", dry.stderr)):
+            text = (stream or "").strip()
+            if text:
+                print(f"--- {name} ---\n{text[-900:]}", file=sys.stderr)
         return dry.returncode
 
     sent = subprocess.run(
