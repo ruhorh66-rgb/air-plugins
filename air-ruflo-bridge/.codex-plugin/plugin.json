@@ -6,12 +6,5 @@
     "name": "AIR OS"
   },
   "license": "MIT",
-  "keywords": [
-    "air-os",
-    "ruflo",
-    "claude-flow",
-    "orchestration",
-    "pilot"
-  ],
-  "defaultEnabled": false
+  "skills": "./skills/"
 }
