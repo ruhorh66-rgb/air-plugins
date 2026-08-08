@@ -160,7 +160,18 @@ def create(argv: list[str]) -> int:
     })
     if not resp.get("ok"):
         raise SystemExit("Telegram отклонил отправку заявки")
-    print(json.dumps({"request_id": rid, "queued": path}, ensure_ascii=False))
+
+    # Сводка по очереди сразу за заявкой — решение ЛПР 08.08.2026. Когда заявок
+    # несколько, одной кнопки мало: надо видеть, что ещё висит нерешённым и что
+    # уже отработало, не спрашивая отдельно. Сводка идёт ПОСЛЕ самой заявки,
+    # чтобы кнопка оставалась последним сообщением и не уезжала вверх.
+    try:
+        queue(["--notify"])
+    except Exception:
+        pass  # сводка не критична — заявка уже отправлена и работает
+
+    print(json.dumps({"request_id": rid, "queued": path, "pending": pending},
+                     ensure_ascii=False))
     return 0
 
 
@@ -213,12 +224,23 @@ def queue(argv: list[str]) -> int:
     items.sort(key=lambda x: (order.get(x[0], 9), x[3]))
     marks = {"pending": "⏳", "approved": "✅", "rejected": "✖",
              "expired": "⌛", "cancelled": "🧹"}
-    lines = []
+    waiting = sum(1 for i in items if i[0] == "pending")
+
+    # Нерешённое показываем всё, решённое — только свежее и не больше пяти:
+    # сводка должна оставаться читаемой через месяц работы, а не превращаться
+    # в архив. Полная история и так лежит в файлах очереди.
+    lines, shown_done = [], 0
     for st, rid, title, age, workers in items:
+        if st != "pending":
+            if age > 24 * 60 or shown_done >= 5:
+                continue
+            shown_done += 1
         ago = f"{age} мин назад" if age < 90 else f"{age // 60} ч назад"
         lines.append(f"{marks.get(st, '•')} {title or rid} — {st}, {ago}"
                      + (f", воркеров {workers}" if workers else ""))
-    waiting = sum(1 for i in items if i[0] == "pending")
+    hidden = len(items) - len(lines)
+    if hidden > 0:
+        lines.append(f"…и ещё {hidden} завершённых ранее")
     body = ("🐝 Очередь заявок на запуск роя\n────────────────\n"
             + ("\n".join(lines) if lines else "пусто")
             + f"\n────────────────\nЖдёт решения: {waiting}")
