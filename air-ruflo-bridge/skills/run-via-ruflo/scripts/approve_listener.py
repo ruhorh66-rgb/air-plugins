@@ -120,16 +120,40 @@ CLI_PATH = (r"E:\-4-\ruflo-pilot\.npm-cache-3.34.0\_npx\2ed56890c96f58f7"
             r"\node_modules\@claude-flow\cli\bin\cli.js")
 
 
+def _safe_path(value: str) -> bool:
+    """Годится ли строка как путь в аргументе PowerShell.
+
+    Абсолютный путь на локальном диске, без кавычек, точки с запятой, переводов
+    строки и подстановочных символов. UNC-пути (`\\\\сервер\\шара`) отвергаются
+    намеренно: подтверждённый кнопкой запуск не должен уметь тянуть цель с
+    чужой машины.
+    """
+    if not value or not os.path.isabs(value) or value.startswith("\\\\"):
+        return False
+    return not any(ch in value for ch in '"\'`;|&\r\n$*?<>')
+
+
 def _run_request(req: dict) -> None:
     """Собрать вызов run_task.ps1 ИЗ ПАРАМЕТРОВ заявки и выполнить.
 
-    Строки команды в заявке нет и быть не может (см. заголовок файла): здесь
-    фиксированный шаблон, в который подставляются только цель, каталог и числа.
-    Параметры валидируются повторно — заявка могла быть создана давно, а файл
-    цели за это время исчезнуть.
+    ЗДЕСЬ НЕ СТРОИТСЯ СТРОКА КОМАНДЫ. Переписано 08.08.2026 после codex review,
+    который нашёл blocker: прежняя версия склеивала `powershell -Command` из
+    значений заявки, и поле `report` попадало внутрь кавычек без проверки —
+    значение с `"` и `;` давало исполнение произвольного PowerShell по нажатию
+    кнопки. Заявленная гарантия «строки команды в заявке нет» была неправдой:
+    строка была, просто собиралась не полностью из заявки, а наполовину.
+
+    Теперь `-File` и argv-список: PowerShell получает путь скрипта и значения
+    отдельными аргументами, склеивать нечего. Цель передаётся ПУТЁМ
+    (`-ObjectiveFile`), а не подставленным содержимым — раньше её приходилось
+    разворачивать через `(Get-Content ...)`, что и требовало режима -Command.
+
+    Пути дополнительно проверяются `_safe_path`: заявка могла быть создана
+    давно, а её значения — прийти из более старой версии кода без проверок.
     """
     objective_file = req.get("objective_file", "")
     target = req.get("target_path", "")
+    report = req.get("report", "")
     workers = int(req.get("workers", 5))
     priority = str(req.get("priority", "high"))
     if not os.path.isfile(objective_file) or not os.path.isdir(target):
@@ -138,19 +162,25 @@ def _run_request(req: dict) -> None:
     if not (1 <= workers <= 32) or priority not in ("normal", "high", "critical"):
         _notify(f"⚠ Заявка {req['id']}: недопустимые параметры, не запускаю")
         return
-    command = (
-        f'& "{RUN_TASK}" '
-        f'-Objective (Get-Content "{objective_file}" -Raw) '
-        f'-TargetPath "{target}" '
-        f'-CliPath "{CLI_PATH}" '
-        f'-ReportPath "{req.get("report", "")}" '
-        f'-Workers {workers} -Priority {priority} '
-        f'-Approval I_APPROVE_RUFLO_PLAN'
-    )
+    bad = [n for n, v in (("objective_file", objective_file), ("target_path", target),
+                          ("report", report)) if not _safe_path(v)]
+    if bad or not os.path.isdir(os.path.dirname(report)):
+        _notify(f"⚠ Заявка {req['id']}: путь не проходит проверку ({', '.join(bad) or 'report'}), "
+                f"не запускаю")
+        return
+    argv = [
+        "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", RUN_TASK,
+        "-ObjectiveFile", objective_file,
+        "-TargetPath", target,
+        "-CliPath", CLI_PATH,
+        "-ReportPath", report,
+        "-Workers", str(workers),
+        "-Priority", priority,
+        "-Approval", "I_APPROVE_RUFLO_PLAN",
+    ]
     started = time.time()
-    proc = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
-        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    proc = subprocess.run(argv, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace")
     took = int(time.time() - started)
     mins = f"{took // 60} мин {took % 60} с" if took >= 60 else f"{took} с"
     out = (proc.stdout or "").strip()
@@ -231,8 +261,13 @@ def poll_once(chat_id: str) -> int:
             continue
         req["decided_at"] = time.time()
         req["message_id"] = mid
-        with open(path, "w", encoding="utf-8") as fh:
+        # Атомарно: сводка в approve_via_telegram.py читает этот же каталог и
+        # при обычной перезаписи могла бы поймать файл на середине и молча
+        # пропустить заявку (codex review 08.08.2026, minor).
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(req, fh, ensure_ascii=False, indent=1)
+        os.replace(tmp, path)
         handled += 1
         if req["status"] == "approved":
             _run_request(req)

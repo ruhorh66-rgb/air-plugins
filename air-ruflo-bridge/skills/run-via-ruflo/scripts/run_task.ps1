@@ -14,7 +14,14 @@
 # действием. Один рой — один живой процесс — одна очередь целей, как и просил ЛПР.
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][string]$Objective,
+    # Цель можно передать текстом ($Objective) либо ФАЙЛОМ ($ObjectiveFile).
+    # Файловый вариант заведён 08.08.2026 ради вызова из слушателя Telegram:
+    # раньше тот собирал `-Objective (Get-Content "<путь>" -Raw)` строкой для
+    # `powershell -Command`, то есть склеивал команду из значений заявки — и это
+    # был реальный вектор инъекции (codex review, blocker). С -ObjectiveFile
+    # вызывающий передаёт ПУТЬ отдельным аргументом через -File, склейки нет.
+    [Parameter()][string]$Objective,
+    [Parameter()][string]$ObjectiveFile,
     # Абсолютный путь, где реально лежит код/данные задачи. Рой стоит в
     # $ProjectRoot, но работает здесь — путь вписывается в текст цели.
     [Parameter(Mandatory)][string]$TargetPath,
@@ -36,6 +43,13 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ($ObjectiveFile) {
+    if ($Objective) { throw "Указывать одновременно -Objective и -ObjectiveFile нельзя" }
+    if (-not (Test-Path -LiteralPath $ObjectiveFile)) { throw "ObjectiveFile not found: $ObjectiveFile" }
+    $Objective = Get-Content -LiteralPath $ObjectiveFile -Raw -Encoding UTF8
+}
+if (-not $Objective) { throw "Нужен -Objective или -ObjectiveFile" }
 
 # Движок проверяет доступность Claude Code вызовом `execSync('which claude')`
 # (dist/src/commands/hive-mind.js) — ЮНИКСОВЫЙ `which`, которого в Windows нет

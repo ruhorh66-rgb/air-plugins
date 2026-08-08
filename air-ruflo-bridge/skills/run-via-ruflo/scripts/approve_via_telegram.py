@@ -88,7 +88,10 @@ def create(argv: list[str]) -> int:
     report, objective_file, target = argv[0], argv[1], argv[2]
     workers = argv[3] if len(argv) > 3 else "5"
     priority = argv[4] if len(argv) > 4 else "high"
-    title = argv[5] if len(argv) > 5 else "Запуск роя"
+    # Заголовок обрезается: неограниченный title способен раздуть сообщение за
+    # лимит Telegram, отправка отвалится, и заявка останется в очереди без
+    # кнопки — нерешаемой (codex review 08.08.2026, minor).
+    title = (argv[5] if len(argv) > 5 else "Запуск роя")[:120]
     if not os.path.isfile(objective_file):
         raise SystemExit(f"нет файла цели: {objective_file}")
     if not os.path.isdir(target):
@@ -112,8 +115,10 @@ def create(argv: list[str]) -> int:
         "status": "pending",
     }
     path = os.path.join(QUEUE, f"{rid}.json")
-    with open(path, "w", encoding="utf-8") as fh:
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(request, fh, ensure_ascii=False, indent=1)
+    os.replace(tmp, path)  # заявка появляется целиком или не появляется вовсе
 
     chat_id = _secret("chat_id")
 
@@ -129,16 +134,24 @@ def create(argv: list[str]) -> int:
     except OSError:
         pass
 
+    # Битый или дописываемый прямо сейчас файл в каталоге очереди пропускается,
+    # а не роняет create(): иначе заявка уже записана, а кнопка не отправлена —
+    # она молча повисает нерешаемой (codex review 08.08.2026, major).
     pending = 0
     try:
-        for name in os.listdir(QUEUE):
-            if not name.endswith(".json"):
-                continue
-            with open(os.path.join(QUEUE, name), encoding="utf-8") as fh:
-                if json.load(fh).get("status") == "pending":
-                    pending += 1
+        names = os.listdir(QUEUE)
     except OSError:
-        pass
+        names = []
+    for name in names:
+        if not name.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(QUEUE, name), encoding="utf-8") as fh:
+                d = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        if isinstance(d, dict) and d.get("status") == "pending":
+            pending += 1
 
     queue_line = f"\nВ очереди ждёт решения: {pending}" if pending > 1 else ""
     text = (f"🐝 {title}\n"
@@ -150,6 +163,16 @@ def create(argv: list[str]) -> int:
             f"Отчёт dry-run: {report}\n"
             f"────────────────\n"
             f"Заявка {rid}, кнопка действует {TTL_SECONDS // 3600} ч.{queue_line}")
+    # Сводка по очереди — решение ЛПР 08.08.2026: одной кнопки мало, когда
+    # заявок несколько, надо видеть что ещё висит нерешённым. Идёт ПЕРЕД самой
+    # заявкой, чтобы кнопка осталась последним сообщением в чате и не уехала
+    # вверх (в первой редакции было наоборот, и комментарий утверждал обратное
+    # тому, что делал код — codex review, minor).
+    try:
+        queue(["--notify"])
+    except Exception:
+        pass  # сводка не критична — заявка важнее и уйдёт следующей строкой
+
     resp = _api("sendMessage", {
         "chat_id": int(chat_id),
         "text": text,
@@ -160,15 +183,6 @@ def create(argv: list[str]) -> int:
     })
     if not resp.get("ok"):
         raise SystemExit("Telegram отклонил отправку заявки")
-
-    # Сводка по очереди сразу за заявкой — решение ЛПР 08.08.2026. Когда заявок
-    # несколько, одной кнопки мало: надо видеть, что ещё висит нерешённым и что
-    # уже отработало, не спрашивая отдельно. Сводка идёт ПОСЛЕ самой заявки,
-    # чтобы кнопка оставалась последним сообщением и не уезжала вверх.
-    try:
-        queue(["--notify"])
-    except Exception:
-        pass  # сводка не критична — заявка уже отправлена и работает
 
     print(json.dumps({"request_id": rid, "queued": path, "pending": pending},
                      ensure_ascii=False))
@@ -229,23 +243,42 @@ def queue(argv: list[str]) -> int:
     # Нерешённое показываем всё, решённое — только свежее и не больше пяти:
     # сводка должна оставаться читаемой через месяц работы, а не превращаться
     # в архив. Полная история и так лежит в файлах очереди.
-    lines, shown_done = [], 0
-    for st, rid, title, age, workers in items:
-        if st != "pending":
-            if age > 24 * 60 or shown_done >= 5:
-                continue
-            shown_done += 1
+    def fmt(entry) -> str:
+        st, rid, title, age, workers = entry
         ago = f"{age} мин назад" if age < 90 else f"{age // 60} ч назад"
-        lines.append(f"{marks.get(st, '•')} {title or rid} — {st}, {ago}"
-                     + (f", воркеров {workers}" if workers else ""))
-    hidden = len(items) - len(lines)
-    if hidden > 0:
-        lines.append(f"…и ещё {hidden} завершённых ранее")
-    body = ("🐝 Очередь заявок на запуск роя\n────────────────\n"
-            + ("\n".join(lines) if lines else "пусто")
+        return (f"{marks.get(st, '•')} {(title or rid)[:80]} — {st}, {ago}"
+                + (f", воркеров {workers}" if workers else ""))
+
+    pend_lines = [fmt(i) for i in items if i[0] == "pending"]
+    done_lines, seen_done = [], 0
+    for i in items:
+        if i[0] != "pending" and i[3] <= 24 * 60 and seen_done < 5:
+            done_lines.append(fmt(i))
+            seen_done += 1
+    hidden_done = len(items) - len(pend_lines) - len(done_lines)
+
+    # Лимит сообщения Telegram — 4096 символов. Резать хвост вслепую нельзя:
+    # первым потеряется нерешённое, ради которого сводка и существует (codex
+    # review 08.08.2026, major). Поэтому под нож идут сначала завершённые, а
+    # если не хватило и этого — лишние pending, но с явным счётчиком.
+    head = "🐝 Очередь заявок на запуск роя\n────────────────\n"
+    budget = 3500 - len(head) - 60
+    while done_lines and sum(len(x) + 1 for x in pend_lines + done_lines) > budget:
+        done_lines.pop()
+        hidden_done += 1
+    hidden_pend = 0
+    while pend_lines and sum(len(x) + 1 for x in pend_lines) > budget:
+        pend_lines.pop()
+        hidden_pend += 1
+
+    lines = pend_lines + ([f"…и ещё {hidden_pend} нерешённых не поместилось"]
+                          if hidden_pend else []) + done_lines
+    if hidden_done > 0:
+        lines.append(f"…и ещё {hidden_done} завершённых ранее")
+    body = (head + ("\n".join(lines) if lines else "пусто")
             + f"\n────────────────\nЖдёт решения: {waiting}")
     if "--notify" in argv:
-        _api("sendMessage", {"chat_id": int(_secret("chat_id")), "text": body[:3500]})
+        _api("sendMessage", {"chat_id": int(_secret("chat_id")), "text": body})
         print(f"сводка отправлена, ждёт решения: {waiting}")
     else:
         print(body)
