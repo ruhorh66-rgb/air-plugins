@@ -219,26 +219,7 @@ try {
     if ($r1.ExitCode -ne 0) { throw "hive-mind spawn -n $Workers failed ($($r1.ExitCode))" }
 
     $r2 = Invoke-Ruflo -Arguments @('hive-mind','task','-d',$fullObjective,'-p',$Priority) -Stage "2. Submit task to hive queue (-p $Priority)"
-    if ($r2.ExitCode -ne 0) {
-        # ИЗВЕСТНЫЙ ДЕФЕКТ ДВИЖКА, а не наш отказ. Установлено разбором 08.08.2026:
-        # hive-mind.js печатает результат строкой
-        #     `Assigned: ${result.assignedTo.length > 0 ? ... }`
-        # а `task_create` возвращает объект без `assignedTo`. Падает ПЕЧАТЬ, уже после
-        # того, как задача отправлена. Прерывать здесь — значит не запускать рой из-за
-        # ошибки форматирования: прогон 08.08.2026 так и оборвался на втором шаге из
-        # четырёх, хотя воркеры были заведены.
-        #
-        # Пропускаем ровно этот случай и ровно по его подписи. Любой другой отказ
-        # второго шага по-прежнему прерывает: неизвестная ошибка не становится
-        # безобидной от того, что нам удобнее продолжить.
-        $isPrintDefect = ($r2.Output -match "Cannot read properties of undefined \(reading 'length'\)") `
-                     -and ($r2.Output -match 'Submitting task to hive')
-        if (-not $isPrintDefect) { throw "hive-mind task failed ($($r2.ExitCode))" }
-        $transcript.Add("ВНИМАНИЕ: второй шаг вернул $($r2.ExitCode) на ПЕЧАТИ результата " +
-                        "(assignedTo не определён в ответе task_create) — известный дефект движка. " +
-                        "Задача отправлена, продолжаем. Проверить фактическое исполнение по " +
-                        "вызовам mcp__claude-flow__ в логе, а не по этому шагу.")
-    }
+    if ($r2.ExitCode -ne 0) { throw "hive-mind task failed ($($r2.ExitCode))" }
 
     if (-not $NoAutopilot) {
         $r3 = Invoke-Ruflo -Arguments @('autopilot','enable') -Stage "3. Autopilot (persistent completion)"

@@ -199,7 +199,16 @@ def cmd_push(argv: list[str]) -> int:
     os.makedirs(work_dir, exist_ok=True)  # рой работает В каталоге, создать его — наше дело
     report = os.path.join(REPORTS, f"{row['task_id'].lower()}-dryrun.md")
     workers = row["workers"] if str(row["workers"]).isdigit() else "5"
-    priority = row["priority"] if row["priority"] in ("normal", "high", "critical") else "high"
+    # `critical` НЕ подаётся движку, хотя он его принимает как значение.
+    # Установлено 08.08.2026 сравнением двух прогонов: с `-p high` второй шаг проходит
+    # и печатает «Assigned: pending dispatch»; с `-p critical` тот же шаг падает —
+    # `result.assignedTo` не определён, и движок роняет печать результата. Разница
+    # между прогонами была только в приоритете.
+    #
+    # Чиним СВОЮ сторону, а не движок (решение ЛПР): порядок в очереди мы задаём сами,
+    # а движку нужен лишь работающий приоритет. `critical` остаётся в очереди как
+    # признак срочности — он и решает, что выдать первой.
+    priority = row["priority"] if row["priority"] in ("normal", "high") else "high"
 
     # ВЫВОД В ФАЙЛЫ, А НЕ В КАНАЛЫ — иначе dry-run висит вечно.
     # Первый запуск это и показал: `hive-mind spawn` оставляет после себя живого
