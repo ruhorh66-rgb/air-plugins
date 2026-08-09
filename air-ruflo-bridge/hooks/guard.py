@@ -107,8 +107,14 @@ def _plugin_source(name: str, market: str | None = None) -> tuple[pathlib.Path, 
         for root in _local_marketplaces():
             if not root.is_dir():
                 continue
-            for manifest in list(root.glob("*/.claude-plugin/plugin.json")) + \
+            # Корень тоже: `air-storage` — сам себе плагин, манифест лежит в корне
+            # репозитория (`source: "./"`). Без этого проверка не видела его вовсе и
+            # молча пропускала установку без тега — поймано на настоящем релизе.
+            for manifest in [root / ".claude-plugin" / "plugin.json"] + \
+                    list(root.glob("*/.claude-plugin/plugin.json")) + \
                     list(root.glob("*/*/.claude-plugin/plugin.json")):
+                if not manifest.is_file():
+                    continue
                 try:
                     data = json.loads(manifest.read_text(encoding="utf-8"))
                 except (OSError, ValueError):
@@ -121,8 +127,13 @@ def _plugin_source(name: str, market: str | None = None) -> tuple[pathlib.Path, 
     for root in _local_marketplaces(market):
         if not root.is_dir():
             continue
-        for manifest in list(root.glob("*/.claude-plugin/plugin.json")) + \
+        # Корень тоже — см. пояснение выше: манифест плагина, который сам себе
+        # репозиторий, лежит не в подпапке.
+        for manifest in [root / ".claude-plugin" / "plugin.json"] + \
+                list(root.glob("*/.claude-plugin/plugin.json")) + \
                 list(root.glob("*/*/.claude-plugin/plugin.json")):
+            if not manifest.is_file():
+                continue
             try:
                 data = json.loads(manifest.read_text(encoding="utf-8"))
             except (OSError, ValueError):
