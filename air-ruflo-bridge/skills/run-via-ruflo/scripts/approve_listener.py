@@ -164,6 +164,16 @@ def _safe_path(value: str) -> bool:
     return not any(ch in value for ch in '"\'`;|&\r\n$*?<>')
 
 
+def _status_of(path: str) -> str:
+    """Состояние заявки из файла. Нечитаемый файл не считаем ждущим решения."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        return str(data.get("status", "")) if isinstance(data, dict) else ""
+    except (OSError, ValueError):
+        return ""
+
+
 def _run_request(req: dict) -> None:
     """Собрать вызов run_task.ps1 ИЗ ПАРАМЕТРОВ заявки и выполнить.
 
@@ -247,6 +257,34 @@ def _run_request(req: dict) -> None:
     _notify(f"{head} — заявка {req['id']}, заняло {mins}{verdict[:600]}\n\n"
             f"Отчёт: {req.get('report', '')}"
             + (f"\n\n⚠ Очередь: {state_note}" if state_note else ""))
+    _push_next()
+
+
+def _push_next() -> None:
+    """Выдать следующую задачу очереди сразу после закрытия предыдущей.
+
+    Иначе очередь стоит: сессия, поставившая строку, могла закончиться часы назад,
+    и ждать, пока кто-то вспомнит подать `push`, — значит не иметь очереди вовсе.
+    Так и вышло 08.08.2026: рой отработал, следующая заявка не пришла.
+
+    Гейт ЛПР это не отменяет: `push` доходит только до кнопки, запускает по-прежнему
+    нажатие. Задача занята, испорчена или очередь пуста — скрипт сам вернёт код 3
+    либо 4, и это нормальный исход, а не сбой.
+
+    Уведомляем ТОЛЬКО о неожиданном: новая заявка объявляет о себе сама, отдельным
+    сообщением с кнопкой, а «очередь пуста» после каждого прогона было бы шумом.
+    """
+    try:
+        res = subprocess.run([sys.executable, QUEUE_SCRIPT, "push"],
+                             capture_output=True, text=True, encoding="utf-8",
+                             errors="replace", timeout=1200)
+    except Exception as exc:
+        _notify(f"⚠ Очередь: следующую задачу выдать не удалось — {exc}")
+        return
+    if res.returncode in (0, 3, 4):
+        return
+    _notify(f"⚠ Очередь: следующая задача не выдана, код {res.returncode}\n"
+            f"{((res.stderr or res.stdout) or '').strip()[-400:]}")
 
 
 def poll_once(chat_id: str) -> int:
@@ -352,8 +390,16 @@ def main() -> int:
             handled = poll_once(chat_id)
             if once:
                 if handled:
-                    print("решение получено и обработано", flush=True)
-                    return 0
+                    # Закрытие задачи выдаёт следующую (`_push_next`), и её кнопку
+                    # ловить некому, если выйти прямо сейчас. Выходим, когда ждать
+                    # больше нечего: неотвеченных заявок не осталось.
+                    pending = [f for f in os.listdir(QUEUE) if f.endswith(".json")
+                               and _status_of(os.path.join(QUEUE, f)) == "pending"]
+                    if not pending:
+                        print("решение получено и обработано", flush=True)
+                        return 0
+                    print(f"обработано; ждут решения ещё: {len(pending)}", flush=True)
+                    deadline = time.time() + minutes * 60
                 if deadline and time.time() > deadline:
                     print("время ожидания истекло, решения не было", flush=True)
                     return 3
