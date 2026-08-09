@@ -137,6 +137,31 @@ def test_path_filter_rejects_injection():
         assert not L._safe_path(bad), f"пропущен опасный путь: {bad!r}"
 
 
+def test_queue_record_reads_task_id_from_title():
+    """Идентификатор задачи берётся из заголовка заявки — и берётся верно.
+
+    Отметку состояния ставит слушатель, потому что о нажатии знает только он. Пока
+    он этого не делал, строка очереди всё время работы роя оставалась `queued`, и
+    защита «одна задача за раз» не срабатывала: TASK-OBS-0043 подтвердили трижды.
+    Разбор заголовка — единственное место, где связь заявки со строкой может
+    порваться молча, поэтому проверяется отдельно.
+    """
+    import approve_listener as L
+    calls = []
+    old = L.subprocess.run
+    L.subprocess.run = lambda argv, **kw: (
+        calls.append(argv) or type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})())
+    try:
+        assert L._queue_record("TASK-OBS-0043 (очередь роя)", "approved", "чем") == ""
+        assert calls[-1][2:5] == ["record", "TASK-OBS-0043", "approved"], calls[-1]
+        # Заявка не из очереди: отмечать нечего, и это не ошибка.
+        calls.clear()
+        assert L._queue_record("air-watch v0.4.0 — 6 воркеров", "done", "чем") == ""
+        assert not calls, "ручной прогон не должен трогать очередь"
+    finally:
+        L.subprocess.run = old
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:

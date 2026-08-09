@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -118,6 +119,36 @@ def _save_offset(value: int) -> None:
 RUN_TASK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "run_task.ps1")
 CLI_PATH = (r"E:\-4-\ruflo-pilot\.npm-cache-3.34.0\_npx\2ed56890c96f58f7"
             r"\node_modules\@claude-flow\cli\bin\cli.js")
+QUEUE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ruflo_queue.py")
+
+
+def _queue_record(title: str, action: str, proof: str) -> str:
+    """Отметить состояние строки очереди. Возвращает описание сбоя либо пустую строку.
+
+    ПОЧЕМУ ЭТО ЗДЕСЬ, А НЕ В `ruflo_queue.py push`. Толкающая сторона знает только,
+    что кнопка ОТПРАВЛЕНА; о нажатии и об исходе прогона узнаёт слушатель. Пока
+    состояние писала не она, строка оставалась `queued` всё время работы роя — и
+    защита «пока одна в работе, вторая не выдаётся» не срабатывала вовсе, потому
+    что она смотрит на `approved`, которого никто не ставил. Так TASK-OBS-0043 была
+    подтверждена трижды: 20:41, 20:55, 21:05.
+
+    Заявки бывают и не из очереди (ручные прогоны air-watch) — у них в заголовке нет
+    идентификатора, и тогда отмечать нечего. Отсутствие строки не ошибка.
+    """
+    match = re.match(r"^(TASK-[A-Z0-9]+-\d+)\b", (title or "").strip())
+    if not match:
+        return ""
+    try:
+        res = subprocess.run([sys.executable, QUEUE_SCRIPT, "record", match.group(1),
+                              action, proof],
+                             capture_output=True, text=True, encoding="utf-8",
+                             errors="replace", timeout=60)
+    except Exception as exc:  # очередь недоступна — прогон из-за этого не отменяем
+        return f"состояние {match.group(1)} не записано: {exc}"
+    if res.returncode != 0:
+        return (f"состояние {match.group(1)} не записано: "
+                f"{(res.stderr or res.stdout or '').strip()[:200]}")
+    return ""
 
 
 def _safe_path(value: str) -> bool:
@@ -178,6 +209,10 @@ def _run_request(req: dict) -> None:
         "-Priority", priority,
         "-Approval", "I_APPROVE_RUFLO_PLAN",
     ]
+    # Строка очереди помечается ДО запуска, а не после: пока рой работает, очередь
+    # обязана показывать его занятым, иначе соседняя сессия выдаст вторую задачу.
+    state_note = _queue_record(req.get("title", ""), "approved",
+                               f"заявка {req['id']} подтверждена кнопкой, прогон начат")
     started = time.time()
     proc = subprocess.run(argv, capture_output=True, text=True,
                           encoding="utf-8", errors="replace")
@@ -202,8 +237,16 @@ def _run_request(req: dict) -> None:
     for line in out.splitlines():
         if "Рой работал" in line or "РОЯ НЕ БЫЛО" in line or "SECRET SCAN" in line:
             verdict += "\n" + line.strip()
+    # Исход — в ту же строку очереди. Код 4 («рой занят») исходом задачи не является:
+    # она не отработала и не провалилась, а осталась ждать — состояние не трогаем.
+    if proc.returncode != 4:
+        closing = "done" if proc.returncode == 0 else "failed"
+        state_note = _queue_record(
+            req.get("title", ""), closing,
+            f"{head}; заняло {mins}; отчёт {req.get('report', '')}") or state_note
     _notify(f"{head} — заявка {req['id']}, заняло {mins}{verdict[:600]}\n\n"
-            f"Отчёт: {req.get('report', '')}")
+            f"Отчёт: {req.get('report', '')}"
+            + (f"\n\n⚠ Очередь: {state_note}" if state_note else ""))
 
 
 def poll_once(chat_id: str) -> int:
