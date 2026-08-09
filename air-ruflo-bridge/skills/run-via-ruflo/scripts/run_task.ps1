@@ -218,7 +218,24 @@ try {
     $r1 = Invoke-Ruflo -Arguments @('hive-mind','spawn','-n',"$Workers") -Stage "1. Spawn workers (-n $Workers)"
     if ($r1.ExitCode -ne 0) { throw "hive-mind spawn -n $Workers failed ($($r1.ExitCode))" }
 
-    $r2 = Invoke-Ruflo -Arguments @('hive-mind','task','-d',$fullObjective,'-p',$Priority) -Stage "2. Submit task to hive queue (-p $Priority)"
+    # ОЧЕРЕДИ РОЯ — КОРОТКАЯ строка, Queen-сессии — полная. Это разные адресаты.
+    #
+    # Установлено разбором 08.08.2026 (ERR-2026-000214, вторая, верная итерация).
+    # `task_create` в движке валидирует вход ПЕРВЫМ делом:
+    #     validateText(input.description, 'description')   // maxLen = 10 000
+    # и при отказе возвращает { success:false, error } — объект БЕЗ `assignedTo`.
+    # Печать результата затем читает `result.assignedTo.length` и падает. То есть
+    # «TypeError: Cannot read properties of undefined» означает не дефект движка,
+    # а НАШУ слишком длинную строку: 9 129 знаков задания плюс преамбула обвязки.
+    #
+    # Прошлый удачный прогон (TASK-OBS-0040, 6 753 знака) укладывался — потому и
+    # выглядело, будто дело в приоритете. Это была ложная связь.
+    #
+    # Очереди достаточно опознавательной строки: полное задание всё равно получает
+    # Queen-сессия шагом 4, и оно же лежит файлом, который она читает.
+    $queueLine = "$($TargetPath): " + ($Objective -replace '\s+', ' ')
+    if ($queueLine.Length -gt 9000) { $queueLine = $queueLine.Substring(0, 9000) + ' […полное задание — шаг 4 и файл цели]' }
+    $r2 = Invoke-Ruflo -Arguments @('hive-mind','task','-d',$queueLine,'-p',$Priority) -Stage "2. Submit task to hive queue (-p $Priority)"
     if ($r2.ExitCode -ne 0) { throw "hive-mind task failed ($($r2.ExitCode))" }
 
     if (-not $NoAutopilot) {
