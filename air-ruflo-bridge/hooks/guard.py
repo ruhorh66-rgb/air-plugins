@@ -39,7 +39,11 @@ except Exception:
     pass
 
 # Запуск роя. Диагностические подкоманды сюда намеренно не входят.
-LAUNCH = re.compile(r"hive-mind\s+(spawn|task)\b|autopilot\s+enable\b|swarm\s+start\b", re.I)
+# `(?![-\w])` — иначе `hive-mind task-status` читается как запуск: граница слова стоит
+# и перед дефисом. Хук блокировал ровно ту диагностику, которую его же текст объявляет
+# разрешённой. Поймано на себе при разборе отказа прогона 08.08.2026.
+LAUNCH = re.compile(r"hive-mind\s+(?:spawn|task)(?![-\w])|autopilot\s+enable\b|swarm\s+start\b",
+                    re.I)
 # Законный путь: команда идёт через обвязку.
 WRAPPER = re.compile(r"run_task\.ps1", re.I)
 
