@@ -158,6 +158,13 @@ def test_queue_record_reads_task_id_from_title():
         calls.clear()
         assert L._queue_record("air-watch v0.4.0 — 6 воркеров", "done", "чем") == ""
         assert not calls, "ручной прогон не должен трогать очередь"
+        # Похожий заголовок НЕ считается той же задачей: совпадение по началу
+        # положило бы отметку на чужую строку (codex review, blocker).
+        for near in ("TASK-OBS-0043-черновик (очередь роя)", "TASK-OBS-0043",
+                     "про TASK-OBS-0043 (очередь роя)", "TASK-OBS-0043 (черновик)"):
+            calls.clear()
+            assert L._queue_record(near, "done", "чем") == "", near
+            assert not calls, f"похожий заголовок принят за задачу очереди: {near!r}"
     finally:
         L.subprocess.run = old
 

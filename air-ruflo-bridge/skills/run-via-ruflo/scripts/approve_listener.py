@@ -135,7 +135,11 @@ def _queue_record(title: str, action: str, proof: str) -> str:
     Заявки бывают и не из очереди (ручные прогоны air-watch) — у них в заголовке нет
     идентификатора, и тогда отмечать нечего. Отсутствие строки не ошибка.
     """
-    match = re.match(r"^(TASK-[A-Z0-9]+-\d+)\b", (title or "").strip())
+    # Заголовок сверяется ЦЕЛИКОМ, а не по началу. `\b` после идентификатора
+    # пропускал `TASK-OBS-0043-черновик` как `TASK-OBS-0043` — отметка легла бы на
+    # чужую строку очереди (codex review 09.08.2026). Формат задаёт `cmd_push`, и
+    # совпадать он обязан полностью: всё остальное очередью не выдавалось.
+    match = re.fullmatch(r"(TASK-[A-Z]+-\d+) \(очередь роя\)", (title or "").strip())
     if not match:
         return ""
     try:
@@ -247,9 +251,21 @@ def _run_request(req: dict) -> None:
     for line in out.splitlines():
         if "Рой работал" in line or "РОЯ НЕ БЫЛО" in line or "SECRET SCAN" in line:
             verdict += "\n" + line.strip()
-    # Исход — в ту же строку очереди. Код 4 («рой занят») исходом задачи не является:
-    # она не отработала и не провалилась, а осталась ждать — состояние не трогаем.
-    if proc.returncode != 4:
+    # Исход — в ту же строку очереди.
+    #
+    # Код 4 («рой уже занят другой задачей») исходом НЕ является: задача не
+    # отработала и не провалилась, она просто не начиналась. Её надо ВЕРНУТЬ в
+    # queued, а не оставить как есть: перед запуском строка уже помечена approved,
+    # и «не трогаем состояние» означало бы вечное approved — а `_next_queued`
+    # считает любую approved-строку работающим роем и не выдаёт больше ничего.
+    # Очередь встала бы навсегда. Найдено codex review 09.08.2026 как blocker;
+    # первая редакция этой правки именно так и делала.
+    if proc.returncode == 4:
+        state_note = _queue_record(
+            req.get("title", ""), "queued",
+            "возвращена в очередь: рой был занят другой задачей, прогон не начинался"
+        ) or state_note
+    else:
         closing = "done" if proc.returncode == 0 else "failed"
         state_note = _queue_record(
             req.get("title", ""), closing,
@@ -257,7 +273,10 @@ def _run_request(req: dict) -> None:
     _notify(f"{head} — заявка {req['id']}, заняло {mins}{verdict[:600]}\n\n"
             f"Отчёт: {req.get('report', '')}"
             + (f"\n\n⚠ Очередь: {state_note}" if state_note else ""))
-    _push_next()
+    # После возврата в очередь выдавать нечего: занят тот самый рой, из-за которого
+    # прогон и не начался. Выдаст его собственное закрытие.
+    if proc.returncode != 4:
+        _push_next()
 
 
 def _push_next() -> None:
