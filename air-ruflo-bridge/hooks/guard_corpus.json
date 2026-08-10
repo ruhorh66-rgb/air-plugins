@@ -1,0 +1,125 @@
+{
+  "about": "корпус отказов: команда -> ожидаемое решение",
+  "cases": [
+    {
+      "id": "journal:20568",
+      "source": "31e875f4-ac4d-40e9-9258-302a0a5e22b7.jsonl",
+      "expect": "allow",
+      "why": "образец в теле heredoc сообщения коммита — содержимое, не команда",
+      "command": "cd /e/-7- && python - <<'PY'\nimport json, pathlib, sys\nsys.stdout.reconfigure(encoding='utf-8')\nfor rel in ('air-ruflo-bridge/.claude-plugin/plugin.json', 'air-ruflo-bridge/.codex-plugin/plugin.json'):\n    p = pathlib.Path(rel)\n    if p.is_file():\n        m = json.loads(p.read_text(encoding='utf-8')); m['version'] = '0.9.2'\n        p.write_text(json.dumps(m, ensure_ascii=False, indent=2) + \"\\n\", encoding='utf-8')\nprint('0.9.2')\nPY\ngit add -A && git commit -q -F - <<'MSG' && git push -q origin main && claude plugin update air-ruflo-bridge@air-plugins 2>&1 | tail -1\nair-ruflo-bridge 0.9.2: dry-run очереди больше не висит на канале вывода\n\nПервый боевой запуск очереди показал два дефекта, оба найдены прогоном, а не чтением.\n\n1. Не передавался обязательный -CliPath: слушатель его передавал, очередь нет.\n   Взята та же константа — два разных пути означали бы, что dry-run проверяет один\n   движок, а исполняется другой.\n\n2. dry-run висел вечно. `hive-mind spawn` оставляет живого демона (node, claude-flow),\n   тот наследует наши stdout/stderr, и capture_output ждёт EOF, которого не будет,\n   пока демон жив. Процесс висел без единого дочернего — снаружи выглядело как\n   зависший python, хотя PowerShell давно отработал. Вывод переведён в файлы,\n   добавлен предел времени.\n\nОтдельно: скрипт печатал голое «код 1» без причины, потому что PowerShell пишет\nотказ по параметрам только в stderr. Печатаются оба потока — иначе это тот же класс,\nчто «не смог проверить» вместо «чисто».\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>\nMSG"
+    },
+    {
+      "id": "journal:22738",
+      "source": "31e875f4-ac4d-40e9-9258-302a0a5e22b7.jsonl",
+      "expect": "allow",
+      "why": "строка «claude plugin update ...» внутри python -c — тестовые данные",
+      "command": "python hooks/guard.py --selftest 2>&1 | tail -1 && python -c \"\nimport importlib.util,pathlib,sys; sys.stdout.reconfigure(encoding='utf-8')\ns=importlib.util.spec_from_file_location('g',pathlib.Path('hooks/guard.py')); g=importlib.util.module_from_spec(s); s.loader.exec_module(g)\nf=g._plugin_source('air-storage','air-storage'); print('источник:', f)\nn=g.check('claude plugin update air-storage@air-storage')\nprint('установка без тега:', 'ОТКЛОНЕНА — механизм работает' if n else 'пропущена')\n\""
+    },
+    {
+      "id": "journal:22746",
+      "source": "31e875f4-ac4d-40e9-9258-302a0a5e22b7.jsonl",
+      "expect": "deny",
+      "why": "истинный: в куске команды стоит настоящий claude plugin update своего плагина, и тега на его версию на тот момент не существовало",
+      "command": "cd /e/-8-/air-storage && claude plugin tag . -m \"Точка отката на релиз соседней сессии (fix: PermissionError валил обход; миграция walk.attempts). Живым потоком этой сессией НЕ подтверждена — тег ставится ради возможности отката\" --push 2>&1 | tail -2 && claude plugin update air-storage@air-storage 2>&1 | tail -1",
+      "skip": "решение зависит от состояния репозитория: в момент отказа тега air-storage--v0.1.2 не было, сейчас он есть, и проверка справедливо молчит. Истинность класса доказывается контрактом fixture:tag-missing."
+    },
+    {
+      "id": "journal:23412",
+      "source": "31e875f4-ac4d-40e9-9258-302a0a5e22b7.jsonl",
+      "expect": "allow",
+      "why": "hive-mind task --help — справка, движок ничего не запускает",
+      "command": "CLI=\"E:\\-4-\\ruflo-pilot\\.npm-cache-3.34.0\\_npx\\2ed56890c96f58f7\\node_modules\\@claude-flow\\cli\\bin\\cli.js\"; node \"$CLI\" hive-mind task --help 2>&1 | grep -i \"priorit\" -A 3 | head -8; echo \"=== какие значения принимает ===\"; grep -rn \"priority\" \"E:/-4-/ruflo-pilot/.npm-cache-3.34.0/_npx/2ed56890c96f58f7/node_modules/@claude-flow/cli/dist/src/commands/hive-mind.js\" 2>/dev/null | grep -i \"low\\|medium\\|high\\|critical\" | head -5"
+    },
+    {
+      "id": "journal:23427",
+      "source": "31e875f4-ac4d-40e9-9258-302a0a5e22b7.jsonl",
+      "expect": "allow",
+      "why": "образец внутри поискового шаблона grep — данные",
+      "command": "grep -n \"hive-mind task\\|Submit task\" -B 8 -A 4 /e/-4-/ruflo-hive/task-obs-0043-dryrun.md | head -30"
+    },
+    {
+      "id": "journal:23458",
+      "source": "31e875f4-ac4d-40e9-9258-302a0a5e22b7.jsonl",
+      "expect": "allow",
+      "why": "hive-mind task-status — диагностика; граница слова стояла и перед дефисом",
+      "command": "CLI=\"E:\\-4-\\ruflo-pilot\\.npm-cache-3.34.0\\_npx\\2ed56890c96f58f7\\node_modules\\@claude-flow\\cli\\bin\\cli.js\"; node \"$CLI\" hive-mind task-status 2>&1 | head -20 || node \"$CLI\" hive-mind status --format json 2>&1 | python -c \"\nimport json,sys; sys.stdout.reconfigure(encoding='utf-8')\nd=json.load(sys.stdin)\nprint('очередь задач:', d.get('queuedTasks') or d.get('tasks'))\n\" 2>/dev/null | head -5"
+    },
+    {
+      "id": "journal:23469",
+      "source": "31e875f4-ac4d-40e9-9258-302a0a5e22b7.jsonl",
+      "expect": "allow",
+      "why": "тестовые строки внутри python -c, разбор чужого хука, не запуск",
+      "command": "cd /e/-7-/air-ruflo-bridge && python -c \"\nimport importlib.util,pathlib,sys; sys.stdout.reconfigure(encoding='utf-8')\ns=importlib.util.spec_from_file_location('g',pathlib.Path('hooks/guard.py')); g=importlib.util.module_from_spec(s); s.loader.exec_module(g)\nfor cmd,want in (('node cli.js hive-mind task-status','пропуск'),('node cli.js hive-mind task -d x','ЗАПРЕТ'),\n                 ('node cli.js hive-mind status','пропуск'),('node cli.js hive-mind spawn --claude','ЗАПРЕТ'),\n                 ('node cli.js hive-mind spawn-status','пропуск')):\n    got='ЗАПРЕТ' if g.check(cmd) else 'пропуск'\n    print(f'  {got:<8} ждали {want:<8} {\\\"ok\\\" if got==want else \\\"<<< РАСХОЖДЕНИЕ\\\"}  {cmd[13:]}')\n\" && python hooks/guard.py --selftest 2>&1 | tail -1"
+    },
+    {
+      "id": "journal:23681",
+      "source": "31e875f4-ac4d-40e9-9258-302a0a5e22b7.jsonl",
+      "expect": "allow",
+      "why": "образец в тексте echo — данные",
+      "command": "CLI_DIR=\"E:/-4-/ruflo-pilot/.npm-cache-3.34.0/_npx/2ed56890c96f58f7/node_modules/@claude-flow/cli\"; ls \"$CLI_DIR\" | head; echo \"=== документация по hive-mind task ===\"; find \"$CLI_DIR\" -maxdepth 2 -name \"*.md\" | head -5"
+    },
+    {
+      "id": "journal:23845",
+      "source": "31e875f4-ac4d-40e9-9258-302a0a5e22b7.jsonl",
+      "expect": "allow",
+      "why": "образец в теле heredoc сообщения коммита — содержимое, не команда",
+      "command": "git add -A && git commit -q -F - <<'MSG' && git push -q origin main && echo \"запушено\"\nERR-2026-000214: записанная причина была неверной, исправлена по исходнику\n\nЗапись врала. Я указал причиной подмену приоритета — это была вторая по счёту\nневерная диагностика того же отказа, и на ней был выпущен релиз.\n\nНастоящая причина найдена чтением кода движка: task_create валидирует description\nлимитом 10 000 знаков (validateText), при отказе возвращает объект без assignedTo,\nи на нём падает печать результата. Наша строка была длиннее: задание 9 129 знаков\nплюс преамбула обвязки. Прошлый удачный прогон отличался не приоритетом, а длиной —\n6 753 знака.\n\nПравило класса усилено: искать в ИСХОДНИКЕ, а не в различиях между прогонами.\nСравнение прогонов даёт несколько корреляций сразу, и выбор причины по правдоподобию\nесть угадывание — здесь оно стоило двух лишних релизов подряд. Порядок: прочитать\nобработчик вызова, найти расхождение с нашим входом, и только потом править.\n\nОтдельно записано ограничение движка, чтобы его больше не переоткрывать:\nhive-mind task -d принимает не более 10 000 знаков.\n\nНеверная запись в реестре хуже отсутствующей — следующий искал бы не там.\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>\nMSG"
+    },
+    {
+      "id": "contract:1",
+      "source": "TASK-OBS-0044 часть 3",
+      "expect": "deny",
+      "why": "прямой запуск роя",
+      "command": "node cli.js hive-mind spawn --claude -o цель"
+    },
+    {
+      "id": "contract:2",
+      "source": "TASK-OBS-0044 часть 3",
+      "expect": "deny",
+      "why": "автопилот мимо обвязки",
+      "command": "npx claude-flow autopilot enable"
+    },
+    {
+      "id": "contract:3",
+      "source": "TASK-OBS-0044 часть 3",
+      "expect": "deny",
+      "why": "постановка задачи мимо обвязки",
+      "command": "hive-mind task -d 'задача' -p high"
+    },
+    {
+      "id": "contract:4",
+      "source": "TASK-OBS-0044 часть 3",
+      "expect": "allow",
+      "why": "законный путь",
+      "command": "& \"E:/-7-/.../scripts/run_task.ps1\" -Objective x -TargetPath y"
+    },
+    {
+      "id": "contract:5",
+      "source": "TASK-OBS-0044 часть 3",
+      "expect": "allow",
+      "why": "диагностика",
+      "command": "node cli.js hive-mind status"
+    },
+    {
+      "id": "contract:6",
+      "source": "TASK-OBS-0044 часть 3",
+      "expect": "allow",
+      "why": "тегирование — само по себе законный путь",
+      "command": "claude plugin tag \"E:/-7-/air-ruflo-bridge\" -m \"проверено\" --push"
+    },
+    {
+      "id": "contract:7",
+      "source": "TASK-OBS-0044 часть 3",
+      "expect": "allow",
+      "why": "чужой github-плагин, не наш релиз",
+      "command": "claude plugin update ponytail@ponytail"
+    },
+    {
+      "id": "contract:8",
+      "source": "TASK-OBS-0044 часть 3",
+      "expect": "allow",
+      "why": "посторонняя команда",
+      "command": "git status"
+    }
+  ]
+}

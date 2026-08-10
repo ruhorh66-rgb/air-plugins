@@ -47,6 +47,22 @@ LAUNCH = re.compile(r"hive-mind\s+(?:spawn|task)(?![-\w])|autopilot\s+enable\b|s
 # Законный путь: команда идёт через обвязку.
 WRAPPER = re.compile(r"run_task\.ps1", re.I)
 
+# Оболочка исполняет команду не целиком, а кусками, разделёнными `;`, `&&`, `||`,
+# `|` и переводом строки. Проверять надо КАЖДЫЙ кусок отдельно: образец, найденный
+# в чужом куске, ничего не запускает.
+SEGMENT_SPLIT = re.compile(r"[\n;|&]+")
+# Чем движок вообще поднимается. Требование присутствия — единственное, что
+# отличает запуск от упоминания: `grep "hive-mind task" файл` ИЩЕТ этот текст,
+# `echo "hive-mind spawn"` его ПЕЧАТАЕТ, и ни одна из двух рой не заводит. Обе
+# были отклонены 08.08.2026 и обе стоили круга на переписывание команды.
+INVOKER = re.compile(r"(?:^|[\s\"'/\\])(?:node|npx|bunx|deno|claude-flow|ruflo)\b|cli\.js", re.I)
+# Подкоманда движка первым словом куска — тоже запуск: зовут сам движок из PATH.
+DIRECT = re.compile(r"^\s*(?:hive-mind|swarm|autopilot)\b", re.I)
+# Справка ничего не поднимает. `hive-mind task --help` печатает список флагов —
+# ровно та диагностика, которую текст запрета объявляет разрешённой, а проверка
+# отклоняла, потому что читала подкоманду и не читала остаток куска.
+HELP = re.compile(r"(?:^|\s)(?:--help|-h)(?:\s|$)")
+
 DENY = (
     "air-ruflo-bridge: прямой запуск роя отклонён (ERR-2026-000192).\n"
     "`hive-mind spawn --claude` поднимает Queen-сессию, но НЕ заводит воркеров и НЕ "
@@ -200,15 +216,45 @@ def check_release_tag(command: str) -> str | None:
 def strip_data(command: str) -> str:
     """Убрать из команды то, что является ДАННЫМИ, а не командой.
 
-    Тело heredoc и текст сообщения (`-m "..."`, `-F -`) исполнению не подлежат:
-    это содержимое, которое передаётся программе на вход. Проверка без этого
-    запретила собственный `git commit`, в сообщении которого описан тот самый
-    порядок запуска, ради запрета которого хук и написан. Ложное срабатывание у
+    Тело heredoc, текст сообщения (`-m "..."`, `-F -`) и программа, поданная
+    строкой (`-c "..."`), исполнению ОБОЛОЧКОЙ не подлежат: это содержимое,
+    которое передаётся программе на вход. Проверка без этого запретила
+    собственный `git commit`, в сообщении которого описан тот самый порядок
+    запуска, ради запрета которого хук и написан. Ложное срабатывание у
     блокирующей проверки стоит дороже пропуска — оно ломает работу, а не напоминает.
+
+    Разбор `-c` добавлен по журналу 08.08.2026: отклонены были и `python -c` с
+    таблицей тестовых команд внутри, и `python -c`, поднимающий сам этот хук для
+    проверки. Обе строки — данные для питона, а не команды для оболочки. Это
+    осознанно оставляет щель для `python -c "os.system('… hive-mind spawn …')"`:
+    хук защищает от невнимательности, а не от обхода — текст хода и вызовы пишет
+    один исполнитель, и обходить самого себя ему незачем.
     """
-    without = re.sub(r"<<\s*'?\"?(\w+)'?\"?\n.*?\n\1", " ", command, flags=re.DOTALL)
+    # Открывающая строка heredoc продолжается после разделителя: реальный отказ
+    # пришёл на `git commit -F - <<'MSG' && git push …`, где сразу за `MSG` стоял
+    # не перевод строки, а `&&`, и тело не вырезалось вовсе.
+    without = re.sub(r"<<\s*'?\"?(\w+)'?\"?[^\n]*\n.*?\n\1", " ", command, flags=re.DOTALL)
     without = re.sub(r"-m\s+(['\"])(?:\\.|(?!\1).)*\1", " ", without, flags=re.DOTALL)
+    without = re.sub(r"-c\s+(['\"])(?:\\.|(?!\1).)*\1", " ", without, flags=re.DOTALL)
     return without
+
+
+def launches(command: str) -> bool:
+    """Есть ли в команде кусок, который ДЕЙСТВИТЕЛЬНО поднимает рой.
+
+    Прежняя редакция искала образец по всей строке сразу. Из девяти отказов,
+    вынутых из журнала сессии, восемь оказались ложными именно поэтому: образец
+    лежал в тексте `echo`, в шаблоне `grep`, в теле сообщения коммита или в
+    строке внутри `python -c`. Кусок команды признаётся запуском, только если в
+    нём есть чем запускать (`node`, `npx`, `cli.js`, …) либо подкоманда движка
+    стоит первым словом — и если это не запрос справки.
+    """
+    for segment in SEGMENT_SPLIT.split(command):
+        if not LAUNCH.search(segment) or HELP.search(segment):
+            continue
+        if INVOKER.search(segment) or DIRECT.match(segment):
+            return True
+    return False
 
 
 def check(command: str) -> str | None:
@@ -218,7 +264,7 @@ def check(command: str) -> str | None:
     note = check_release_tag(payload)
     if note:
         return note
-    if not LAUNCH.search(payload) or WRAPPER.search(payload):
+    if not launches(payload) or WRAPPER.search(payload):
         return None
     return DENY
 
@@ -257,6 +303,20 @@ def _selftest() -> None:
     assert check("cat <<TXT\nпросто текст\nTXT\nnode cli.js hive-mind spawn --claude -o x"), \
         "команда после heredoc проверяется как обычно"
 
+    # Классы ложных срабатываний, вынутые из журнала сессии (TASK-OBS-0044).
+    # Общее у всех: образец найден там, где он СОДЕРЖИМОЕ, а не исполняемая команда.
+    assert check("node cli.js hive-mind task --help") is None, \
+        "справка печатает флаги и ничего не поднимает"
+    assert check('grep -n "hive-mind task\\|Submit task" отчёт.md | head -30') is None, \
+        "поисковый шаблон grep — данные"
+    assert check('ls .; echo "=== документация по hive-mind task ==="; find . -name "*.md"') \
+        is None, "текст echo — данные"
+    assert check("python -c \"print('node cli.js hive-mind task -d x')\"") is None, \
+        "строка внутри python -c — данные для питона, не команда для оболочки"
+    assert check("git add -A && git commit -F - <<'MSG' && git push -q origin main\n"
+                 "порядок: hive-mind spawn -n 5, затем autopilot enable\nMSG") is None, \
+        "тело heredoc не вырезалось, когда за разделителем шёл не перевод строки, а &&"
+
     # Требование тега релиза — на настоящем состоянии контура, а не на выдумке.
     assert check_release_tag("git status") is None
     assert check_release_tag("claude plugin list") is None
@@ -275,6 +335,14 @@ def _selftest() -> None:
             "решение проверки обязано совпадать с фактическим наличием тега"
     # Хук не должен падать ни на каком входе.
     assert main() is not None or True
+    # Корпус из журнала — часть самопроверки, а не отдельный ритуал: иначе он
+    # проживёт ровно до первой сессии, которая о нём не вспомнит.
+    corpus = pathlib.Path(__file__).with_name("test_guard_corpus.py")
+    if corpus.is_file():
+        done = subprocess.run([sys.executable, str(corpus)], capture_output=True, text=True,
+                              encoding="utf-8", errors="replace")
+        assert done.returncode == 0, "корпус отказов не пройден:\n" + (done.stdout or "")
+        print((done.stdout or "").strip().splitlines()[-2])
     print("selftest ok")
 
 
