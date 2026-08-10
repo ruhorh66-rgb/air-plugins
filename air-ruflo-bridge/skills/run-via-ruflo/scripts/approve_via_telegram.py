@@ -82,9 +82,25 @@ def _api(method: str, payload: dict) -> dict:
 # Подписываются только НЕИЗМЕННЫЕ поля. `status`, `decided_at`, `message_id` слушатель
 # дописывает сам после решения — включить их означало бы, что он ломает подпись
 # собственной записью.
-SIGNED_FIELDS = ("id", "title", "report", "objective_file", "target_path",
-                 "workers", "priority", "created_at")
+# `objective_sha256` — не украшение. Подписать ПУТЬ к цели и не подписать саму цель
+# значит закрыть половину дыры: файл читается заново уже после подтверждения, и его
+# можно переписать, не тронув заявку. ЛПР увидел бы сводку одного задания, а рой
+# исполнил бы другое — при совершенно правильной подписи. Найдено codex review
+# 10.08.2026 (high) в первой редакции этой же правки.
+SIGNED_FIELDS = ("id", "title", "report", "objective_file", "objective_sha256",
+                 "target_path", "workers", "priority", "created_at")
 HMAC_ACCOUNT = "request-hmac-key"
+
+
+def file_digest(path: str) -> str:
+    """SHA-256 файла. Нечитаемый файл даёт пустую строку — и она тоже подписывается:
+    заявка, созданная на недоступной цели, обязана отличаться от заявки на живую."""
+    import hashlib
+    try:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except OSError:
+        return ""
 
 
 def _hmac_key(create_if_missing: bool = False) -> bytes:
@@ -139,7 +155,16 @@ def verify_request(request: dict) -> tuple[bool, str]:
     expected = hmac.new(key, _canonical(request), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(str(got), expected):
         return False, "подпись не сходится — поля заявки изменены после создания"
-    return True, "подпись сходится"
+    # Подпись сошлась — значит поля те же. Осталось убедиться, что и ЦЕЛЬ та же:
+    # файл читается заново при исполнении, и переписать его можно, не тронув заявку.
+    signed_digest = request.get("objective_sha256")
+    if signed_digest is None:
+        return False, "заявка старого образца: цель не подписана по содержимому"
+    now = file_digest(str(request.get("objective_file") or ""))
+    if not hmac.compare_digest(str(signed_digest), now):
+        return (False, "файл цели изменился после создания заявки — ЛПР подтверждал "
+                       "другой текст")
+    return True, "подпись сходится, цель не менялась"
 
 
 def create(argv: list[str]) -> int:
@@ -182,6 +207,7 @@ def create(argv: list[str]) -> int:
         "title": title,
         "report": report,
         "objective_file": os.path.abspath(objective_file),
+        "objective_sha256": file_digest(os.path.abspath(objective_file)),
         "target_path": os.path.abspath(target),
         "workers": int(workers),
         "priority": priority,

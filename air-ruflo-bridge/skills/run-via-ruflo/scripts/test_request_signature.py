@@ -14,19 +14,29 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
+import tempfile
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import approve_via_telegram as m  # noqa: E402
 
+# Настоящий файл цели: часть проверок трогает его содержимое, и подменять его
+# приходится по-настоящему — на выдуманном пути этого не проверить.
+_TMP = tempfile.mkdtemp(prefix="sigtest-")
+OBJECTIVE = os.path.join(_TMP, "задание.md")
+with open(OBJECTIVE, "w", encoding="utf-8") as _fh:
+    _fh.write("# Задание\n\nСделать ровно это и ничего другого.\n")
+
 BASE = {
     "id": "sigtest1",
     "title": "TASK-OBS-0099 (очередь роя)",
     "report": r"E:\-4-\ruflo-hive\test.md",
-    "objective_file": r"E:\-5-\задание.md",
+    "objective_file": OBJECTIVE,
+    "objective_sha256": m.file_digest(OBJECTIVE),
     "target_path": r"E:\-7-",
     "workers": 5,
     "priority": "high",
@@ -87,6 +97,50 @@ def test_field_order_does_not_matter():
     shuffled = {k: req[k] for k in sorted(req, reverse=True)}
     ok, why = m.verify_request(shuffled)
     assert ok, why
+
+
+def test_rewriting_the_objective_file_is_caught():
+    """ГЛАВНАЯ проверка. Подписать путь и не подписать содержимое — закрыть половину
+    дыры: файл читается заново уже ПОСЛЕ подтверждения. ЛПР увидел бы сводку одного
+    задания, а исполнилось бы другое, причём подпись сошлась бы."""
+    req = _signed()
+    ok, _ = m.verify_request(req)
+    assert ok
+    original = open(OBJECTIVE, encoding="utf-8").read()
+    try:
+        with open(OBJECTIVE, "w", encoding="utf-8") as fh:
+            fh.write("# Задание\n\nА теперь сделать совсем другое.\n")
+        ok, why = m.verify_request(req)
+        assert not ok, "подмена содержимого цели прошла проверку"
+        assert "изменил" in why, why
+    finally:
+        with open(OBJECTIVE, "w", encoding="utf-8") as fh:
+            fh.write(original)
+    assert m.verify_request(req)[0], "возврат исходного текста должен снова сходиться"
+
+
+def test_missing_objective_file_is_refused():
+    """Цель исчезла между кнопкой и нажатием — исполнять нечего и незачем."""
+    req = _signed()
+    gone = dict(req)
+    gone["objective_file"] = os.path.join(_TMP, "нет-такого.md")
+    ok, _ = m.verify_request(gone)
+    assert not ok, "подмена пути должна ломать подпись"
+
+
+def test_survives_json_round_trip():
+    """Заявка живёт файлом: подпись обязана сходиться после записи и чтения.
+    Числа при сериализации меняют представление (5 против 5.0), и канонизация,
+    чувствительная к этому, отвергала бы правильные заявки — fail-closed, но
+    механизм переставал бы работать (codex review 10.08.2026, low)."""
+    req = _signed()
+    path = os.path.join(_TMP, "req.json")
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(req, fh, ensure_ascii=False, indent=1)
+    with open(path, encoding="utf-8") as fh:
+        back = json.load(fh)
+    ok, why = m.verify_request(back)
+    assert ok, f"после round-trip подпись развалилась: {why}"
 
 
 if __name__ == "__main__":
