@@ -51,6 +51,12 @@ param(
     [string]$Root = 'E:\-4-\ruflo-hive',
     [string]$Owner = '',
     [string]$TaskId = '',
+    # Чей процесс считать ДЕРЖАТЕЛЕМ. По умолчанию — свой ($PID), и для вызова из
+    # PowerShell этого хватает: run_task.ps1 зовёт этот скрипт в СВОЁМ процессе и
+    # живёт весь прогон. Вызывающему на Python так нельзя: powershell завершается
+    # сразу после claim, замок мгновенно становится протухшим, и «держим замок»
+    # превращается в самообман. Поэтому держателем регистрируется указанный процесс.
+    [int]$HolderPid = 0,
     [switch]$Fix,
     [switch]$IncludeForeign,
     [switch]$NoScan,
@@ -110,9 +116,13 @@ function ConvertTo-Stamp($Value) {
     return $text
 }
 
-function Get-MyStart {
-    try { return (Get-Process -Id $PID).StartTime.ToString('o') } catch { return $null }
+function Get-HolderPid { if ($HolderPid -gt 0) { return $HolderPid } else { return $PID } }
+
+function Get-ProcStart([int]$ProcessId) {
+    try { return (Get-Process -Id $ProcessId -ErrorAction Stop).StartTime.ToString('o') } catch { return $null }
 }
+
+function Get-MyStart { return Get-ProcStart (Get-HolderPid) }
 
 function Test-LockAlive($Lock) {
     <#
@@ -171,8 +181,8 @@ function Read-Lock {
 
 function New-LockJson {
     ([pscustomobject]@{
-        owner    = if ($Owner) { $Owner } else { "pid-$PID" }
-        pid      = $PID
+        owner    = if ($Owner) { $Owner } else { "pid-$(Get-HolderPid)" }
+        pid      = Get-HolderPid
         pidStart = Get-MyStart
         taskId   = $TaskId
         since    = (Get-Date).ToString('o')
@@ -205,6 +215,74 @@ function New-LockFile([string]$Json) {
         $stream.Dispose()   # закрывать обязательно: иначе замок остаётся недописанным и занятым
     }
     return $true
+}
+
+function Set-LockInPlace([string]$Json) {
+    <#
+    ПЕРЕХВАТ ПРОТУХШЕГО ЗАМКА — БЕЗ УДАЛЕНИЯ ФАЙЛА.
+
+    Прежняя редакция делала «прочитал → Remove-Item → CreateNew», и это была та же
+    гонка, от которой уходит вся задача, только на уровень ниже: два claim'а читают
+    ОДИН протухший замок, первый успевает снять его и создать свой, а второй сносит
+    Remove-Item'ом уже НОВЫЙ файл — и тоже успешно «захватывает». Два держателя
+    одного замка (найдено внешним контролёром 10.08.2026, блокирующая).
+
+    Корень — не скорость, а то, что удаление адресует файл ПО ИМЕНИ, а решение было
+    принято по СОДЕРЖИМОМУ, прочитанному раньше. Между этими двумя моментами имя
+    успевает указывать на другой файл.
+
+    Здесь файл не удаляется вообще. Открывается существующий, ЭКСКЛЮЗИВНО
+    (FileShare::None) — такую ручку ОС выдаёт ровно одному процессу. Под ней
+    содержимое перечитывается и живость оценивается ЗАНОВО, и под ней же
+    выполняется запись поверх. Проверка и запись — внутри одного окна, в которое
+    никто другой не может ни заглянуть, ни вмешаться, а подменить файл нечем:
+    ручка привязана к тому самому файлу, который мы только что прочитали.
+
+    Отдаёт result:
+      taken    — замок был протухшим и теперь наш
+      alive    — под ручкой оказался ЖИВОЙ держатель (появился, пока мы шли сюда)
+      broken   — файл прочитан, а замка в нём нет: состояние неизвестно
+      busyfile — открыть эксклюзивно не дали: замок прямо сейчас берёт кто-то другой
+      gone     — файла уже нет: держатель снял его сам, можно пробовать создать
+    #>
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::Open($LockFile, [System.IO.FileMode]::Open,
+                                         [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+    } catch [System.IO.FileNotFoundException] {
+        return [pscustomobject]@{ result = 'gone' }
+    } catch [System.IO.DirectoryNotFoundException] {
+        return [pscustomobject]@{ result = 'gone' }
+    } catch {
+        if (-not (Test-Path -LiteralPath $LockFile)) { return [pscustomobject]@{ result = 'gone' } }
+        return [pscustomobject]@{ result = 'busyfile' }
+    }
+    try {
+        $text = ''
+        if ($stream.Length -gt 0) {
+            $buffer = New-Object byte[] $stream.Length
+            $read = $stream.Read($buffer, 0, $buffer.Length)
+            $text = [System.Text.Encoding]::UTF8.GetString($buffer, 0, $read)
+        }
+        $lock = $null
+        if (-not [string]::IsNullOrWhiteSpace($text)) {
+            try { $lock = $text | ConvertFrom-Json } catch { $lock = $null }
+        }
+        if ($null -eq $lock -or -not $lock.pid) {
+            return [pscustomobject]@{ result = 'broken' }
+        }
+        $live = Test-LockAlive $lock
+        if ($live.alive -and -not $Force) {
+            return [pscustomobject]@{ result = 'alive'; lock = $lock; proof = $live.proof }
+        }
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($Json)
+        $stream.Position = 0
+        $stream.Write($bytes, 0, $bytes.Length)
+        $stream.SetLength($bytes.Length)   # прежний замок был длиннее — хвост обязан уйти
+        return [pscustomobject]@{ result = 'taken'; lock = $lock; proof = $live.proof }
+    } finally {
+        $stream.Dispose()
+    }
 }
 
 function Find-Strays {
@@ -275,64 +353,78 @@ switch ($Action) {
 
 'claim' {
     if (-not (Test-Path -LiteralPath $Root)) { New-Item -ItemType Directory -Path $Root -Force | Out-Null }
+    # Мёртвый держатель — это замок, протухший в момент рождения: следующий же
+    # claim его законно перехватит, а вызывающий будет считать, что рой за ним.
+    if ($HolderPid -gt 0 -and -not (Test-Alive $HolderPid)) {
+        Out-Json ([pscustomobject]@{
+            outcome = 'refused'; root = $Root; holderPid = $HolderPid
+            reason = 'процесса-держателя нет — такой замок протух бы сразу'
+        })
+        exit 5
+    }
     $json = New-LockJson
-    $owner = if ($Owner) { $Owner } else { "pid-$PID" }
+    $owner = if ($Owner) { $Owner } else { "pid-$(Get-HolderPid)" }
     if (New-LockFile $json) {
         Out-Json ([pscustomobject]@{
-            outcome = 'claimed'; root = $Root; owner = $owner; pid = $PID; taskId = $TaskId
+            outcome = 'claimed'; root = $Root; owner = $owner; pid = (Get-HolderPid); taskId = $TaskId
             replacedStaleLock = $false
         })
         exit 0
     }
 
-    # Столкнулись. Разбираемся, ЧТО именно лежит: «занято», «мусор» и «непонятно» —
-    # три разных ответа, и склеивать их нельзя.
-    $lock = Read-Lock
-    if ($null -eq $lock) {
-        # Держатель снял замок между нашей попыткой и чтением — просто повторяем.
-    } elseif ($lock -is [string] -and $lock -eq 'BUSYFILE') {
-        Out-Json ([pscustomobject]@{
-            outcome = 'busy'; root = $Root
-            reason = 'файл замка держит другой процесс — кто-то берёт рой прямо сейчас'
-        })
-        exit 4
-    } elseif ($lock -is [string]) {
-        # BROKEN. Не «свободно» и не «занято» — отдельный код, чтобы вызывающий не
-        # мог принять непрочитанный замок за отсутствующий.
-        Out-Json ([pscustomobject]@{
-            outcome = 'unknown'; root = $Root; lockFile = $LockFile
-            reason = 'замок нечитаем или в нём нет pid — состояние роя неизвестно'
-            advice = 'разобраться руками: либо рой действительно работает, либо файл — мусор'
-        })
-        exit 5
-    } else {
-        $live = Test-LockAlive $lock
-        if ($live.alive -and -not $Force) {
+    # Столкнулись. Что именно лежит, решается ТОЛЬКО под эксклюзивной ручкой:
+    # отдельного шага «а протух ли он?» с последующим удалением больше нет — именно
+    # он и раздавал один замок двоим.
+    $take = Set-LockInPlace $json
+    switch ($take.result) {
+        'taken' {
+            Write-Verbose "перехвачен протухший замок $($take.lock.owner)/$($take.lock.pid): $($take.proof)"
+            Out-Json ([pscustomobject]@{
+                outcome = 'claimed'; root = $Root; owner = $owner; pid = (Get-HolderPid); taskId = $TaskId
+                replacedStaleLock = $true; replacedProof = $take.proof
+            })
+            exit 0
+        }
+        'alive' {
             # Живой держатель — это НЕ повод поднимать второй рой. Присоединяемся.
             Out-Json ([pscustomobject]@{
-                outcome = 'busy'; root = $Root; heldBy = $lock.owner; pid = $lock.pid
-                since = $lock.since; taskId = $lock.taskId; livenessProof = $live.proof
+                outcome = 'busy'; root = $Root; heldBy = $take.lock.owner; pid = $take.lock.pid
+                since = $take.lock.since; taskId = $take.lock.taskId; livenessProof = $take.proof
                 advice = 'рой уже занят живой сессией — работать через него, второй демон не поднимать'
             })
             exit 4
         }
-        Write-Verbose "снят протухший замок $($lock.owner)/$($lock.pid): $($live.proof)"
-        Remove-Item -LiteralPath $LockFile -Force -ErrorAction SilentlyContinue
+        'busyfile' {
+            Out-Json ([pscustomobject]@{
+                outcome = 'busy'; root = $Root
+                reason = 'файл замка держит другой процесс — кто-то берёт рой прямо сейчас'
+            })
+            exit 4
+        }
+        'broken' {
+            # Не «свободно» и не «занято» — отдельный код, чтобы вызывающий не мог
+            # принять непрочитанный замок за отсутствующий.
+            Out-Json ([pscustomobject]@{
+                outcome = 'unknown'; root = $Root; lockFile = $LockFile
+                reason = 'замок нечитаем или в нём нет pid — состояние роя неизвестно'
+                advice = 'разобраться руками: либо рой действительно работает, либо файл — мусор'
+            })
+            exit 5
+        }
     }
 
-    # ПОВТОР РОВНО ОДИН РАЗ. Не вышло — значит замок успел взять кто-то другой, и
-    # это уже занятость, а не мусор. Второго круга нет намеренно: он превратил бы
-    # снятие протухшего в бесконечное перетягивание.
+    # 'gone': держатель снял замок сам, пока мы шли сюда. ПОВТОР РОВНО ОДИН РАЗ —
+    # не вышло, значит его успел создать кто-то другой, и это уже занятость.
     if (New-LockFile $json) {
         Out-Json ([pscustomobject]@{
-            outcome = 'claimed'; root = $Root; owner = $owner; pid = $PID; taskId = $TaskId
-            replacedStaleLock = $true
+            outcome = 'claimed'; root = $Root; owner = $owner; pid = (Get-HolderPid); taskId = $TaskId
+            replacedStaleLock = $false; note = 'замок был снят держателем между попытками'
         })
         exit 0
     }
     Out-Json ([pscustomobject]@{
         outcome = 'busy'; root = $Root
-        reason = 'замок взят другим процессом между снятием протухшего и повтором'
+        reason = 'замок взят другим процессом между снятием прежнего и повтором'
     })
     exit 4
 }
@@ -358,7 +450,7 @@ switch ($Action) {
     }
     # «Свой» — это тот же PID И то же время старта. Без второго условия замок
     # переиспользованного PID снимался бы посторонним процессом как свой.
-    $mine = ([string]$lock.pid -eq [string]$PID)
+    $mine = ([string]$lock.pid -eq [string](Get-HolderPid))
     if ($mine) {
         $want = ConvertTo-Stamp $lock.pidStart
         $have = ConvertTo-Stamp (Get-MyStart)
