@@ -68,6 +68,80 @@ def _api(method: str, payload: dict) -> dict:
         return json.loads(resp.read().decode("utf-8"))
 
 
+# --- Подпись заявки ----------------------------------------------------------
+#
+# ЗАЧЕМ. Заявка читается слушателем В МОМЕНТ НАЖАТИЯ, а не создания: между кнопкой и
+# нажатием проходят минуты или часы. Кто может писать в файл — подменит цель и каталог
+# ПОСЛЕ того, как ЛПР прочитал сводку. Сообщение в чате при этом останется прежним:
+# человек подтвердит то, что видел, а исполнится подменённое.
+#
+# Дыра не теоретическая. Замер 10.08.2026: на каталоге очереди `Everyone: FullControl`,
+# унаследованный с корня `E:\`. Права диска — отдельное решение ЛПР (оставлены как
+# есть); подпись закрывает подмену НЕЗАВИСИМО от прав машины, и потому сделана первой.
+#
+# Подписываются только НЕИЗМЕННЫЕ поля. `status`, `decided_at`, `message_id` слушатель
+# дописывает сам после решения — включить их означало бы, что он ломает подпись
+# собственной записью.
+SIGNED_FIELDS = ("id", "title", "report", "objective_file", "target_path",
+                 "workers", "priority", "created_at")
+HMAC_ACCOUNT = "request-hmac-key"
+
+
+def _hmac_key(create_if_missing: bool = False) -> bytes:
+    """Ключ подписи из keyring. Создаётся ТОЛЬКО на стороне отправителя.
+
+    Асимметрия намеренная: `create` ключ заводит, проверяющая сторона — никогда.
+    Иначе удаление ключа превращалось бы в способ обойти проверку: проверяющий завёл
+    бы новый и объявил все заявки правильными.
+    """
+    import keyring
+    value = keyring.get_password(SERVICE, HMAC_ACCOUNT)
+    if not value and create_if_missing:
+        value = secrets.token_hex(32)
+        keyring.set_password(SERVICE, HMAC_ACCOUNT, value)
+    if not value:
+        raise SystemExit(f"нет ключа подписи {SERVICE}/{HMAC_ACCOUNT} в keyring")
+    return value.encode("utf-8")
+
+
+def _canonical(request: dict) -> bytes:
+    """Подписываемое представление. Порядок и формат фиксированы, иначе подпись
+    развалится от перестановки ключей при перезаписи файла."""
+    import hashlib  # noqa: F401  (нужен hmac ниже; импорт локальный — модуль редкий)
+    payload = {field: request.get(field) for field in SIGNED_FIELDS}
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                      separators=(",", ":")).encode("utf-8")
+
+
+def sign_request(request: dict) -> str:
+    import hashlib
+    import hmac
+    return hmac.new(_hmac_key(create_if_missing=True), _canonical(request),
+                    hashlib.sha256).hexdigest()
+
+
+def verify_request(request: dict) -> tuple[bool, str]:
+    """(годна, причина). Нет подписи либо нет ключа — НЕ ГОДНА.
+
+    Третьего исхода здесь нет намеренно: «проверить не смог» в вопросе исполнения
+    равносильно отказу. Молчаливое превращение непроверенного в разрешённое — тот
+    самый дефект, ради которого проверка и вводится.
+    """
+    import hashlib
+    import hmac
+    got = request.get("sig")
+    if not got:
+        return False, "заявка без подписи"
+    try:
+        key = _hmac_key(create_if_missing=False)
+    except SystemExit as exc:
+        return False, f"ключ подписи недоступен: {exc}"
+    expected = hmac.new(key, _canonical(request), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(str(got), expected):
+        return False, "подпись не сходится — поля заявки изменены после создания"
+    return True, "подпись сходится"
+
+
 def create(argv: list[str]) -> int:
     """Положить заявку в очередь и прислать ЛПР кнопку.
 
@@ -114,6 +188,9 @@ def create(argv: list[str]) -> int:
         "created_at": time.time(),
         "status": "pending",
     }
+    # Подпись ставится ДО первой записи на диск: заявка не должна ни секунды
+    # существовать в файле неподписанной.
+    request["sig"] = sign_request(request)
     path = os.path.join(QUEUE, f"{rid}.json")
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
