@@ -40,12 +40,18 @@ try:
 except Exception:
     pass
 
-PLATFORM = r"E:\-5-\010_Task_Control_Platform"
-PAGE = os.path.join(PLATFORM, "02_WIKI", "TASK-OBS-0041 — очередь вайб-кодинга для роя.md")
+# Пути подменяемы через окружение. Не «на всякий случай»: проверять поведение
+# очереди можно только на копии страницы и на своём замке — на живой странице
+# TASK-OBS-0041 и на замке работающего роя проверка означала бы порчу того самого
+# состояния, ради которого она пишется. Значения по умолчанию — боевые.
+PLATFORM = os.environ.get("RUFLO_PLATFORM") or r"E:\-5-\010_Task_Control_Platform"
+PAGE = os.environ.get("RUFLO_QUEUE_PAGE") or os.path.join(
+    PLATFORM, "02_WIKI", "TASK-OBS-0041 — очередь вайб-кодинга для роя.md")
 HERE = os.path.dirname(os.path.abspath(__file__))
 APPROVE = os.path.join(HERE, "approve_via_telegram.py")
 RUN_TASK = os.path.join(HERE, "run_task.ps1")
-REPORTS = r"E:\-4-\ruflo-hive"
+HIVE_SINGLE = os.path.join(HERE, "hive_single.ps1")
+REPORTS = os.environ.get("RUFLO_REPORTS") or r"E:\-4-\ruflo-hive"
 # Путь к движку — обязательный параметр run_task.ps1. Держим тот же, что у слушателя
 # (approve_listener.CLI_PATH): два разных пути означали бы два разных движка, и
 # dry-run проверял бы не то, что потом исполнится.
@@ -147,10 +153,34 @@ def cmd_list(_argv: list[str]) -> int:
 HIVE_LOCK = os.path.join(REPORTS, "hive.lock.json")
 
 
-def hive_busy() -> tuple[bool, str]:
-    """Занят ли рой ПО ФАКТУ: замок канонического корня держит живой процесс.
+def _lock_state(status: dict | None) -> tuple[str, str]:
+    """Вердикт `hive_single.ps1 status` → одно из free | held | unknown.
 
-    Возвращает (занят, чем подтверждено).
+    ТРИ состояния, а не два. `held` — рой занят живым держателем. `free` — замка
+    нет либо он остался от мёртвого процесса (это мусор, а не занятость). `unknown` —
+    замок есть, но что он значит, установить не удалось: файл не разобрался, поля pid
+    нет, сам опрос не отработал.
+
+    `unknown` НЕ склеивается с `free` намеренно. Прежняя редакция считала нечитаемый
+    замок свободой, и тогда поверх работающего роя выдавалась вторая задача — то есть
+    единственный источник факта «занят» молча переставал быть источником.
+    """
+    if not isinstance(status, dict):
+        return "unknown", "опросить замок не удалось — это НЕ «свободно»"
+    state = str(status.get("lockState") or "")
+    who = (f"{status.get('lockOwner')}/{status.get('lockPid')}"
+           f" с {status.get('lockSince')}, задача {status.get('taskId') or '—'}")
+    if state == "held":
+        return "held", f"замок держит {who} ({status.get('livenessProof')})"
+    if state == "stale":
+        return "free", f"замок остался от мёртвого держателя {who} ({status.get('livenessProof')})"
+    if state == "free":
+        return "free", "замка нет"
+    return "unknown", f"замок в состоянии «{state or 'без ответа'}»: {status.get('livenessProof')}"
+
+
+def hive_state() -> tuple[str, str, dict]:
+    """Занят ли рой ПО ФАКТУ. Возвращает (состояние, чем подтверждено, сам замок).
 
     ЗАЧЕМ НЕ ВЕРИТЬ СТРОКЕ ОЧЕРЕДИ. `approved` в таблице означает «мы отметили, что
     запускаем», и между отметкой и правдой есть зазор: прогон мог упасть до запуска
@@ -159,61 +189,46 @@ def hive_busy() -> tuple[bool, str]:
     очереди не рождает. Оба случая — blocker'ы codex review 09.08.2026, и оба дают
     одно последствие: очередь встаёт молча и навсегда.
 
-    Замок — источник, отметка — производное. Спрашиваем источник: `hive_single.ps1`
-    пишет сюда `{owner, pid, since}` и сам считает замок с мёртвым процессом мусором,
-    а не занятостью.
+    Замок — источник, отметка — производное.
 
-    Прочитать не удалось — считаем СВОБОДНЫМ. Обратное решение остановило бы очередь
-    из-за отсутствующего файла, то есть повторило бы ровно тот дефект, ради которого
-    проверка и пишется.
+    ЖИВОСТЬ ДЕРЖАТЕЛЯ СЧИТАЕТСЯ НЕ ЗДЕСЬ. Спрашиваем `hive_single.ps1 -Action status`,
+    который и пишет замок: правило «PID и время старта процесса» живёт в одном месте.
+    Своя вторая реализация той же проверки на Python — это ровно те два источника, от
+    которых мы уходим. `-NoScan` потому, что обход дисков в поисках чужих каталогов
+    состояния занимает секунды, а замок спрашивается на каждый push.
     """
     try:
-        with open(HIVE_LOCK, encoding="utf-8") as fh:
-            lock = json.load(fh)
-        pid = int(lock.get("pid"))
-        owner = str(lock.get("owner", "?"))
-    except (OSError, ValueError, TypeError):
-        return False, "замка нет либо он нечитаем"
-    try:
-        alive = subprocess.run(["powershell.exe", "-NoProfile", "-Command",
-                                f"if (Get-Process -Id {pid} -ErrorAction SilentlyContinue)"
-                                f" {{'ALIVE'}} else {{'DEAD'}}"],
-                               capture_output=True, text=True, timeout=30)
+        res = subprocess.run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                              "-File", HIVE_SINGLE, "-Action", "status",
+                              "-Root", REPORTS, "-NoScan"],
+                             capture_output=True, text=True, encoding="utf-8",
+                             errors="replace", timeout=60)
+        status = json.loads(res.stdout)
     except Exception as exc:
-        return False, f"проверить процесс {pid} не удалось ({exc})"
-    if "ALIVE" in (alive.stdout or ""):
-        return True, f"замок держит живой процесс {pid} ({owner})"
-    return False, f"замок остался от мёртвого процесса {pid} ({owner})"
+        return "unknown", f"опрос замка не отработал ({type(exc).__name__}: {exc})", {}
+    state, why = _lock_state(status)
+    return state, why, status
 
 
-def _next_queued(rows: list[dict], busy_check=hive_busy,
-                 mark=None) -> dict | None:
-    """Первая ждущая. Пока одна в работе — не выдаём вторую: рой в контуре один.
+def _next_queued(rows: list[dict]) -> dict | None:
+    """Первая ждущая по приоритету — и только это.
 
-    «В работе» проверяется по замку, а не только по отметке в таблице: отметка,
-    пережившая свой прогон, иначе заперла бы очередь навсегда (см. `hive_busy`).
-
-    `busy_check` и `mark` вынесены параметрами ради самопроверки: она гоняет
-    ВЫДУМАННЫЕ строки, и настоящая запись в живую страницу по ним была бы порчей.
+    ЗАНЯТОСТЬ РОЯ ЗДЕСЬ БОЛЬШЕ НЕ РЕШАЕТСЯ. Раньше замок спрашивался отсюда, и только
+    если в таблице нашлась строка `approved`: ручной держатель замка при всех строках
+    `queued` не проверялся вовсе, и заявка выдавалась поверх работающего роя. Это и был
+    второй источник факта «занят». Теперь занятость решена выше — по замку, всегда, до
+    выбора строки (`cmd_push`), а строка `approved` ничего не блокирует.
     """
-    stuck = [r for r in rows if r["action"] == "approved"]
-    if stuck:
-        busy, why = busy_check()
-        if busy:
-            return None
-        for row in stuck:
-            print(f"{row['task_id']}: отметка «approved» пережила свой прогон — {why}; "
-                  f"возвращаю в очередь")
-            if mark is None:
-                _write_state(row["task_id"], "queued")
-                _append_journal(row["task_id"], "queued",
-                                f"отметка снята автоматически: {why}")
-            else:
-                mark(row["task_id"], "queued", why)
-            row["action"] = "queued"
     waiting = [r for r in rows if r["action"] == "queued"]
     waiting.sort(key=lambda r: {"critical": 0, "high": 1, "normal": 2}.get(r["priority"], 3))
     return waiting[0] if waiting else None
+
+
+def _stale_marks(rows: list[dict], mine: str) -> list[str]:
+    """Отметки `approved`, пережившие свой прогон, — все, кроме строки держателя."""
+    if not mine:
+        return []
+    return [r["task_id"] for r in rows if r["action"] == "approved" and r["task_id"] != mine]
 
 
 def _resolve(path_or_link: str) -> str:
@@ -243,15 +258,36 @@ def _resolve(path_or_link: str) -> str:
 
 def cmd_push(argv: list[str]) -> int:
     """Взять следующую: dry-run, затем кнопка ЛПР. Порядок не сокращается."""
+    # ЗАМОК СПРАШИВАЕТСЯ ПЕРВЫМ ДЕЛОМ И ВСЕГДА — до выбора строки и независимо от
+    # того, есть ли в таблице `approved`. Прежде вопрос задавался условно, и держатель
+    # замка, не отражённый в таблице (ручная сессия, прогон вне очереди), не мешал
+    # выдать вторую задачу поверх работающего роя.
+    state, why, _lock = hive_state()
+    if state == "held":
+        print(f"рой занят — новая задача не выдаётся: {why}", file=sys.stderr)
+        return 4
+    if state == "unknown":
+        print(f"состояние замка неизвестно, руками разобраться: {why}\n"
+              f"замок: {HIVE_LOCK}\n"
+              f"это НЕ «свободно» — пока не разобрано, задача не выдаётся", file=sys.stderr)
+        return 5
+
     rows, broken = read_queue()
     if broken:
         print(f"внимание: {len(broken)} строк не разобрано, они пропущены — см. list")
     row = _next_queued(rows) if not argv else next(
         (r for r in rows if r["task_id"] == argv[0]), None)
     if not row:
-        if any(r["action"] == "approved" for r in rows):
-            print("рой уже занят задачей из очереди — новая не выдаётся")
-            return 4
+        # Отметок `approved` при свободном замке быть не должно: они переживут свой
+        # прогон и починятся ближайшим ВЗЯТИЕМ замка (`reconcile` из run_task.ps1).
+        # Но если ждущих строк нет вовсе, взять замок неоткуда — называем вслух.
+        stuck = [r["task_id"] for r in rows if r["action"] == "approved"]
+        if stuck:
+            print("в очереди нет задач, ждущих запуска; при этом замок свободен, а "
+                  f"отметку «approved» несут: {', '.join(stuck)} — они пережили свой "
+                  "прогон. Починятся сами при ближайшем прогоне; вернуть сейчас: "
+                  f"record {stuck[0]} queued")
+            return 3
         print("в очереди нет задач, ждущих запуска")
         return 3
     if row["action"] != "queued":
@@ -289,7 +325,7 @@ def cmd_push(argv: list[str]) -> int:
             ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", RUN_TASK,
              "-Objective", open(objective, encoding="utf-8").read(),
              "-TargetPath", work_dir, "-ReportPath", report, "-CliPath", CLI_PATH,
-             "-Workers", workers, "-Priority", priority],
+             "-Workers", workers, "-Priority", priority, "-TaskId", row["task_id"]],
             stdout=fout, stderr=ferr, stdin=subprocess.DEVNULL, timeout=900)
 
     class _Result:  # тот же интерфейс, что был у CompletedProcess
@@ -339,6 +375,52 @@ def cmd_record(argv: list[str]) -> int:
     return 0
 
 
+def cmd_reconcile(argv: list[str]) -> int:
+    """Вернуть в `queued` отметки, пережившие свой прогон. Право — у держателя замка.
+
+    ПОЧЕМУ НЕ «У ЛЮБОГО ПОСМОТРЕВШЕГО». Снять отметку — значит объявить, что прогон по
+    ней не идёт. Такое знание есть ровно у одного: у того, кто ТОЛЬКО ЧТО взял замок, —
+    рой в этот момент доказанно свободен для всех остальных строк. Любой другой,
+    увидевший свободный замок, мог смотреть в зазор между взятием замка и записью
+    строки — и снял бы отметку с прогона, который в этот момент начинается.
+
+    Вызывается из `run_task.ps1` сразу после успешного claim, с собственным pid. Тем
+    самым падение между взятием замка и записью строки чинится СЛЕДУЮЩИМ взятием, а не
+    сторожем и не человеком.
+    """
+    if not argv:
+        print("usage: reconcile <pid процесса, который держит замок>", file=sys.stderr)
+        return 2
+    lock = {}
+    try:
+        with open(HIVE_LOCK, encoding="utf-8") as fh:
+            lock = json.load(fh)
+    except (OSError, ValueError):
+        print("замка нет либо он нечитаем — чинить строки некому", file=sys.stderr)
+        return 4
+    if str(lock.get("pid")) != str(argv[0]).strip():
+        print(f"замок держит pid {lock.get('pid')}, а вызвал {argv[0]} — не твоё дело",
+              file=sys.stderr)
+        return 4
+    mine = str(lock.get("taskId") or "")
+    if not mine:
+        # Замок без идентификатора задачи (ручной прогон): какая строка «своя» —
+        # неизвестно, а снимать отметки наугад значило бы сбить чужой живой прогон.
+        print("в замке нет taskId — строки не трогаю")
+        return 0
+    rows, _ = read_queue()
+    fixed = _stale_marks(rows, mine)
+    for task_id in fixed:
+        _write_state(task_id, "queued")
+        _append_journal(task_id, "queued",
+                        f"отметка пережила свой прогон; снята при взятии замка "
+                        f"pid {lock.get('pid')} под {mine}")
+        print(f"{task_id}: отметка «approved» снята, строка возвращена в очередь")
+    if not fixed:
+        print(f"переживших отметок нет (замок держит {mine})")
+    return 0
+
+
 def _selftest() -> int:
     """Проверка того, что решает: разбор таблицы, отбор, испорченные строки."""
     rows, broken = read_queue()
@@ -352,30 +434,37 @@ def _selftest() -> int:
         {"task_id": "TASK-OBS-3", "action": "queued", "priority": "critical"},
     ]
     # Выдуманные строки: настоящую страницу не трогаем, замок не спрашиваем.
-    held = (lambda: (True, "занят (проверка)"))
-    free = (lambda: (False, "свободен (проверка)"))
-    noop = (lambda *a: None)
-    assert _next_queued(sample, held, noop)["task_id"] == "TASK-OBS-3", \
-        "приоритет решает порядок"
+    assert _next_queued(sample)["task_id"] == "TASK-OBS-3", "приоритет решает порядок"
     busy = sample + [{"task_id": "TASK-OBS-4", "action": "approved", "priority": "high"}]
-    assert _next_queued(busy, held, noop) is None, \
-        "рой действительно занят — вторая не выдаётся"
-    # …а вот та же таблица при СВОБОДНОМ рое: отметка пережила прогон, и держать
-    # из-за неё очередь нельзя. Оба blocker'а codex review 09.08.2026 — про это.
-    stale = [dict(r) for r in busy]
-    assert _next_queued(stale, free, noop)["task_id"] == "TASK-OBS-3", \
-        "мёртвая отметка approved не должна запирать очередь"
-    assert [r["action"] for r in stale if r["task_id"] == "TASK-OBS-4"] == ["queued"], \
-        "пережившая отметка возвращается в queued"
+    # Отметка `approved` больше НЕ решает вопрос занятости — его решает замок, выше и
+    # всегда. Пережившая отметка поэтому не запирает очередь (blocker'ы codex review
+    # 09.08.2026), а второй задачи поверх работающего роя не даёт замок.
+    assert _next_queued(busy)["task_id"] == "TASK-OBS-3", \
+        "отметка approved не должна запирать очередь — занятость решает замок"
     unknown = [{"task_id": "TASK-OBS-9", "action": "непонятно", "priority": "high"}]
-    assert _next_queued(unknown, held, noop) is None, \
-        "неизвестное состояние в работу не берётся"
+    assert _next_queued(unknown) is None, "неизвестное состояние в работу не берётся"
+    assert _next_queued([r for r in busy if r["action"] != "queued"]) is None, \
+        "ждущих нет — выдавать нечего"
+
+    # Занятость. Проверка та же по строгости, что была у отбора: занят — не выдаём.
+    # Плюс то, чего прежняя схема не умела вовсе: непрочитанный замок ≠ свободный.
+    assert _lock_state({"lockState": "held"})[0] == "held", "живой держатель — занято"
+    assert _lock_state({"lockState": "free"})[0] == "free"
+    assert _lock_state({"lockState": "stale"})[0] == "free", "мёртвый держатель — мусор"
+    assert _lock_state({"lockState": "unknown"})[0] == "unknown"
+    assert _lock_state({"lockState": ""})[0] == "unknown", "без ответа — не «свободно»"
+    assert _lock_state(None)[0] == "unknown", "опрос не отработал — не «свободно»"
+
+    # Право чинить строку есть только у держателя, и только на ЧУЖИЕ строки.
+    assert _stale_marks(busy, "TASK-OBS-4") == [], "свою строку держатель не снимает"
+    assert _stale_marks(busy, "TASK-OBS-3") == ["TASK-OBS-4"], "чужая пережившая — снимается"
+    assert _stale_marks(busy, "") == [], "замок без taskId — не трогаем ничего"
     print(f"selftest ok: строк в очереди {len(rows)}, испорченных нет")
     return 0
 
 
 COMMANDS = {"list": cmd_list, "push": cmd_push, "record": cmd_record,
-            "--selftest": lambda _a: _selftest()}
+            "reconcile": cmd_reconcile, "--selftest": lambda _a: _selftest()}
 
 
 def main(argv: list[str]) -> int:

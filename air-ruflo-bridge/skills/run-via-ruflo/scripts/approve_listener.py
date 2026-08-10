@@ -122,6 +122,18 @@ CLI_PATH = (r"E:\-4-\ruflo-pilot\.npm-cache-3.34.0\_npx\2ed56890c96f58f7"
 QUEUE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ruflo_queue.py")
 
 
+def _task_id_of(title: str) -> str:
+    """Идентификатор строки очереди из заголовка заявки; пусто — заявка не из очереди.
+
+    Заголовок сверяется ЦЕЛИКОМ, а не по началу. `\\b` после идентификатора пропускал
+    `TASK-OBS-0043-черновик` как `TASK-OBS-0043` — отметка легла бы на чужую строку
+    очереди (codex review 09.08.2026). Формат задаёт `cmd_push`, и совпадать он обязан
+    полностью: всё остальное очередью не выдавалось.
+    """
+    match = re.fullmatch(r"(TASK-[A-Z]+-\d+) \(очередь роя\)", (title or "").strip())
+    return match.group(1) if match else ""
+
+
 def _queue_record(title: str, action: str, proof: str) -> str:
     """Отметить состояние строки очереди. Возвращает описание сбоя либо пустую строку.
 
@@ -135,22 +147,18 @@ def _queue_record(title: str, action: str, proof: str) -> str:
     Заявки бывают и не из очереди (ручные прогоны air-watch) — у них в заголовке нет
     идентификатора, и тогда отмечать нечего. Отсутствие строки не ошибка.
     """
-    # Заголовок сверяется ЦЕЛИКОМ, а не по началу. `\b` после идентификатора
-    # пропускал `TASK-OBS-0043-черновик` как `TASK-OBS-0043` — отметка легла бы на
-    # чужую строку очереди (codex review 09.08.2026). Формат задаёт `cmd_push`, и
-    # совпадать он обязан полностью: всё остальное очередью не выдавалось.
-    match = re.fullmatch(r"(TASK-[A-Z]+-\d+) \(очередь роя\)", (title or "").strip())
-    if not match:
+    task_id = _task_id_of(title)
+    if not task_id:
         return ""
     try:
-        res = subprocess.run([sys.executable, QUEUE_SCRIPT, "record", match.group(1),
+        res = subprocess.run([sys.executable, QUEUE_SCRIPT, "record", task_id,
                               action, proof],
                              capture_output=True, text=True, encoding="utf-8",
                              errors="replace", timeout=60)
     except Exception as exc:  # очередь недоступна — прогон из-за этого не отменяем
-        return f"состояние {match.group(1)} не записано: {exc}"
+        return f"состояние {task_id} не записано: {exc}"
     if res.returncode != 0:
-        return (f"состояние {match.group(1)} не записано: "
+        return (f"состояние {task_id} не записано: "
                 f"{(res.stderr or res.stdout or '').strip()[:200]}")
     return ""
 
@@ -223,6 +231,12 @@ def _run_request(req: dict) -> None:
         "-Priority", priority,
         "-Approval", "I_APPROVE_RUFLO_PLAN",
     ]
+    # Идентификатор задачи уходит В ЗАМОК: пока рой работает, замок обязан называть,
+    # ЧЬЯ это работа — иначе по нему нельзя ни восстановить строку таблицы, ни отличить
+    # свою отметку от пережившей чужой (`ruflo_queue reconcile`).
+    task_id = _task_id_of(req.get("title", ""))
+    if task_id:
+        argv += ["-TaskId", task_id]
     # Строка очереди помечается ДО запуска, а не после: пока рой работает, очередь
     # обязана показывать его занятым, иначе соседняя сессия выдаст вторую задачу.
     state_note = _queue_record(req.get("title", ""), "approved",
@@ -266,10 +280,10 @@ def _run_request(req: dict) -> None:
     # Код 4 («рой уже занят другой задачей») исходом НЕ является: задача не
     # отработала и не провалилась, она просто не начиналась. Её надо ВЕРНУТЬ в
     # queued, а не оставить как есть: перед запуском строка уже помечена approved,
-    # и «не трогаем состояние» означало бы вечное approved — а `_next_queued`
-    # считает любую approved-строку работающим роем и не выдаёт больше ничего.
-    # Очередь встала бы навсегда. Найдено codex review 09.08.2026 как blocker;
-    # первая редакция этой правки именно так и делала.
+    # и «не трогаем состояние» означало бы вечное approved — строку, которая врёт
+    # про идущий прогон. Очередь из-за неё больше не встаёт (занятость решает
+    # замок), но врущая строка остаётся врущей, пока её кто-нибудь не починит.
+    # Найдено codex review 09.08.2026 как blocker; первая редакция так и делала.
     if proc.returncode == 4:
         state_note = _queue_record(
             req.get("title", ""), "queued",

@@ -37,6 +37,10 @@ param(
     # (`claude-flow hive-mind spawn -n 5`), не выдумано нами.
     [Parameter()][int]$Workers = 5,
     [Parameter()][ValidateSet('normal','high','critical')][string]$Priority = 'high',
+    # Идентификатор строки очереди, под которую идёт прогон. Необязателен: ручной
+    # прогон очереди не касается. Уходит В ЗАМОК — по нему тот, кто замок взял,
+    # чинит пережившие отметки ЧУЖИХ строк, не трогая свою (`ruflo_queue reconcile`).
+    [Parameter()][string]$TaskId = '',
     # autopilot держит агентов в работе, пока не закрыты ВСЕ задачи
     # ("Persistent swarm completion"). Выключается осознанно, не по умолчанию.
     [Parameter()][switch]$NoAutopilot
@@ -85,16 +89,46 @@ if ($ProjectRoot -ne $CanonicalHive -and -not $AllowForeignHive) {
     exit 5
 }
 
-# Замок: живой держатель означает «присоединяйся», а не «подними второй демон».
-$hiveSingle = Join-Path $PSScriptRoot 'hive_single.ps1'
-if (Test-Path -LiteralPath $hiveSingle) {
-    $claim = & $hiveSingle -Action claim -Root $ProjectRoot -Owner "run_task-$PID" 2>$null
-    if ($LASTEXITCODE -eq 4) { $claim; exit 4 }
-}
-
 $reportDirectory = Split-Path -Parent $ReportPath
 if ($reportDirectory -and -not (Test-Path -LiteralPath $reportDirectory)) { New-Item -ItemType Directory -Path $reportDirectory -Force | Out-Null }
 $transcript = [System.Collections.Generic.List[string]]::new()
+
+# --- Замок: ОДИН на контур, и он же единственный источник факта «рой занят» ----
+#
+# КОРЕНЬ ЗАМКА — НЕ $ProjectRoot. Раньше замок брался в -Root $ProjectRoot, а
+# `ruflo_queue.py` спрашивал его в своём REPORTS (E:\-4-\ruflo-hive). Пока
+# $ProjectRoot совпадал с каноническим, разницы не было видно; с
+# -AllowForeignHive это ДВА РАЗНЫХ ФАЙЛА, то есть два независимых замка, и
+# «единый источник» перестаёт существовать ровно в том сценарии, ради которого
+# флаг и заведён. Берём один корень с очередью и подменяем его той же
+# переменной окружения — иначе полигон снова разъедет обе стороны.
+$LockRoot = if ($env:RUFLO_REPORTS) { $env:RUFLO_REPORTS } else { $CanonicalHive }
+$hiveSingle = Join-Path $PSScriptRoot 'hive_single.ps1'
+if (Test-Path -LiteralPath $hiveSingle) {
+    $claim = & $hiveSingle -Action claim -Root $LockRoot -Owner "run_task-$PID" -TaskId $TaskId 2>$null
+    # Живой держатель (4) и нечитаемый замок (5) — оба отказ, и оба возвращаются
+    # вызывающему как есть: он должен видеть, ЧТО именно случилось, а не общий «1».
+    if ($LASTEXITCODE -ne 0) { $claim; exit $LASTEXITCODE }
+    $transcript.Add("## Замок роя`n~~~json`n$claim`n~~~")
+
+    # ПОЧИНКА СТРОК — ПРАВО ТОГО, КТО ВЗЯЛ ЗАМОК, и только его. Отметка `approved`,
+    # пережившая свой прогон (падение между взятием замка и записью строки),
+    # чинится здесь: замок только что взят нами, значит рой этими строками не занят.
+    # Раньше это делал любой, кто заглянул в очередь, — и снимал отметку с прогона,
+    # который в этот момент шёл.
+    $queueScript = Join-Path $PSScriptRoot 'ruflo_queue.py'
+    $python = (Get-Command python -ErrorAction SilentlyContinue).Source
+    if ($python -and (Test-Path -LiteralPath $queueScript)) {
+        try {
+            $rec = & $python $queueScript reconcile $PID 2>&1 | Out-String
+            $transcript.Add("## Очередь: reconcile`n~~~text`n$rec`n~~~")
+        } catch {
+            # Очередь недоступна — прогон из-за этого не отменяем: замок уже наш,
+            # и занятость роя от строки таблицы не зависит.
+            $transcript.Add("## Очередь: reconcile НЕ ВЫПОЛНЕН`n$($_.Exception.Message)")
+        }
+    }
+}
 
 # --- Дефект отчёта, найден и закрыт 08.08.2026 ------------------------------
 # Симптом: реальный прогон упал на четвёртом шаге, а отчёт оборвался на третьем —
@@ -334,8 +368,13 @@ try {
         }
     }
 
+    # Снятие замка БЕЗ -Force. С ним правило «снимает только держатель» было
+    # недостижимо: любой прогон сносил чужой живой замок, и замок переставал что-либо
+    # значить. Здесь это и не нужно — claim выше сделан ИЗ ЭТОГО ЖЕ процесса
+    # (`& $hiveSingle` выполняется в текущем процессе, $PID тот же), поэтому свой
+    # замок снимается штатной проверкой pid + время старта.
     if (Test-Path -LiteralPath $hiveSingle) {
-        & $hiveSingle -Action release -Root $ProjectRoot -Force 2>$null | Out-Null
+        & $hiveSingle -Action release -Root $LockRoot 2>$null | Out-Null
     }
 
     # Последняя страховка: если ни одна ветка выше отчёт не записала (падение до
