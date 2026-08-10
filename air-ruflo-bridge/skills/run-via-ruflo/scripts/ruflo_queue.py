@@ -28,6 +28,7 @@ r"""Очередь задач на вайб-кодинг для роя — од�
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -143,10 +144,73 @@ def cmd_list(_argv: list[str]) -> int:
     return 0
 
 
-def _next_queued(rows: list[dict]) -> dict | None:
-    """Первая ждущая. Пока одна в работе — не выдаём вторую: рой в контуре один."""
-    if any(r["action"] == "approved" for r in rows):
-        return None
+HIVE_LOCK = os.path.join(REPORTS, "hive.lock.json")
+
+
+def hive_busy() -> tuple[bool, str]:
+    """Занят ли рой ПО ФАКТУ: замок канонического корня держит живой процесс.
+
+    Возвращает (занят, чем подтверждено).
+
+    ЗАЧЕМ НЕ ВЕРИТЬ СТРОКЕ ОЧЕРЕДИ. `approved` в таблице означает «мы отметили, что
+    запускаем», и между отметкой и правдой есть зазор: прогон мог упасть до запуска
+    (исключение при вызове PowerShell — строка остаётся approved навсегда), рой мог
+    держать посторонняя ручная сессия, и тогда её завершение никакого события в
+    очереди не рождает. Оба случая — blocker'ы codex review 09.08.2026, и оба дают
+    одно последствие: очередь встаёт молча и навсегда.
+
+    Замок — источник, отметка — производное. Спрашиваем источник: `hive_single.ps1`
+    пишет сюда `{owner, pid, since}` и сам считает замок с мёртвым процессом мусором,
+    а не занятостью.
+
+    Прочитать не удалось — считаем СВОБОДНЫМ. Обратное решение остановило бы очередь
+    из-за отсутствующего файла, то есть повторило бы ровно тот дефект, ради которого
+    проверка и пишется.
+    """
+    try:
+        with open(HIVE_LOCK, encoding="utf-8") as fh:
+            lock = json.load(fh)
+        pid = int(lock.get("pid"))
+        owner = str(lock.get("owner", "?"))
+    except (OSError, ValueError, TypeError):
+        return False, "замка нет либо он нечитаем"
+    try:
+        alive = subprocess.run(["powershell.exe", "-NoProfile", "-Command",
+                                f"if (Get-Process -Id {pid} -ErrorAction SilentlyContinue)"
+                                f" {{'ALIVE'}} else {{'DEAD'}}"],
+                               capture_output=True, text=True, timeout=30)
+    except Exception as exc:
+        return False, f"проверить процесс {pid} не удалось ({exc})"
+    if "ALIVE" in (alive.stdout or ""):
+        return True, f"замок держит живой процесс {pid} ({owner})"
+    return False, f"замок остался от мёртвого процесса {pid} ({owner})"
+
+
+def _next_queued(rows: list[dict], busy_check=hive_busy,
+                 mark=None) -> dict | None:
+    """Первая ждущая. Пока одна в работе — не выдаём вторую: рой в контуре один.
+
+    «В работе» проверяется по замку, а не только по отметке в таблице: отметка,
+    пережившая свой прогон, иначе заперла бы очередь навсегда (см. `hive_busy`).
+
+    `busy_check` и `mark` вынесены параметрами ради самопроверки: она гоняет
+    ВЫДУМАННЫЕ строки, и настоящая запись в живую страницу по ним была бы порчей.
+    """
+    stuck = [r for r in rows if r["action"] == "approved"]
+    if stuck:
+        busy, why = busy_check()
+        if busy:
+            return None
+        for row in stuck:
+            print(f"{row['task_id']}: отметка «approved» пережила свой прогон — {why}; "
+                  f"возвращаю в очередь")
+            if mark is None:
+                _write_state(row["task_id"], "queued")
+                _append_journal(row["task_id"], "queued",
+                                f"отметка снята автоматически: {why}")
+            else:
+                mark(row["task_id"], "queued", why)
+            row["action"] = "queued"
     waiting = [r for r in rows if r["action"] == "queued"]
     waiting.sort(key=lambda r: {"critical": 0, "high": 1, "normal": 2}.get(r["priority"], 3))
     return waiting[0] if waiting else None
@@ -287,11 +351,25 @@ def _selftest() -> int:
         {"task_id": "TASK-OBS-2", "action": "queued", "priority": "normal"},
         {"task_id": "TASK-OBS-3", "action": "queued", "priority": "critical"},
     ]
-    assert _next_queued(sample)["task_id"] == "TASK-OBS-3", "приоритет решает порядок"
+    # Выдуманные строки: настоящую страницу не трогаем, замок не спрашиваем.
+    held = (lambda: (True, "занят (проверка)"))
+    free = (lambda: (False, "свободен (проверка)"))
+    noop = (lambda *a: None)
+    assert _next_queued(sample, held, noop)["task_id"] == "TASK-OBS-3", \
+        "приоритет решает порядок"
     busy = sample + [{"task_id": "TASK-OBS-4", "action": "approved", "priority": "high"}]
-    assert _next_queued(busy) is None, "пока одна в работе, вторая не выдаётся"
+    assert _next_queued(busy, held, noop) is None, \
+        "рой действительно занят — вторая не выдаётся"
+    # …а вот та же таблица при СВОБОДНОМ рое: отметка пережила прогон, и держать
+    # из-за неё очередь нельзя. Оба blocker'а codex review 09.08.2026 — про это.
+    stale = [dict(r) for r in busy]
+    assert _next_queued(stale, free, noop)["task_id"] == "TASK-OBS-3", \
+        "мёртвая отметка approved не должна запирать очередь"
+    assert [r["action"] for r in stale if r["task_id"] == "TASK-OBS-4"] == ["queued"], \
+        "пережившая отметка возвращается в queued"
     unknown = [{"task_id": "TASK-OBS-9", "action": "непонятно", "priority": "high"}]
-    assert _next_queued(unknown) is None, "неизвестное состояние в работу не берётся"
+    assert _next_queued(unknown, held, noop) is None, \
+        "неизвестное состояние в работу не берётся"
     print(f"selftest ok: строк в очереди {len(rows)}, испорченных нет")
     return 0
 

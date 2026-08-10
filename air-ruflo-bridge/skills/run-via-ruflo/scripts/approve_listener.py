@@ -228,8 +228,18 @@ def _run_request(req: dict) -> None:
     state_note = _queue_record(req.get("title", ""), "approved",
                                f"заявка {req['id']} подтверждена кнопкой, прогон начат")
     started = time.time()
-    proc = subprocess.run(argv, capture_output=True, text=True,
-                          encoding="utf-8", errors="replace")
+    try:
+        proc = subprocess.run(argv, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace")
+    except Exception as exc:
+        # Запуск не состоялся вовсе. Без этого строка оставалась бы approved навсегда
+        # (blocker codex review 09.08.2026): отметка уже стоит, а закрывающей записи
+        # не будет — исключение уходит в цикл, минуя весь код ниже.
+        _queue_record(req.get("title", ""), "failed",
+                      f"запуск не состоялся: {type(exc).__name__}: {str(exc)[:200]}")
+        _notify(f"⚠ Заявка {req['id']}: запуск не состоялся — "
+                f"{type(exc).__name__}: {str(exc)[:200]}")
+        return
     took = int(time.time() - started)
     mins = f"{took // 60} мин {took % 60} с" if took >= 60 else f"{took} с"
     out = (proc.stdout or "").strip()
