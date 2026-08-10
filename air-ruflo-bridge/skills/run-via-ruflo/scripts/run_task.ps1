@@ -288,11 +288,26 @@ try {
     $runOut = $run.Output
     $transcript.Add("Проверять реальность роя — по логу (`"name`":`"mcp__claude-flow__`") и по росту Completed в hive-mind status, не по самоотчёту сессии.")
 
+    # ГДЕ ИСКАТЬ МАРКЕРЫ — в выводе ДВИЖКА, а не во всём захваченном потоке.
+    #
+    # $runOut содержит и транскрипт Queen-сессии: всё, что она читала и писала.
+    # Прогон 10.08.2026 (TASK-OBS-0045) на этом и сломался: сессии было поручено
+    # править ЭТОТ ЖЕ файл, она его прочитала, строки с маркерами попали в поток —
+    # и проверка объявила «тихую деградацию» на собственном исходном коде. Рой
+    # отработал (11 вызовов mcp__claude-flow__, 4 агента, файлы изменены), а обвязка
+    # записала failed.
+    #
+    # Разделение простое и надёжное: сессия говорит строками JSON (stream-json),
+    # движок — обычным текстом, и деградацию он печатает ДО старта сессии. Поэтому
+    # маркеры ищем только в строках, не начинающихся с '{'. Тот же класс, что
+    # ERR-2026-000192 у хука-запрета: образец, найденный в ДАННЫХ, принят за факт.
+    $engineOut = ($runOut -split "`r?`n" | Where-Object { $_ -notmatch '^\s*\{' }) -join "`n"
+
     # НЕ верить exit-коду и факту "команда отработала" — движок сам может тихо
     # не запустить Claude Code и просто напечатать инструкции, при этом exit
     # остаётся 0. Проверено 06.08.2026: отчёт писал "EXECUTED" при реально
     # несостоявшемся запуске (см. runOut ниже). Ищем маркер деградации явно.
-    if ($runOut -match 'Claude Code CLI not found' -or $runOut -match 'Falling back to displaying instructions') {
+    if ($engineOut -match 'Claude Code CLI not found' -or $engineOut -match 'Falling back to displaying instructions') {
         $transcript.Add("## Execution FAILED (silent degradation)`nДвижок не нашёл claude.exe и не запустил сессию — рой НЕ РАБОТАЛ, несмотря на то что процесс сам завершился без ошибки. См. вывод выше.")
         Save-Report
         Write-Output "EXECUTION FAILED (Claude Code was not actually launched). Report: $ReportPath"
@@ -301,7 +316,7 @@ try {
     # Отдельно — отказ авторизации. Проверено 08.08.2026: истёкшая OAuth-сессия
     # Claude Code роняет ЧЕТВЁРТЫЙ шаг с кодом 1, при этом первые три проходят
     # штатно, и без явного разбора это выглядит как «рой не поехал непонятно почему».
-    if ($runOut -match 'OAuth session expired' -or $runOut -match 'authentication_failed' -or $runOut -match 'Failed to authenticate') {
+    if ($engineOut -match 'OAuth session expired' -or $engineOut -match 'authentication_failed' -or $engineOut -match 'Failed to authenticate') {
         $transcript.Add("## Execution FAILED (authentication)`nУ Claude Code истекла авторизация — Queen-сессия не поднялась. Шаги 1–3 (воркеры, задача в очереди, autopilot) при этом ОТРАБОТАЛИ, состояние роя сохранено. Лечится в обычном PowerShell: claude auth login --claudeai, затем повторить запуск.")
         Save-Report
         Write-Output "EXECUTION FAILED (Claude Code auth expired — run: claude auth login --claudeai). Report: $ReportPath"
