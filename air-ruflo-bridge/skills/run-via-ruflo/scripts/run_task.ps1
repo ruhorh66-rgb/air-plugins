@@ -316,7 +316,20 @@ try {
     # Отдельно — отказ авторизации. Проверено 08.08.2026: истёкшая OAuth-сессия
     # Claude Code роняет ЧЕТВЁРТЫЙ шаг с кодом 1, при этом первые три проходят
     # штатно, и без явного разбора это выглядит как «рой не поехал непонятно почему».
-    if ($engineOut -match 'OAuth session expired' -or $engineOut -match 'authentication_failed' -or $engineOut -match 'Failed to authenticate') {
+    # ВНИМАНИЕ: здесь ищем во ВСЁМ потоке, а не в $engineOut — и это не небрежность.
+    # Два маркера приходят из РАЗНЫХ источников, и область поиска у них разная.
+    # Деградацию печатает движок обычным текстом ДО старта сессии; отказ авторизации
+    # печатает САМА сессия, а в `--non-interactive` она говорит stream-json — то есть
+    # ровно теми строками, которые $engineOut отбрасывает. Первая редакция правки
+    # перевела сюда $engineOut заодно и тем убила проверку целиком: истёкший OAuth
+    # давал бы общий exit 9 вместо внятного «нужен claude auth login». Найдено codex
+    # review 10.08.2026 как blocker.
+    #
+    # Остаточный риск здесь тот же, что был у деградации: сессия, читающая файл со
+    # словами «OAuth session expired», даст ложный отказ. Он принят осознанно —
+    # строка редкая и в наших файлах не встречается, а цена пропуска (молчаливый
+    # exit 9 на истёкшей авторизации) выше.
+    if ($runOut -match 'OAuth session expired' -or $runOut -match 'authentication_failed' -or $runOut -match 'Failed to authenticate') {
         $transcript.Add("## Execution FAILED (authentication)`nУ Claude Code истекла авторизация — Queen-сессия не поднялась. Шаги 1–3 (воркеры, задача в очереди, autopilot) при этом ОТРАБОТАЛИ, состояние роя сохранено. Лечится в обычном PowerShell: claude auth login --claudeai, затем повторить запуск.")
         Save-Report
         Write-Output "EXECUTION FAILED (Claude Code auth expired — run: claude auth login --claudeai). Report: $ReportPath"
