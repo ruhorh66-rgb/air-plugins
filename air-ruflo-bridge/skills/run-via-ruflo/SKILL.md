@@ -84,12 +84,24 @@ Use the real Ruflo CLI; do not implement a swarm or orchestration substitute.
 но он **не перехватывает сам** — его надо спросить.
 
 ```
-ruflo hooks model-route -t "<задача>"     # haiku / sonnet / opus по сложности
-ruflo hooks model-route -t "…" --prefer-cost
-ruflo hooks explain                        # почему маршрутизатор решил так
-ruflo hooks token-optimize --stats         # что накоплено Agent Booster
-ruflo hooks metrics                        # панель обучения
+ruflo hooks model-route   -t "<задача>"                  # haiku/sonnet/opus по сложности
+ruflo hooks model-route   -t "…" --prefer-cost
+ruflo hooks model-outcome -t "…" -m sonnet -o success    # ЗАПИСЬ ИСХОДА — без неё не учится
+ruflo hooks model-stats   [--detailed]                   # что накоплено роутером моделей
+ruflo hooks explain       -t "<задача>"                  # про выбор АГЕНТА, не модели
+ruflo hooks token-optimize --stats                       # Agent Booster
 ```
+
+**Две команды, а не одна.** `model-route` спрашивает совет, `model-outcome`
+записывает исход — приоры обновляет ВТОРАЯ. Вызовы одного лишь `model-route` не
+учат роутер ничему; первая редакция этого раздела утверждала обратное и была
+неверна (codex review 11.08.2026).
+
+**`hooks_route` и `hooks_model-route` — разные инструменты.** Первый маршрутизирует
+ТИП АГЕНТА (coder/tester/reviewer) и модели не возвращает вовсе; второй — модель.
+Я перепутал их в первой редакции шаблона цели, то есть вписал в боевой запуск вызов,
+который не мог дать того, ради чего вписан. `hooks explain` объясняет решение
+ПЕРВОГО и без `-t` просто падает.
 
 Как отвечает на самом деле (наш прогон, не документация):
 
