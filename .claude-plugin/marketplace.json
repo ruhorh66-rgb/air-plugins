@@ -27,6 +27,11 @@
       "name": "air-ruflo-bridge",
       "source": "./air-ruflo-bridge",
       "description": "Bridge to ruvnet/ruflo (MIT) as a candidate orchestration engine, accepted 28.07.2026 for continued piloting. Ships no skills yet — manifest and roadmap only; see air-ruflo-bridge/README.md for what the one real pilot run found."
+    },
+    {
+      "name": "air-worker",
+      "source": "./air-worker",
+      "description": "Detached executor for heavy NON-swarm work (file processing, OCR, long LLM passes) behind an LPR approval button in Telegram. Signed, TTL-limited requests in SQLite; the listener runs one task type fixed at request creation, never text from the chat. Shares air-ruflo-bridge's bot, so the lock covers the shared channel too: three states, unknown never equals free. First task type — OpenRouter over the local air_llm_router; the socket for a second (local Qwen, privacy level 1) exists and is empty."
     }
   ]
 }
