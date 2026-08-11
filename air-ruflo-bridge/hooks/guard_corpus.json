@@ -28,7 +28,7 @@
       "source": "31e875f4-ac4d-40e9-9258-302a0a5e22b7.jsonl",
       "expect": "allow",
       "why": "hive-mind task --help — справка, движок ничего не запускает",
-      "command": "CLI=\"E:\\-4-\\ruflo-pilot\\.npm-cache-3.34.0\\_npx\\2ed56890c96f58f7\\node_modules\\@claude-flow\\cli\\bin\\cli.js\"; node \"$CLI\" hive-mind task --help 2>&1 | grep -i \"priorit\" -A 3 | head -8; echo \"=== какие значения принимает ===\"; grep -rn \"priority\" \"E:/-4-/ruflo-pilot/.npm-cache-3.34.0/_npx/2ed56890c96f58f7/node_modules/@claude-flow/cli/dist/src/commands/hive-mind.js\" 2>/dev/null | grep -i \"low\\|medium\\|high\\|critical\" | head -5"
+      "command": "CLI=\"E:\\-4-\\ruflo-pilot\\.npm-cache-3.36.0\\_npx\\b05ba791a3cfd7b6\\node_modules\\@claude-flow\\cli\\bin\\cli.js\"; node \"$CLI\" hive-mind task --help 2>&1 | grep -i \"priorit\" -A 3 | head -8; echo \"=== какие значения принимает ===\"; grep -rn \"priority\" \"E:/-4-/ruflo-pilot/.npm-cache-3.36.0/_npx/b05ba791a3cfd7b6/node_modules/@claude-flow/cli/dist/src/commands/hive-mind.js\" 2>/dev/null | grep -i \"low\\|medium\\|high\\|critical\" | head -5"
     },
     {
       "id": "journal:23427",
@@ -42,7 +42,7 @@
       "source": "31e875f4-ac4d-40e9-9258-302a0a5e22b7.jsonl",
       "expect": "allow",
       "why": "hive-mind task-status — диагностика; граница слова стояла и перед дефисом",
-      "command": "CLI=\"E:\\-4-\\ruflo-pilot\\.npm-cache-3.34.0\\_npx\\2ed56890c96f58f7\\node_modules\\@claude-flow\\cli\\bin\\cli.js\"; node \"$CLI\" hive-mind task-status 2>&1 | head -20 || node \"$CLI\" hive-mind status --format json 2>&1 | python -c \"\nimport json,sys; sys.stdout.reconfigure(encoding='utf-8')\nd=json.load(sys.stdin)\nprint('очередь задач:', d.get('queuedTasks') or d.get('tasks'))\n\" 2>/dev/null | head -5"
+      "command": "CLI=\"E:\\-4-\\ruflo-pilot\\.npm-cache-3.36.0\\_npx\\b05ba791a3cfd7b6\\node_modules\\@claude-flow\\cli\\bin\\cli.js\"; node \"$CLI\" hive-mind task-status 2>&1 | head -20 || node \"$CLI\" hive-mind status --format json 2>&1 | python -c \"\nimport json,sys; sys.stdout.reconfigure(encoding='utf-8')\nd=json.load(sys.stdin)\nprint('очередь задач:', d.get('queuedTasks') or d.get('tasks'))\n\" 2>/dev/null | head -5"
     },
     {
       "id": "journal:23469",
@@ -56,7 +56,7 @@
       "source": "31e875f4-ac4d-40e9-9258-302a0a5e22b7.jsonl",
       "expect": "allow",
       "why": "образец в тексте echo — данные",
-      "command": "CLI_DIR=\"E:/-4-/ruflo-pilot/.npm-cache-3.34.0/_npx/2ed56890c96f58f7/node_modules/@claude-flow/cli\"; ls \"$CLI_DIR\" | head; echo \"=== документация по hive-mind task ===\"; find \"$CLI_DIR\" -maxdepth 2 -name \"*.md\" | head -5"
+      "command": "CLI_DIR=\"E:/-4-/ruflo-pilot/.npm-cache-3.36.0/_npx/b05ba791a3cfd7b6/node_modules/@claude-flow/cli\"; ls \"$CLI_DIR\" | head; echo \"=== документация по hive-mind task ===\"; find \"$CLI_DIR\" -maxdepth 2 -name \"*.md\" | head -5"
     },
     {
       "id": "journal:23845",
