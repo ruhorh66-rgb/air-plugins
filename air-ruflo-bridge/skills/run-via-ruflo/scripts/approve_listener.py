@@ -117,7 +117,7 @@ def _save_offset(value: int) -> None:
 
 
 RUN_TASK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "run_task.ps1")
-CLI_PATH = (r"E:\-4-\ruflo-pilot\.npm-cache-3.34.0\_npx\2ed56890c96f58f7"
+CLI_PATH = (r"E:\-4-\ruflo-pilot\.npm-cache-3.36.0\_npx\b05ba791a3cfd7b6"
             r"\node_modules\@claude-flow\cli\bin\cli.js")
 QUEUE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ruflo_queue.py")
 

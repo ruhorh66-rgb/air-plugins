@@ -55,7 +55,7 @@ REPORTS = os.environ.get("RUFLO_REPORTS") or r"E:\-4-\ruflo-hive"
 # Путь к движку — обязательный параметр run_task.ps1. Держим тот же, что у слушателя
 # (approve_listener.CLI_PATH): два разных пути означали бы два разных движка, и
 # dry-run проверял бы не то, что потом исполнится.
-CLI_PATH = (r"E:\-4-\ruflo-pilot\.npm-cache-3.34.0\_npx\2ed56890c96f58f7"
+CLI_PATH = (r"E:\-4-\ruflo-pilot\.npm-cache-3.36.0\_npx\b05ba791a3cfd7b6"
             r"\node_modules\@claude-flow\cli\bin\cli.js")
 OMSK = timezone(timedelta(hours=6))  # контур живёт по Омску, машина — по Pacific
 
