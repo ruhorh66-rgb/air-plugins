@@ -26,7 +26,7 @@ import collections
 import glob
 import json
 import os
-import re
+
 import sys
 
 try:
@@ -37,43 +37,74 @@ except Exception:
 REPORTS = os.environ.get("RUFLO_REPORTS") or r"E:\-4-\ruflo-hive"
 MIN_SIZE = 5_000  # мельче — это не прогон, а обрывок
 
-MCP_CALL = re.compile(r'"name":"(mcp__claude-flow__[A-Za-z_]+)"')
+def _num(value, default: float = 0.0) -> float:
+    """Число из повреждённого лога. Мусор даёт умолчание, а не падение.
+
+    Прогон роя — единственный источник этих цифр, и он же пишется на живой машине:
+    оборванная запись, строка вместо числа,наполовину обрезанный файл — обычное дело.
+    Метрика, падающая на одной битой записи, не считает и всё остальное.
+    """
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def scan(path: str) -> dict:
-    """Один отчёт → метрики. Битые строки пропускаются, а не роняют подсчёт."""
+    """Один отчёт → метрики. Файл читается ПОТОКОМ, по строке.
+
+    Целиком в память его брать нельзя: отчёты уже сейчас по 5 МБ, а верхней границы
+    у них нет — она равна объёму работы роя (находка codex review 10.08.2026).
+    """
     per_model: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
     result: dict = {}
     answers = 0
+    mcp: collections.Counter = collections.Counter()
     with open(path, encoding="utf-8", errors="replace") as fh:
-        text = fh.read()
-    for line in text.splitlines():
-        line = line.strip()
-        if not line.startswith("{"):
-            continue
-        try:
-            obj = json.loads(line)
-        except ValueError:
-            continue
-        if obj.get("type") == "result":
-            result = obj
-        elif obj.get("type") == "assistant":
-            answers += 1
-            message = obj.get("message") or {}
-            usage = message.get("usage") or {}
-            counter = per_model[message.get("model") or "?"]
-            counter["ответов"] += 1
-            for key in ("input_tokens", "output_tokens",
-                        "cache_creation_input_tokens", "cache_read_input_tokens"):
-                counter[key] += int(usage.get(key) or 0)
+        for line in fh:
+            line = line.strip()
+            if not line.startswith("{"):
+                continue
+            try:
+                obj = json.loads(line)
+            except ValueError:
+                continue
+            kind = obj.get("type")
+            if kind == "result":
+                result = obj
+            elif kind == "assistant":
+                answers += 1
+                message = obj.get("message") or {}
+                usage = message.get("usage") or {}
+                counter = per_model[message.get("model") or "?"]
+                counter["ответов"] += 1
+                for key in ("input_tokens", "output_tokens",
+                            "cache_creation_input_tokens", "cache_read_input_tokens"):
+                    counter[key] += int(_num(usage.get(key)))
+                # Вызовы роевых инструментов считаются ТОЛЬКО по блокам tool_use в
+                # ответе модели. Прежняя редакция искала `"name":"mcp__..."` по всему
+                # тексту: считала упоминания в чужих строках и при этом теряла имена
+                # с дефисом (`hive-mind_*`) — на прогоне 0040 выходило 22 против
+                # настоящих 24. Обе ошибки сразу, в разные стороны.
+                content = message.get("content")
+                if isinstance(content, list):
+                    for block in content:
+                        if not isinstance(block, dict) or block.get("type") != "tool_use":
+                            continue
+                        name = str(block.get("name") or "")
+                        if name.startswith("mcp__claude-flow__"):
+                            mcp[name] += 1
+    # `num_turns` берём, только если ключ ЕСТЬ: честный ноль подменялся числом
+    # ответов, и прогон без ходов показывал единицу.
+    turns = int(_num(result["num_turns"])) if "num_turns" in result else answers
     return {
         "файл": os.path.basename(path),
         "модели": per_model,
-        "стоимость": float(result.get("total_cost_usd") or 0),
-        "ходов": int(result.get("num_turns") or answers),
+        "стоимость": _num(result.get("total_cost_usd")),
+        "ходов": turns,
         "исход": (result.get("subtype") or "нет записи result")
                  + (" (is_error)" if result.get("is_error") else ""),
-        "mcp": collections.Counter(MCP_CALL.findall(text)),
+        "mcp": mcp,
     }
 
 
@@ -126,29 +157,49 @@ def main(argv: list[str]) -> int:
 def _selftest() -> int:
     """Проверяется разбор, а не цифры: цифры зависят от прогонов и меняются."""
     import tempfile
-    sample = [
+    def run(lines: list[str]) -> dict:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "проба.md")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("\n".join(lines))
+            return scan(path)
+
+    got = run([
         '{"type":"assistant","message":{"model":"claude-opus-5","usage":'
-        '{"input_tokens":10,"output_tokens":5,"cache_read_input_tokens":1000}}}',
+        '{"input_tokens":10,"output_tokens":5,"cache_read_input_tokens":1000},'
+        '"content":[{"type":"tool_use","name":"mcp__claude-flow__agent_spawn"},'
+        '{"type":"tool_use","name":"mcp__claude-flow__hive-mind_status"},'
+        '{"type":"text","text":"обычный текст"}]}}',
         'не json — обязан быть пропущен, а не уронить подсчёт',
         '{"broken": ',
-        '{"type":"user","message":{"content":"mcp__claude-flow__agent_spawn упомянут '
-        'в тексте — и посчитан, потому что отличить упоминание от вызова в этом '
-        'формате нельзя; число трактуется как ВЕРХНЯЯ оценка"}}',
-        '{"name":"mcp__claude-flow__agent_spawn"}',
+        # Упоминание имени инструмента в ЧУЖОЙ записи вызовом не является.
+        '{"type":"user","message":{"content":"тут написано '
+        'mcp__claude-flow__agent_spawn, но это текст, а не вызов"}}',
         '{"type":"result","subtype":"success","total_cost_usd":1.25,"num_turns":7}',
-    ]
-    with tempfile.TemporaryDirectory() as tmp:
-        path = os.path.join(tmp, "проба.md")
-        with open(path, "w", encoding="utf-8") as fh:
-            fh.write("\n".join(sample))
-        got = scan(path)
+    ])
     assert got["стоимость"] == 1.25, got
     assert got["ходов"] == 7, got
     assert got["исход"] == "success", got
     assert got["модели"]["claude-opus-5"]["output_tokens"] == 5, got
     assert got["модели"]["claude-opus-5"]["cache_read_input_tokens"] == 1000, got
-    assert sum(got["mcp"].values()) >= 1, got
-    print("selftest ok: битые строки пропущены, счётчики сошлись")
+    assert sum(got["mcp"].values()) == 2, f"вызовов должно быть ровно два: {got['mcp']}"
+    assert "mcp__claude-flow__hive-mind_status" in got["mcp"], \
+        "имя с дефисом обязано считаться — прежняя редакция их теряла"
+
+    # Повреждённые числа не роняют подсчёт: строка вместо числа даёт ноль.
+    broken = run(['{"type":"assistant","message":{"model":"m","usage":'
+                  '{"output_tokens":"oops"}}}'])
+    assert broken["модели"]["m"]["output_tokens"] == 0, broken
+
+    # Честный ноль ходов остаётся нулём, а не подменяется числом ответов.
+    zero = run(['{"type":"assistant","message":{"model":"m","usage":{}}}',
+                '{"type":"result","subtype":"success","num_turns":0}'])
+    assert zero["ходов"] == 0, zero
+    # …а когда ключа нет вовсе — берём число ответов, иначе показывать нечего.
+    noturns = run(['{"type":"assistant","message":{"model":"m","usage":{}}}'])
+    assert noturns["ходов"] == 1, noturns
+
+    print("selftest ok: битые строки и числа пропущены, вызовы считаются по tool_use")
     return 0
 
 
