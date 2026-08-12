@@ -298,18 +298,24 @@ def acquire(path: str = LOCK_PATH, note: str = "") -> tuple[bool, str]:
     try:  # CREATE_NEW: гонка двух стартов решается файловой системой, не проверкой выше
         fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
-        os.replace(_write_tmp(path, body), path)  # прежний замок был free — перебиваем
+        # Замок на месте, но выше он оказался `free` — значит труп. Перебиваем и
+        # ПЕРЕЧИТЫВАЕМ: между проверкой и записью тот же вывод мог сделать второй
+        # процесс, и тогда замок достался ему, а не нам. Побеждает тот, чья запись
+        # легла последней, — но узнаёт об этом каждый по факту, а не по намерению.
+        tmp = f"{path}.{os.getpid()}.tmp"  # своё имя: общий tmp — вторая гонка
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(body)
+        os.replace(tmp, path)
+        try:
+            with open(path, encoding="utf-8") as fh:
+                if json.load(fh).get("pid") != os.getpid():
+                    return False, "замок перехвачен другим процессом"
+        except (OSError, ValueError):
+            return False, "замок перезаписан кем-то ещё, прочитать не удалось"
         return True, "замок взят вместо мёртвого"
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(body)
     return True, "замок взят"
-
-
-def _write_tmp(path: str, body: str) -> str:
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        fh.write(body)
-    return tmp
 
 
 def release(path: str = LOCK_PATH) -> None:
