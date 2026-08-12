@@ -33,6 +33,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timedelta, timezone
 
 try:
@@ -58,6 +59,19 @@ REPORTS = os.environ.get("RUFLO_REPORTS") or r"E:\-4-\ruflo-hive"
 CLI_PATH = (r"E:\-4-\ruflo-pilot\.npm-cache-3.36.0\_npx\b05ba791a3cfd7b6"
             r"\node_modules\@claude-flow\cli\bin\cli.js")
 OMSK = timezone(timedelta(hours=6))  # контур живёт по Омску, машина — по Pacific
+# ПАУЗА ОЧЕРЕДИ. Файл есть — выдача следующей задачи не делается, его содержимое
+# называется причиной. Ставится на время разбора самого механизма: идущий прогон
+# доводится до конца, а очередь за ним не едет дальше.
+#
+# ponytail: заплата, а не штатный механизм — ставится и снимается правкой файла, в
+# `list` не видна, в журнал не пишется. Довести до штатного вида: docs/GOAL.md § 5
+# (указание ЛПР 11.08.2026).
+#
+# Почему файл, а не состояние строк. Пауза относится к ОЧЕРЕДИ, а не к задаче:
+# переводить строки в `cancelled` ради остановки значило бы врать об их судьбе, и
+# после снятия паузы пришлось бы вспоминать, какие из них были живыми.
+PAUSE_FILE = os.environ.get("RUFLO_QUEUE_PAUSE") or os.path.join(
+    r"E:\-4-\skill-state\ruflo-approvals", "_paused.txt")
 
 COLUMNS = ["task_id", "action", "objective", "work_dir", "workers", "priority", "by"]
 # `offered` — заявка на эту строку УЖЕ создана и ждёт кнопки. Состояние заведено,
@@ -297,6 +311,19 @@ def _unreserve(task_id: str, why: str) -> None:
 
 def cmd_push(argv: list[str]) -> int:
     """Взять следующую: dry-run, затем кнопка ЛПР. Порядок не сокращается."""
+    # Пауза проверяется ДО чтения страницы и до всякой правки строк: остановленная
+    # очередь не должна оставлять следов, будто выдача начиналась. Код 6 выбран
+    # не молчащим (в отличие от 3 и 4): слушатель на него шлёт уведомление, и
+    # забытая пауза объявляет о себе сама, а не останавливает очередь незаметно —
+    # тихий застой очереди контур уже проходил.
+    if os.path.isfile(PAUSE_FILE):
+        try:
+            why = open(PAUSE_FILE, encoding="utf-8").read().strip()
+        except OSError:
+            why = ""
+        print(f"очередь на паузе: {why or 'причина не указана'}\n"
+              f"снять — удалить {PAUSE_FILE}", file=sys.stderr)
+        return 6
     rows, broken = read_queue()
     if broken:
         print(f"внимание: {len(broken)} строк не разобрано, они пропущены — см. list")
@@ -561,6 +588,21 @@ def _selftest() -> int:
     assert _stale_marks(busy, "TASK-OBS-4") == [], "свою строку держатель не снимает"
     assert _stale_marks(busy, "TASK-OBS-3") == ["TASK-OBS-4"], "чужая пережившая — снимается"
     assert _stale_marks(busy, "") == [], "замок без taskId — не трогаем ничего"
+    # Пауза: выдача отказывает ДО чтения страницы и до замка. Проверяем на своём
+    # временном файле — на боевом PAUSE_FILE проверка означала бы остановку живой
+    # очереди ради теста.
+    global PAUSE_FILE
+    was = PAUSE_FILE
+    try:
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".txt",
+                                         delete=False) as fh:
+            fh.write("проверка")
+            PAUSE_FILE = fh.name
+        assert cmd_push([]) == 6, "при паузе выдача обязана отказать кодом 6"
+        os.unlink(PAUSE_FILE)
+    finally:
+        PAUSE_FILE = was
+
     print(f"selftest ok: строк в очереди {len(rows)}, испорченных нет")
     return 0
 
