@@ -109,8 +109,13 @@ def scan(path: str) -> dict:
 
 
 def main(argv: list[str]) -> int:
-    runs = [scan(p) for p in sorted(glob.glob(os.path.join(REPORTS, "*.md")))
-            if os.path.getsize(p) >= MIN_SIZE]
+    # Путь(и) в аргументах — считать только их. Нужно для вызова из run_task.ps1 сразу
+    # после прогона: там интересен ИМЕННО этот прогон, а не сводка по всем. Без такого
+    # отбора команда печатала всю историю, и своя строка терялась в ней.
+    only = [a for a in argv if not a.startswith("--")]
+    paths = only or sorted(glob.glob(os.path.join(REPORTS, "*.md")))
+    runs = [scan(p) for p in paths
+            if os.path.isfile(p) and os.path.getsize(p) >= MIN_SIZE]
     if not runs:
         print(f"прогонов не найдено в {REPORTS}")
         return 3
