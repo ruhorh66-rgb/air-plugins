@@ -290,6 +290,39 @@ try {
         exit 10
     }
 
+    # БЮДЖЕТ ПРОВЕРЯЕТСЯ ДО ЗАПУСКА, А НЕ ПОСЛЕ. Первый настоящий предел расхода в
+    # контуре: `budget check` плагина учёта возвращает 1 при исчерпании лимита, и тогда
+    # прогон не начинается. До 12.08.2026 предела не было вовсе — прогон мог стоить
+    # сколько угодно, и узнавали об этом постфактум.
+    #
+    # Лимит не задан — не препятствие: команда молчит, прогон идёт. Отказ бюджета
+    # отличается от отказа проверки: не сработавшая проверка НЕ считается разрешением,
+    # но и не блокирует (лимита может просто не быть).
+    try {
+        $trackerRoot = Get-ChildItem (Join-Path $env:USERPROFILE '.claude\plugins\cache\ruflo\ruflo-cost-tracker') `
+            -Directory -ErrorAction Stop | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        $budget = Join-Path $trackerRoot.FullName 'scripts\budget.mjs'
+        if (Test-Path -LiteralPath $budget) {
+            Push-Location $ProjectRoot
+            # Предел ДНЕВНОЙ, а не «за всю историю»: иначе накопленный расход прошлых
+            # недель однажды закрывает работу навсегда, и предел приходится снимать —
+            # то есть он перестаёт быть пределом.
+            $env:BUDGET_PERIOD = 'today'
+            $budgetOut = & node $budget check 2>&1 | Out-String
+            $budgetCode = $LASTEXITCODE
+            Pop-Location
+            if ($budgetCode -eq 1) {
+                $transcript.Add("## Бюджет исчерпан — прогон НЕ начат`n~~~text`n$($budgetOut.Trim())`n~~~")
+                Save-Report
+                Write-Output "REFUSED: бюджет исчерпан, прогон не начинался. Отчёт: $ReportPath"
+                exit 11
+            }
+            $transcript.Add("## Бюджет перед запуском`n~~~text`n$($budgetOut.Trim())`n~~~")
+        }
+    } catch {
+        $transcript.Add("## Бюджет перед запуском`nПРОВЕРИТЬ НЕ СМОГ: $($_.Exception.Message). Прогон идёт: отсутствие лимита не есть его превышение.")
+    }
+
     if (-not $mcpConfigured) {
         $transcript.Add("## Refused`nMCP не зарегистрирован для $ProjectRoot — реальный запуск дал бы одну дорогую сессию без роя, не запускаю. Разово: claude mcp add -s project claude-flow -- node `"$CliPath`" mcp start (из $ProjectRoot), затем одобрить в ~/.claude.json.")
         Save-Report
@@ -470,6 +503,32 @@ try {
         } catch {
             # Отсутствие метрик НЕ выдаётся за ноль: непосчитанное не равно бесплатному.
             $transcript.Add("## Метрики прогона`nПОСЧИТАТЬ НЕ СМОГ: $($_.Exception.Message)")
+            Save-Report
+        }
+    }
+
+    # СТОИМОСТЬ В ДОЛЛАРАХ — ПЛАГИНОМ УЧЁТА, А НЕ НАШИМ СЧЁТОМ. `ruflo-cost-tracker`
+    # читает записи сессий Claude Code и раскладывает расход по моделям и ярусам; наш
+    # `ruflo_metrics.py` считает по отчёту прогона. Две независимые меры одного — это
+    # намеренно: расхождение между ними само по себе находка.
+    #
+    # Путь к плагину ищется по свежести версии, не константой: плагин обновляется, а
+    # версия в пути ломала бы вызов на каждом бампе.
+    if ($Approval) {
+        try {
+            $trackerRoot = Get-ChildItem (Join-Path $env:USERPROFILE '.claude\plugins\cache\ruflo\ruflo-cost-tracker') `
+                -Directory -ErrorAction Stop | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            $track = Join-Path $trackerRoot.FullName 'scripts\track.mjs'
+            if (Test-Path -LiteralPath $track) {
+                Push-Location $ProjectRoot   # снимаем расход СЕССИЙ РОЯ, а не вызывающей сессии
+                $cost = & node $track 2>&1 | Out-String
+                Pop-Location
+                $transcript.Add("## Стоимость по учёту плагина`n~~~text`n$($cost.Trim())`n~~~")
+                Save-Report
+                Write-Output "СТОИМОСТЬ: см. раздел отчёта «Стоимость по учёту плагина»"
+            }
+        } catch {
+            $transcript.Add("## Стоимость по учёту плагина`nСНЯТЬ НЕ СМОГ: $($_.Exception.Message). Это НЕ «бесплатно».")
             Save-Report
         }
     }
