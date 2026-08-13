@@ -498,7 +498,8 @@ def cmd_reconcile(argv: list[str]) -> int:
     сторожем и не человеком.
     """
     if not argv:
-        print("usage: reconcile <pid процесса, который держит замок>", file=sys.stderr)
+        print("usage: reconcile <pid процесса, который держит замок> [--dry-run]",
+              file=sys.stderr)
         return 2
     lock = {}
     try:
@@ -524,8 +525,15 @@ def cmd_reconcile(argv: list[str]) -> int:
     # отражает (падение между взятием замка и записью строки, ручной прогон
     # `run_task -TaskId X` мимо очереди), она приводится в соответствие с замком, а не
     # наоборот. Записи вида «отработало» не трогаем: прогон мог быть закрыт заранее.
+    # DRY-RUN ЗАМОК БЕРЁТ ТОЖЕ, А ПРОГОНА НЕТ. 13.08.2026: показ заявки ЛПР пометил
+    # строку `approved`, то есть «подтверждена и исполняется», — при том что ничего не
+    # исполнялось и кнопку никто не нажимал. Замок называет, кто ЗАНЯЛ рой, а не кто
+    # его ЗАПУСТИЛ; про запуск знает только вызывающий, он и говорит это флагом.
+    dry = "--dry-run" in argv
     ours = next((r for r in rows if r["task_id"] == mine), None)
-    if ours and ours["action"] in ("queued", "offered"):
+    if dry and ours and ours["action"] in ("queued", "offered"):
+        print(f"{mine}: dry-run — строку не трогаю (осталась «{ours['action']}»)")
+    elif ours and ours["action"] in ("queued", "offered"):
         _write_state(mine, "approved")
         _append_journal(mine, "approved",
                         f"строка восстановлена по замку pid {lock.get('pid')}: "

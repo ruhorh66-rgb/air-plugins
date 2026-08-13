@@ -220,7 +220,10 @@ if (Test-Path -LiteralPath $hiveSingle) {
     $python = (Get-Command python -ErrorAction SilentlyContinue).Source
     if ($python -and (Test-Path -LiteralPath $queueScript)) {
         try {
-            $rec = & $python $queueScript reconcile $PID 2>&1 | Out-String
+            # Без -Approval это ПОКАЗ заявки, а не прогон: строку в approved не двигаем.
+            $recArgs = @($queueScript, 'reconcile', $PID)
+            if (-not $Approval) { $recArgs += '--dry-run' }
+            $rec = & $python @recArgs 2>&1 | Out-String
             $transcript.Add("## Очередь: reconcile`n~~~text`n$rec`n~~~")
         } catch {
             # Очередь недоступна — прогон из-за этого не отменяем: замок уже наш,
