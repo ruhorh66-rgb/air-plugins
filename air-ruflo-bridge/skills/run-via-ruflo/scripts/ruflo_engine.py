@@ -87,9 +87,43 @@ def cli_path() -> str:
     return got["cli"]
 
 
+def sync_mcp() -> str:
+    """Привести `.mcp.json` в корне роя к действующему движку.
+
+    Второе место, где путь жил руками. 12.08.2026 там лежала 3.34.0, тогда как спавн
+    шёл 3.36.0: рой КООРДИНИРОВАЛСЯ одной версией, а исполнялся другой. Обновление
+    движка не должно требовать правки этого файла — иначе `engine.json` перестаёт быть
+    единственным источником ровно так же, как раньше перестали быть им константы.
+
+    Заодно чинится имя сервера: движок в своём промпте требует `mcp__ruflo__*`, а
+    префикс задаётся именем регистрации (ERR-2026-000228).
+    """
+    path = os.path.join(HIVE, ".mcp.json")
+    if not os.path.isfile(path):
+        return f"{path} нет — регистрация MCP не выполнена"
+    cfg = json.load(open(path, encoding="utf-8"))
+    servers = cfg.setdefault("mcpServers", {})
+    server = servers.pop("claude-flow", None) or servers.get("ruflo")
+    if server is None:
+        return f"{path}: сервера движка нет ни под именем ruflo, ни под claude-flow"
+    servers["ruflo"] = server
+    cli = cli_path()
+    was = [a for a in server.get("args", []) if a.endswith("cli.js")]
+    server["args"] = [cli if a.endswith("cli.js") else a for a in server.get("args", [])]
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(cfg, fh, ensure_ascii=False, indent=2)
+        fh.write("\n")
+    if was and was[0] == cli:
+        return "совпадает"
+    return f"обновлено: {was[0] if was else '—'} -> {cli}"
+
+
 if __name__ == "__main__":
     import sys
     sys.stdout.reconfigure(encoding="utf-8")
+    if "--sync-mcp" in sys.argv:
+        print(sync_mcp())
+        raise SystemExit(0)
     state = resolve()
     print(f"версия : {state.get('version') or '—'}")
     print(f"путь   : {state.get('cli') or '—'}")

@@ -27,7 +27,11 @@ param(
     [Parameter(Mandatory)][string]$TargetPath,
     [Parameter()][string]$ProjectRoot = 'E:\-4-\ruflo-hive',
     [Parameter()][switch]$AllowForeignHive,
-    [Parameter(Mandatory)][string]$CliPath,
+    # НЕ обязателен и передавать его не нужно: путь собирается по engine.json через
+    # ruflo_engine.py. Пока он был Mandatory, версия движка жила в командной строке —
+    # сохранённая ЛПР кнопка после обновления запускала старый движок молча
+    # (ERR-2026-000226 повторно, 13.08.2026). Передан явно — перекрывает файл.
+    [Parameter()][string]$CliPath,
     [Parameter(Mandatory)][string]$ReportPath,
     [Parameter()][ValidateSet('I_APPROVE_RUFLO_PLAN')][string]$Approval,
     # Сколько воркеров завести под задачу. ДО 08.08.2026 не передавалось вовсе —
@@ -111,6 +115,20 @@ if ((Test-Path -LiteralPath (Join-Path $GitBin 'which.exe')) -and (Test-Path -Li
     Write-Warning "which.exe ($GitBin) или claude.exe ($ClaudeExeDir) не найдены — реальный запуск, скорее всего, откажет так же, как раньше"
 }
 
+# Версия движка — ОДНО число в engine.json, и оно решает всё: путь спавна, путь
+# MCP-сервера, отчёт. Разрешатель заодно приводит .mcp.json к той же версии и к имени
+# сервера ruflo — иначе координация и запуск снова разъедутся по версиям.
+$engineScript = Join-Path $PSScriptRoot 'ruflo_engine.py'
+$engineSync = ''
+if (Test-Path -LiteralPath $engineScript) {
+    $engineSync = (& python $engineScript --sync-mcp 2>&1 | Out-String).Trim()
+    if (-not $CliPath) {
+        $resolved = (& python -c "import sys; sys.path.insert(0, r'$PSScriptRoot'); import ruflo_engine; print(ruflo_engine.cli_path())" 2>&1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or -not $resolved) { throw "движок не определён: $resolved" }
+        $CliPath = $resolved
+    }
+}
+if (-not $CliPath) { throw "Нужен -CliPath: ruflo_engine.py недоступен, определить движок нечем" }
 if (-not (Test-Path -LiteralPath $CliPath)) { throw "CLI not found: $CliPath" }
 if (-not (Test-Path -LiteralPath $TargetPath)) { throw "TargetPath not found: $TargetPath" }
 $CanonicalHive = 'E:\-4-\ruflo-hive'
@@ -173,6 +191,7 @@ if (-not $env:AIR_RUFLO_KEEP_MODEL) {
     $env:ANTHROPIC_MODEL = $QueenModel
     $transcript.Add("## Модель прогона`nQueen-сессия запускается на ``$QueenModel`` (переменная ANTHROPIC_MODEL на время прогона; настройка машины не менялась).")
 }
+$transcript.Add("## Движок`n$CliPath`nMCP-регистрация: $engineSync")
 
 # --- Замок: ОДИН на контур, и он же единственный источник факта «рой занят» ----
 #
