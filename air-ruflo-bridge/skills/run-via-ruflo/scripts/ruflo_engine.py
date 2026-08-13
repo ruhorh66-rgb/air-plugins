@@ -23,6 +23,7 @@ import glob
 import json
 import os
 import re
+import subprocess
 
 PILOT = os.environ.get("RUFLO_PILOT") or r"E:\-4-\ruflo-pilot"
 HIVE = os.environ.get("RUFLO_HIVE") or r"E:\-4-\ruflo-hive"
@@ -87,6 +88,40 @@ def cli_path() -> str:
     return got["cli"]
 
 
+def link_booster() -> str:
+    """Дать движку УВИДЕТЬ agentic-flow — нулевой уровень маршрутизации, Agent Booster.
+
+    Три недели он числился «не установлен». На самом деле установлен дважды: рабочая
+    копия в корне роя и своя, битая, внутри npx-кэша движка. Движок импортирует
+    `agentic-flow` из СВОЕГО каталога (ESM резолвит от файла, а не от cwd), натыкался
+    на непостроенные нативные модули своей копии и падал в `ERR_DLOPEN_FAILED`, что в
+    выводе выглядело безобидным «agentic-flow not available (using fallbacks)».
+
+    Лечится связкой каталогов: копия движка заменяется junction'ом на рабочую. Делается
+    здесь, а не руками, потому что npx-кэш у каждой версии свой — после обновления
+    движка ссылки снова нет, и Booster тихо гаснет.
+    """
+    # …\_npx\<hash>\node_modules\@claude-flow\cli\bin\cli.js → …\<hash>\node_modules
+    mods = cli_path()
+    for _ in range(4):
+        mods = os.path.dirname(mods)
+    src = os.path.join(HIVE, "node_modules", "agentic-flow")
+    dst = os.path.join(mods, "agentic-flow")
+    if not os.path.isdir(src):
+        return f"agentic-flow нет в {src} — Booster остаётся выключенным"
+    if os.path.islink(dst) or (os.path.isdir(dst) and os.path.realpath(dst) == os.path.realpath(src)):
+        return "связан"
+    if os.path.isdir(dst):
+        return (f"в кэше движка лежит СВОЯ копия {dst} — не трогаю автоматически: "
+                f"переименовать её и повторить (junction ставится на {src})")
+    # Junction, а не symlink: symlink на Windows требует привилегии, junction — нет.
+    done = subprocess.run(["cmd", "/c", "mklink", "/J", dst, src],
+                          capture_output=True, text=True)
+    if done.returncode != 0:
+        return f"связать не удалось: {(done.stderr or done.stdout).strip()[:200]}"
+    return f"связан: {dst} -> {src}"
+
+
 def sync_mcp() -> str:
     """Привести `.mcp.json` в корне роя к действующему движку.
 
@@ -123,6 +158,7 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     if "--sync-mcp" in sys.argv:
         print(sync_mcp())
+        print("booster:", link_booster())
         raise SystemExit(0)
     state = resolve()
     print(f"версия : {state.get('version') or '—'}")
