@@ -12,7 +12,14 @@ Telegram не вызывается вовсе, база и журнал увод
   5. заявка переживает круг через SQLite, не потеряв подпись;
   6. реестр исполнителей отказывает на неизвестном и на выключенном типе;
   7. протокол не роняет работу и не пропускает материал в лог;
-  8. строка замера дописывается в общий журнал.
+  8. строка замера дописывается в общий журнал;
+  9. лестница (ladder.py, TASK-OBS-0054 §2а/2б): подъём без причины падает,
+     неизвестная ступень падает, проверяльщик есть на все 4 типа заявок,
+     старт всегда 0 без приоров и поднимается только при статистике+объёме,
+     реестр ступеней 0..5 полон, ступень 0 реально проверяет файл на диске,
+     ступени 4-5 не исполняют суждение сами;
+ 10. level0_check.py не путает код проекта CHT-020 с номером документа
+     (регресс уже описанного в его собственном --selftest бага).
 """
 from __future__ import annotations
 
@@ -30,6 +37,8 @@ os.environ["AIR_WORKER_METRICS_PATH"] = os.path.join(TMP, "run_metrics.csv")
 os.environ["AIR_WORKER_PROTOCOL_PATH"] = os.path.join(TMP, "protocol.jsonl")
 
 import executors  # noqa: E402
+import ladder  # noqa: E402
+import level0_check  # noqa: E402
 import protocol  # noqa: E402
 import worker  # noqa: E402
 
@@ -153,30 +162,45 @@ def test_request_survives_the_database():
 
 def test_lock_has_three_states_and_unknown_is_not_free():
     path = os.path.join(TMP, "listener.lock.json")
+    real_cim = worker._cim
 
-    state, why = worker.lock_state(path)
-    assert state == "free", (state, why)
+    # Семантику lock_state проверяем детерминированно: в CI/Windows Sandbox
+    # PowerShell/CIM может быть отключён, а тогда ожидание `free` для мёртвого PID
+    # зависит не от кода, а от хоста.
+    def fake_cim(query: str):
+        if query == "ProcessId=999999":
+            return []
+        if query == f"ProcessId={os.getpid()}":
+            return [{"ProcessId": os.getpid(), "CreationDate": "selftest"}]
+        return real_cim(query)
 
-    with open(path, "w", encoding="utf-8") as fh:
-        fh.write("это не json")
-    state, why = worker.lock_state(path)
-    assert state == "unknown", (state, why)
-    got, note = worker.acquire(path)
-    assert not got, "замок взят при unknown — непрочитанный замок счёлся свободным"
+    worker._cim = fake_cim
+    try:
+        state, why = worker.lock_state(path)
+        assert state == "free", (state, why)
 
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump({"pid": 999_999, "pid_started": "нет такого", "since": "?"}, fh)
-    state, why = worker.lock_state(path)
-    assert state == "free", (state, why)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("это не json")
+        state, why = worker.lock_state(path)
+        assert state == "unknown", (state, why)
+        got, note = worker.acquire(path)
+        assert not got, "замок взят при unknown — непрочитанный замок счёлся свободным"
 
-    got, note = worker.acquire(path, note="selftest")
-    assert got, note
-    state, why = worker.lock_state(path)
-    assert state == "held", (state, why)
-    got, note = worker.acquire(path)
-    assert not got, "замок взят поверх живого держателя"
-    worker.release(path)
-    assert worker.lock_state(path)[0] == "free"
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump({"pid": 999_999, "pid_started": "нет такого", "since": "?"}, fh)
+        state, why = worker.lock_state(path)
+        assert state == "free", (state, why)
+
+        got, note = worker.acquire(path, note="selftest")
+        assert got, note
+        state, why = worker.lock_state(path)
+        assert state == "held", (state, why)
+        got, note = worker.acquire(path)
+        assert not got, "замок взят поверх живого держателя"
+        worker.release(path)
+        assert worker.lock_state(path)[0] == "free"
+    finally:
+        worker._cim = real_cim
 
 
 def test_foreign_channel_state_is_one_of_three():
@@ -191,12 +215,30 @@ def test_executor_registry_refuses_unknown_and_disabled():
         raise AssertionError("неизвестный тип задачи не отвергнут")
     except SystemExit as exc:
         assert "неизвестный тип" in str(exc)
-    assert "qwen-local" in executors.REGISTRY, "разъём под второй тип задачи исчез"
+
+    # TASK-OBS-0054: qwen-local теперь реальный исполнитель (через llm-queue),
+    # не разъём — оба типа задачи в REGISTRY включены.
+    assert "qwen-local" in executors.REGISTRY
+    assert executors.REGISTRY["qwen-local"]["enabled"], "qwen-local должен быть подключён"
+    spec = executors.get("qwen-local")
+    spec["validate"]({"instruction": "сократи"})
     try:
-        executors.get("qwen-local")
+        spec["validate"]({"instruction": "  "})
+        raise AssertionError("пустая инструкция qwen-local принята")
+    except ValueError:
+        pass
+
+    # "выключенный тип" по-прежнему отвергается — на временной записи, чтобы не
+    # держать в проде исполнитель нарочно выключенным ради одного теста.
+    executors.REGISTRY["_selftest_disabled"] = {"enabled": False, "title": "тест"}
+    try:
+        executors.get("_selftest_disabled")
         raise AssertionError("выключенный тип задачи не отвергнут")
     except SystemExit as exc:
         assert "выключен" in str(exc)
+    finally:
+        del executors.REGISTRY["_selftest_disabled"]
+
     spec = executors.get("openrouter-llm")
     spec["validate"]({"model": "vendor/model:free", "instruction": "сократи"})
     for bad in ({"model": "qwen", "instruction": "x"},
@@ -215,6 +257,85 @@ def test_metrics_row_is_appended():
         lines = [ln for ln in fh.read().splitlines() if ln.strip()]
     assert lines[0].startswith('"date"'), lines[0]
     assert "selftest" in lines[-1] and "accepted" in lines[-1], lines[-1]
+
+
+def test_ladder_escalate_without_reason_fails():
+    """2а: подъём — только по названной причине, молчаливая эскалация запрещена."""
+    for bad_reason in ("", "   ", None):
+        try:
+            ladder.escalate({"card_type": "risk"}, 1, bad_reason)
+            raise AssertionError(f"escalate() с reason={bad_reason!r} должна была упасть")
+        except ValueError:
+            pass
+
+
+def test_ladder_escalate_unknown_level_fails():
+    try:
+        ladder.escalate({"card_type": "risk"}, 99, "нет такой ступени")
+        raise AssertionError("escalate() на несуществующую ступень должна была упасть")
+    except ValueError:
+        pass
+
+
+def test_ladder_verify_exists_for_four_types():
+    """2б: проверяльщик есть на все 4 типа заявок (плюс их синонимы card_type)."""
+    for card_type in ("chronology", "decision", "task", "principle", "pattern",
+                      "risk", "fork", "неизвестный-тип"):
+        out = ladder.verify(card_type, {"claim_to_verify": "x"}, {})
+        assert set(out) == {"passed", "reason"}, out
+        assert isinstance(out["passed"], bool) and isinstance(out["reason"], str)
+
+
+def test_ladder_verify_risk_fork_missing_components_match_fails():
+    """Регресс: components_match отсутствующий в evidence — провал, не тихое 'подтверждено'."""
+    evidence = {"claimed_amount": 100, "computed_amount": 100}  # без components_match
+    out = ladder.verify("risk", {}, evidence)
+    assert out["passed"] is False, out
+
+
+def test_ladder_choose_start_level_defaults_to_zero():
+    """Старт всегда 0 без приоров — независимо от типа заявки и объёма партии."""
+    assert ladder.choose_start_level("chronology", volume=50, priors=[]) == 0
+    assert ladder.choose_start_level("decision", volume=1, priors=[]) == 0
+
+
+def test_ladder_choose_start_level_needs_volume_and_stats():
+    """Приор поднимает старт только при статистике И объёме партии сразу."""
+    hot = [{"card_type": "chronology", "start_level": 2, "n_outcomes": 10, "success_rate": 0.05}]
+    assert ladder.choose_start_level("chronology", volume=10, priors=hot) == 2
+    assert ladder.choose_start_level("chronology", volume=1, priors=hot) == 0
+
+
+def test_ladder_levels_registry_complete():
+    assert list(ladder.LEVELS) == [0, 1, 2, 3, 4, 5]
+    for spec in ladder.LEVELS.values():
+        assert "name" in spec and "cost_class" in spec and callable(spec["executor"])
+
+
+def test_ladder_level0_script_checks_real_file():
+    ok = ladder.escalate({"originals_path": __file__}, 0, "selftest — файл существует")
+    assert ok["result"]["ok"] is True
+    missing = ladder.escalate({"originals_path": os.path.join(TMP, "нет-такого-файла.pdf")},
+                              0, "selftest — файла нет")
+    assert missing["result"]["ok"] is False
+
+
+def test_ladder_levels_4_5_hand_off_to_orchestrator():
+    """Ступени 4-5 — суждение Claude; ladder.py его не исполняет, отдаёт конверт."""
+    for lvl in (4, 5):
+        out = ladder.escalate({"card_type": "risk", "claim_to_verify": "x"}, lvl, "нужно суждение модели")
+        assert out["result"]["pending_orchestrator"] is True
+
+
+def test_level0_check_cht020_regression():
+    """Регресс CHT-020: код проекта/папки не должен всплывать как номер документа —
+    без вырезания он совпадал бы с ЛЮБЫМ файлом внутри папки CHT-020."""
+    assert level0_check.extract_numbers("управляющая стратегия CHT-020") == set()
+    assert level0_check.extract_numbers("договор №4960/47, ДС №2") == {"4960"}
+
+
+def test_level0_check_own_selftest_passes():
+    level0_check._selftest()
 
 
 def main() -> int:

@@ -171,12 +171,25 @@ if (-not $PSBoundParameters.ContainsKey('Workers') -and $runConfig -and $runConf
 if (-not $NoAutopilot -and $runConfig -and $runConfig.PSObject.Properties.Name -contains 'autopilot' -and -not $runConfig.autopilot) {
     $NoAutopilot = $true
 }
+# ЭСКАЛАЦИЯ НА ДОРОГУЮ МОДЕЛЬ — ПО НАЗВАННОЙ ПРИЧИНЕ И С ПОТОЛКОМ.
+# Решение ЛПР 13.08.2026. Замер, из которого оно выросло: в прогоне TASK-OBS-0053 у
+# координатора 149 ответов из 566 по всему прогону — три четверти объёма делают воркеры,
+# и перевод ВСЕХ на opus умножил бы самую объёмную часть. Дорого не суждение, дорого
+# чтение кода. Поэтому Queen идёт на дорогой модели, воркеры на дешёвой, а opus приходит
+# к воркеру только по названному условию и не чаще потолка.
+$workerModel = if ($runConfig -and $runConfig.escalation -and $runConfig.escalation.worker_model) { $runConfig.escalation.worker_model } else { 'sonnet' }
+$maxOpus = if ($runConfig -and $runConfig.escalation -and $runConfig.escalation.max_opus_calls) { [int]$runConfig.escalation.max_opus_calls } else { 0 }
+$triggers = @()
+if ($runConfig -and $runConfig.escalation -and $runConfig.escalation.triggers) { $triggers = @($runConfig.escalation.triggers) }
+
 $transcript.Add("## Настройки прогона`nисточник: " +
     $(if ($runConfig) { "$runConfigPath (правка — штатная операция, версия плагина не поднимается)" } else { "файла нет, встроенные умолчания" }) +
-    "`n- модель Queen: $QueenModel`n- воркеров: $Workers`n- автопилот: " +
+    "`n- модель Queen: $QueenModel`n- модель воркеров: $workerModel`n- воркеров: $Workers`n- автопилот: " +
     $(if ($NoAutopilot) { 'выключен' } else { 'включён' }) +
     "`n- совет роутера со смещением в стоимость: " +
-    $(if ($runConfig -and $runConfig.prefer_cost) { 'да' } else { 'нет' }))
+    $(if ($runConfig -and $runConfig.prefer_cost) { 'да' } else { 'нет' }) +
+    "`n- потолок обращений к opus: " + $(if ($maxOpus -gt 0) { $maxOpus } else { 'не задан' }) +
+    $(if ($triggers.Count) { "`n- условия эскалации:`n  - " + ($triggers -join "`n  - ") } else { '' }))
 
 # МОДЕЛЬ QUEEN-СЕССИИ. Замер 12.08.2026 показал главное: все сессии роя за всё время —
 # 100% claude-opus-5, включая тех, кого Queen раздавала «на sonnet». Причина не в
@@ -333,6 +346,15 @@ try {
         # потому что рой запускается из E:\-4-\ruflo-hive, а это не репозиторий. Упавшие
         # вызовы при этом заняли слоты у ограничителя одновременных исполнителей, и все
         # следующие раздачи он отверг — прогон встал, не сделав ни строчки.
+        # Дешёвое по умолчанию, дорогое — по названной причине и со счётом.
+        "МОДЕЛЬ ИСПОЛНИТЕЛЯ: раздавай воркерам `$workerModel. Дорогая модель (opus) " +
+        "приходит ТОЛЬКО по одному из названных условий: " + ($(if ($triggers.Count) { ($triggers -join '; ') } else { 'условия не заданы — эскалации нет' })) +
+        ". Потолок обращений к opus за прогон: $maxOpus. У КАЖДОГО обращения к opus в " +
+        "отчёте называется причина — какое из условий сработало. Эскалация «на всякий " +
+        "случай», «задача выглядит сложной», «чтобы наверняка» запрещена: за неё платит " +
+        "не прогон, а весь контур, и именно так доля opus доходила до 88 процентов. " +
+        "Потолок исчерпан, а условие снова сработало — доделывай на дешёвой модели и " +
+        "НАЗОВИ это в отчёте недостигнутым, а не превышай молча. " +
         "ИЗОЛЯЦИЮ WORKTREE НЕ ПРОСИТЬ (isolation: worktree): рабочий каталог этой " +
         "сессии не git-репозиторий, вызов упадёт и ЗАНЯТ СЛОТ у ограничителя " +
         "одновременных исполнителей. Параллельность обеспечивается тем, что каждый " +
@@ -582,6 +604,24 @@ try {
     }
     $transcript.Add("## ПРИЁМКА: рой работал`nВызовов mcp__claude-flow__: $($calls.Count), " +
         "различных инструментов: $($distinct.Count).`n" + ($distinct -join ', '))
+
+    # --- Доля дорогой модели: строка в отчёт, а не догадка постфактум ------------
+    # Решение ЛПР 13.08.2026 вместе с эскалацией: потолок без счётчика — пожелание.
+    # Считаем по ФАКТИЧЕСКИМ полям model в логе, а не по тому, что просили в цели.
+    $byModel = [ordered]@{}
+    foreach ($m in [regex]::Matches($runOut, '"model"\s*:\s*"(claude-[a-z0-9.\-]+)"')) {
+        $name = $m.Groups[1].Value
+        $byModel[$name] = 1 + $(if ($byModel.Contains($name)) { $byModel[$name] } else { 0 })
+    }
+    $total = ($byModel.Values | Measure-Object -Sum).Sum
+    if ($total) {
+        $opus = ($byModel.Keys | Where-Object { $_ -like '*opus*' } | ForEach-Object { $byModel[$_] } | Measure-Object -Sum).Sum
+        $share = [math]::Round(100.0 * $opus / $total, 1)
+        $rows = ($byModel.Keys | ForEach-Object { "$_ = $($byModel[$_])" }) -join ', '
+        $verdict = if ($maxOpus -gt 0 -and $opus -gt $maxOpus) { " ПРЕВЫШЕН ПОТОЛОК ($maxOpus): смотреть, по какой причине эскалировали." } else { '' }
+        $transcript.Add("## Доля дорогой модели`nopus: $opus из $total ответов ($share %). Потолок: " +
+            $(if ($maxOpus -gt 0) { $maxOpus } else { 'не задан' }) + ".$verdict`nПо моделям: $rows")
+    }
 
     # --- Приёмка вторая: СДВИНУЛИСЬ ЛИ МЕТРИКИ ПОСТАНОВКИ ------------------------
     # Указание ЛПР 13.08.2026. Прогон TASK-OBS-0053 закрылся как `done`: рой работал
