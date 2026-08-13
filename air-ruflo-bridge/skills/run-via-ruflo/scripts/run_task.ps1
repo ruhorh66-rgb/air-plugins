@@ -45,11 +45,11 @@ param(
     # ("Persistent swarm completion"). Выключается осознанно, не по умолчанию.
     # Решение ЛПР 12.08.2026: автопилот ОСТАВИТЬ включённым — «на это я не соглашусь».
     [Parameter()][switch]$NoAutopilot,
-    # Модель Queen-сессии. Умолчание — sonnet, решение ЛПР 12.08.2026 по замеру: все
-    # сессии роя шли на opus, наследуя настройку машины, при средней сложности задач
-    # 23,7% по оценке самого роутера. Значение уходит в ANTHROPIC_MODEL на время
-    # прогона; настройка машины не меняется.
-    [Parameter()][string]$QueenModel = 'sonnet'
+    # Модель Queen-сессии. Умолчание берётся ИЗ ФАЙЛА НАСТРОЕК прогона, не из кода:
+    # правка настройки — штатная операция, она не должна требовать версии плагина,
+    # тега и доставки (замечание ЛПР 12.08.2026, справедливое: настройки лежали
+    # умолчанием прямо в скрипте, и смена модели потребовала выпуска беты).
+    [Parameter()][string]$QueenModel = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -122,6 +122,34 @@ if ($ProjectRoot -ne $CanonicalHive -and -not $AllowForeignHive) {
 $reportDirectory = Split-Path -Parent $ReportPath
 if ($reportDirectory -and -not (Test-Path -LiteralPath $reportDirectory)) { New-Item -ItemType Directory -Path $reportDirectory -Force | Out-Null }
 $transcript = [System.Collections.Generic.List[string]]::new()
+
+# НАСТРОЙКИ ПРОГОНА — ФАЙЛОМ, А НЕ ВЕРСИЕЙ ПЛАГИНА. Указание ЛПР 12.08.2026:
+# «настройки — это штатная операция». Пока умолчания лежали в коде, смена модели
+# требовала бампа версии, тега и доставки — то есть выпуска ради настройки.
+#
+# Порядок старшинства: явный параметр вызова > файл настроек > встроенное умолчание.
+# Файла нет — работаем на встроенных и НАЗЫВАЕМ это в отчёте, а не молчим.
+$runConfigPath = Join-Path $ProjectRoot 'run-config.json'
+$runConfig = $null
+if (Test-Path -LiteralPath $runConfigPath) {
+    try { $runConfig = Get-Content -LiteralPath $runConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json }
+    catch { $transcript.Add("## Настройки прогона`nФАЙЛ НЕ РАЗОБРАН: $runConfigPath — $($_.Exception.Message). Работаю на встроенных умолчаниях.") }
+}
+if (-not $QueenModel) {
+    $QueenModel = if ($runConfig -and $runConfig.queen_model) { $runConfig.queen_model } else { 'sonnet' }
+}
+if (-not $PSBoundParameters.ContainsKey('Workers') -and $runConfig -and $runConfig.workers) {
+    $Workers = [int]$runConfig.workers
+}
+if (-not $NoAutopilot -and $runConfig -and $runConfig.PSObject.Properties.Name -contains 'autopilot' -and -not $runConfig.autopilot) {
+    $NoAutopilot = $true
+}
+$transcript.Add("## Настройки прогона`nисточник: " +
+    $(if ($runConfig) { "$runConfigPath (правка — штатная операция, версия плагина не поднимается)" } else { "файла нет, встроенные умолчания" }) +
+    "`n- модель Queen: $QueenModel`n- воркеров: $Workers`n- автопилот: " +
+    $(if ($NoAutopilot) { 'выключен' } else { 'включён' }) +
+    "`n- совет роутера со смещением в стоимость: " +
+    $(if ($runConfig -and $runConfig.prefer_cost) { 'да' } else { 'нет' }))
 
 # МОДЕЛЬ QUEEN-СЕССИИ. Замер 12.08.2026 показал главное: все сессии роя за всё время —
 # 100% claude-opus-5, включая тех, кого Queen раздавала «на sonnet». Причина не в
