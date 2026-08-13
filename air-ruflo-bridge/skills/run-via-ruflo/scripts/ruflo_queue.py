@@ -53,14 +53,9 @@ APPROVE = os.path.join(HERE, "approve_via_telegram.py")
 RUN_TASK = os.path.join(HERE, "run_task.ps1")
 HIVE_SINGLE = os.path.join(HERE, "hive_single.ps1")
 REPORTS = os.environ.get("RUFLO_REPORTS") or r"E:\-4-\ruflo-hive"
-# Путь к движку — обязательный параметр run_task.ps1, и берётся он ИЗ ОДНОГО МЕСТА
-# (ruflo_engine), а не константой здесь. 12.08.2026 константа стоила прогона: кэш
-# обновили на 3.38.0, а исполнилось 3.36.0, потому что путь лежал числом в двух
-# скриптах. Теперь действующая версия объявляется в engine.json корня роя, а смена
-# версии — правка одного числа, не кода.
-import ruflo_engine  # noqa: E402 — соседний модуль моста, не сторонняя зависимость
-
-CLI_PATH = ruflo_engine.cli_path()
+# Движок здесь не решается: `run_task.ps1` разрешает версию сам в момент запуска.
+# Читать её тут значило бы завести второго знающего — а при живущем сутками процессе
+# ещё и УСТАРЕВШЕГО знающего (ERR-2026-000229).
 OMSK = timezone(timedelta(hours=6))  # контур живёт по Омску, машина — по Pacific
 # ПАУЗА ОЧЕРЕДИ. Файл есть — выдача следующей задачи не делается, его содержимое
 # называется причиной. Ставится на время разбора самого механизма: идущий прогон
@@ -427,7 +422,7 @@ def _offer(row: dict) -> int:
         code = subprocess.call(
             ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", RUN_TASK,
              "-Objective", open(objective, encoding="utf-8").read(),
-             "-TargetPath", work_dir, "-ReportPath", report, "-CliPath", CLI_PATH,
+             "-TargetPath", work_dir, "-ReportPath", report,
              "-Workers", workers, "-Priority", priority, "-TaskId", row["task_id"]],
             stdout=fout, stderr=ferr, stdin=subprocess.DEVNULL, timeout=900)
 

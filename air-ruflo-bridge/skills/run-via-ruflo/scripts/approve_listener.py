@@ -118,12 +118,18 @@ def _save_offset(value: int) -> None:
 
 RUN_TASK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "run_task.ps1")
 
-# Движок берётся из одного места на весь мост (см. ruflo_engine): версия объявлена в
-# engine.json корня роя, путь собирается по ней. Константа здесь стоила прогона
-# 12.08.2026 — обновили кэш до 3.38.0, а исполнилась 3.36.0.
-import ruflo_engine  # noqa: E402 — соседний модуль моста
-
-CLI_PATH = ruflo_engine.cli_path()
+# ДВИЖОК ЗДЕСЬ НЕ РЕШАЕТСЯ ВОВСЕ — его выбирает run_task.ps1 в момент запуска.
+#
+# 13.08.2026 наступили на те же грабли ТРЕТИЙ раз, и по-новому: константы уже не было,
+# путь брался из ruflo_engine — но НА ИМПОРТЕ. Слушатель живёт сутками; этот прочитал
+# engine.json, когда там стояла 3.36.0, и продолжал передавать её в -CliPath после того,
+# как контур перешёл на 3.38.8. Прогон TASK-OBS-0053 в итоге координировался 3.38.8
+# (MCP-сервер поднимается по .mcp.json), а исполнялся 3.36.0.
+#
+# Урок класса: единый источник не помогает, если потребитель читает его ОДИН РАЗ.
+# Долгоживущий процесс обязан спрашивать заново на каждом решении — либо не спрашивать
+# совсем. Здесь выбрано второе: -CliPath больше не передаётся, run_task разрешает
+# версию сам, в секунду запуска.
 QUEUE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ruflo_queue.py")
 
 
@@ -230,7 +236,6 @@ def _run_request(req: dict) -> None:
         "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", RUN_TASK,
         "-ObjectiveFile", objective_file,
         "-TargetPath", target,
-        "-CliPath", CLI_PATH,
         "-ReportPath", report,
         "-Workers", str(workers),
         "-Priority", priority,
