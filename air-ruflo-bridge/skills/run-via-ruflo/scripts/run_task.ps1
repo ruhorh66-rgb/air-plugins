@@ -43,7 +43,13 @@ param(
     [Parameter()][string]$TaskId = '',
     # autopilot держит агентов в работе, пока не закрыты ВСЕ задачи
     # ("Persistent swarm completion"). Выключается осознанно, не по умолчанию.
-    [Parameter()][switch]$NoAutopilot
+    # Решение ЛПР 12.08.2026: автопилот ОСТАВИТЬ включённым — «на это я не соглашусь».
+    [Parameter()][switch]$NoAutopilot,
+    # Модель Queen-сессии. Умолчание — sonnet, решение ЛПР 12.08.2026 по замеру: все
+    # сессии роя шли на opus, наследуя настройку машины, при средней сложности задач
+    # 23,7% по оценке самого роутера. Значение уходит в ANTHROPIC_MODEL на время
+    # прогона; настройка машины не меняется.
+    [Parameter()][string]$QueenModel = 'sonnet'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -116,6 +122,20 @@ if ($ProjectRoot -ne $CanonicalHive -and -not $AllowForeignHive) {
 $reportDirectory = Split-Path -Parent $ReportPath
 if ($reportDirectory -and -not (Test-Path -LiteralPath $reportDirectory)) { New-Item -ItemType Directory -Path $reportDirectory -Force | Out-Null }
 $transcript = [System.Collections.Generic.List[string]]::new()
+
+# МОДЕЛЬ QUEEN-СЕССИИ. Замер 12.08.2026 показал главное: все сессии роя за всё время —
+# 100% claude-opus-5, включая тех, кого Queen раздавала «на sonnet». Причина не в
+# задаче: рой запускается обычной сессией Claude Code и НАСЛЕДУЕТ настройку машины
+# (settings.json: model = opus[1m]). Роутер при этом оценивает среднюю сложность задач
+# в 23,7% — то есть почти всё это работа для sonnet.
+#
+# Модель задаётся переменной среды на ВРЕМЯ ПРОГОНА: настройку машины не трогаем —
+# у неё другие потребители, и менять поведение всего контура ради одного прогона
+# значит чинить не там (решение ЛПР 12.08.2026: перевести Queen, автопилот оставить).
+if (-not $env:AIR_RUFLO_KEEP_MODEL) {
+    $env:ANTHROPIC_MODEL = $QueenModel
+    $transcript.Add("## Модель прогона`nQueen-сессия запускается на ``$QueenModel`` (переменная ANTHROPIC_MODEL на время прогона; настройка машины не менялась).")
+}
 
 # --- Замок: ОДИН на контур, и он же единственный источник факта «рой занят» ----
 #
@@ -244,7 +264,10 @@ try {
         # «CLI: <CR>uflo hooks model-route», то есть команду без имени.
         "mcp__claude-flow__hooks_model-route (CLI: ruflo hooks model-route -t <задача>) " +
         "— именно model-route. Не путать с hooks_route: тот маршрутизирует ТИП АГЕНТА " +
-        "и модели не возвращает вовсе. " +
+        "и модели не возвращает вовсе. Спрашивай совет СО СМЕЩЕНИЕМ В СТОРОНУ " +
+        "СТОИМОСТИ: у CLI это флаг --prefer-cost; если у инструмента MCP такого " +
+        "параметра нет, скажи об этом в отчёте и спроси совет как есть — выдумывать " +
+        "параметр не нужно. " +
         # ШТАТНЫЙ СПОСОБ ИСПОЛНЕНИЯ — Task с моделью, так написано в USERGUIDE движка:
         # «Pass model="haiku" to Task tool for cost savings». Рекомендация НЕ применяется
         # сама, её обязан передать вызывающий. Прежняя редакция требовала «спавни агента

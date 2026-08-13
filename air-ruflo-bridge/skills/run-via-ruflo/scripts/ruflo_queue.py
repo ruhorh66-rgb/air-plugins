@@ -53,11 +53,14 @@ APPROVE = os.path.join(HERE, "approve_via_telegram.py")
 RUN_TASK = os.path.join(HERE, "run_task.ps1")
 HIVE_SINGLE = os.path.join(HERE, "hive_single.ps1")
 REPORTS = os.environ.get("RUFLO_REPORTS") or r"E:\-4-\ruflo-hive"
-# Путь к движку — обязательный параметр run_task.ps1. Держим тот же, что у слушателя
-# (approve_listener.CLI_PATH): два разных пути означали бы два разных движка, и
-# dry-run проверял бы не то, что потом исполнится.
-CLI_PATH = (r"E:\-4-\ruflo-pilot\.npm-cache-3.36.0\_npx\b05ba791a3cfd7b6"
-            r"\node_modules\@claude-flow\cli\bin\cli.js")
+# Путь к движку — обязательный параметр run_task.ps1, и берётся он ИЗ ОДНОГО МЕСТА
+# (ruflo_engine), а не константой здесь. 12.08.2026 константа стоила прогона: кэш
+# обновили на 3.38.0, а исполнилось 3.36.0, потому что путь лежал числом в двух
+# скриптах. Теперь действующая версия объявляется в engine.json корня роя, а смена
+# версии — правка одного числа, не кода.
+import ruflo_engine  # noqa: E402 — соседний модуль моста, не сторонняя зависимость
+
+CLI_PATH = ruflo_engine.cli_path()
 OMSK = timezone(timedelta(hours=6))  # контур живёт по Омску, машина — по Pacific
 # ПАУЗА ОЧЕРЕДИ. Файл есть — выдача следующей задачи не делается, его содержимое
 # называется причиной. Ставится на время разбора самого механизма: идущий прогон

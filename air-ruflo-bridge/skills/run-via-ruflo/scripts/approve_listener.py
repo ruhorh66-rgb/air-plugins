@@ -117,8 +117,13 @@ def _save_offset(value: int) -> None:
 
 
 RUN_TASK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "run_task.ps1")
-CLI_PATH = (r"E:\-4-\ruflo-pilot\.npm-cache-3.36.0\_npx\b05ba791a3cfd7b6"
-            r"\node_modules\@claude-flow\cli\bin\cli.js")
+
+# Движок берётся из одного места на весь мост (см. ruflo_engine): версия объявлена в
+# engine.json корня роя, путь собирается по ней. Константа здесь стоила прогона
+# 12.08.2026 — обновили кэш до 3.38.0, а исполнилась 3.36.0.
+import ruflo_engine  # noqa: E402 — соседний модуль моста
+
+CLI_PATH = ruflo_engine.cli_path()
 QUEUE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ruflo_queue.py")
 
 
