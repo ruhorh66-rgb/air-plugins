@@ -722,14 +722,35 @@ try {
         $name = $m.Groups[1].Value
         $byModel[$name] = 1 + $(if ($byModel.Contains($name)) { $byModel[$name] } else { 0 })
     }
+    # ПОТОЛОК СЧИТАЕТСЯ В ОБРАЩЕНИЯХ, А НЕ В ОТВЕТАХ (правка 14.08.2026, VERA-PAT-000061).
+    #
+    # Прежняя редакция сравнивала с потолком число ответов с полем model — и на повторе
+    # TASK-OBS-0057 напечатала «opus: 26 из 215, ПРЕВЫШЕН ПОТОЛОК (5)» при ОДНОЙ раздаче
+    # opus. Один субагент, ответивший 26 раз, выглядел как 26 обращений. Потолок
+    # max_opus_calls задан в обращениях, значит и считать надо их: tool_use инструмента
+    # Agent с полем model. Доля ответов остаётся в отчёте — она полезна, но с потолком
+    # больше не сравнивается.
+    #
+    # Цена ложной тревоги — не косметика: сторож, кричащий на исправном поведении, учит
+    # не смотреть на его крик, и следующее настоящее превышение пройдёт мимо.
+    $dispatches = [ordered]@{}
+    foreach ($m in [regex]::Matches($runOut, '"name"\s*:\s*"(?:Agent|Task)"\s*,\s*"input"\s*:\s*\{[^}]*?"model"\s*:\s*"([a-z0-9.\-]+)"')) {
+        $name = $m.Groups[1].Value
+        $dispatches[$name] = 1 + $(if ($dispatches.Contains($name)) { $dispatches[$name] } else { 0 })
+    }
+    $opusCalls = ($dispatches.Keys | Where-Object { $_ -like '*opus*' } | ForEach-Object { $dispatches[$_] } | Measure-Object -Sum).Sum
+    if (-not $opusCalls) { $opusCalls = 0 }
     $total = ($byModel.Values | Measure-Object -Sum).Sum
     if ($total) {
         $opus = ($byModel.Keys | Where-Object { $_ -like '*opus*' } | ForEach-Object { $byModel[$_] } | Measure-Object -Sum).Sum
         $share = [math]::Round(100.0 * $opus / $total, 1)
         $rows = ($byModel.Keys | ForEach-Object { "$_ = $($byModel[$_])" }) -join ', '
-        $verdict = if ($maxOpus -gt 0 -and $opus -gt $maxOpus) { " ПРЕВЫШЕН ПОТОЛОК ($maxOpus): смотреть, по какой причине эскалировали." } else { '' }
-        $transcript.Add("## Доля дорогой модели`nopus: $opus из $total ответов ($share %). Потолок: " +
-            $(if ($maxOpus -gt 0) { $maxOpus } else { 'не задан' }) + ".$verdict`nПо моделям: $rows")
+        $dispRows = if ($dispatches.Count) { ($dispatches.Keys | ForEach-Object { "$_ = $($dispatches[$_])" }) -join ', ' } else { 'раздач с явной моделью в логе нет' }
+        $verdict = if ($maxOpus -gt 0 -and $opusCalls -gt $maxOpus) { " ПРЕВЫШЕН ПОТОЛОК ($maxOpus): смотреть, по какой причине эскалировали." } else { '' }
+        $transcript.Add("## Доля дорогой модели`nОБРАЩЕНИЙ к opus: $opusCalls. Потолок: " +
+            $(if ($maxOpus -gt 0) { $maxOpus } else { 'не задан' }) + ".$verdict`n" +
+            "Раздачи по моделям: $dispRows`n" +
+            "Ответы по моделям (не сравниваются с потолком): opus $opus из $total ($share %); $rows")
     }
 
     # --- Приёмка вторая: СДВИНУЛИСЬ ЛИ МЕТРИКИ ПОСТАНОВКИ ------------------------
