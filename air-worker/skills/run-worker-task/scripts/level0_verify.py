@@ -603,8 +603,8 @@ def _selftest() -> None:
     assert not _party_hits("переписка сторон")  # нет узнаваемой стороны
 
     # 2. ранжирование: правильный кандидат выше мусора
-    p_letter = Path(r"E:\-5-\030_CKBA_Wiki\05_ORIGINALS\CHT-020\RSU8-OUT-2026-07-22-suspension-VG-act.docx")
-    p_noise = Path(r"E:\-5-\030_CKBA_Wiki\05_ORIGINALS\XLSX\smeta_customers.xlsx")
+    p_letter = Path(r"E:\-5-\020_CKBA_Wiki\05_ORIGINALS\CHT-020\RSU8-OUT-2026-07-22-suspension-VG-act.docx")
+    p_noise = Path(r"E:\-5-\020_CKBA_Wiki\05_ORIGINALS\XLSX\SRC-020-STROY-POTOLOK_Армстронг.xlsx")
     idx = [(p, *file_signals(p)) for p in (p_letter, p_noise)]
     ranked = rank_candidates("исходящее письмо РСУ-8 от 22.07.2026, акт", idx)
     assert ranked and ranked[0][0] == p_letter, "ожидали письмо РСУ-8 первым кандидатом"
@@ -614,7 +614,7 @@ def _selftest() -> None:
     assert rank_candidates("переписка сторон", idx) == []
 
     # 4. извлечение текста из .md-слоя (реальный сайдкар, без PDF-библиотек)
-    p_pdf_with_sidecar = Path(r"E:\-5-\030_CKBA_Wiki\05_ORIGINALS\CHT-020\8564_suspension.pdf")
+    p_pdf_with_sidecar = Path(r"E:\-5-\020_CKBA_Wiki\05_ORIGINALS\CHT-020\8564_suspension.pdf")
     text = extract_text(p_pdf_with_sidecar)
     assert text.strip(), ".md-слой должен был дать непустой текст"
     assert "5239" in extract_numbers(text)  # номер договора реально есть в тексте письма
@@ -679,7 +679,7 @@ def _selftest() -> None:
 
     # 10. кэш: второй вызов extract_text на некэшируемом напрямую .xlsx-файле
     #     (без .md-слоя) отдаёт то же самое и не падает
-    p_xlsx = Path(r"E:\-5-\030_CKBA_Wiki\05_ORIGINALS\XLSX\smeta_customers.xlsx")
+    p_xlsx = Path(r"E:\-5-\020_CKBA_Wiki\05_ORIGINALS\XLSX\SRC-020-STROY-POTOLOK_Армстронг.xlsx")
     if p_xlsx.is_file():
         t1 = extract_text(p_xlsx)
         t2 = extract_text(p_xlsx)
@@ -687,7 +687,7 @@ def _selftest() -> None:
         assert _cache_path(p_xlsx).is_file()
 
     # 11. неподдержанные форматы — пустая строка, не исключение
-    assert extract_text(Path(r"E:\-5-\030_CKBA_Wiki\05_ORIGINALS\CHT-020\7. Еще договора ЦКБА.zip")) == ""
+    assert extract_text(Path(r"E:\-5-\020_CKBA_Wiki\05_ORIGINALS\SMETA-PRIYAMOK\7. Еще договора ЦКБА.zip")) == ""
 
     print("selftest ok")
 

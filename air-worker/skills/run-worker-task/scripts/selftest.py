@@ -17,17 +17,32 @@ Telegram не вызывается вовсе, база и журнал увод
      неизвестная ступень падает, проверяльщик есть на все 4 типа заявок,
      старт всегда 0 без приоров и поднимается только при статистике+объёме,
      реестр ступеней 0..5 полон, ступень 0 реально проверяет файл на диске,
-     ступени 4-5 не исполняют суждение сами;
+     ступени 4-5 по умолчанию исполняют суждение САМИ (Ф3, платный счётчик
+     растёт), `execute=False` — старый режим отладки, конверт без исполнения;
  10. level0_check.py не путает код проекта CHT-020 с номером документа
-     (регресс уже описанного в его собственном --selftest бага).
+     (регресс уже описанного в его собственном --selftest бага);
+ 11. level0_check.REGISTRY_DIR/ORIGINALS_DIR смотрят на 020_CKBA_Wiki, а не на
+     несуществующую 030_CKBA_Wiki (регресс этой сессии);
+ 12. ladder.router_alive() всегда возвращает bool и не падает — не зависит от
+     того, поднят ли роутер на 127.0.0.1:8090 прямо сейчас;
+ 13. apply_verification.evaluate() раскладывает по трём корзинам ровно по
+     контракту verify_claim_level0 (подтверждено / не смог+кандидаты /
+     не смог без кандидатов), не дублируя его собственный --selftest;
+ 14. apply_verification._write_back() заводит .bak один раз и не трогает уже
+     существующий;
+ 15. apply_verification._write_back() правит только целевые
+     verification_status/next_action — порядок колонок, прочие поля и
+     нетронутые строки остаются буквально теми же.
 """
 from __future__ import annotations
 
+import csv
 import json
 import os
 import sys
 import tempfile
 import time
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -36,6 +51,7 @@ os.environ["AIR_WORKER_RUNTIME"] = TMP
 os.environ["AIR_WORKER_METRICS_PATH"] = os.path.join(TMP, "run_metrics.csv")
 os.environ["AIR_WORKER_PROTOCOL_PATH"] = os.path.join(TMP, "protocol.jsonl")
 
+import apply_verification  # noqa: E402
 import executors  # noqa: E402
 import ladder  # noqa: E402
 import level0_check  # noqa: E402
@@ -321,10 +337,42 @@ def test_ladder_level0_script_checks_real_file():
 
 
 def test_ladder_levels_4_5_hand_off_to_orchestrator():
-    """Ступени 4-5 — суждение Claude; ladder.py его не исполняет, отдаёт конверт."""
+    """`execute=False` — старый режим отладки (ladder.py docstring): конверт без исполнения."""
     for lvl in (4, 5):
-        out = ladder.escalate({"card_type": "risk", "claim_to_verify": "x"}, lvl, "нужно суждение модели")
+        out = ladder.escalate({"card_type": "risk", "claim_to_verify": "x", "execute": False}, lvl,
+                              "нужно суждение модели")
         assert out["result"]["pending_orchestrator"] is True
+
+
+def test_ladder_levels_4_5_execute_by_default():
+    """Ф3: `execute` по умолчанию True — ступени 4-5 исполняют суждение САМИ (тот же
+    фейк очереди, что и ladder.py demo()), а не отдают конверт; платный счётчик растёт."""
+    fake_result = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".txt", delete=False, encoding="utf-8")
+    fake_result.write('$ claude_judge_run.py haiku prompt.txt\n\n'
+                      '{"is_error": false, "result": "да, следует"}\n')
+    fake_result.close()
+
+    def fake_claude_queue(*args: str, timeout: int = 600) -> str:
+        if args[0] == "enqueue-exec":
+            return "задание 99 поставлено: claude-judgement-haiku (приоритет 5)\n"
+        if args[0] == "show":
+            return (f"  status         done\n  result_path    {fake_result.name}\n"
+                   f"  error          None\n")
+        return ""
+
+    try:
+        ladder.reset_paid_counter()
+        with ladder._patch_global("_run_dispatcher", fake_claude_queue):
+            for lvl in (4, 5):
+                out = ladder.escalate({"card_type": "risk", "claim_to_verify": "x"}, lvl,
+                                      "нужно суждение модели")
+                assert "pending_orchestrator" not in out["result"]
+                assert out["result"]["ok"] is True
+                assert out["result"]["answer"] == "да, следует"
+        assert ladder.paid_calls_used() == 2
+    finally:
+        os.unlink(fake_result.name)
 
 
 def test_level0_check_cht020_regression():
@@ -336,6 +384,111 @@ def test_level0_check_cht020_regression():
 
 def test_level0_check_own_selftest_passes():
     level0_check._selftest()
+
+
+def test_level0_check_paths_point_at_020_not_030():
+    """Регресс этой сессии: реестр/оригиналы были заведены на несуществующей
+    030_CKBA_Wiki — реальная папка 020_CKBA_Wiki."""
+    for path in (level0_check.REGISTRY_DIR, level0_check.ORIGINALS_DIR):
+        s = str(path)
+        assert "020_CKBA_Wiki" in s, s
+        assert "030_CKBA_Wiki" not in s, s
+
+
+def test_ladder_router_alive_returns_bool_never_raises():
+    """Роутер сейчас поднят на 127.0.0.1:8090, но тест не должен зависеть от
+    этого факта — падать он не смеет ни при живом, ни при мёртвом роутере."""
+    assert isinstance(ladder.router_alive(timeout=1.0), bool)
+
+
+def test_apply_verification_evaluate_buckets_three_outcomes():
+    """evaluate() раскладывает по корзинам контрактом verify_claim_level0:
+    подтверждено -> closed; «не смог»+кандидаты -> escalatable;
+    «не смог» без кандидатов -> terminal."""
+    rows = [
+        {"verification_id": "SV-B-001", "registry": "r.csv"},
+        {"verification_id": "SV-B-002", "registry": "r.csv"},
+        {"verification_id": "SV-B-003", "registry": "r.csv"},
+    ]
+    fakes = {
+        "SV-B-001": {"outcome": "подтверждено", "reason": "найдено", "candidates": ["X.pdf"]},
+        "SV-B-002": {"outcome": "не смог", "reason": "неоднозначно", "candidates": ["a.pdf", "b.pdf"]},
+        "SV-B-003": {"outcome": "не смог", "reason": "не найдено", "candidates": []},
+    }
+
+    def fake_verify(row, file_index):
+        return fakes[row["verification_id"]]
+
+    orig = apply_verification.level0_verify.verify_claim_level0
+    apply_verification.level0_verify.verify_claim_level0 = fake_verify
+    try:
+        closed, escalatable, terminal = apply_verification.evaluate(rows, file_index=[])
+    finally:
+        apply_verification.level0_verify.verify_claim_level0 = orig
+
+    assert [r["verification_id"] for r, _ in closed] == ["SV-B-001"]
+    assert [r["verification_id"] for r, _ in escalatable] == ["SV-B-002"]
+    assert [r["verification_id"] for r, _ in terminal] == ["SV-B-003"]
+
+
+def test_apply_verification_writeback_backup_created_once():
+    """.bak заводится ровно при первой записи и не пересоздаётся, если уже есть."""
+    tmp_dir = tempfile.mkdtemp(prefix="selftest-apply-verification-bak-")
+    csv_path = Path(tmp_dir) / "queue_test.csv"
+    fieldnames = ["verification_id", "verification_status", "next_action"]
+    with csv_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow({"verification_id": "SV-X-001", "verification_status": "pending",
+                         "next_action": ""})
+    bak = Path(str(csv_path) + ".bak")
+    assert not bak.exists()
+
+    apply_verification._write_back(
+        csv_path, {"SV-X-001": {"verification_status": "подтверждено", "next_action": "ok"}})
+    assert bak.is_file()
+
+    # руками портим .bak — вторая запись НЕ должна его перезаписать
+    with bak.open("w", encoding="utf-8") as fh:
+        fh.write("испорчено нарочно\n")
+    apply_verification._write_back(
+        csv_path, {"SV-X-001": {"verification_status": "опровергнуто", "next_action": "ok2"}})
+    with bak.open(encoding="utf-8") as fh:
+        assert fh.read() == "испорчено нарочно\n", ".bak перезаписан при существующем файле"
+
+
+def test_apply_verification_writeback_preserves_columns_and_order():
+    """Запись правит только verification_status/next_action целевой строки —
+    остальные колонки, их порядок и нетронутые строки выживают буквально."""
+    tmp_dir = tempfile.mkdtemp(prefix="selftest-apply-verification-cols-")
+    csv_path = Path(tmp_dir) / "queue_test.csv"
+    fieldnames = ["priority", "verification_id", "card_id", "verification_status",
+                 "extra_column", "next_action"]
+    rows_in = [
+        {"priority": "P0", "verification_id": "SV-C-001", "card_id": "C1",
+         "verification_status": "pending", "extra_column": "не трогать", "next_action": ""},
+        {"priority": "P2", "verification_id": "SV-C-002", "card_id": "C2",
+         "verification_status": "pending", "extra_column": "тоже не трогать", "next_action": ""},
+    ]
+    with csv_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows_in)
+
+    changed = apply_verification._write_back(
+        csv_path, {"SV-C-001": {"verification_status": "подтверждено", "next_action": "готово"}})
+    assert changed == 1
+
+    with csv_path.open(encoding="utf-8", newline="") as fh:
+        reader = csv.DictReader(fh)
+        assert reader.fieldnames == fieldnames  # порядок колонок не изменился
+        out_rows = list(reader)
+    assert out_rows[0]["verification_status"] == "подтверждено"
+    assert out_rows[0]["next_action"] == "готово"
+    assert out_rows[0]["priority"] == "P0" and out_rows[0]["card_id"] == "C1"
+    assert out_rows[0]["extra_column"] == "не трогать"
+    # вторая строка не тронута НИ В ОДНОЙ колонке
+    assert out_rows[1] == rows_in[1]
 
 
 def main() -> int:

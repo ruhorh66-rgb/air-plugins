@@ -2,7 +2,7 @@
 """level0_check.py — TASK-OBS-0054, ступень 0 лестницы ("скрипт, $0").
 
 Для каждой строки verification_status=pending в четырёх реестрах
-E:\\-5-\\030_CKBA_Wiki\\00_REGISTRY\\source_verification_queue*.csv проверяет
+E:\\-5-\\020_CKBA_Wiki\\00_REGISTRY\\source_verification_queue*.csv проверяет
 МЕХАНИЧЕСКИ, без чтения содержимого документов: есть ли в 05_ORIGINALS
 файл, чьё имя правдоподобно соответствует хотя бы одному документу из
 required_primary_sources — по совпадению номера (договора/письма/акта/
@@ -27,8 +27,8 @@ import json
 import re
 from pathlib import Path
 
-REGISTRY_DIR = Path(r"E:\-5-\030_CKBA_Wiki\00_REGISTRY")
-ORIGINALS_DIR = Path(r"E:\-5-\030_CKBA_Wiki\05_ORIGINALS")
+REGISTRY_DIR = Path(r"E:\-5-\020_CKBA_Wiki\00_REGISTRY")
+ORIGINALS_DIR = Path(r"E:\-5-\020_CKBA_Wiki\05_ORIGINALS")
 REGISTRY_GLOB = "source_verification_queue*.csv"
 OUT_PATH = Path(r"E:\-4-\ruflo-hive\scratch-task-obs-0054-level0-report.json")
 

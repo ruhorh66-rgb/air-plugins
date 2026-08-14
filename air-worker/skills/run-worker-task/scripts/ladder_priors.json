@@ -1,1 +1,62 @@
-[]
+[
+ {
+  "card_type": "decision",
+  "start_level": 0,
+  "n_outcomes": 5,
+  "success_rate": 0.0
+ },
+ {
+  "card_type": "risk",
+  "start_level": 0,
+  "n_outcomes": 3,
+  "success_rate": 0.0
+ },
+ {
+  "card_type": "principle",
+  "start_level": 0,
+  "n_outcomes": 10,
+  "success_rate": 0.0
+ },
+ {
+  "card_type": "task",
+  "start_level": 0,
+  "n_outcomes": 6,
+  "success_rate": 0.0
+ },
+ {
+  "card_type": "rec_hub",
+  "start_level": 0,
+  "n_outcomes": 2,
+  "success_rate": 0.0
+ },
+ {
+  "card_type": "fork",
+  "start_level": 0,
+  "n_outcomes": 1,
+  "success_rate": 0.0
+ },
+ {
+  "card_type": "chronology",
+  "start_level": 0,
+  "n_outcomes": 22,
+  "success_rate": 0.0
+ },
+ {
+  "card_type": "subproject_hub",
+  "start_level": 0,
+  "n_outcomes": 2,
+  "success_rate": 0.0
+ },
+ {
+  "card_type": "library",
+  "start_level": 0,
+  "n_outcomes": 1,
+  "success_rate": 0.0
+ },
+ {
+  "card_type": "pattern",
+  "start_level": 0,
+  "n_outcomes": 1,
+  "success_rate": 0.0
+ }
+]
