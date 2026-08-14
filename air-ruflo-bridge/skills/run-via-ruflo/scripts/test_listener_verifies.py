@@ -59,7 +59,7 @@ def _request(tmp: str) -> dict:
 
 def run_case(mutate) -> tuple[bool, list[str]]:
     """Возвращает (был ли запуск, что сказано человеку)."""
-    launched: list[bool] = []
+    launched: list[list[str]] = []
     said: list[str] = []
     with tempfile.TemporaryDirectory() as tmp:
         req = _request(tmp)
@@ -71,7 +71,8 @@ def run_case(mutate) -> tuple[bool, list[str]]:
             stderr = ""
 
         saved = (al.subprocess.run, al._notify, al._queue_record, al._hive_busy)
-        al.subprocess.run = lambda *a, **k: (launched.append(True), _Proc())[1]
+        al.subprocess.run = lambda argv, *a, **k: (launched.append(list(argv)),
+                                                  _Proc())[1]
         al._notify = lambda text, **k: said.append(text)
         al._queue_record = lambda *a, **k: ""
         al._hive_busy = lambda: False
@@ -80,12 +81,20 @@ def run_case(mutate) -> tuple[bool, list[str]]:
         finally:
             (al.subprocess.run, al._notify, al._queue_record,
              al._hive_busy) = saved
-    return bool(launched), said
+    return (launched[0] if launched else None), said
 
 
 # 1. Нетронутая заявка обязана запускаться — иначе проверка просто ломает канал.
-launched, said = run_case(lambda r: None)
-ok("нетронутая заявка запускается", launched)
+argv, said = run_case(lambda r: None)
+ok("нетронутая заявка запускается", argv is not None)
+
+# 1а. И запускается С ПУТЁМ К ЗАЯВКЕ: сессия обязана иметь возможность проверить
+# одобрение сама. Утверждение «гейт пройден» доказательством не было — 14.08.2026
+# Queen на TASK-OBS-0055 не нашла артефакта и отказалась работать.
+ok("в запуск передан -ApprovalFile", "-ApprovalFile" in (argv or []))
+ok("путь заявки ведёт на существующий файл заявки",
+   (argv or []).count("-ApprovalFile") == 1
+   and (argv or [])[(argv or []).index("-ApprovalFile") + 1].endswith("test0001.json"))
 
 # 2. Цель переписана после подписи — ровно случай 14.08.2026.
 def _rewrite(req: dict) -> None:
@@ -93,18 +102,18 @@ def _rewrite(req: dict) -> None:
         fh.write("\nстрока, дописанная после нажатия\n")
 
 
-launched, said = run_case(_rewrite)
-ok("переписанная цель НЕ запускается", not launched)
+argv, said = run_case(_rewrite)
+ok("переписанная цель НЕ запускается", argv is None)
 ok("человеку названа причина, а не молчание",
    any("цел" in s.lower() for s in said))
 
 # 3. Подделано подписанное поле.
-launched, said = run_case(lambda r: r.update({"workers": 30}))
-ok("подделанное поле НЕ запускается", not launched)
+argv, said = run_case(lambda r: r.update({"workers": 30}))
+ok("подделанное поле НЕ запускается", argv is None)
 
 # 4. Заявка без подписи.
-launched, said = run_case(lambda r: r.pop("sig"))
-ok("заявка без подписи НЕ запускается", not launched)
+argv, said = run_case(lambda r: r.pop("sig"))
+ok("заявка без подписи НЕ запускается", argv is None)
 
 # 5. Проверка сама упала — это отказ, а не разрешение.
 saved_verify = avt.verify_request
@@ -114,10 +123,11 @@ try:
 
     avt.verify_request = _boom
     sys.modules["approve_via_telegram"].verify_request = _boom
-    launched, said = run_case(lambda r: None)
-    ok("непроверенное не превращается в разрешённое", not launched)
+    argv, said = run_case(lambda r: None)
+    ok("непроверенное не превращается в разрешённое", argv is None)
 finally:
     avt.verify_request = saved_verify
     sys.modules["approve_via_telegram"].verify_request = saved_verify
 
 print(f"\n{n} проверок пройдено")
+
