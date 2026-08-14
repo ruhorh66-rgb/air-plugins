@@ -409,12 +409,65 @@ def _push_next() -> None:
             f"{((res.stderr or res.stdout) or '').strip()[-400:]}")
 
 
+# ПРИЗНАК ЖИЗНИ И ГРОМКИЙ ОТКАЗ (ERR-2026-000242, три случая за двое суток).
+#
+# Прежняя редакция глотала ошибку дважды подряд, и оба места задумывались как
+# устойчивость: `_api` на любое исключение возвращал {"ok": false, "error": ...} с
+# комментарием «сеть моргнула — не роняем слушателя», а `poll_once` на «не ок» спал
+# пять секунд и молчал. Поле error не читал никто. Получилось «пережить ЛЮБОЙ отказ
+# навсегда, не сказав ни слова»: процесс жив, журнал молчит, смещение стоит, а ЛПР
+# третий раз жмёт кнопку и думает, что сломана она.
+#
+# Лечится не таймаутом — он там и был (urlopen timeout=70). Лечится тем, что отказ
+# перестаёт быть тихим: причина в журнал сразу, а после порога — В TELEGRAM, чтобы
+# человек узнавал о поломке от системы, а не по своему третьему нажатию.
+_fail_streak = 0
+_last_ok_at = time.time()
+_cycle = 0
+_first_poll_done = False
+FAIL_LOUD_AT = 3          # после скольких подряд неудач сказать вслух
+FAIL_REPEAT_EVERY = 60    # и повторять не чаще, чем раз в столько неудач
+HEARTBEAT_EVERY = 40      # строка «жив, последний успешный опрос тогда-то»
+
+
 def poll_once(chat_id: str) -> int:
+    global _fail_streak, _last_ok_at, _cycle, _first_poll_done
+    _cycle += 1
     offset = _load_offset()
     resp = _api("getUpdates", {"offset": offset, "timeout": 50, "allowed_updates": ["callback_query"]})
     if not resp.get("ok"):
+        _fail_streak += 1
+        why = str(resp.get("error") or "причина не названа")[:200]
+        print(f"опрос не прошёл ({_fail_streak} подряд): {why}", flush=True)
+        if _fail_streak == FAIL_LOUD_AT or (
+                _fail_streak > FAIL_LOUD_AT and _fail_streak % FAIL_REPEAT_EVERY == 0):
+            mins = int((time.time() - _last_ok_at) / 60)
+            _notify(f"⚠ Слушатель не может опросить Telegram: {_fail_streak} неудач подряд, "
+                    f"последний успешный опрос {mins} мин назад.\nПричина: {why}\n"
+                    f"Кнопка сейчас НЕ работает — нажатие не потеряется, но и не сработает, "
+                    f"пока слушатель не восстановится.")
         time.sleep(5)
         return 0
+    if _fail_streak:
+        print(f"опрос восстановлен после {_fail_streak} неудач подряд", flush=True)
+        _fail_streak = 0
+    _last_ok_at = time.time()
+    # Признак жизни, не зависящий от входящих: молчание журнала перестаёт быть
+    # неотличимым от «нажатий не было».
+    if _cycle % HEARTBEAT_EVERY == 0:
+        print(f"жив, цикл {_cycle}, последний успешный опрос "
+              f"{time.strftime('%H:%M:%S', time.localtime(_last_ok_at))}", flush=True)
+    # НАКОПЛЕННОЕ НАЖАТИЕ. Первый опрос после старта забирает всё, что скопилось, пока
+    # слушателя не было; исполнять это молча нельзя — человек нажимал в другой
+    # обстановке и уже решил, что кнопка не работает.
+    queued = (not _first_poll_done) and bool(resp.get("result"))
+    _first_poll_done = True
+    if queued:
+        print("первый опрос забрал накопленные нажатия — они сделаны ДО запуска "
+              "этого слушателя", flush=True)
+        _notify("ℹ️ Нажатие было сделано до запуска слушателя и пролежало в очереди "
+                "Telegram. Выполняю его сейчас — если обстановка изменилась, "
+                "остановите прогон.")
     handled = 0
     for upd in resp.get("result", []):
         _save_offset(upd["update_id"] + 1)
