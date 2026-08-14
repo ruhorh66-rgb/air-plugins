@@ -488,6 +488,10 @@ try {
     #   2) task -d "цель" — положить задачу В ОЧЕРЕДЬ РОЯ (`Submit tasks to the hive`)
     #   3) spawn --claude — поднять Queen-сессию, которая раздаёт работу через MCP
 
+    # Отметка старта нужна приёмке метрик ниже: файл, лежащий здесь ДО начала работы,
+    # остался от прошлого прогона и доказательством этого прогона не является.
+    $runStartedAtUtc = [DateTime]::UtcNow
+
     $r1 = Invoke-Ruflo -Arguments @('hive-mind','spawn','-n',"$Workers") -Stage "1. Spawn workers (-n $Workers)"
     if ($r1.ExitCode -ne 0) { throw "hive-mind spawn -n $Workers failed ($($r1.ExitCode))" }
 
@@ -647,6 +651,21 @@ try {
         Write-Output "EXECUTED, НО МЕТРИКИ НЕ ПРЕДЪЯВЛЕНЫ: нет $metricsFile. Report: $ReportPath"
         exit 12
     }
+    # СВЕЖЕСТЬ ФАЙЛА. Проверка «файл есть» пропускала файл ПРОШЛОГО прогона: имя
+    # зависит только от TaskId, а не от запуска, и повторный заход по той же задаче
+    # находил вчерашние числа и объявлял их предъявленными. Поймано 13.08.2026 на
+    # TASK-OBS-0054-бис — отчёт показал утренние значения при живом дневном прогоне.
+    # Старый файл — тот же третий исход «предъявить не смог», а не ноль.
+    $metricsWritten = (Get-Item -LiteralPath $metricsFile).LastWriteTimeUtc
+    if ($metricsWritten -lt $runStartedAtUtc) {
+        $transcript.Add("## МЕТРИКИ ПОСТАНОВКИ: ФАЙЛ ОТ ПРОШЛОГО ПРОГОНА`n$metricsFile " +
+            "записан $($metricsWritten.ToString('yyyy-MM-dd HH:mm:ss')) UTC, а этот прогон " +
+            "начался $($runStartedAtUtc.ToString('yyyy-MM-dd HH:mm:ss')) UTC. Числа в нём " +
+            "относятся к другому запуску и доказательством этого не являются.")
+        Save-Report
+        Write-Output "EXECUTED, МЕТРИКИ ОТ ПРОШЛОГО ПРОГОНА: $metricsFile. Report: $ReportPath"
+        exit 12
+    }
     try {
         $met = Get-Content -LiteralPath $metricsFile -Raw -Encoding UTF8 | ConvertFrom-Json
         $rows = @($met.metrics)
@@ -671,6 +690,58 @@ try {
         Write-Output "EXECUTED, МЕТРИКИ НЕЧИТАЕМЫ: $metricsFile. Report: $ReportPath"
         exit 12
     }
+    # ХВОСТ В РАБОЧЕМ ДЕРЕВЕ. Прогон, оставивший правку незакоммиченной, работу до
+    # пользователя не довёл: правка живёт только на этой машине, в origin её нет, и
+    # обновление плагина приносит прежний код. Ровно это случилось 13.08.2026 на
+    # TASK-OBS-0056 (ERR-2026-000236): 230 строк остались в дереве, версия осталась
+    # прежней, ЛПР обновил плагин в маркетплейсе и получил вчерашнюю сборку.
+    #
+    # Считаем ТОЛЬКО отслеживаемые файлы (--untracked-files=no). Рядом в одном репо
+    # работают параллельные сессии, и падать на ЧУЖОМ новом файле — это ложный отказ,
+    # который дороже пропущенного хвоста. Неотслеживаемое идёт отдельной строкой как
+    # замечание, а не как приговор.
+    #
+    # $ErrorActionPreference='Stop' превращает ЛЮБУЮ строку git в stderr в исключение —
+    # та же ловушка, что описана выше для node (строка ~253). Поэтому здесь тот же приём:
+    # на время вызовов ставим 'Continue' и судим по $LASTEXITCODE, а не по факту вывода.
+    $isRepo = $false; $dirty = ''; $untracked = ''; $checkFailed = ''
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & git -C $TargetPath rev-parse --git-dir *> $null
+        $isRepo = ($LASTEXITCODE -eq 0)
+        if ($isRepo) {
+            $dirty = (& git -C $TargetPath status --porcelain --untracked-files=no 2>$null | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0) { $checkFailed = "git status вернул $LASTEXITCODE" }
+            $untracked = (& git -C $TargetPath ls-files --others --exclude-standard 2>$null | Out-String).Trim()
+        }
+    } catch {
+        $checkFailed = $_.Exception.Message
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+    if ($checkFailed) {
+        # Третий исход, тот же контракт, что у скана секретов: непроверенное не
+        # сворачивается в «чисто». Прогон не валим, но и чистым не объявляем.
+        $transcript.Add("## ХВОСТ В РАБОЧЕМ ДЕРЕВЕ: ПРОВЕРИТЬ НЕ СМОГ`n$checkFailed ($TargetPath)")
+        $isRepo = $false
+    }
+    if ($isRepo) {
+        if ($dirty) {
+            $transcript.Add("## РАБОТА НЕ ДОВЕДЕНА ДО ВЫПУСКА`nВ $TargetPath остались " +
+                "незакоммиченные правки отслеживаемых файлов:`n~~~text`n$dirty`n~~~`n" +
+                "Прогон мог сделать работу правильно, но она осталась на этой машине. " +
+                "Закрытием задачи это не считается: коммит, версия, origin.")
+            Save-Report
+            Write-Output "EXECUTED, НО РАБОТА НЕ ЗАКОММИЧЕНА: $TargetPath. Report: $ReportPath"
+            exit 13
+        }
+        if ($untracked) {
+            $transcript.Add("## ЗАМЕЧАНИЕ: неотслеживаемые файлы в $TargetPath`n~~~text`n$untracked`n~~~`n" +
+                "Отказом не считается — рядом работают параллельные сессии, файл может быть чужим.")
+        }
+    }
+
     Save-Report
     Write-Output "EXECUTED. Рой работал: $($calls.Count) вызовов роя, $($distinct.Count) инструментов. Report: $ReportPath"
 } catch {
