@@ -24,6 +24,7 @@
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
@@ -197,11 +198,72 @@ def _status_of(path: str) -> str:
         return ""
 
 
+def _active_requests() -> list[str]:
+    """Одобренные заявки, чей outcome ещё должен собрать listener."""
+    active = []
+    try:
+        names = os.listdir(QUEUE)
+    except OSError:
+        return active
+    for name in names:
+        if not name.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(QUEUE, name), encoding="utf-8") as fh:
+                req = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        if (isinstance(req, dict) and req.get("status") == "approved"
+                and req.get("run_state") in (None, "", "waiting", "running")):
+            active.append(name)
+    return active
+
+
+def _listener_run_in_progress(req: dict) -> bool:
+    """Не дать второму detached launcher обогнать ещё не записанный hive.lock."""
+    try:
+        names = os.listdir(QUEUE)
+    except OSError:
+        return False
+    for name in names:
+        if not name.endswith(".json") or name == f"{req['id']}.json":
+            continue
+        try:
+            with open(os.path.join(QUEUE, name), encoding="utf-8") as fh:
+                other = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        if (isinstance(other, dict) and other.get("status") == "approved"
+                and other.get("run_state") == "running"):
+            return True
+    return False
+
+
 # Сколько ждать освобождения роя перед отложенным запуском. Три часа: столько живёт
 # самый долгий из наших прогонов с запасом. Больше — уже не «подхватит следующую», а
 # «запустит неизвестно когда».
 DEFERRED_START_LIMIT_S = 3 * 60 * 60
 HIVE_LOCK_FILE = os.path.join(r"E:\-4-\ruflo-hive", "hive.lock.json")
+
+
+def _request_path(req: dict) -> str:
+    return os.path.join(QUEUE, f"{req['id']}.json")
+
+
+def _save_request(req: dict) -> None:
+    """Атомарно сохранить служебное состояние запуска рядом с заявкой."""
+    path = _request_path(req)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(req, fh, ensure_ascii=False, indent=1)
+    os.replace(tmp, path)
+
+
+def _run_files(req: dict) -> tuple[str, str, str]:
+    """Файлы одного отцепленного запуска; id очищен только для имени файлов."""
+    safe_id = re.sub(r"[^A-Za-z0-9_-]", "_", str(req["id"]))
+    root = os.path.join(QUEUE, f"_run_{safe_id}")
+    return root + ".stdout.log", root + ".stderr.log", root + ".exit"
 
 
 def _hive_busy() -> bool:
@@ -214,8 +276,172 @@ def _hive_busy() -> bool:
     return os.path.isfile(HIVE_LOCK_FILE)
 
 
+def _run_task_argv(req: dict) -> list[str]:
+    """Собрать argv `run_task.ps1` ИЗ ПАРАМЕТРОВ уже проверенной заявки."""
+    argv = [
+        "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", RUN_TASK,
+        "-ObjectiveFile", req["objective_file"],
+        "-TargetPath", req["target_path"],
+        "-ReportPath", req["report"],
+        "-Workers", str(int(req.get("workers", 5))),
+        "-Priority", str(req.get("priority", "high")),
+        "-Approval", "I_APPROVE_RUFLO_PLAN",
+        "-ApprovalFile", _request_path(req),
+    ]
+    task_id = _task_id_of(req.get("title", ""))
+    if task_id:
+        argv += ["-TaskId", task_id]
+    return argv
+
+
+def _quote_ps(value: str) -> str:
+    """Строка PowerShell; проверенные пути сами по себе не содержат апострофов."""
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _launch_detached(req: dict) -> None:
+    """Запустить PowerShell отдельно от listener и оставить ему durable exit-marker."""
+    stdout_path, stderr_path, exit_path = _run_files(req)
+    try:
+        os.remove(exit_path)
+    except FileNotFoundError:
+        pass
+    argv = _run_task_argv(req)
+    # run_task использует `exit` на многих ветках, поэтому запускается дочерним
+    # PowerShell. Wrapper остаётся независимым процессом и после дочернего выхода
+    # атомарно пишет код: listener может прочесть marker после собственного рестарта,
+    # когда объекта Popen уже нет.
+    ps_args = " ".join(_quote_ps(str(value)) for value in argv[6:])
+    wrapper = (
+        f"& powershell.exe -NoProfile -ExecutionPolicy Bypass -File {_quote_ps(RUN_TASK)} {ps_args}\n"
+        "$code = $LASTEXITCODE\n"
+        f"[System.IO.File]::WriteAllText({_quote_ps(exit_path)}, [string]$code, "
+        "(New-Object System.Text.UTF8Encoding($false)))\n"
+        "exit $code\n"
+    )
+    encoded = base64.b64encode(wrapper.encode("utf-16le")).decode("ascii")
+    creationflags = 0
+    if os.name == "nt":
+        creationflags = (getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+                         | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200))
+    try:
+        with open(stdout_path, "wb") as stdout, open(stderr_path, "wb") as stderr:
+            subprocess.Popen(
+                ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                 "-EncodedCommand", encoded],
+                stdout=stdout, stderr=stderr, creationflags=creationflags,
+            )
+    except Exception as exc:
+        _queue_record(req.get("title", ""), "failed",
+                      f"запуск не состоялся: {type(exc).__name__}: {str(exc)[:200]}")
+        _notify(f"⚠ Заявка {req['id']}: запуск не состоялся — "
+                f"{type(exc).__name__}: {str(exc)[:200]}")
+        req["run_state"] = "launch_failed"
+        _save_request(req)
+        return
+    req.update({
+        "run_state": "running",
+        "run_started_at": time.time(),
+        "run_stdout": stdout_path,
+        "run_stderr": stderr_path,
+        "run_exit": exit_path,
+    })
+    _save_request(req)
+
+
+def _read_exit_code(path: str) -> int | None:
+    try:
+        with open(path, encoding="utf-8") as fh:
+            value = fh.read().strip()
+    except OSError:
+        return None
+    return int(value) if re.fullmatch(r"-?\d+", value) else None
+
+
+def _log_tail(path: str, limit: int = 64 * 1024) -> str:
+    try:
+        with open(path, "rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            fh.seek(max(0, fh.tell() - limit))
+            return fh.read().decode("utf-8", "replace").strip()
+    except OSError:
+        return ""
+
+
+def _finish_detached_run(req: dict, returncode: int) -> None:
+    """Отразить durable outcome завершившегося отцепленного процесса."""
+    took = int(time.time() - float(req.get("run_started_at", time.time())))
+    mins = f"{took // 60} мин {took % 60} с" if took >= 60 else f"{took} с"
+    out = _log_tail(str(req.get("run_stdout", "")))
+    codes = {
+        0: "✅ Рой отработал",
+        4: "ℹ Рой уже занят другой задачей — эта присоединится к очереди",
+        6: "⚠ Не запущено: MCP не зарегистрирован для канонического роя",
+        7: "⚠ Не запущено: движок не нашёл Claude Code (тихая деградация)",
+        8: "⚠ Не запущено: истекла авторизация Claude Code — нужен claude auth login",
+        9: "⚠ Queen-сессия завершилась с ошибкой",
+        11: "⚠ Отработало, НО роя не было: ни одного вызова mcp__claude-flow__",
+    }
+    head = codes.get(returncode, f"⚠ Код выхода {returncode}")
+    verdict = ""
+    for line in out.splitlines():
+        if "Рой работал" in line or "РОЯ НЕ БЫЛО" in line or "SECRET SCAN" in line:
+            verdict += "\n" + line.strip()
+    if returncode == 4:
+        state_note = _queue_record(
+            req.get("title", ""), "queued",
+            "возвращена в очередь: рой был занят другой задачей, прогон не начинался"
+        )
+    else:
+        closing = "done" if returncode == 0 else "failed"
+        state_note = _queue_record(
+            req.get("title", ""), closing,
+            f"{head}; заняло {mins}; отчёт {req.get('report', '')}")
+    req["run_state"] = "finished"
+    req["run_returncode"] = returncode
+    req["run_finished_at"] = time.time()
+    _save_request(req)
+    _notify(f"{head} — заявка {req['id']}, заняло {mins}{verdict[:600]}\n\n"
+            f"Отчёт: {req.get('report', '')}"
+            + (f"\n\n⚠ Очередь: {state_note}" if state_note else ""))
+    if returncode != 4:
+        _push_next()
+
+
+def _advance_run(req: dict) -> None:
+    """Один неблокирующий шаг отложенного или уже запущенного прогона."""
+    state = str(req.get("run_state") or "waiting")
+    if state == "running":
+        code = _read_exit_code(str(req.get("run_exit", "")))
+        if code is not None:
+            _finish_detached_run(req, code)
+        return
+    if state != "waiting":
+        return
+    now = time.time()
+    deadline = float(req.get("deferred_deadline", now + DEFERRED_START_LIMIT_S))
+    if now >= deadline:
+        req["run_state"] = "deferred_expired"
+        _save_request(req)
+        _notify(f"⚠ Заявка {req['id']}: рой не освободился за "
+                f"{DEFERRED_START_LIMIT_S // 3600} ч — НЕ запускаю. Подтвердить заново.")
+        return
+    if _hive_busy() or _listener_run_in_progress(req):
+        if not req.get("deferred_notified"):
+            _notify(f"⏳ Заявка {req['id']}: рой занят, запуск отложен до освобождения "
+                    f"(жду до {DEFERRED_START_LIMIT_S // 3600} ч)")
+            req["deferred_notified"] = True
+            _save_request(req)
+        return
+    state_note = _queue_record(req.get("title", ""), "approved",
+                               f"заявка {req['id']} подтверждена кнопкой, прогон начат")
+    if state_note:
+        req["queue_start_note"] = state_note
+    _launch_detached(req)
+
+
 def _run_request(req: dict) -> None:
-    """Собрать вызов run_task.ps1 ИЗ ПАРАМЕТРОВ заявки и выполнить.
+    """Проверить заявку и запланировать её неблокирующий запуск.
 
     ЗДЕСЬ НЕ СТРОИТСЯ СТРОКА КОМАНДЫ. Переписано 08.08.2026 после codex review,
     который нашёл blocker: прежняя версия склеивала `powershell -Command` из
@@ -271,115 +497,40 @@ def _run_request(req: dict) -> None:
                 f"Подтвердить заново по актуальному тексту.")
         return
 
-    # ПОДТВЕРЖДЁННАЯ ЗАЯВКА ЖДЁТ ОСВОБОЖДЕНИЯ РОЯ, А НЕ ОТВЕРГАЕТСЯ.
-    #
-    # Указание ЛПР 13.08.2026: он подтверждает следующую задачу ДО того, как уйти, чтобы
-    # она подхватилась сама по окончании текущей. Раньше нажатие при занятом рое давало
-    # `exit 4` («рой уже работает») — то есть человек должен был дежурить у кнопки ровно
-    # в момент освобождения.
-    #
-    # Гейт при этом НЕ ослабляется: подтверждение уже дано человеком, на конкретную заявку,
-    # с её собственной подписью. Ждём мы ИСПОЛНЕНИЯ, а не разрешения.
-    #
-    # Ожидание ограничено: не дождались за срок — заявка не запускается, и это говорится
-    # вслух. Тихо запустить через сутки было бы хуже отказа: обстановка изменилась, а
-    # человек, нажавший кнопку, об этом уже не помнит.
-    waited = 0
-    while _hive_busy() and waited < DEFERRED_START_LIMIT_S:
-        if waited == 0:
-            _notify(f"⏳ Заявка {req['id']}: рой занят, запуск отложен до освобождения "
-                    f"(жду до {DEFERRED_START_LIMIT_S // 3600} ч)")
-        time.sleep(30)
-        waited += 30
-    if _hive_busy():
-        _notify(f"⚠ Заявка {req['id']}: рой не освободился за "
-                f"{DEFERRED_START_LIMIT_S // 3600} ч — НЕ запускаю. Подтвердить заново.")
-        return
+    # Состояние ожидания хранится в заявке: после рестарта listener продолжит ждать
+    # тот же срок, а не потеряет уже данное человеком разрешение. Ни sleep, ни wait
+    # здесь нет — следующий poll-loop сам сделает один короткий шаг.
+    if not req.get("run_state"):
+        req["run_state"] = "waiting"
+        req["deferred_started_at"] = time.time()
+        req["deferred_deadline"] = req["deferred_started_at"] + DEFERRED_START_LIMIT_S
+        _save_request(req)
+    _advance_run(req)
 
-    argv = [
-        "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", RUN_TASK,
-        "-ObjectiveFile", objective_file,
-        "-TargetPath", target,
-        "-ReportPath", report,
-        "-Workers", str(workers),
-        "-Priority", priority,
-        "-Approval", "I_APPROVE_RUFLO_PLAN",
-        # Путь к самой заявке уходит в текст цели: сессия читает её и убеждается в
-        # одобрении сама. Утверждение обвязки «гейт пройден» доказательством не было —
-        # 14.08.2026 Queen на TASK-OBS-0055 не нашла артефакта и отказалась работать,
-        # применив к обвязке её же правило.
-        "-ApprovalFile", os.path.join(QUEUE, f"{req['id']}.json"),
-    ]
-    # Идентификатор задачи уходит В ЗАМОК: пока рой работает, замок обязан называть,
-    # ЧЬЯ это работа — иначе по нему нельзя ни восстановить строку таблицы, ни отличить
-    # свою отметку от пережившей чужой (`ruflo_queue reconcile`).
-    task_id = _task_id_of(req.get("title", ""))
-    if task_id:
-        argv += ["-TaskId", task_id]
-    # Строка очереди помечается ДО запуска, а не после: пока рой работает, очередь
-    # обязана показывать его занятым, иначе соседняя сессия выдаст вторую задачу.
-    state_note = _queue_record(req.get("title", ""), "approved",
-                               f"заявка {req['id']} подтверждена кнопкой, прогон начат")
-    started = time.time()
+
+def _service_runs() -> None:
+    """На каждом poll-loop обслужить ожидания и completion marker всех заявок."""
     try:
-        proc = subprocess.run(argv, capture_output=True, text=True,
-                              encoding="utf-8", errors="replace")
-    except Exception as exc:
-        # Запуск не состоялся вовсе. Без этого строка оставалась бы approved навсегда
-        # (blocker codex review 09.08.2026): отметка уже стоит, а закрывающей записи
-        # не будет — исключение уходит в цикл, минуя весь код ниже.
-        _queue_record(req.get("title", ""), "failed",
-                      f"запуск не состоялся: {type(exc).__name__}: {str(exc)[:200]}")
-        _notify(f"⚠ Заявка {req['id']}: запуск не состоялся — "
-                f"{type(exc).__name__}: {str(exc)[:200]}")
+        names = [name for name in os.listdir(QUEUE) if name.endswith(".json")]
+    except OSError:
         return
-    took = int(time.time() - started)
-    mins = f"{took // 60} мин {took % 60} с" if took >= 60 else f"{took} с"
-    out = (proc.stdout or "").strip()
-
-    # Итог человеческим языком, а не обрывком вывода: коды выхода run_task.ps1
-    # осмысленные, и ЛПР должен видеть СМЫСЛ, а не число. Хвост вывода —
-    # ниже и коротко, для тех случаев, когда важны детали.
-    codes = {
-        0: "✅ Рой отработал",
-        4: "ℹ Рой уже занят другой задачей — эта присоединится к очереди",
-        6: "⚠ Не запущено: MCP не зарегистрирован для канонического роя",
-        7: "⚠ Не запущено: движок не нашёл Claude Code (тихая деградация)",
-        8: "⚠ Не запущено: истекла авторизация Claude Code — нужен claude auth login",
-        9: "⚠ Queen-сессия завершилась с ошибкой",
-        11: "⚠ Отработало, НО роя не было: ни одного вызова mcp__claude-flow__",
-    }
-    head = codes.get(proc.returncode, f"⚠ Код выхода {proc.returncode}")
-    verdict = ""
-    for line in out.splitlines():
-        if "Рой работал" in line or "РОЯ НЕ БЫЛО" in line or "SECRET SCAN" in line:
-            verdict += "\n" + line.strip()
-    # Исход — в ту же строку очереди.
-    #
-    # Код 4 («рой уже занят другой задачей») исходом НЕ является: задача не
-    # отработала и не провалилась, она просто не начиналась. Её надо ВЕРНУТЬ в
-    # queued, а не оставить как есть: перед запуском строка уже помечена approved,
-    # и «не трогаем состояние» означало бы вечное approved — строку, которая врёт
-    # про идущий прогон. Очередь из-за неё больше не встаёт (занятость решает
-    # замок), но врущая строка остаётся врущей, пока её кто-нибудь не починит.
-    # Найдено codex review 09.08.2026 как blocker; первая редакция так и делала.
-    if proc.returncode == 4:
-        state_note = _queue_record(
-            req.get("title", ""), "queued",
-            "возвращена в очередь: рой был занят другой задачей, прогон не начинался"
-        ) or state_note
-    else:
-        closing = "done" if proc.returncode == 0 else "failed"
-        state_note = _queue_record(
-            req.get("title", ""), closing,
-            f"{head}; заняло {mins}; отчёт {req.get('report', '')}") or state_note
-    _notify(f"{head} — заявка {req['id']}, заняло {mins}{verdict[:600]}\n\n"
-            f"Отчёт: {req.get('report', '')}"
-            + (f"\n\n⚠ Очередь: {state_note}" if state_note else ""))
-    # После возврата в очередь выдавать нечего: занят тот самый рой, из-за которого
-    # прогон и не начался. Выдаст его собственное закрытие.
-    if proc.returncode != 4:
-        _push_next()
+    for name in names:
+        path = os.path.join(QUEUE, name)
+        try:
+            with open(path, encoding="utf-8") as fh:
+                req = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        if not isinstance(req, dict) or req.get("status") != "approved":
+            continue
+        # Уже запущенный процесс не надо заново валидировать: файл цели мог
+        # законно измениться ПОСЛЕ его старта, а completion marker всё равно
+        # обязан попасть в очередь и Telegram. До запуска (waiting/без state)
+        # подпись проверяется через _run_request на каждом восстановлении.
+        if req.get("run_state") == "running":
+            _advance_run(req)
+        elif req.get("run_state") in (None, "", "waiting"):
+            _run_request(req)
 
 
 def _push_next() -> None:
@@ -433,6 +584,12 @@ HEARTBEAT_EVERY = 40      # строка «жив, последний успеш
 def poll_once(chat_id: str) -> int:
     global _fail_streak, _last_ok_at, _cycle, _first_poll_done
     _cycle += 1
+    # Heartbeat относится к самому живому циклу, а не к исходу getUpdates или
+    # завершению роя: долгий detached run больше не может сделать журнал немым.
+    if _cycle % HEARTBEAT_EVERY == 0:
+        print(f"жив, цикл {_cycle}, последний успешный опрос "
+              f"{time.strftime('%H:%M:%S', time.localtime(_last_ok_at))}", flush=True)
+    _service_runs()
     offset = _load_offset()
     resp = _api("getUpdates", {"offset": offset, "timeout": 50, "allowed_updates": ["callback_query"]})
     if not resp.get("ok"):
@@ -452,11 +609,6 @@ def poll_once(chat_id: str) -> int:
         print(f"опрос восстановлен после {_fail_streak} неудач подряд", flush=True)
         _fail_streak = 0
     _last_ok_at = time.time()
-    # Признак жизни, не зависящий от входящих: молчание журнала перестаёт быть
-    # неотличимым от «нажатий не было».
-    if _cycle % HEARTBEAT_EVERY == 0:
-        print(f"жив, цикл {_cycle}, последний успешный опрос "
-              f"{time.strftime('%H:%M:%S', time.localtime(_last_ok_at))}", flush=True)
     # НАКОПЛЕННОЕ НАЖАТИЕ. Первый опрос после старта забирает всё, что скопилось, пока
     # слушателя не было; исполнять это молча нельзя — человек нажимал в другой
     # обстановке и уже решил, что кнопка не работает.
@@ -575,18 +727,23 @@ def main() -> int:
         try:
             handled = poll_once(chat_id)
             if once:
+                active = _active_requests()
                 if handled:
                     # Закрытие задачи выдаёт следующую (`_push_next`), и её кнопку
                     # ловить некому, если выйти прямо сейчас. Выходим, когда ждать
-                    # больше нечего: неотвеченных заявок не осталось.
+                    # больше нечего: неотвеченных заявок и запущенных/отложенных
+                    # прогонов не осталось. Раньше `_run_request` сам блокировал
+                    # этот режим до исхода; теперь его outcome собирает poll-loop.
                     pending = [f for f in os.listdir(QUEUE) if f.endswith(".json")
                                and _status_of(os.path.join(QUEUE, f)) == "pending"]
-                    if not pending:
+                    active = _active_requests()
+                    if not pending and not active:
                         print("решение получено и обработано", flush=True)
                         return 0
-                    print(f"обработано; ждут решения ещё: {len(pending)}", flush=True)
+                    print(f"обработано; ждут решения: {len(pending)}, "
+                          f"прогонов в работе/ожидании: {len(active)}", flush=True)
                     deadline = time.time() + minutes * 60
-                if deadline and time.time() > deadline:
+                if deadline and time.time() > deadline and not active:
                     print("время ожидания истекло, решения не было", flush=True)
                     return 3
         except KeyboardInterrupt:
