@@ -48,11 +48,8 @@ def drive(responses, cycles):
     return buf.getvalue(), said
 
 
-saved = (al._api, al._notify, al._load_offset, al._save_offset, al.time.sleep,
-         al._service_runs)
+saved = (al._api, al._notify, al._load_offset, al._save_offset, al.time.sleep)
 try:
-    # Этот тест занимается transport/liveness, не реальной очередью машины.
-    al._service_runs = lambda: None
     # 1. Одна неудача — причина в журнал, человека не дёргаем.
     log, said = drive([{"ok": False, "error": "Conflict: terminated by other getUpdates"}], 1)
     ok("причина неудачи попадает в журнал", "Conflict" in log)
@@ -84,7 +81,6 @@ try:
     ok("свежее нажатие накопленным не объявляется",
        not any("до запуска слушателя" in s for s in said))
 finally:
-    (al._api, al._notify, al._load_offset, al._save_offset, al.time.sleep,
-     al._service_runs) = saved
+    (al._api, al._notify, al._load_offset, al._save_offset, al.time.sleep) = saved
 
 print(f"\n{n} проверок пройдено")

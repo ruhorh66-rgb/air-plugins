@@ -18,7 +18,6 @@ import json
 import os
 import sys
 import tempfile
-import base64
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -58,7 +57,7 @@ def _request(tmp: str) -> dict:
     return req
 
 
-def run_case(mutate) -> tuple[list[str] | None, list[str]]:
+def run_case(mutate) -> tuple[bool, list[str]]:
     """Возвращает (был ли запуск, что сказано человеку)."""
     launched: list[list[str]] = []
     said: list[str] = []
@@ -66,19 +65,22 @@ def run_case(mutate) -> tuple[list[str] | None, list[str]]:
         req = _request(tmp)
         mutate(req)
 
-        with open(os.path.join(tmp, f"{req['id']}.json"), "w", encoding="utf-8") as fh:
-            json.dump(req, fh)
-        saved = (al.subprocess.Popen, al._notify, al._queue_record, al._hive_busy, al.QUEUE)
-        al.QUEUE = tmp
-        al.subprocess.Popen = lambda argv, *a, **k: (launched.append(list(argv)), object())[1]
+        class _Proc:
+            returncode = 0
+            stdout = "EXECUTED."
+            stderr = ""
+
+        saved = (al.subprocess.run, al._notify, al._queue_record, al._hive_busy)
+        al.subprocess.run = lambda argv, *a, **k: (launched.append(list(argv)),
+                                                  _Proc())[1]
         al._notify = lambda text, **k: said.append(text)
         al._queue_record = lambda *a, **k: ""
         al._hive_busy = lambda: False
         try:
             al._run_request(req)
         finally:
-            (al.subprocess.Popen, al._notify, al._queue_record,
-             al._hive_busy, al.QUEUE) = saved
+            (al.subprocess.run, al._notify, al._queue_record,
+             al._hive_busy) = saved
     return (launched[0] if launched else None), said
 
 
@@ -86,12 +88,13 @@ def run_case(mutate) -> tuple[list[str] | None, list[str]]:
 argv, said = run_case(lambda r: None)
 ok("нетронутая заявка запускается", argv is not None)
 
-wrapper = base64.b64decode((argv or [])[-1]).decode("utf-16le") if argv else ""
 # 1а. И запускается С ПУТЁМ К ЗАЯВКЕ: сессия обязана иметь возможность проверить
 # одобрение сама. Утверждение «гейт пройден» доказательством не было — 14.08.2026
 # Queen на TASK-OBS-0055 не нашла артефакта и отказалась работать.
-ok("в запуск передан -ApprovalFile", "-ApprovalFile" in wrapper)
-ok("путь заявки ведёт на существующий файл заявки", "test0001.json" in wrapper)
+ok("в запуск передан -ApprovalFile", "-ApprovalFile" in (argv or []))
+ok("путь заявки ведёт на существующий файл заявки",
+   (argv or []).count("-ApprovalFile") == 1
+   and (argv or [])[(argv or []).index("-ApprovalFile") + 1].endswith("test0001.json"))
 
 # 2. Цель переписана после подписи — ровно случай 14.08.2026.
 def _rewrite(req: dict) -> None:
