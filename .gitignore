@@ -38,3 +38,7 @@ Thumbs.db
 # репозитория. Создаётся в каталоге запуска; проверено 14.08.2026: только
 # neural/stats.json и policy/state.json, секретов нет.
 .claude-flow/
+
+# мусор прогонов тестов ломает claude plugin update (EPERM scandir)
+.pytest_cache/
+__pycache__/
