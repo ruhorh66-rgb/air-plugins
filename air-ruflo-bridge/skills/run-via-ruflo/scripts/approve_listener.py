@@ -213,9 +213,27 @@ def _active_requests() -> list[str]:
                 req = json.load(fh)
         except (OSError, ValueError):
             continue
-        if (isinstance(req, dict) and req.get("status") == "approved"
-                and req.get("run_state") in (None, "", "waiting", "running")):
-            active.append(name)
+        if not isinstance(req, dict) or req.get("status") != "approved":
+            continue
+        # ТОЛЬКО явно названное состояние. Отсутствие поля значит, что заявка старше
+        # самой этой возможности, а не что её прогон ждёт сбора: поле run_state
+        # введено в 0.20.0-beta.1, и на момент введения в очереди лежало 28 давно
+        # закрытых заявок с 13.08. Прежнее условие включало пустое поле в «активные»,
+        # и слушатель каждый цикл пытался довести до конца 28 мёртвых запусков —
+        # порядка тринадцати тысяч уведомлений за семь часов. Схема поменялась,
+        # старые записи не мигрировали; читаем их как то, чем они являются.
+        if req.get("run_state") not in ("waiting", "running"):
+            continue
+        # Второй предохранитель, не зависящий от первого: заявка старше собственного
+        # TTL активной не бывает ни при каком состоянии. Он ловит и те записи, что
+        # застряли в waiting/running из-за падения, не дожидаясь новой находки.
+        try:
+            created = float(req.get("created_at") or 0)
+        except (TypeError, ValueError):
+            created = 0
+        if created and (time.time() - created) > TTL_SECONDS:
+            continue
+        active.append(name)
     return active
 
 

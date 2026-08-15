@@ -148,3 +148,39 @@ def test_exit_marker_is_recorded_after_listener_restart():
     assert any("Рой отработал" in text for text in notifications)
     assert after["run_state"] == "finished"
     assert after["run_returncode"] == 0
+
+
+def test_legacy_approved_request_without_run_state_is_not_active(monkeypatch):
+    """Регрессия флуда 14.08.2026: поле run_state введено бетой, а в очереди уже
+    лежали 28 закрытых заявок без него. Прежнее условие считало пустое поле
+    активным, и слушатель каждый цикл добивал мёртвые запуски — порядка
+    тринадцати тысяч уведомлений за семь часов. Отсутствие поля означает
+    «запись старше возможности», а не «прогон ждёт сбора».
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        monkeypatch.setattr(al, "QUEUE", tmp)
+
+        legacy = _request(tmp, "test0003")
+        legacy["status"] = "approved"
+        legacy["created_at"] = time.time() - 3 * 24 * 3600   # позавчерашняя
+        legacy.pop("run_state", None)
+
+        live = _request(tmp, "test0004")
+        live["status"] = "approved"
+        live["run_state"] = "running"
+
+        stuck = _request(tmp, "test0005")
+        stuck["status"] = "approved"
+        stuck["run_state"] = "running"
+        stuck["created_at"] = time.time() - (al.TTL_SECONDS + 60)  # застряла и протухла
+
+        for req in (legacy, live, stuck):
+            with open(os.path.join(tmp, f"{req['id']}.json"), "w", encoding="utf-8") as fh:
+                json.dump(req, fh)
+
+        active = al._active_requests()
+
+        assert active == ["test0004.json"], (
+            "активной должна быть только заявка с явным run_state и не старше TTL; "
+            f"получено {active}"
+        )
