@@ -63,64 +63,13 @@ def _save_offset(value: int) -> None:
 
 
 def run_request(req: dict) -> None:
-    """Запустить исполнителя по ПОДПИСАННОМУ типу задачи.
+    """Legacy Telegram adapter for the same host-neutral execution core.
 
-    Строка команды здесь не собирается и собраться не может: `task_type` — ключ
-    словаря `executors.REGISTRY`, параметры — подписанный объект, материал —
-    подписанный путь с подписанным хэшем.
+    The listener remains the sole component that reads Telegram callbacks.  It
+    does not own a second executor path, so direct and legacy requests receive
+    identical signature, registry, privacy, metrics, and protocol checks.
     """
-    spec = executors.REGISTRY.get(req["task_type"])
-    if spec is None or not spec["enabled"]:
-        worker.set_status(req["id"], "failed", finished_at=time.time(),
-                          result=json.dumps({"error": "тип задачи недоступен"},
-                                            ensure_ascii=False))
-        worker.notify(f"⚠ Заявка {req['id']}: тип {req['task_type']} недоступен, не запускаю")
-        return
-
-    os.makedirs(worker.OUT_DIR, exist_ok=True)
-    out_path = os.path.join(worker.OUT_DIR, f"{req['id']}.txt")
-    worker.set_status(req["id"], "approved", started_at=time.time())
-    started = time.time()
-    try:
-        with protocol.stage("executor_run", external=spec["external"],
-                            task_type=req["task_type"],
-                            input_sha256=req["input_sha256"][:16]):
-            result = spec["run"](req, req["params"], out_path)
-    except SystemExit as exc:
-        took = int(time.time() - started)
-        worker.set_status(req["id"], "failed", finished_at=time.time(),
-                          result=json.dumps({"error": str(exc)[:300]}, ensure_ascii=False))
-        worker.record_metric(f"air-worker {req['task_type']} {req['id']}",
-                             str(req["params"].get("model", "")), "", "", took,
-                             "failed", str(exc)[:120])
-        worker.notify(f"⚠ Заявка {req['id']} не отработала за {took} с: {str(exc)[:300]}")
-        return
-    except Exception as exc:  # noqa: BLE001 — слушатель не должен умирать от задачи
-        took = int(time.time() - started)
-        worker.set_status(req["id"], "failed", finished_at=time.time(),
-                          result=json.dumps({"error": f"{type(exc).__name__}: {exc}"[:300]},
-                                            ensure_ascii=False))
-        worker.record_metric(f"air-worker {req['task_type']} {req['id']}",
-                             str(req["params"].get("model", "")), "", "", took,
-                             "failed", f"{type(exc).__name__}"[:120])
-        worker.notify(f"⚠ Заявка {req['id']}: сбой {type(exc).__name__}: {str(exc)[:200]}")
-        return
-
-    took = int(time.time() - started)
-    worker.set_status(req["id"], "done", finished_at=time.time(),
-                      result=json.dumps(result, ensure_ascii=False))
-    worker.record_metric(
-        f"air-worker {req['task_type']} {req['id']}", str(result.get("model", "")),
-        result.get("tokens_in", ""), result.get("tokens_out", ""), took, "accepted",
-        f"chars_in={result.get('chars_in')} chars_out={result.get('chars_out')}")
-    mins = f"{took // 60} мин {took % 60} с" if took >= 60 else f"{took} с"
-    worker.notify(
-        f"✅ Заявка {req['id']} отработала за {mins}\n"
-        f"────────────────\n"
-        f"Тип: {req['task_type']}, модель: {result.get('model', '—')}\n"
-        f"Вход: {result.get('chars_in')} знаков · выход: {result.get('chars_out')} знаков\n"
-        f"Токенов: {result.get('tokens_in')} / {result.get('tokens_out')}\n"
-        f"Результат: {result.get('output_path')}")
+    worker.execute_request(req, notify_telegram=True)
 
 
 def poll_once(chat_id: str) -> int:
