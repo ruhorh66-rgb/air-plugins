@@ -574,11 +574,16 @@ def test_ladder_levels_4_5_execute_by_default():
     fake_result.close()
 
     def fake_claude_queue(*args: str, timeout: int = 600) -> str:
+        if args[:2] == ("capabilities", "--format"):
+            return json.dumps({"capabilities": ["run-job", "show-job-json"]})
         if args[0] == "enqueue-exec":
             return "задание 99 поставлено: claude-judgement-haiku (приоритет 5)\n"
         if args[0] == "show":
-            return (f"  status         done\n  result_path    {fake_result.name}\n"
-                   f"  error          None\n")
+            return json.dumps({"job_id": 99, "kind": "claude-judgement-haiku",
+                               "status": "done", "result_path": fake_result.name,
+                               "error_class": None})
+        if args[:2] == ("run", "--job"):
+            return "  [99] claude-judgement-haiku — done\n"
         return ""
 
     try:
