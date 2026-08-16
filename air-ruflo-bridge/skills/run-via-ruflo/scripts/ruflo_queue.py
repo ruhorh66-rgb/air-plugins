@@ -71,6 +71,14 @@ OMSK = timezone(timedelta(hours=6))  # контур живёт по Омску, 
 PAUSE_FILE = os.environ.get("RUFLO_QUEUE_PAUSE") or os.path.join(
     r"E:\-4-\skill-state\ruflo-approvals", "_paused.txt")
 
+# АВТОПРОДОЛЖЕНИЕ ОЧЕРЕДИ — решение ЛПР 16.08.2026: «рой берёт следующую
+# утверждённую задачу сам, я не сижу у Telegram и не жду рой». Выключено по
+# умолчанию (файла нет) — включает явная команда `chain on`, не подразумевается.
+# Читает listener (`_push_next`), не эта команда: здесь только переключатель,
+# исполнение — approve_listener.py.
+CHAIN_FILE = os.environ.get("RUFLO_QUEUE_CHAIN") or os.path.join(
+    r"E:\-4-\skill-state\ruflo-approvals", "_chain_on.txt")
+
 COLUMNS = ["task_id", "action", "objective", "work_dir", "workers", "priority", "by"]
 # `offered` — заявка на эту строку УЖЕ создана и ждёт кнопки. Состояние заведено,
 # потому что два подряд `push` при свободном рое делали ДВЕ кнопки на одну задачу, и
@@ -308,7 +316,11 @@ def _unreserve(task_id: str, why: str) -> None:
 
 
 def cmd_push(argv: list[str]) -> int:
-    """Взять следующую: dry-run, затем кнопка ЛПР. Порядок не сокращается."""
+    """Взять следующую: dry-run, затем кнопка ЛПР (или автопродолжение — см. --auto
+    и `chain on`). Порядок не сокращается."""
+    auto = "--auto" in argv
+    if auto:
+        argv = [a for a in argv if a != "--auto"]
     # Пауза проверяется ДО чтения страницы и до всякой правки строк: остановленная
     # очередь не должна оставлять следов, будто выдача начиналась. Код 6 выбран
     # не молчащим (в отличие от 3 и 4): слушатель на него шлёт уведомление, и
@@ -387,13 +399,13 @@ def cmd_push(argv: list[str]) -> int:
         hive_release()
 
     try:
-        return _offer(row)
+        return _offer(row, auto=auto)
     except BaseException as exc:   # SystemExit из _resolve — тоже отказ, а не выход
         _unreserve(row["task_id"], f"{type(exc).__name__}: {str(exc)[:150]}")
         raise
 
 
-def _offer(row: dict) -> int:
+def _offer(row: dict, auto: bool = False) -> int:
     """Dry-run по зарезервированной строке и кнопка ЛПР. Отказ снимает резерв."""
     objective = _resolve(row["objective"])
     work_dir = row["work_dir"]
@@ -451,10 +463,12 @@ def _offer(row: dict) -> int:
         _unreserve(row["task_id"], f"dry-run не прошёл, код {dry.returncode}")
         return dry.returncode
 
-    sent = subprocess.run(
-        [sys.executable, APPROVE, "create", report, objective, work_dir, workers, priority,
-         f"{row['task_id']} (очередь роя)"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    create_argv = [sys.executable, APPROVE, "create", report, objective, work_dir, workers,
+                   priority, f"{row['task_id']} (очередь роя)"]
+    if auto:
+        create_argv.append("--auto")
+    sent = subprocess.run(create_argv, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace")
     print(sent.stdout.strip() or sent.stderr.strip())
     if sent.returncode != 0:
         _unreserve(row["task_id"], f"заявка не создана, код {sent.returncode}")
@@ -616,8 +630,58 @@ def _selftest() -> int:
     return 0
 
 
+def cmd_chain(argv: list[str]) -> int:
+    """on/off/status — автопродолжение очереди без кнопки на каждую следующую задачу.
+
+    Указание ЛПР 16.08.2026, дословно: «прежде всего это очередь, а не явный гейт
+    ЛПР, смысл очереди — не реализован сейчас». Разграничение того же дня: гейт
+    ЛПР — это СОГЛАСОВАНИЕ ПОСТАНОВКИ (шесть разделов, диалог, `approved_by_lpr` в
+    файле) — оно не снимается НИЧЕМ и остаётся ручным для каждой задачи. Кнопка в
+    Telegram — второй, ИЗБЫТОЧНЫЙ гейт НА ТО ЖЕ САМОЕ решение, появившийся только
+    потому, что классификатор Claude Code не даёт ЭТОЙ сессии запустить рой сама.
+    Слушатель — не LLM-агент, а обычный процесс; когда он реагирует на закрытие
+    ОДНОЙ задачи запуском СЛЕДУЮЩЕЙ уже одобренной строки, классификатора это не
+    касается вообще.
+
+    Что остаётся неприкосновенным при chain on:
+      - `approved_by_lpr` в файле постановки — без него `push --auto` откажет тем
+        же кодом, что и ручной (dry-run это проверяет сам, до всякой кнопки);
+      - пауза (`_paused.txt`) полностью отменяет chain — `push` откажет кодом 6
+        до проверки chain-флага;
+      - самый первый рой сессии всё равно ждёт человека: chain включается ДЕЙСТВИЕМ
+        ЛПР («chain on»), не подразумевается по умолчанию.
+    """
+    sub = argv[0] if argv else "status"
+    if sub == "on":
+        stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(CHAIN_FILE, "w", encoding="utf-8") as fh:
+            fh.write(f"включено {stamp} — команда `chain on`\n")
+        print(f"автопродолжение ВКЛЮЧЕНО: {CHAIN_FILE}")
+        return 0
+    if sub == "off":
+        was_on = os.path.isfile(CHAIN_FILE)  # проверка ДО удаления — иначе сообщение
+                                              # всегда врало бы «уже было выключено»
+        try:
+            os.unlink(CHAIN_FILE)
+        except FileNotFoundError:
+            pass
+        print("автопродолжение выключено" if was_on
+              else "автопродолжение выключено (было уже выключено)")
+        return 0
+    if sub == "status":
+        if os.path.isfile(CHAIN_FILE):
+            print("автопродолжение ВКЛЮЧЕНО: " +
+                  open(CHAIN_FILE, encoding="utf-8").read().strip())
+        else:
+            print("автопродолжение выключено")
+        return 0
+    print("usage: chain on|off|status", file=sys.stderr)
+    return 2
+
+
 COMMANDS = {"list": cmd_list, "push": cmd_push, "record": cmd_record,
-            "reconcile": cmd_reconcile, "--selftest": lambda _a: _selftest()}
+            "reconcile": cmd_reconcile, "chain": cmd_chain,
+            "--selftest": lambda _a: _selftest()}
 
 
 def main(argv: list[str]) -> int:

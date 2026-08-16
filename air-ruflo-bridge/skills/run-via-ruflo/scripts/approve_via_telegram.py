@@ -180,9 +180,20 @@ def create(argv: list[str]) -> int:
     фиксированного шаблона, подставляя только цель, каталог и числа. Команды
     как строки в этом канале не существует.
     """
+    # --auto — заявка для АВТОПРОДОЛЖЕНИЯ уже согласованной очереди (решение ЛПР
+    # 16.08.2026, «рой берёт следующую утверждённую задачу сам, я не сижу у
+    # Telegram»). НЕ обходит согласование постановки — то согласование уже дано
+    # в чате раньше, до постановки строки в очередь; кнопка здесь дублировала бы
+    # его, а не защищала. Меняется одно: сообщение уходит БЕЗ inline_keyboard
+    # (нечего нажимать) и заявка сразу отмечается решённой listener'ом, не
+    # человеком. Подпись, TTL, sha256 материала — не меняются ничем: тот же
+    # путь, что и у ручной заявки, до самой отправки.
+    auto = "--auto" in argv
+    if auto:
+        argv = [a for a in argv if a != "--auto"]
     if len(argv) < 3:
         print("usage: create <report> <objective_file> <target_path> "
-              "[workers] [priority] [заголовок]", file=sys.stderr)
+              "[workers] [priority] [заголовок] [--auto]", file=sys.stderr)
         return 2
     report, objective_file, target = argv[0], argv[1], argv[2]
     workers = argv[3] if len(argv) > 3 else "5"
@@ -276,6 +287,16 @@ def create(argv: list[str]) -> int:
     except Exception:
         pass  # сводка не критична — заявка важнее и уйдёт следующей строкой
 
+    if auto:
+        # Информационное сообщение, не гейт: решение по ЭТОЙ работе принято раньше,
+        # согласованием постановки в чате. Кнопка здесь была бы вторым гейтом на
+        # то же самое решение — а не защитой.
+        _api("sendMessage", {
+            "chat_id": int(chat_id),
+            "text": f"🔗 Автопродолжение очереди — {text}",
+        })
+        return _finish_auto(rid, path)
+
     resp = _api("sendMessage", {
         "chat_id": int(chat_id),
         "text": text,
@@ -288,6 +309,29 @@ def create(argv: list[str]) -> int:
         raise SystemExit("Telegram отклонил отправку заявки")
 
     print(json.dumps({"request_id": rid, "queued": path, "pending": pending},
+                     ensure_ascii=False))
+    return 0
+
+
+def _finish_auto(rid: str, path: str) -> int:
+    """Пометить автозаявку approved и напечатать тот же JSON, что и у ручной.
+
+    Решает listener, не человек: постановка уже прошла гейт в чате, и это
+    решение записано ДО того, как строка вообще попала в очередь роя — здесь
+    только исполняется то, что уже согласовано, тем же путём (подпись,
+    verify_request при запуске), что и у нажатой кнопки.
+    """
+    with open(path, encoding="utf-8") as fh:
+        request = json.load(fh)
+    request["status"] = "approved"
+    request["decided_at"] = time.time()
+    request["message_id"] = None
+    request["approved_by"] = "chain-auto"
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(request, fh, ensure_ascii=False, indent=1)
+    os.replace(tmp, path)
+    print(json.dumps({"request_id": rid, "queued": path, "pending": 0, "auto": True},
                      ensure_ascii=False))
     return 0
 

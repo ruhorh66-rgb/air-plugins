@@ -41,6 +41,11 @@ except Exception:
 
 SERVICE = "air-comms-telegram-bot"
 QUEUE = r"E:\-4-\skill-state\ruflo-approvals"
+# Тот же путь, что CHAIN_FILE в ruflo_queue.py — литералом, а не импортом модуля:
+# так же дублируется QUEUE выше, и ruflo_queue.py вызывается subprocess'ом
+# (QUEUE_SCRIPT ниже), не импортируется — импорт module-level кода с своим CLI
+# добавил бы риск побочных эффектов при загрузке ради одной константы.
+CHAIN_FILE = os.path.join(QUEUE, "_chain_on.txt")
 TTL_SECONDS = 12 * 3600
 OFFSET_FILE = os.path.join(QUEUE, "_offset.txt")
 
@@ -456,19 +461,45 @@ def _push_next() -> None:
     «новая кнопка появилась» не было ни одного слова — самим фактом попытки
     никто не отчитывался. Строка ниже это закрывает: попытка объявляет о себе
     ДО результата, и тишина больше не может означать «ничего не произошло».
+
+    АВТОПРОДОЛЖЕНИЕ (`chain on`), тот же день, отдельное указание ЛПР: «прежде
+    всего это очередь, а не явный гейт ЛПР — смысл очереди не реализован сейчас».
+    Гейт ЛПР — согласование ПОСТАНОВКИ (шесть разделов, диалог, `approved_by_lpr`
+    в файле) — им не становится слабее ни при каком состоянии `chain`: `push --auto`
+    проверяет ту же отметку тем же dry-run'ом, что и обычный. Меняется только то,
+    нужен ли ЕЩЁ ОДИН клик на решение, которое уже принято. Пока `chain` выключен
+    (по умолчанию) — поведение ровно то же, что было: кнопка, ожидание человека.
     """
     _notify("🔗 Очередь: задача закрыта, ищу следующую в очереди…")
+    auto = os.path.isfile(CHAIN_FILE)
+    argv = [sys.executable, QUEUE_SCRIPT, "push"] + (["--auto"] if auto else [])
     try:
-        res = subprocess.run([sys.executable, QUEUE_SCRIPT, "push"],
-                             capture_output=True, text=True, encoding="utf-8",
+        res = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8",
                              errors="replace", timeout=1200)
     except Exception as exc:
         _notify(f"⚠ Очередь: следующую задачу выдать не удалось — {exc}")
         return
-    if res.returncode in (0, 3, 4):
+    if res.returncode not in (0, 3, 4):
+        _notify(f"⚠ Очередь: следующая задача не выдана, код {res.returncode}\n"
+                f"{((res.stderr or res.stdout) or '').strip()[-400:]}")
         return
-    _notify(f"⚠ Очередь: следующая задача не выдана, код {res.returncode}\n"
-            f"{((res.stderr or res.stdout) or '').strip()[-400:]}")
+    if not (auto and res.returncode == 0):
+        return  # обычный режим: кнопка уже ушла своим сообщением, ждём клика
+    # chain: `push --auto` создал заявку и САМ отметил её approved (_finish_auto
+    # в approve_via_telegram.py) — здесь только читаем request_id из его stdout
+    # и продолжаем ТЕМ ЖЕ путём, что и нажатая кнопка: verify_request, замок,
+    # subprocess.run, запись исхода. Ничего не обходится, просто клика не было.
+    try:
+        rid = json.loads((res.stdout or "").strip().splitlines()[-1])["request_id"]
+        path = os.path.join(QUEUE, f"{rid}.json")
+        with open(path, encoding="utf-8") as fh:
+            req = json.load(fh)
+    except Exception as exc:
+        _notify(f"⚠ Очередь (chain): заявку создал, но прочитать не смог — "
+                f"{type(exc).__name__}: {exc}. Дальше НЕ продолжаю сам, "
+                f"нужна кнопка.")
+        return
+    _run_request(req)
 
 
 # ПРИЗНАК ЖИЗНИ И ГРОМКИЙ ОТКАЗ (ERR-2026-000242, три случая за двое суток).
