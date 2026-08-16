@@ -401,6 +401,50 @@ def test_ladder_router_alive_returns_bool_never_raises():
     assert isinstance(ladder.router_alive(timeout=1.0), bool)
 
 
+def test_ladder_run_claim_skips_missing_paid_cmds_not_raises():
+    """TASK-OBS-0067: заявка ровно такого вида, какой строит
+    `apply_verification._run_escalation` (card_type/claim_to_verify/
+    candidates/openrouter_cmd/codex_cmd), но с ПУСТЫМИ openrouter_cmd/
+    codex_cmd, гоняется через РЕАЛЬНЫЙ `ladder.run_claim` (не подмену
+    целиком) — заявка должна дойти до ступеней 2 и 3 БЕЗ падения
+    исключением и закрыться скипом обеих платных ступеней.
+
+    Роутер второй ступени мокается ЖИВЫМ (`ladder._patch_global`), иначе
+    ступень 2 скипнется по мёртвому порту РАНЬШЕ проверки самого поля
+    `openrouter_cmd` — и тест не проверит то, что должен (см. ladder.demo(),
+    пункт 10, и комментарий там же).
+
+    НЕГАТИВНЫЙ КОНТРОЛЬ (обязателен по TASK-OBS-0067, проверено вручную, а
+    не предположено): если откатить правку ladder.level2_openrouter_free/
+    level3_codex (пустой cmd снова бросает ValueError вместо скипа), этот
+    тест ПАДАЕТ — исключение всплывает через escalate()/run_claim() и
+    main() ловит его как FAIL. Дословный вывод обеих попыток — в отчёте по
+    TASK-OBS-0067 (до отката правки 1 = провал этого теста, после
+    возврата — снова ok)."""
+    claim = {
+        "card_type": "risk",
+        "claim_to_verify": "утверждение под проверкой",
+        "candidates": ["cand1.pdf"],
+        "openrouter_cmd": "",
+        "codex_cmd": "",
+    }
+    priors_path = os.path.join(TMP, "ladder_priors_negtest.json")
+    with ladder._patch_global("router_alive", lambda *a, **k: True):
+        result = ladder.run_claim(claim, start_level=2, top_level=3, priors_path=priors_path)
+
+    assert result["outcome"] == "не смог", result
+    assert result["max_level_reached"] == 3, result
+    assert [step["level"] for step in result["log"]] == [2, 3], result["log"]
+
+    level2_result = result["log"][0]["result"]
+    level3_result = result["log"][1]["result"]
+    assert level2_result.get("skipped") is True, level2_result
+    assert "openrouter_cmd" in level2_result.get("reason", ""), level2_result
+    assert level3_result.get("skipped") is True, level3_result
+    assert "codex_cmd" in level3_result.get("reason", ""), level3_result
+    assert "исчерпана" in result["reason"], result["reason"]
+
+
 def test_apply_verification_evaluate_buckets_three_outcomes():
     """evaluate() раскладывает по корзинам контрактом verify_claim_level0:
     подтверждено -> closed; «не смог»+кандидаты -> escalatable;

@@ -15,7 +15,7 @@ skills/run-worker-task/
     listener.py         слушатель кнопки; запускает подписанный тип задачи
     executors.py        реестр типов задач — здесь и появляется второй тип
     protocol.py         протокол по этапам (JSONL, только скаляры)
-    selftest.py         python selftest.py — 9 проверок, без сети и keyring
+    selftest.py         python selftest.py — 27 проверок, без сети и keyring
     live_check.py       живой вызов исполнителя при сборке, без Telegram
 ```
 
@@ -40,7 +40,7 @@ skills/run-worker-task/
 ## Быстрая проверка
 
 ```powershell
-python skills\run-worker-task\scripts\selftest.py     # 9 проверок + protocol selfcheck
+python skills\run-worker-task\scripts\selftest.py     # 27 проверок + protocol selfcheck
 python skills\run-worker-task\scripts\worker.py lock  # свободен ли канал бота
 python skills\run-worker-task\scripts\protocol.py     # где ушло время
 ```

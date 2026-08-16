@@ -97,14 +97,70 @@ def _build_level0_writeback(closed, terminal) -> dict[str, dict[str, dict]]:
     return plans
 
 
+def _build_openrouter_cmd(claim_to_verify: str) -> str:
+    """Контракт вызова level2 (см. докстринг `ladder.level2_openrouter_free` и
+    `air-ruflo-bridge/skills/run-via-ruflo/SKILL.md`, § «провайдеры моделей»):
+    роутер второй ступени — `E:\\-4-\\codex-shim\\air_llm_router.py`, поднят
+    как HTTP-сервис на `ladder.ROUTER_URL` (OpenAI-совместимый
+    `/v1/chat/completions`, free-only guard требует суффикс `:free` в имени
+    модели). У самого роутера нет отдельного CLI (только `--selfcheck`),
+    поэтому команда ниже — POST на `ladder.ROUTER_URL` с телом запроса,
+    вынесенным во временный JSON-файл (claim_to_verify может содержать
+    кавычки/переносы — так их не нужно экранировать в командной строке).
+
+    ЗАГЛУШКА КОНТРАКТА (TASK-OBS-0067): реальная интеграция уровня 2 с этим
+    роутером — отдельная задача, вне объёма (см. границы §6 в ladder.py).
+    Здесь важно только, что поле непустое и осмысленно связано с
+    claim_to_verify, не точный CLI."""
+    payload = {
+        "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "messages": [{"role": "user",
+                     "content": f"Проверь второе мнение по заявке: {claim_to_verify}"}],
+    }
+    fd, path = tempfile.mkstemp(prefix="openrouter_claim_", suffix=".json")
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False)
+    return (f'curl -s -X POST "{ladder.ROUTER_URL}" '
+           f'-H "Content-Type: application/json" --data-binary "@{path}"')
+
+
+def _build_codex_cmd(claim_to_verify: str) -> str:
+    """Контракт вызова level3 (см. докстринг `ladder.level3_codex` и
+    `air-ruflo-bridge/skills/run-via-ruflo/SKILL.md`, § «Codex — ВОРКЕР роя»,
+    строки 293-296): Codex зовётся напрямую как воркер через
+    `codex-companion.mjs task --write "<кусок работы>"`. Точный путь до
+    `codex-companion.mjs` в этом дереве не найден — SKILL.md сам предупреждает,
+    что `${CLAUDE_PLUGIN_ROOT}` вне контекста плагина не определён, а
+    литеральный путь с версией ломается на её бампе, поэтому используем
+    переопределяемый переменной окружения плейсхолдер шима (по аналогии с
+    `E:\\-4-\\bin\\codex.cmd` для самого Codex CLI, см. там же).
+
+    ЗАГЛУШКА КОНТРАКТА (TASK-OBS-0067): реальная интеграция уровня 3 с
+    `codex:codex-cli-runtime` — отдельная задача, вне объёма. Здесь важно
+    только, что поле непустое и осмысленно связано с claim_to_verify."""
+    companion = os.environ.get("CODEX_COMPANION_SCRIPT", r"E:\-4-\bin\codex-companion.mjs")
+    text = str(claim_to_verify).replace('"', "'")
+    return f'node "{companion}" task --write "проверь утверждение: {text}"'
+
+
 def _run_escalation(row: dict, result: dict, paid_budget: int) -> dict:
     """Шаг 4: эскалация с уровня 1, лестница считает paid_calls_used против
     paid_budget сама (ladder.run_claim). next_action называет путь подъёма и
-    достигнутый уровень — не молчаливая замена статуса (2в)."""
+    достигнутый уровень — не молчаливая замена статуса (2в).
+
+    `openrouter_cmd`/`codex_cmd` строятся здесь (контракт вызова — в
+    докстринге соответствующего исполнителя `ladder.py`, см.
+    `_build_openrouter_cmd`/`_build_codex_cmd`) — без них ступени 2/3
+    раньше падали `ValueError`, теперь при отсутствии поля скипают сами
+    (TASK-OBS-0067), но заявка всё равно должна давать им шанс отработать
+    по-настоящему, если до них дошла эскалация."""
+    claim_to_verify = row.get("claim_to_verify", "")
     claim = {
         "card_type": row.get("card_type", ""),
-        "claim_to_verify": row.get("claim_to_verify", ""),
+        "claim_to_verify": claim_to_verify,
         "candidates": result["candidates"],
+        "openrouter_cmd": _build_openrouter_cmd(claim_to_verify),
+        "codex_cmd": _build_codex_cmd(claim_to_verify),
     }
     out = ladder.run_claim(claim, start_level=1, paid_budget=paid_budget)
     next_action = (

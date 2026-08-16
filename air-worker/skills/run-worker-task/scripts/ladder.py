@@ -219,13 +219,19 @@ def level2_openrouter_free(claim: dict) -> dict:
     видит и не трогает (граница §6).
 
     Ф2: роутер сейчас может быть не поднят — тогда СКИП с явной причиной, а
-    не исключение и не пустая заявка в очереди."""
+    не исключение и не пустая заявка в очереди. Та же логика — на само поле
+    команды: `claim['openrouter_cmd']` не передан (вызывающий код его не
+    построил) — тоже СКИП с причиной, а не ValueError; заявка не должна
+    падать исключением из-за отсутствующего необязательного на этом уровне
+    контракта."""
     if not router_alive():
         return {"ok": False, "skipped": True,
                 "reason": "роутер второй ступени не поднят (127.0.0.1:8090) — ступень пропущена"}
     cmd = claim.get("openrouter_cmd")
     if not cmd:
-        raise ValueError("level2: нужен claim['openrouter_cmd'] — команда вызова роутера")
+        return {"ok": False, "skipped": True,
+                "reason": "команда вызова роутера (claim['openrouter_cmd']) не передана — "
+                         "ступень пропущена"}
     out = _run_dispatcher("enqueue-exec", "--kind", "verify-claim-openrouter", "--cmd", cmd)
     job_id = _parse_job_id(out)
     if job_id is None:
@@ -240,10 +246,16 @@ def level2_openrouter_free(claim: dict) -> dict:
 def level3_codex(claim: dict) -> dict:
     """Codex, вне квоты: объёмные пакеты (сверка расчётов/таблиц/смет).
     `claim['codex_cmd']` строит вызывающий код (контракт вызова Codex CLI —
-    `codex:codex-cli-runtime`, не этот модуль)."""
+    `codex:codex-cli-runtime`, не этот модуль).
+
+    `claim['codex_cmd']` не передан — СКИП с явной причиной, а не исключение:
+    заявка не должна падать из-за отсутствующего необязательного на этом
+    уровне контракта, ровно как и на уровне 2 (см. level2_openrouter_free)."""
     cmd = claim.get("codex_cmd")
     if not cmd:
-        raise ValueError("level3: нужен claim['codex_cmd'] — команда вызова Codex")
+        return {"ok": False, "skipped": True,
+                "reason": "команда вызова Codex (claim['codex_cmd']) не передана — "
+                         "ступень пропущена"}
     out = _run_dispatcher("enqueue-exec", "--kind", "verify-claim-codex", "--cmd", cmd)
     job_id = _parse_job_id(out)
     if job_id is None:
@@ -697,12 +709,11 @@ def demo() -> None:
                        "нужно суждение модели")
         assert out["result"]["pending_orchestrator"] is True
 
-    # 7. уровень 3 проверяет обязательное поле команды ДО обращения к очереди
-    try:
-        LEVELS[3]["executor"]({})
-        raise AssertionError("level 3 должен был потребовать codex_cmd")
-    except ValueError:
-        pass
+    # 7. уровень 3 без codex_cmd — скип с явной причиной, а не исключение
+    out = LEVELS[3]["executor"]({})
+    assert out == {"ok": False, "skipped": True,
+                   "reason": "команда вызова Codex (claim['codex_cmd']) не передана — "
+                            "ступень пропущена"}
 
     # 8. уровень 0 — реальный файловый чек без сети и без очереди
     out = escalate({"originals_path": __file__}, 0, "старт снизу — заявка новая")
@@ -717,13 +728,12 @@ def demo() -> None:
         out = level2_openrouter_free({})
         assert out == {"ok": False, "skipped": True,
                        "reason": "роутер второй ступени не поднят (127.0.0.1:8090) — ступень пропущена"}
-    # ...а живой роутер по-прежнему требует openrouter_cmd
+    # ...а живой роутер без openrouter_cmd тоже скипает, не падает исключением
     with _patch_global("router_alive", lambda *a, **k: True):
-        try:
-            level2_openrouter_free({})
-            raise AssertionError("level2 должен был потребовать openrouter_cmd при живом роутере")
-        except ValueError:
-            pass
+        out = level2_openrouter_free({})
+        assert out == {"ok": False, "skipped": True,
+                       "reason": "команда вызова роутера (claim['openrouter_cmd']) не передана — "
+                                "ступень пропущена"}
 
     # 11. Ф5: wait_job дожидается ИМЕННО своего done, не первого "run" подряд
     with _patch_global("_run_dispatcher", _fake_queue({"42": ["queued", "queued", "done"]})):
