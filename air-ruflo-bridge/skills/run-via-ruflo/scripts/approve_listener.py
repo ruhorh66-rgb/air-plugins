@@ -214,6 +214,37 @@ def _hive_busy() -> bool:
     return os.path.isfile(HIVE_LOCK_FILE)
 
 
+def _undelivered_note(target: str) -> str:
+    """Пусто — целевой репозиторий чист. Иначе — предупреждение для заголовка
+    закрывающего сообщения, не для хвоста отчёта.
+
+    Найдено 16.08.2026 (указание ЛПР): три прогона подряд в один день закрылись
+    `success`, оставив реальную работу НЕЗАКОММИЧЕННОЙ на диске — и это было видно
+    только тому, кто открыл отчёт и дочитал до конца («работа могла быть сделана
+    правильно, но она осталась на этой машине»). Код возврата 0 отвечает «рой не
+    упал», не «работа доставлена» — это разные вопросы, и закрывающее сообщение
+    отвечало только на первый.
+
+    Проверка дешёвая (`git status --porcelain`, доли секунды) и не признак приёмки
+    задачи — метрики и коммит по-прежнему решает сама постановка; здесь только
+    ГРОМКОЕ уведомление о факте, который иначе читает лишь тот, кто откроет отчёт.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", target, "status", "--porcelain"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=30)
+    except Exception:
+        return ""  # не git-репозиторий или git недоступен — не наш случай, не шумим
+    if out.returncode != 0:
+        return ""
+    n = len([ln for ln in out.stdout.splitlines() if ln.strip()])
+    if n == 0:
+        return ""
+    return (f"⚠ РАБОТА НЕ ДОСТАВЛЕНА: {n} путей незакоммичено в {target}. "
+            f"Код возврата 0 означает «рой не упал», не «доставлено».")
+
+
 def _run_request(req: dict) -> None:
     """Обёртка: гарантирует автопродолжение очереди на КАЖДОМ терминальном исходе.
 
@@ -396,7 +427,9 @@ def _run_request_impl(req: dict) -> bool:
         state_note = _queue_record(
             req.get("title", ""), closing,
             f"{head}; заняло {mins}; отчёт {req.get('report', '')}") or state_note
-    _notify(f"{head} — заявка {req['id']}, заняло {mins}{verdict[:600]}\n\n"
+    undelivered = _undelivered_note(target) if proc.returncode == 0 else ""
+    _notify((f"{undelivered}\n\n" if undelivered else "")
+            + f"{head} — заявка {req['id']}, заняло {mins}{verdict[:600]}\n\n"
             f"Отчёт: {req.get('report', '')}"
             + (f"\n\n⚠ Очередь: {state_note}" if state_note else ""))
     # После возврата в очередь выдавать нечего: занят тот самый рой, из-за которого
