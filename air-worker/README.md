@@ -15,10 +15,14 @@ python skills/run-worker-task/scripts/worker.py create openrouter-llm <file> \
   --param instruction="..." --privacy external
 ```
 
-Set `AIR_WORKER_RUNTIME` to a host-local runtime directory. On hosts without the
-existing Windows keyring setup, supply `AIR_WORKER_HMAC_KEY` through the host secret
-store. `AIR_WORKER_FREE_ONLY=1` is the default and only admits `:free` OpenRouter
-models. `--privacy local` rejects external OpenRouter execution.
+Set `AIR_WORKER_RUNTIME` to a host-local runtime directory when you need an explicit
+location. Otherwise the resolver uses `AIR_RUNTIME_ROOT` when present, then the
+platform state directory (`%LOCALAPPDATA%/air-worker` or `$XDG_STATE_HOME/air-worker`).
+An existing legacy `E:\-4-\air-worker` state is read-compatible migration fallback only.
+On hosts without the existing Windows keyring setup, supply `AIR_WORKER_HMAC_KEY`
+through the host secret store. `AIR_WORKER_FREE_ONLY=1` is the default and only
+admits `:free` OpenRouter models. `--privacy local` rejects external OpenRouter
+execution.
 
 The contract is HMAC-signed and includes the task type, parameters, input path and
 input digest. Before execution the core rechecks the signature, registry, privacy,
@@ -52,5 +56,5 @@ are excluded from protocol and metrics. Results remain in the configured local
 runtime, identified by task id and status.
 
 Run `python skills/run-worker-task/scripts/selftest.py` for the offline suite.
-It includes 33 checks; live route verification is separate. See
+It includes 35 checks; live route verification is separate. See
 [docs/GOAL.md](docs/GOAL.md) and the shared skill for migration and acceptance.

@@ -26,16 +26,19 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from functools import wraps
 from pathlib import Path
+from runtime_paths import resolve_runtime_root, runtime_layout
 
 PLUGIN_NAME = "air-worker"
-DEFAULT_PATH = Path(rf"E:\-4-\{PLUGIN_NAME}\protocol.jsonl")
 ENV_VAR = "AIR_WORKER_PROTOCOL_PATH"
 
 _MAX_SCALAR_LEN = 200  # правило 1: длинная строка — не скаляр для этого протокола
 
 
 def _protocol_path() -> Path:
-    return Path(os.environ.get(ENV_VAR) or DEFAULT_PATH)
+    override = os.environ.get(ENV_VAR)
+    if override:
+        return Path(override)
+    return runtime_layout(resolve_runtime_root())["protocol"]
 
 
 def _scrub(fields: dict) -> dict:
@@ -81,12 +84,25 @@ def stage(name: str, external: str | None = None, **fields):
     outcome = "success"
     try:
         yield
-    except Exception:
+    except BaseException as exc:
         outcome = "error"
+        fields.update({"failure_class": "execution",
+                       "error_code": _safe_error_code(exc)})
         raise
     finally:
         emit(name, outcome, (time.perf_counter() - started) * 1000,
              external=external, **fields)
+
+
+def _safe_error_code(exc: BaseException) -> str:
+    """Stable taxonomy only; never serialize exception text or paths."""
+    if isinstance(exc, TimeoutError):
+        return "executor_timeout"
+    if isinstance(exc, ValueError):
+        return "malformed_response"
+    if isinstance(exc, SystemExit):
+        return "executor_failed"
+    return "executor_exception"
 
 
 def timed(name: str, external: str | None = None):

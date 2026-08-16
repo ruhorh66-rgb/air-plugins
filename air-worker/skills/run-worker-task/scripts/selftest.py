@@ -59,6 +59,7 @@ import ladder  # noqa: E402
 import listener  # noqa: E402
 import level0_check  # noqa: E402
 import protocol  # noqa: E402
+import runtime_paths  # noqa: E402
 import worker  # noqa: E402
 
 try:
@@ -340,6 +341,11 @@ def test_direct_core_rejects_tampered_signed_contract():
         conn.execute("UPDATE requests SET title=? WHERE id=?", ("подмена", req["id"]))
     outcome = worker.execute_request(worker.load(req["id"]), notify_telegram=False)
     assert outcome["status"] == "invalid", outcome
+    assert outcome["failure_class"] == "validation"
+    assert outcome["error_code"] == "request_invalid"
+    stored = json.loads(worker.load(req["id"])["result"])
+    assert stored == {"failure_class": "validation", "error_code": "request_invalid"}
+    assert MATERIAL not in Path(os.environ["AIR_WORKER_PROTOCOL_PATH"]).read_text(encoding="utf-8")
     assert worker.load(req["id"])["status"] == "invalid"
 
 
@@ -450,6 +456,18 @@ def test_runtime_layout_accepts_synthetic_posix_paths():
     layout = worker.runtime_layout(root)
     assert layout["db"] == PurePosixPath("/var/tmp/air-worker/worker.sqlite3")
     assert layout["out"] == PurePosixPath("/var/tmp/air-worker/out")
+    env = {"AIR_WORKER_RUNTIME": "C:/explicit", "AIR_RUNTIME_ROOT": "C:/documented",
+           "LOCALAPPDATA": "C:/Users/test/AppData/Local"}
+    assert runtime_paths.resolve_runtime_root(env, system="nt") == Path("C:/explicit")
+    env.pop("AIR_WORKER_RUNTIME")
+    assert runtime_paths.resolve_runtime_root(env, system="nt") == Path("C:/documented")
+    env.pop("AIR_RUNTIME_ROOT")
+    env["AIR_WORKER_LEGACY_RUNTIME"] = str(Path(TMP) / "missing-legacy")
+    assert runtime_paths.resolve_runtime_root(env, system="nt") == Path(
+        "C:/Users/test/AppData/Local/air-worker")
+    assert runtime_paths.resolve_runtime_root(
+        {"XDG_STATE_HOME": "/var/state", "AIR_WORKER_LEGACY_RUNTIME": "ignored"},
+        system="posix") == PurePosixPath("/var/state/air-worker")
 
 
 def test_queue_targeting_requires_capability_and_never_uses_global_run():

@@ -10,10 +10,12 @@ SQLite-заявку, повторно проверяет контракт пер
 в существующий `llm-queue`; собственный HTTP-клиент, subprocess-очередь и ключ
 OpenRouter не создаются.
 
-Задайте на хосте `AIR_WORKER_RUNTIME` (каталог SQLite, результатов и protocol JSONL).
-На Windows сохраняется прежний runtime как fallback; на POSIX fallback —
-`~/.air-worker`. Для host без Windows keyring задайте `AIR_WORKER_HMAC_KEY` через
-его секрет-хранилище. Пути в новом core строятся `pathlib`, не буквами дисков.
+Задайте на хосте `AIR_WORKER_RUNTIME` (каталог SQLite, результатов, metrics и
+protocol JSONL). Если его нет, core использует `AIR_RUNTIME_ROOT`, затем
+`%LOCALAPPDATA%/air-worker` на Windows или `$XDG_STATE_HOME/air-worker` на POSIX.
+Старый `E:\-4-\air-worker` выбирается только как read-compatible migration fallback
+при наличии прежнего state. Для host без Windows keyring задайте
+`AIR_WORKER_HMAC_KEY` через его секрет-хранилище. Пути строятся `pathlib`.
 
 ## Обычный порядок: direct
 
@@ -50,8 +52,9 @@ forbidden here. See `docs/GOAL.md` for the upstream blocker.
 - Результат, status и строка metrics содержат id, тип, модель, счётчики и код
   исхода; prompt, секреты, input/output paths и текст материала не пишутся в
   protocol или metrics. Protocol — append-only JSONL с отдельной `external` ногой.
-- Повторы/ретраи ограничены llm-queue; air-worker не запускает второй независимый
-  процесс. Платная эскалация не молчаливая: `ladder.escalate(..., reason)` требует
+- Повторы/ретраи, backoff, cancellation, durable resume и 429 handling не являются
+  контрактом air-worker; air-worker не запускает второй независимый процесс.
+  Платная эскалация не молчаливая: `ladder.escalate(..., reason)` требует
   причины.
 
 ## Legacy Telegram (не default)
