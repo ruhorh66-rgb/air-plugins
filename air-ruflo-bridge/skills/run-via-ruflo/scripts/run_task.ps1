@@ -257,29 +257,52 @@ $LockRoot = if ($env:RUFLO_REPORTS) { $env:RUFLO_REPORTS } else { $CanonicalHive
 $hiveSingle = Join-Path $PSScriptRoot 'hive_single.ps1'
 if (Test-Path -LiteralPath $hiveSingle) {
     $claim = & $hiveSingle -Action claim -Root $LockRoot -Owner "run_task-$PID" -TaskId $TaskId 2>$null
-    # Живой держатель (4) и нечитаемый замок (5) — оба отказ, и оба возвращаются
-    # вызывающему как есть: он должен видеть, ЧТО именно случилось, а не общий «1».
-    if ($LASTEXITCODE -ne 0) { $claim; exit $LASTEXITCODE }
-    $transcript.Add("## Замок роя`n~~~json`n$claim`n~~~")
+    $claimFailed = ($LASTEXITCODE -ne 0)
+
+    # ПРЕДПОКАЗ (без -Approval) БОЛЬШЕ НЕ ТРЕБУЕТ ИСКЛЮЧИТЕЛЬНОГО ЗАМКА.
+    #
+    # Переписано 16.08.2026 по указанию ЛПР: кнопка на следующую задачу должна
+    # приходить в Telegram ЗАРАНЕЕ, пока рой ещё занят текущей — human gate ниже
+    # (строка ~538) её и так не даст запуститься без -Approval, и ожидание после
+    # нажатия (approve_listener.py, _run_request_impl, deferred-wait) безопасно
+    # ждёт освобождения роя само. Раньше busy здесь означало fatal exit ДАЖЕ ДЛЯ
+    # ПРЕДПОКАЗА — единственная причина была не в занятости самого показа
+    # (предпоказ ничего не запускает и не мутирует), а в реконсиляции строк
+    # очереди чуть ниже, которая ТРЕБУЕТ доказанной небанятости роя, чтобы не
+    # снять отметку с чужого живого прогона.
+    #
+    # Для -Approval (реальный запуск) поведение НЕ МЕНЯЕТСЯ: busy остаётся fatal
+    # exit — реальный запуск обязан либо владеть замком, либо не начинаться.
+    if ($claimFailed -and $Approval) { $claim; exit $LASTEXITCODE }
+    if ($claimFailed) {
+        $transcript.Add("## Замок роя`nПредпоказ без -Approval: замок занят, реконсиляция " +
+            "строк ПРОПУЩЕНА (её делает только владелец замка). Остальной предпоказ " +
+            "идёт read-only.`n~~~json`n$claim`n~~~")
+    } else {
+        $transcript.Add("## Замок роя`n~~~json`n$claim`n~~~")
+    }
 
     # ПОЧИНКА СТРОК — ПРАВО ТОГО, КТО ВЗЯЛ ЗАМОК, и только его. Отметка `approved`,
     # пережившая свой прогон (падение между взятием замка и записью строки),
     # чинится здесь: замок только что взят нами, значит рой этими строками не занят.
     # Раньше это делал любой, кто заглянул в очередь, — и снимал отметку с прогона,
-    # который в этот момент шёл.
-    $queueScript = Join-Path $PSScriptRoot 'ruflo_queue.py'
-    $python = (Get-Command python -ErrorAction SilentlyContinue).Source
-    if ($python -and (Test-Path -LiteralPath $queueScript)) {
-        try {
-            # Без -Approval это ПОКАЗ заявки, а не прогон: строку в approved не двигаем.
-            $recArgs = @($queueScript, 'reconcile', $PID)
-            if (-not $Approval) { $recArgs += '--dry-run' }
-            $rec = & $python @recArgs 2>&1 | Out-String
-            $transcript.Add("## Очередь: reconcile`n~~~text`n$rec`n~~~")
-        } catch {
-            # Очередь недоступна — прогон из-за этого не отменяем: замок уже наш,
-            # и занятость роя от строки таблицы не зависит.
-            $transcript.Add("## Очередь: reconcile НЕ ВЫПОЛНЕН`n$($_.Exception.Message)")
+    # который в этот момент шёл. Пропускается целиком, если claim выше не удался —
+    # без владения замком снимать чужую отметку по-прежнему нельзя никому.
+    if (-not $claimFailed) {
+        $queueScript = Join-Path $PSScriptRoot 'ruflo_queue.py'
+        $python = (Get-Command python -ErrorAction SilentlyContinue).Source
+        if ($python -and (Test-Path -LiteralPath $queueScript)) {
+            try {
+                # Без -Approval это ПОКАЗ заявки, а не прогон: строку в approved не двигаем.
+                $recArgs = @($queueScript, 'reconcile', $PID)
+                if (-not $Approval) { $recArgs += '--dry-run' }
+                $rec = & $python @recArgs 2>&1 | Out-String
+                $transcript.Add("## Очередь: reconcile`n~~~text`n$rec`n~~~")
+            } catch {
+                # Очередь недоступна — прогон из-за этого не отменяем: замок уже наш,
+                # и занятость роя от строки таблицы не зависит.
+                $transcript.Add("## Очередь: reconcile НЕ ВЫПОЛНЕН`n$($_.Exception.Message)")
+            }
         }
     }
 }
