@@ -356,7 +356,10 @@ def cmd_push(argv: list[str]) -> int:
     #    замком, а владелец ровно один.
     state, why = hive_claim(row["task_id"])
     if state == "busy":
-        print(f"рой занят — новая задача не выдаётся: {why}", file=sys.stderr)
+        print(f"рой занят — новая задача НЕ ТРЕБУЕТ ручного push: {why}\n"
+              f"как только текущий прогон закроется, слушатель (_push_next) сам "
+              f"выдаст кнопку на {row['task_id']} — ждать и повторять эту команду "
+              f"не нужно", file=sys.stderr)
         return 4
     if state != "claimed":
         print(f"состояние замка неизвестно, руками разобраться: {why}\n"
