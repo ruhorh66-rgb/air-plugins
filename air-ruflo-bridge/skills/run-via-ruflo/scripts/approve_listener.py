@@ -215,7 +215,30 @@ def _hive_busy() -> bool:
 
 
 def _run_request(req: dict) -> None:
+    """Обёртка: гарантирует автопродолжение очереди на КАЖДОМ терминальном исходе.
+
+    Найдено codex review 16.08.2026 дважды подряд: `_push_next()` вызывался в
+    отдельных местах внутри `_run_request_impl`, и уже вторая правка «на месте»
+    пропустила ветку (сперва — исключение самого запуска, затем — ранние отказы
+    валидации/подписи/ожидания). Раздельные вызовы в теле функции — это ровно тот
+    вид дефекта, который сам себя чинить не умеет: каждый новый `return` обязан
+    ПОМНИТЬ позвать `_push_next()`, и рано или поздно кто-то забудет снова.
+
+    Здесь это не может не сработать структурно: `_run_request_impl` решает ТОЛЬКО
+    один вопрос — нужно ли продолжение (`True`), и возвращает его как значение,
+    а не как побочный вызов. Продолжения не будет РОВНО в одном случае — рой был
+    занят ДРУГОЙ задачей, и эта же заявка вернулась в `queued`; тогда выдавать
+    нечего, следующая кнопка придёт от закрытия ТОГО прогона."""
+    if _run_request_impl(req):
+        _push_next()
+
+
+def _run_request_impl(req: dict) -> bool:
     """Собрать вызов run_task.ps1 ИЗ ПАРАМЕТРОВ заявки и выполнить.
+
+    Возвращает True, если этот исход терминален для заявки и следующая
+    `queued`-строка должна получить кнопку (см. `_run_request` выше). False —
+    только когда рой занят ДРУГОЙ задачей и эта же заявка возвращена в очередь.
 
     ЗДЕСЬ НЕ СТРОИТСЯ СТРОКА КОМАНДЫ. Переписано 08.08.2026 после codex review,
     который нашёл blocker: прежняя версия склеивала `powershell -Command` из
@@ -239,16 +262,16 @@ def _run_request(req: dict) -> None:
     priority = str(req.get("priority", "high"))
     if not os.path.isfile(objective_file) or not os.path.isdir(target):
         _notify(f"⚠ Заявка {req['id']}: цель или каталог задачи исчезли, не запускаю")
-        return
+        return True
     if not (1 <= workers <= 32) or priority not in ("normal", "high", "critical"):
         _notify(f"⚠ Заявка {req['id']}: недопустимые параметры, не запускаю")
-        return
+        return True
     bad = [n for n, v in (("objective_file", objective_file), ("target_path", target),
                           ("report", report)) if not _safe_path(v)]
     if bad or not os.path.isdir(os.path.dirname(report)):
         _notify(f"⚠ Заявка {req['id']}: путь не проходит проверку ({', '.join(bad) or 'report'}), "
                 f"не запускаю")
-        return
+        return True
     # ПОДПИСЬ ПРОВЕРЯЕТСЯ ЗДЕСЬ, А НЕ ТОЛЬКО ПРИ СОЗДАНИИ ЗАЯВКИ.
     #
     # Найдено 14.08.2026 на живом прогоне TASK-OBS-0055 (ERR-2026-000237). Заявка несла
@@ -269,7 +292,7 @@ def _run_request(req: dict) -> None:
     if not ok:
         _notify(f"⚠ Заявка {req['id']}: НЕ запускаю — {why}. "
                 f"Подтвердить заново по актуальному тексту.")
-        return
+        return True
 
     # ПОДТВЕРЖДЁННАЯ ЗАЯВКА ЖДЁТ ОСВОБОЖДЕНИЯ РОЯ, А НЕ ОТВЕРГАЕТСЯ.
     #
@@ -294,7 +317,7 @@ def _run_request(req: dict) -> None:
     if _hive_busy():
         _notify(f"⚠ Заявка {req['id']}: рой не освободился за "
                 f"{DEFERRED_START_LIMIT_S // 3600} ч — НЕ запускаю. Подтвердить заново.")
-        return
+        return True
 
     argv = [
         "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", RUN_TASK,
@@ -332,12 +355,7 @@ def _run_request(req: dict) -> None:
                       f"запуск не состоялся: {type(exc).__name__}: {str(exc)[:200]}")
         _notify(f"⚠ Заявка {req['id']}: запуск не состоялся — "
                 f"{type(exc).__name__}: {str(exc)[:200]}")
-        # Найдено codex review 16.08.2026: этот выход тоже терминальный для ЭТОЙ
-        # заявки (рой не запущен, значит и не занят ею) — следующая queued-строка
-        # обязана получить кнопку так же, как после нормального закрытия. Без
-        # этого исключение здесь тихо останавливало автопродолжение очереди.
-        _push_next()
-        return
+        return True
     took = int(time.time() - started)
     mins = f"{took // 60} мин {took % 60} с" if took >= 60 else f"{took} с"
     out = (proc.stdout or "").strip()
@@ -382,9 +400,9 @@ def _run_request(req: dict) -> None:
             f"Отчёт: {req.get('report', '')}"
             + (f"\n\n⚠ Очередь: {state_note}" if state_note else ""))
     # После возврата в очередь выдавать нечего: занят тот самый рой, из-за которого
-    # прогон и не начался. Выдаст его собственное закрытие.
-    if proc.returncode != 4:
-        _push_next()
+    # прогон и не начался. Выдаст его собственное закрытие — код 4 единственный
+    # НЕ терминальный исход этой заявки, см. _run_request.
+    return proc.returncode != 4
 
 
 def _push_next() -> None:
