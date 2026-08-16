@@ -44,6 +44,7 @@ import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from runtime_paths import resolve_runtime_root, runtime_layout as shared_runtime_layout
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -56,25 +57,13 @@ HMAC_ACCOUNT = "request-hmac-key"    # тот же ключ подписи — �
                                      # же секрет чек-лист заводить запрещает (§ 6)
 
 def _default_runtime() -> Path:
-    """Keep the installed Windows location, with a usable POSIX default.
-
-    Hosts should normally set ``AIR_WORKER_RUNTIME``.  The fallback is only for
-    a standalone local installation; it deliberately does not make a drive
-    letter part of the task contract.
-    """
-    if os.name == "nt":
-        return Path(r"E:\-4-\air-worker")  # existing AIR OS installation
-    return Path.home() / ".air-worker"
+    """Compatibility wrapper used by older callers and tests."""
+    return resolve_runtime_root()
 
 
 def runtime_layout(root: Path) -> dict[str, Path]:
     """Build runtime paths without assuming a Windows drive or shell syntax."""
-    return {
-        "db": root / "worker.sqlite3",
-        "lock": root / "listener.lock.json",
-        "offset": root / "offset.txt",
-        "out": root / "out",
-    }
+    return shared_runtime_layout(root)
 
 
 _RUNTIME_ROOT = Path(os.environ["AIR_WORKER_RUNTIME"]) if os.environ.get("AIR_WORKER_RUNTIME") else _default_runtime()
@@ -85,7 +74,7 @@ LOCK_PATH = str(_RUNTIME_LAYOUT["lock"])
 OFFSET_PATH = str(_RUNTIME_LAYOUT["offset"])
 OUT_DIR = str(_RUNTIME_LAYOUT["out"])
 METRICS_PATH = (os.environ.get("AIR_WORKER_METRICS_PATH")
-                or r"E:\-5-\010_Task_Control_Platform\00_REGISTRY\run_metrics.csv")
+                or str(_RUNTIME_LAYOUT["metrics"]))
 
 TTL_SECONDS = 12 * 3600
 MAX_INPUT_BYTES = 5 * 1024 * 1024
@@ -93,6 +82,20 @@ OMSK = timezone(timedelta(hours=6))  # контур живёт по Омску, 
 
 SIGNED_FIELDS = ("id", "title", "task_type", "input_path", "input_sha256",
                  "params", "created_at", "ttl_seconds")
+
+
+def failure_metadata(error_code: str) -> dict[str, str]:
+    """Return a stable, redacted failure taxonomy for receipts and protocol."""
+    safe = error_code if error_code.replace("_", "").isalnum() else "worker_failure"
+    if safe.startswith("contract") or safe.startswith("request"):
+        category = "validation"
+    elif safe.startswith("input"):
+        category = "input"
+    elif safe.startswith("executor") or safe.startswith("queue"):
+        category = "execution"
+    else:
+        category = "worker"
+    return {"failure_class": category, "error_code": safe}
 
 
 # --- секреты -----------------------------------------------------------------
@@ -454,23 +457,28 @@ def execute_request(req: dict, *, notify_telegram: bool = False) -> dict:
     import protocol
 
     def fail(code: str, started: float | None = None) -> dict:
+        metadata = failure_metadata(code)
         took = int(time.time() - started) if started is not None else 0
         set_status(req["id"], "failed", finished_at=time.time(),
-                   result=json.dumps({"error": code}, ensure_ascii=False))
+                   result=json.dumps(metadata, ensure_ascii=False))
+        protocol.emit("request_failure", "error", took * 1000,
+                      **metadata)
         record_metric(f"air-worker {req.get('task_type', '?')} {req['id']}",
                       str(req.get("params", {}).get("model", "")), "", "", took,
-                      "failed", code)
+                      "failed", metadata["error_code"])
         if notify_telegram:
-            notify(f"⚠ Заявка {req['id']} не отработала: {code}")
-        return {"id": req["id"], "status": "failed", "error": code}
+            notify(f"⚠ Заявка {req['id']} не отработала: {metadata['error_code']}")
+        return {"id": req["id"], "status": "failed", **metadata}
 
     ok, why = verify_request(req)
     if not ok:
+        metadata = failure_metadata("request_invalid")
         set_status(req["id"], "invalid", finished_at=time.time(),
-                   result=json.dumps({"error": why}, ensure_ascii=False))
+                   result=json.dumps(metadata, ensure_ascii=False))
+        protocol.emit("request_failure", "error", 0, **metadata)
         if notify_telegram:
-            notify(f"⛔ Заявка {req['id']} НЕ запущена — {why}")
-        return {"id": req["id"], "status": "invalid", "error": why}
+            notify(f"⛔ Заявка {req['id']} НЕ запущена — {metadata['error_code']}")
+        return {"id": req["id"], "status": "invalid", **metadata}
     try:
         spec = executors.get(req["task_type"])
     except SystemExit as exc:

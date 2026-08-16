@@ -40,11 +40,11 @@ the Telegram approval path solely as an explicit legacy compatibility mode.
 Installation, marketplace/cache changes, tag/push/merge, and changing `defaultEnabled`
 require their own explicit release decision after live acceptance.
 
-## Release blocker: queue capability contract
+## Queue capability and deferred controls
 
-The currently installed `llm-queue` exposes only global `run --limit`; under concurrent
-work it can process an unrelated job. Version 0.3.0 therefore fails closed unless the
-queue advertises JSON capabilities `run-job` and `show-job-json` and implements
-targeted `run --job` plus `show --job --json`. This repository does not alter the
-queue or its database. Direct execution intentionally makes no cancellation, backoff,
-or 429-handling claim beyond the queue's own current behavior.
+Direct execution requires the queue to advertise JSON capabilities `run-job` and
+`show-job-json`, and uses only targeted `run --job` plus `show --job --json`. The
+feature worktree supplies that contract; an older installed queue still fails closed
+rather than using global `run --limit`. This repository does not access the queue
+database. Retry/backoff policy, cancellation, durable resume, and 429 handling remain
+explicitly deferred; no support for those controls is claimed here.
