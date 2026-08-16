@@ -33,6 +33,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 
@@ -69,20 +70,31 @@ def _await_job(job_out: str, timeout: int) -> dict:
         raise SystemExit(f"не удалось разобрать id задания llm-queue: {job_out!r}")
     try:
         ladder._run_dispatcher("run", "--job", job_id, timeout=timeout)
-        return ladder._parse_show(
-            ladder._run_dispatcher("wait", "--job", job_id, "--timeout", str(timeout),
-                                   timeout=timeout + 5))
-    except subprocess.TimeoutExpired:
-        # A caller timeout must request durable queue cancellation, not leave a
-        # running external job orphaned.  Failure to cancel is itself fail-closed.
-        try:
-            ladder._run_dispatcher("cancel", "--job", job_id, timeout=15)
-        except Exception as exc:  # noqa: BLE001
-            raise SystemExit("queue timeout; targeted cancellation unavailable") from exc
-        raise SystemExit("queue timeout; targeted job cancelled")
+    except SystemExit:
+        # A targeted job can fail/requeue and therefore return nonzero.  Its
+        # JSON receipt, not CLI prose, remains the source of the final state.
+        pass
+    except subprocess.TimeoutExpired as exc:
+        # The approved minimal queue API has no cancellation claim.  Do not
+        # pretend this subprocess timeout killed an external job.
+        raise SystemExit("targeted queue run timed out; reconciliation required") from exc
+
+    deadline = time.monotonic() + timeout
+    while True:
+        receipt = _show_target_job(job_id)
+        status = receipt.get("status")
+        if status in ("done", "failed"):
+            return receipt
+        if status == "queued":
+            raise SystemExit("targeted queue job requeued; retry policy belongs to llm-queue")
+        if status == "unknown":
+            raise SystemExit("targeted queue job disappeared")
+        if time.monotonic() >= deadline:
+            raise SystemExit("targeted queue wait timed out; reconciliation required")
+        time.sleep(min(1.0, max(0.05, deadline - time.monotonic())))
 
 
-_REQUIRED_QUEUE_CAPABILITIES = {"run-job", "wait-job", "cancel-job"}
+_REQUIRED_QUEUE_CAPABILITIES = {"run-job", "show-job-json"}
 
 
 def _require_targeted_queue() -> None:
@@ -92,11 +104,25 @@ def _require_targeted_queue() -> None:
         payload = json.loads(raw)
         capabilities = set(payload.get("capabilities", [])) if isinstance(payload, dict) else set()
     except Exception as exc:  # current dispatcher deliberately lands here
-        raise SystemExit("llm-queue lacks targeted run/wait/cancel capability; "
+        raise SystemExit("llm-queue lacks targeted run/show capability; "
                          "direct execution is blocked to protect unrelated jobs") from exc
     missing = _REQUIRED_QUEUE_CAPABILITIES - capabilities
     if missing:
         raise SystemExit("llm-queue missing required targeted capability: " + ", ".join(sorted(missing)))
+
+
+def _show_target_job(job_id: str) -> dict:
+    try:
+        raw = ladder._run_dispatcher("show", "--job", job_id, "--json", timeout=15)
+    except SystemExit as exc:
+        raise SystemExit("targeted queue job disappeared") from exc
+    try:
+        receipt = json.loads(raw)
+    except ValueError as exc:
+        raise SystemExit("llm-queue returned malformed targeted JSON receipt") from exc
+    if not isinstance(receipt, dict) or str(receipt.get("job_id")) != str(job_id):
+        raise SystemExit("llm-queue returned mismatched targeted JSON receipt")
+    return receipt
 
 
 def _read_input(path: str, limit: int) -> str:
@@ -163,7 +189,7 @@ def run_openrouter(request: dict, params: dict, out_path: str) -> dict:
         fields = _await_job(out, job["timeout"] + 60)
         if fields.get("status") != "done":
             raise SystemExit(f"llm-queue задание не завершилось: "
-                             f"{fields.get('status')} {fields.get('error', '')[:200]}")
+                             f"{fields.get('status')} {fields.get('error_class') or ''}")
         if not os.path.isfile(result_path):
             raise SystemExit("llm-queue отчиталось done, но результата нет "
                              f"({result_path})")
@@ -269,7 +295,7 @@ def run_qwen_local(request: dict, params: dict, out_path: str) -> dict:
     fields = _await_job(out, timeout + 60)
     if fields.get("status") != "done":
         raise SystemExit(f"llm-queue задание не завершилось: "
-                         f"{fields.get('status')} {fields.get('error', '')[:200]}")
+                         f"{fields.get('status')} {fields.get('error_class') or ''}")
     result_path = fields.get("result_path")
     if not result_path or not os.path.isfile(result_path):
         raise SystemExit(f"llm-queue отчиталось done, но результата нет: {fields}")

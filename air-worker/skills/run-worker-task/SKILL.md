@@ -32,9 +32,10 @@ OpenRouter не создаются.
 только новая подписанная заявка, не тихий replay.
 
 Current release gate: direct execution fails closed until `llm-queue` exposes the
-targeted JSON capability contract `run-job`, `wait-job`, `cancel-job`. Its historical
-global `run --limit` may process another request and is forbidden here; see
-`docs/GOAL.md` for the upstream blocker.
+targeted JSON capability contract `run-job`, `show-job-json`. The direct path may
+only atomically start its own queue id and poll that same id's redacted JSON
+receipt; the historical global `run --limit` may process another request and is
+forbidden here. See `docs/GOAL.md` for the upstream blocker.
 
 ## Контракт и границы
 
