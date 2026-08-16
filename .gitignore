@@ -42,3 +42,13 @@ Thumbs.db
 # мусор прогонов тестов ломает claude plugin update (EPERM scandir)
 .pytest_cache/
 __pycache__/
+
+# Локальные артефакты codex-review — рабочее состояние ревью-тулинга, не материал
+# репозитория (log/verdict/streak меняются каждым прогоном ревью, session-heads —
+# per-сессионные метки codex). Ранее случайно закоммичены (6e61f20, 41c5dfe) —
+# untracked этим коммитом, файлы остались на диске.
+.air/codex_review.log
+.air/codex_review/
+.air/codex_review_streak.json
+.codex-verdict.txt
+**/.air/session-heads/
