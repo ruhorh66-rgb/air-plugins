@@ -32,9 +32,11 @@ An id cannot execute twice. A failed/interrupted task is recovered with a new si
 request; llm-queue owns bounded retries and concurrency, so this plugin does not
 start a second competing process.
 
-Direct queue dispatch now requires the queue's targeted `run-job`, `wait-job`, and
-`cancel-job` capability contract. The current global `run --limit` implementation is
-unsafe with concurrent jobs and is rejected fail-closed; see [docs/GOAL.md](docs/GOAL.md).
+Direct queue dispatch now requires the queue's targeted `run-job` and
+`show-job-json` capability contract. It atomically starts exactly one known queue
+id, then polls that same id's redacted JSON receipt. The historical global
+`run --limit` implementation is unsafe with concurrent jobs and is rejected
+fail-closed; see [docs/GOAL.md](docs/GOAL.md).
 
 ## Legacy Telegram
 

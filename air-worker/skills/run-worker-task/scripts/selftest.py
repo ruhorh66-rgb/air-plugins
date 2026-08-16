@@ -458,17 +458,34 @@ def test_queue_targeting_requires_capability_and_never_uses_global_run():
     def targeted_queue(*args: str, timeout: int = 600) -> str:
         calls.append(args)
         if args[:2] == ("capabilities", "--format"):
-            return json.dumps({"capabilities": ["run-job", "wait-job", "cancel-job"]})
-        if args[0] == "wait":
-            return "  status         done\n  result_path    safe-result.txt\n"
+            return json.dumps({"capabilities": ["run-job", "show-job-json"]})
+        if args[:3] == ("show", "--job", "42"):
+            return json.dumps({
+                "job_id": 42,
+                "kind": "safe-test",
+                "status": "done",
+                "attempts": 1,
+                "max_attempts": 3,
+                "created_at": "2026-08-16T00:00:00+00:00",
+                "started_at": "2026-08-16T00:00:01+00:00",
+                "finished_at": "2026-08-16T00:00:02+00:00",
+                "result_present": True,
+                "result_path": "safe-result.txt",
+                "error_class": None,
+            })
         return ""
 
     with ladder._patch_global("_run_dispatcher", targeted_queue):
         fields = executors._await_job("задание 42 поставлено: test", 5)
     assert fields["status"] == "done"
     assert ("run", "--job", "42") in calls
-    assert any(c[0] == "wait" and c[2] == "42" for c in calls)
+    assert ("show", "--job", "42", "--json") in calls
+    assert not any(c and c[0] in ("wait", "cancel") for c in calls), calls
     assert not any("--limit" in c for c in calls), calls
+
+    with ladder._patch_global("_run_dispatcher", lambda *a, **k: json.dumps({
+            "capabilities": ["run-job", "show-job-json"]})):
+        executors._require_targeted_queue()
 
     with ladder._patch_global("_run_dispatcher", lambda *a, **k: "{}"):
         try:

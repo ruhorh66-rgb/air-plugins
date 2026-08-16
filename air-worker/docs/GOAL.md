@@ -44,8 +44,7 @@ require their own explicit release decision after live acceptance.
 
 The currently installed `llm-queue` exposes only global `run --limit`; under concurrent
 work it can process an unrelated job. Version 0.3.0 therefore fails closed unless the
-queue advertises JSON capabilities `run-job`, `wait-job`, and `cancel-job` and implements
-targeted `run --job`, `wait --job`, and `cancel --job`. This repository does not alter
-the queue or its database. The upstream release must additionally supply bounded retry
-classification/backoff and durable cancellation/reconcile receipts before this release
-can be accepted for concurrent production use.
+queue advertises JSON capabilities `run-job` and `show-job-json` and implements
+targeted `run --job` plus `show --job --json`. This repository does not alter the
+queue or its database. Direct execution intentionally makes no cancellation, backoff,
+or 429-handling claim beyond the queue's own current behavior.
