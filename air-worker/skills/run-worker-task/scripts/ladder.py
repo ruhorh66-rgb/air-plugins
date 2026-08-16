@@ -127,35 +127,57 @@ def _patch_global(name: str, value):
 # --- Ф5: дождаться СВОЕГО задания, а не «очередь что-то обработала» -----------
 
 def wait_job(job_id: str | int, timeout_s: float = 120.0, poll_s: float = 3.0) -> dict:
-    """Цикл `show --job job_id`, пока status не станет done|failed либо не
-    выйдет таймаут; между проверками — `run --limit 1`, чтобы очередь вообще
-    двигалась.
+    """Atomically run and poll exactly ``job_id`` through the public queue API.
 
-    ИЗВЕСТНЫЙ ГАП llm-queue (см. постановку): у `run` нет `--job` — он берёт
-    ORDER BY priority ASC, id ASC, то есть каждый вызов `run --limit 1` может
-    забрать ЧУЖОЕ задание, а не наше. Это не патчится здесь (llm-queue
-    править запрещено, граница §6) — вместо этого мы не считаем «очередь
-    что-то обработала» за «наше задание готово»: ждём именно наш `show`.
+    AIR-worker deliberately never uses the legacy global ``run --limit`` path:
+    under concurrent workers it can claim an unrelated request.  The queue's
+    capability probe is intentionally repeated here rather than reaching into
+    its SQLite database, so an old dispatcher fails closed.
     """
+    try:
+        capabilities = json.loads(_run_dispatcher("capabilities", "--format", "json",
+                                                  timeout=15))
+    except Exception as exc:  # noqa: BLE001 — old queue must fail closed
+        raise SystemExit("llm-queue lacks targeted run/show capability") from exc
+    advertised = set(capabilities.get("capabilities", [])) if isinstance(capabilities, dict) else set()
+    required = {"run-job", "show-job-json"}
+    if not required.issubset(advertised):
+        missing = ", ".join(sorted(required - advertised))
+        raise SystemExit(f"llm-queue missing required targeted capability: {missing}")
+
+    target = str(job_id)
+    try:
+        _run_dispatcher("run", "--job", target, timeout=max(1, int(timeout_s)))
+    except SystemExit:
+        # A failed attempt can return nonzero; the redacted receipt is the
+        # authoritative status and remains safe to consume.
+        pass
     deadline = time.time() + timeout_s
-    fields: dict[str, str] = {}
+    fields: dict[str, object] = {}
     while True:
-        fields = _parse_show(_run_dispatcher("show", "--job", str(job_id)))
+        try:
+            raw = _run_dispatcher("show", "--job", target, "--json", timeout=15)
+            fields = json.loads(raw)
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise SystemExit("llm-queue returned malformed targeted JSON receipt") from exc
+        if not isinstance(fields, dict) or str(fields.get("job_id")) != target:
+            raise SystemExit("llm-queue returned mismatched targeted JSON receipt")
         status = fields.get("status")
         if status in ("done", "failed"):
             break
+        if status == "unknown":
+            break
         if time.time() >= deadline:
             break
-        _run_dispatcher("run", "--limit", "1")
         if poll_s:
             time.sleep(poll_s)
     status = fields.get("status")
     return {
-        "job_id": str(job_id),
+        "job_id": target,
         "status": status,
         "timed_out": status not in ("done", "failed"),
         "result_path": fields.get("result_path"),
-        "error": fields.get("error"),
+        "error": str(fields.get("error_class")) if "error_class" in fields else None,
         "fields": fields,
     }
 
@@ -656,6 +678,8 @@ def _fake_queue(show_sequence: dict[str, list[str]], enqueue_reply: str = "verif
     calls = {"n": 0}
 
     def fake(*args: str, timeout: int = 600) -> str:
+        if args[:2] == ("capabilities", "--format"):
+            return json.dumps({"capabilities": ["run-job", "show-job-json"]})
         if args[0] in ("enqueue", "enqueue-exec"):
             return f"задание 42 поставлено: {enqueue_reply} (приоритет 5)\n"
         if args[0] == "show":
@@ -664,10 +688,11 @@ def _fake_queue(show_sequence: dict[str, list[str]], enqueue_reply: str = "verif
             idx = min(calls.setdefault(job_id, 0), len(seq) - 1)
             calls[job_id] = idx + 1
             status = seq[idx]
-            return (f"  id             {job_id}\n  status         {status}\n"
-                   f"  result_path    fake_result.txt\n  error          None\n")
-        if args[0] == "run":
-            return "обработано: 1 успешно, 0 с ошибкой\n"
+            return json.dumps({"job_id": int(job_id), "kind": enqueue_reply,
+                               "status": status, "result_path": "fake_result.txt",
+                               "error_class": None})
+        if args[:2] == ("run", "--job"):
+            return "  [42] test — done\n"
         return ""
     return fake
 
@@ -765,11 +790,16 @@ def demo() -> None:
     fake_result.close()
 
     def fake_claude_queue(*args: str, timeout: int = 600) -> str:
+        if args[:2] == ("capabilities", "--format"):
+            return json.dumps({"capabilities": ["run-job", "show-job-json"]})
         if args[0] == "enqueue-exec":
             return "задание 99 поставлено: claude-judgement-haiku (приоритет 5)\n"
         if args[0] == "show":
-            return (f"  status         done\n  result_path    {fake_result.name}\n"
-                   f"  error          None\n")
+            return json.dumps({"job_id": 99, "kind": "claude-judgement-haiku",
+                               "status": "done", "result_path": fake_result.name,
+                               "error_class": None})
+        if args[:2] == ("run", "--job"):
+            return "  [99] claude-judgement-haiku — done\n"
         return ""
 
     reset_paid_counter()
