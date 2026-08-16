@@ -1,0 +1,18 @@
+{
+  "name": "air-worker-codex",
+  "version": "0.3.0",
+  "description": "Thin Codex adapter for the shared air-worker direct-execution core.",
+  "author": {
+    "name": "AIR OS"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Air Worker Codex",
+    "shortDescription": "Run signed local work directly through llm-queue.",
+    "longDescription": "Codex adapter for the shared Python air-worker core. Direct execution is default; Telegram approval is an explicit legacy mode.",
+    "developerName": "AIR OS",
+    "category": "Productivity",
+    "capabilities": ["Interactive"],
+    "defaultPrompt": "Run a signed air-worker task directly."
+  }
+}

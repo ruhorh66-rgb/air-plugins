@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import urllib.error
@@ -46,23 +47,56 @@ import ladder  # noqa: E402 — только dispatcher-хелпер, свой s
 ROUTER_URL = os.environ.get("AIR_WORKER_ROUTER_URL",
                             "http://127.0.0.1:8090/v1/chat/completions")
 MAX_INPUT_CHARS = 40_000
+MAX_TIMEOUT_SECONDS = 900
+
+
+def free_only() -> bool:
+    """Return whether unattended OpenRouter work is restricted to :free models."""
+    return os.environ.get("AIR_WORKER_FREE_ONLY", "1").strip().lower() not in (
+        "0", "false", "no", "off")
 
 
 def _await_job(job_out: str, timeout: int) -> dict:
-    """Разобрать id из вывода `enqueue`/`enqueue-exec`, прогнать очередь на один
-    шаг и вернуть поля `show`. Общий хвост обоих типов задачи ниже: air-worker
-    только ставит задание и забирает результат, исполняет llm-queue.
+    """Run, wait for, and read exactly the enqueue result's own queue job.
 
-    ИЗВЕСТНЫЙ ГАП llm-queue (см. SKILL.md § «Не хватает в интерфейсе»):
-    `run --limit 1` берёт САМОЕ старое/приоритетное задание в очереди, не
-    обязательно только что поставленное — при параллельных заявках чужой job
-    может обработаться раньше нашего. Не правится здесь (раздел 6 задания)."""
-    tokens = job_out.split()
-    job_id = tokens[1] if len(tokens) > 1 else None
+    The legacy dispatcher has only global ``run --limit``; using it would
+    process somebody else's job under concurrency.  Direct execution therefore
+    fails closed until the queue advertises the targeted capability interface.
+    """
+    _require_targeted_queue()
+    job_id = ladder._parse_job_id(job_out)
     if job_id is None:
         raise SystemExit(f"не удалось разобрать id задания llm-queue: {job_out!r}")
-    ladder._run_dispatcher("run", "--limit", "1", timeout=timeout)
-    return ladder._parse_show(ladder._run_dispatcher("show", "--job", job_id))
+    try:
+        ladder._run_dispatcher("run", "--job", job_id, timeout=timeout)
+        return ladder._parse_show(
+            ladder._run_dispatcher("wait", "--job", job_id, "--timeout", str(timeout),
+                                   timeout=timeout + 5))
+    except subprocess.TimeoutExpired:
+        # A caller timeout must request durable queue cancellation, not leave a
+        # running external job orphaned.  Failure to cancel is itself fail-closed.
+        try:
+            ladder._run_dispatcher("cancel", "--job", job_id, timeout=15)
+        except Exception as exc:  # noqa: BLE001
+            raise SystemExit("queue timeout; targeted cancellation unavailable") from exc
+        raise SystemExit("queue timeout; targeted job cancelled")
+
+
+_REQUIRED_QUEUE_CAPABILITIES = {"run-job", "wait-job", "cancel-job"}
+
+
+def _require_targeted_queue() -> None:
+    """Require the documented queue capability contract before direct dispatch."""
+    try:
+        raw = ladder._run_dispatcher("capabilities", "--format", "json", timeout=15)
+        payload = json.loads(raw)
+        capabilities = set(payload.get("capabilities", [])) if isinstance(payload, dict) else set()
+    except Exception as exc:  # current dispatcher deliberately lands here
+        raise SystemExit("llm-queue lacks targeted run/wait/cancel capability; "
+                         "direct execution is blocked to protect unrelated jobs") from exc
+    missing = _REQUIRED_QUEUE_CAPABILITIES - capabilities
+    if missing:
+        raise SystemExit("llm-queue missing required targeted capability: " + ", ".join(sorted(missing)))
 
 
 def _read_input(path: str, limit: int) -> str:
@@ -87,11 +121,16 @@ def validate_openrouter(params: dict) -> None:
         # уходит в llama молча. Молчаливая подмена бэкенда хуже отказа.
         raise ValueError("model: нужен id вида vendor/model[:free] — иначе роутер "
                          "отправит запрос не туда")
+    if free_only() and not model.endswith(":free"):
+        raise ValueError("model: в free-only режиме разрешены только модели с суффиксом :free")
     if not str(params.get("instruction", "")).strip():
         raise ValueError("instruction: пустая инструкция — задача не определена")
     limit = int(params.get("max_input_chars", MAX_INPUT_CHARS))
     if not (1 <= limit <= MAX_INPUT_CHARS):
         raise ValueError(f"max_input_chars: 1..{MAX_INPUT_CHARS}")
+    timeout = int(params.get("timeout", 600))
+    if not (1 <= timeout <= MAX_TIMEOUT_SECONDS):
+        raise ValueError(f"timeout: 1..{MAX_TIMEOUT_SECONDS}")
 
 
 def run_openrouter(request: dict, params: dict, out_path: str) -> dict:
@@ -129,7 +168,12 @@ def run_openrouter(request: dict, params: dict, out_path: str) -> dict:
             raise SystemExit("llm-queue отчиталось done, но результата нет "
                              f"({result_path})")
         with open(result_path, encoding="utf-8") as fh:
-            return json.load(fh)
+            result = json.load(fh)
+        if not isinstance(result, dict) or result.get("ok") is not True:
+            raise SystemExit("llm-queue вернула результат без подтверждённого успеха")
+        if not os.path.isfile(str(result.get("output_path") or "")):
+            raise SystemExit("llm-queue вернула успех без выходного файла")
+        return result
     finally:
         for p in (job_path, result_path):
             try:
@@ -165,7 +209,14 @@ def _openrouter_job_main(job_path: str) -> int:
     if "error" in payload:
         print(f"роутер вернул ошибку: {str(payload['error'])[:200]}", file=sys.stderr)
         return 1
-    text = payload["choices"][0]["message"]["content"]
+    try:
+        text = payload["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        print(f"роутер вернул некорректный ответ ({type(exc).__name__})", file=sys.stderr)
+        return 1
+    if not isinstance(text, str):
+        print("роутер вернул некорректный текст ответа", file=sys.stderr)
+        return 1
     with open(job["out_path"], "w", encoding="utf-8") as fh:
         fh.write(text)
     usage = payload.get("usage") or {}
@@ -189,6 +240,9 @@ def validate_qwen_local(params: dict) -> None:
     limit = int(params.get("max_input_chars", MAX_INPUT_CHARS))
     if not (1 <= limit <= MAX_INPUT_CHARS):
         raise ValueError(f"max_input_chars: 1..{MAX_INPUT_CHARS}")
+    timeout = int(params.get("timeout", 300))
+    if not (1 <= timeout <= MAX_TIMEOUT_SECONDS):
+        raise ValueError(f"timeout: 1..{MAX_TIMEOUT_SECONDS}")
 
 
 def run_qwen_local(request: dict, params: dict, out_path: str) -> dict:
