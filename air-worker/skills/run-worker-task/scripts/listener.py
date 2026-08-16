@@ -125,12 +125,13 @@ def poll_once(chat_id: str) -> int:
         # переписать. Не сошлась — заявка мертва, а не «запустим осторожно».
         ok, why = worker.verify_request(req)
         if not ok:
+            metadata = worker.failure_metadata("request_invalid")
             worker.set_status(rid, "invalid", decided_at=time.time(),
-                              result=json.dumps({"error": why}, ensure_ascii=False))
-            _answer(cq["id"], f"Заявка недействительна: {why}")
+                              result=json.dumps(metadata, ensure_ascii=False))
+            _answer(cq["id"], f"Заявка недействительна: {metadata['error_code']}")
             if mid:
-                _edit(chat_id, mid, f"⛔ {title}\n\nЗаявка {rid} не запущена: {why}")
-            worker.notify(f"⛔ Заявка {rid} НЕ запущена — {why}")
+                _edit(chat_id, mid, f"⛔ {title}\n\nЗаявка {rid} не запущена: {metadata['error_code']}")
+            worker.notify(f"⛔ Заявка {rid} НЕ запущена — {metadata['error_code']}")
             handled += 1
             continue
 

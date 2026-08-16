@@ -635,8 +635,9 @@ def cmd_create(argv: list[str]) -> int:
         ]]},
     })
     if not resp.get("ok"):
+        metadata = failure_metadata("telegram_send_failed")
         set_status(rid, "failed", result=json.dumps(
-            {"error": "telegram отклонил отправку"}, ensure_ascii=False))
+            metadata, ensure_ascii=False))
         raise SystemExit(f"Telegram отклонил отправку заявки: {resp.get('error', resp)}")
     print(json.dumps({"request_id": rid, "task_type": args.task_type,
                       "input_sha256": request["input_sha256"], "db": DB_PATH},
