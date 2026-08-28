@@ -8,6 +8,7 @@ that previously exposed the missing ``runtime_paths`` bootstrap.
 from __future__ import annotations
 
 import os
+import json
 import subprocess
 import sys
 import tempfile
@@ -15,6 +16,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
+CANONICAL_PLUGIN = ROOT / "air-worker"
+ADAPTER_PLUGIN = ROOT / "air-worker-codex"
 WRAPPER = ROOT / "air-worker-codex" / "scripts" / "run_worker.py"
 
 
@@ -32,7 +35,27 @@ def run(*args: str) -> subprocess.CompletedProcess[str]:
         return result
 
 
+def test_packaging_contract() -> None:
+    """The canonical package owns the core; the adapter only points at it."""
+    canonical = json.loads((CANONICAL_PLUGIN / ".codex-plugin" / "plugin.json").read_text(
+        encoding="utf-8"))
+    adapter = json.loads((ADAPTER_PLUGIN / ".codex-plugin" / "plugin.json").read_text(
+        encoding="utf-8"))
+    assert canonical["name"] == CANONICAL_PLUGIN.name == "air-worker", canonical
+    assert adapter["name"] == ADAPTER_PLUGIN.name == "air-worker-codex", adapter
+    assert canonical["version"] == adapter["version"] == "0.3.0"
+    assert canonical["skills"] == adapter["skills"] == "./skills/"
+    assert isinstance(canonical.get("interface"), dict) and canonical["interface"].get("displayName")
+    assert isinstance(adapter.get("interface"), dict) and adapter["interface"].get("displayName")
+
+    shared_scripts = CANONICAL_PLUGIN / "skills" / "run-worker-task" / "scripts"
+    for filename in ("worker.py", "executors.py", "runtime_paths.py"):
+        assert (shared_scripts / filename).is_file(), filename
+        assert not (ADAPTER_PLUGIN / "scripts" / filename).exists(), filename
+
+
 def main() -> int:
+    test_packaging_contract()
     listed = run("types")
     assert listed.returncode == 0, listed.stderr
     assert "openrouter-llm" in listed.stdout and "qwen-local" in listed.stdout, listed.stdout
