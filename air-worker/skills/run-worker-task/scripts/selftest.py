@@ -58,6 +58,7 @@ import executors  # noqa: E402
 import ladder  # noqa: E402
 import listener  # noqa: E402
 import level0_check  # noqa: E402
+import live_check  # noqa: E402
 import protocol  # noqa: E402
 import runtime_paths  # noqa: E402
 import worker  # noqa: E402
@@ -468,6 +469,43 @@ def test_runtime_layout_accepts_synthetic_posix_paths():
     assert runtime_paths.resolve_runtime_root(
         {"XDG_STATE_HOME": "/var/state", "AIR_WORKER_LEGACY_RUNTIME": "ignored"},
         system="posix") == PurePosixPath("/var/state/air-worker")
+
+
+def test_input_path_normalisation_and_live_check_validation_happen_before_execution():
+    """Path syntax is deterministic, and no malformed material reaches OpenRouter."""
+    assert worker.normalize_input_path(r"C:\work\in\..\input.txt",
+                                       system="nt") == r"C:\work\input.txt"
+    assert worker.normalize_input_path("/var/tmp/in/../input.txt", system="posix") == "/var/tmp/input.txt"
+    assert worker.normalize_input_path("material.txt", cwd="/var/tmp", system="posix") == "/var/tmp/material.txt"
+
+    relative = os.path.relpath(MATERIAL)
+    normalised, why = worker.validate_input_path(relative)
+    assert normalised == worker.normalize_input_path(relative), why
+    missing, why = worker.validate_input_path(MATERIAL + ".missing")
+    assert missing is None and "недоступен" in why, why
+
+    original_run = executors.run_openrouter
+    calls: list[dict] = []
+
+    def forbidden_run(*args, **kwargs):
+        calls.append({"args": args, "kwargs": kwargs})
+        raise AssertionError("invalid input reached OpenRouter executor")
+
+    executors.run_openrouter = forbidden_run
+    try:
+        try:
+            live_check.main(["--input-path", "vendor/model:free"])
+            raise AssertionError("model id accepted as input_path")
+        except SystemExit as exc:
+            assert "--input-path" in str(exc), exc
+        try:
+            live_check.main(["vendor/model:free"])
+            raise AssertionError("legacy positional model id accepted")
+        except SystemExit:
+            pass
+    finally:
+        executors.run_openrouter = original_run
+    assert not calls, calls
 
 
 def test_queue_targeting_requires_capability_and_never_uses_global_run():

@@ -8,7 +8,10 @@ r"""Живой прогон одного исполнителя без Telegram 
 Гейт ЛПР этим не обходится: рабочая заявка идёт через `worker.py create` и кнопку.
 Здесь исполнитель вызывается напрямую на файле, который положил сам проверяющий.
 
-Запуск: python live_check.py [<файл>] [<модель>]
+Запуск: python live_check.py [--input-path <файл>] [--model <модель>]
+
+Позиционные аргументы намеренно не поддерживаются: единственный позиционный
+аргумент невозможно надёжно отличить от id модели (``vendor/model:free``).
 """
 from __future__ import annotations
 
@@ -37,8 +40,16 @@ DEFAULT_MODEL = "google/gemma-4-26b-a4b-it:free"
 
 
 def main(argv: list[str]) -> int:
-    material = argv[0] if argv else None
-    model = argv[1] if len(argv) > 1 else DEFAULT_MODEL
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="live_check.py")
+    parser.add_argument("--input-path", metavar="FILE",
+                        help="файл материала; по умолчанию создаётся безопасный образец")
+    parser.add_argument("--model", default=DEFAULT_MODEL,
+                        help="OpenRouter model id (default: %(default)s)")
+    args = parser.parse_args(argv)
+    material = args.input_path
+    model = args.model
     tmp = None
     if not material:
         tmp = tempfile.mkdtemp(prefix="air-worker-live-")
@@ -46,11 +57,15 @@ def main(argv: list[str]) -> int:
         with open(material, "w", encoding="utf-8") as fh:
             fh.write("Смета подрядчика на 2026 год. НДС 22% с 01.01.2026. "
                      "Договорная цена без увеличения. Срок — четыре недели.\n")
+    material, input_why = worker.validate_input_path(material)
+    if material is None:
+        raise SystemExit(f"недопустимый --input-path: {input_why}")
+    executors.validate_openrouter({"model": model, "instruction": "проверка"})
     request = {
         "id": "live" + time.strftime("%H%M%S"),
         "task_type": "openrouter-llm",
-        "input_path": os.path.abspath(material),
-        "input_sha256": worker.file_digest(os.path.abspath(material)),
+        "input_path": material,
+        "input_sha256": worker.file_digest(material),
         "params": {"model": model, "instruction": "Ответь одной строкой на русском: о чём этот текст."},
     }
     os.makedirs(worker.OUT_DIR, exist_ok=True)
