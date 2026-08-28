@@ -35,7 +35,9 @@ import csv
 import hashlib
 import hmac
 import json
+import ntpath
 import os
+import posixpath
 import secrets
 import sqlite3
 import subprocess
@@ -43,7 +45,7 @@ import sys
 import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from runtime_paths import resolve_runtime_root, runtime_layout as shared_runtime_layout
 
 try:
@@ -436,15 +438,46 @@ def _task_contract_ok(spec: dict, params: dict) -> tuple[bool, str]:
     return True, "контракт годен"
 
 
+def normalize_input_path(path: str | os.PathLike[str], *, cwd: str | None = None,
+                         system: str | None = None) -> str:
+    """Return a lexical absolute path using the selected platform's syntax.
+
+    A request signs the normalised path, so a relative path cannot silently
+    acquire a different meaning if it is later run from another directory.
+    ``system`` exists for cross-platform offline tests; production uses the
+    current host's path flavour.
+    """
+    raw = os.fspath(path)
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("путь к материалу пуст")
+    os_name = system or os.name
+    pure_type = PureWindowsPath if os_name == "nt" else PurePosixPath
+    normalise = ntpath.normpath if os_name == "nt" else posixpath.normpath
+    candidate = pure_type(raw)
+    if not candidate.is_absolute():
+        base = pure_type(cwd) if cwd is not None else pure_type(os.getcwd())
+        candidate = base / candidate
+    return normalise(str(candidate))
+
+
+def validate_input_path(path: str | os.PathLike[str]) -> tuple[str | None, str]:
+    """Normalise a host path and require an existing regular material file."""
+    try:
+        normalised = normalize_input_path(path)
+        size = Path(normalised).stat().st_size
+    except (OSError, ValueError, TypeError):
+        return None, "материал недоступен"
+    if not Path(normalised).is_file():
+        return None, "материал не является файлом"
+    if size > MAX_INPUT_BYTES:
+        return None, f"размер материала превышает лимит {MAX_INPUT_BYTES} байт"
+    return normalised, "материал в пределах лимита"
+
+
 def _input_ok(path: str) -> tuple[bool, str]:
     """Bound the material before queueing and again before recovering execution."""
-    try:
-        size = Path(path).stat().st_size
-    except OSError:
-        return False, "материал недоступен"
-    if size > MAX_INPUT_BYTES:
-        return False, f"размер материала превышает лимит {MAX_INPUT_BYTES} байт"
-    return True, "материал в пределах лимита"
+    _normalised, why = validate_input_path(path)
+    return _normalised is not None, why
 
 
 def execute_request(req: dict, *, notify_telegram: bool = False) -> dict:
@@ -553,11 +586,8 @@ def cmd_create(argv: list[str]) -> int:
     import executors
     spec = executors.get(args.task_type)          # неизвестный/выключенный тип — отказ
 
-    input_path = os.path.abspath(args.input_path)
-    if not os.path.isfile(input_path):
-        raise SystemExit(f"нет файла материала: {input_path}")
-    input_ok, input_why = _input_ok(input_path)
-    if not input_ok:
+    input_path, input_why = validate_input_path(args.input_path)
+    if input_path is None:
         raise SystemExit(input_why)
 
     params: dict = {}
