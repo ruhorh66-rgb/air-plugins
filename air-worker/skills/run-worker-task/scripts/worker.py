@@ -35,7 +35,9 @@ import csv
 import hashlib
 import hmac
 import json
+import ntpath
 import os
+import posixpath
 import secrets
 import sqlite3
 import subprocess
@@ -43,6 +45,8 @@ import sys
 import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from runtime_paths import resolve_runtime_root, runtime_layout as shared_runtime_layout
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -54,19 +58,46 @@ SERVICE = "air-comms-telegram-bot"   # тот же бот, что у air-ruflo-b
 HMAC_ACCOUNT = "request-hmac-key"    # тот же ключ подписи — второй записи на тот
                                      # же секрет чек-лист заводить запрещает (§ 6)
 
-RUNTIME = os.environ.get("AIR_WORKER_RUNTIME") or r"E:\-4-\air-worker"
-DB_PATH = os.path.join(RUNTIME, "worker.sqlite3")
-LOCK_PATH = os.path.join(RUNTIME, "listener.lock.json")
-OFFSET_PATH = os.path.join(RUNTIME, "offset.txt")
-OUT_DIR = os.path.join(RUNTIME, "out")
+def _default_runtime() -> Path:
+    """Compatibility wrapper used by older callers and tests."""
+    return resolve_runtime_root()
+
+
+def runtime_layout(root: Path) -> dict[str, Path]:
+    """Build runtime paths without assuming a Windows drive or shell syntax."""
+    return shared_runtime_layout(root)
+
+
+_RUNTIME_ROOT = Path(os.environ["AIR_WORKER_RUNTIME"]) if os.environ.get("AIR_WORKER_RUNTIME") else _default_runtime()
+_RUNTIME_LAYOUT = runtime_layout(_RUNTIME_ROOT)
+RUNTIME = str(_RUNTIME_ROOT)
+DB_PATH = str(_RUNTIME_LAYOUT["db"])
+LOCK_PATH = str(_RUNTIME_LAYOUT["lock"])
+OFFSET_PATH = str(_RUNTIME_LAYOUT["offset"])
+OUT_DIR = str(_RUNTIME_LAYOUT["out"])
 METRICS_PATH = (os.environ.get("AIR_WORKER_METRICS_PATH")
-                or r"E:\-5-\010_Task_Control_Platform\00_REGISTRY\run_metrics.csv")
+                or str(_RUNTIME_LAYOUT["metrics"]))
 
 TTL_SECONDS = 12 * 3600
+MAX_INPUT_BYTES = 5 * 1024 * 1024
 OMSK = timezone(timedelta(hours=6))  # контур живёт по Омску, машина — нет
 
 SIGNED_FIELDS = ("id", "title", "task_type", "input_path", "input_sha256",
                  "params", "created_at", "ttl_seconds")
+
+
+def failure_metadata(error_code: str) -> dict[str, str]:
+    """Return a stable, redacted failure taxonomy for receipts and protocol."""
+    safe = error_code if error_code.replace("_", "").isalnum() else "worker_failure"
+    if safe.startswith("contract") or safe.startswith("request"):
+        category = "validation"
+    elif safe.startswith("input"):
+        category = "input"
+    elif safe.startswith("executor") or safe.startswith("queue"):
+        category = "execution"
+    else:
+        category = "worker"
+    return {"failure_class": category, "error_code": safe}
 
 
 # --- секреты -----------------------------------------------------------------
@@ -118,6 +149,12 @@ def file_digest(path: str) -> str:
 
 
 def hmac_key(create_if_missing: bool = False) -> bytes:
+    # This makes the signed contract portable to Claude Code/Codex hosts where
+    # Windows keyring is unavailable.  It is intentionally read-only: only the
+    # legacy Windows creator may provision a missing key in keyring.
+    configured = os.environ.get("AIR_WORKER_HMAC_KEY")
+    if configured:
+        return configured.encode("utf-8")
     import keyring
     value = keyring.get_password(SERVICE, HMAC_ACCOUNT)
     if not value and create_if_missing:
@@ -220,6 +257,15 @@ def set_status(rid: str, status: str, **fields) -> None:
     with db() as conn:
         conn.execute(f"UPDATE requests SET {cols} WHERE id=?",
                      (status, *fields.values(), rid))
+
+
+def claim_for_execution(rid: str) -> bool:
+    """Atomically transition a queued request once; repeated delivery is safe."""
+    with db() as conn:
+        result = conn.execute(
+            "UPDATE requests SET status='running', started_at=? WHERE id=? "
+            "AND status IN ('queued','approved')", (time.time(), rid))
+    return result.rowcount == 1
 
 
 def is_expired(req: dict) -> bool:
@@ -378,10 +424,146 @@ def record_metric(task: str, model: str, tokens_in, tokens_out,
         pass  # журнал не имеет права уронить прогон
 
 
+def _task_contract_ok(spec: dict, params: dict) -> tuple[bool, str]:
+    """Validate the signed contract again immediately before execution."""
+    try:
+        spec["validate"](params)
+    except (TypeError, ValueError) as exc:
+        return False, f"контракт исполнителя недействителен: {exc}"
+    privacy = str(params.get("privacy", "external"))
+    if privacy not in ("external", "local"):
+        return False, "контракт приватности должен быть external или local"
+    if privacy == "local" and spec.get("external") == "openrouter":
+        return False, "локальный материал нельзя отправлять во внешний OpenRouter"
+    return True, "контракт годен"
+
+
+def normalize_input_path(path: str | os.PathLike[str], *, cwd: str | None = None,
+                         system: str | None = None) -> str:
+    """Return a lexical absolute path using the selected platform's syntax.
+
+    A request signs the normalised path, so a relative path cannot silently
+    acquire a different meaning if it is later run from another directory.
+    ``system`` exists for cross-platform offline tests; production uses the
+    current host's path flavour.
+    """
+    raw = os.fspath(path)
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("путь к материалу пуст")
+    os_name = system or os.name
+    pure_type = PureWindowsPath if os_name == "nt" else PurePosixPath
+    normalise = ntpath.normpath if os_name == "nt" else posixpath.normpath
+    candidate = pure_type(raw)
+    if not candidate.is_absolute():
+        base = pure_type(cwd) if cwd is not None else pure_type(os.getcwd())
+        candidate = base / candidate
+    return normalise(str(candidate))
+
+
+def validate_input_path(path: str | os.PathLike[str]) -> tuple[str | None, str]:
+    """Normalise a host path and require an existing regular material file."""
+    try:
+        normalised = normalize_input_path(path)
+        size = Path(normalised).stat().st_size
+    except (OSError, ValueError, TypeError):
+        return None, "материал недоступен"
+    if not Path(normalised).is_file():
+        return None, "материал не является файлом"
+    if size > MAX_INPUT_BYTES:
+        return None, f"размер материала превышает лимит {MAX_INPUT_BYTES} байт"
+    return normalised, "материал в пределах лимита"
+
+
+def _input_ok(path: str) -> tuple[bool, str]:
+    """Bound the material before queueing and again before recovering execution."""
+    _normalised, why = validate_input_path(path)
+    return _normalised is not None, why
+
+
+def execute_request(req: dict, *, notify_telegram: bool = False) -> dict:
+    """Execute one persisted request through the registered llm-queue executor.
+
+    This is host-neutral core shared by direct local operation and the optional
+    Telegram listener.  A direct invocation never calls Telegram helpers.
+    """
+    import executors
+    import protocol
+
+    def fail(code: str, started: float | None = None) -> dict:
+        metadata = failure_metadata(code)
+        took = int(time.time() - started) if started is not None else 0
+        set_status(req["id"], "failed", finished_at=time.time(),
+                   result=json.dumps(metadata, ensure_ascii=False))
+        protocol.emit("request_failure", "error", took * 1000,
+                      **metadata)
+        record_metric(f"air-worker {req.get('task_type', '?')} {req['id']}",
+                      str(req.get("params", {}).get("model", "")), "", "", took,
+                      "failed", metadata["error_code"])
+        if notify_telegram:
+            notify(f"⚠ Заявка {req['id']} не отработала: {metadata['error_code']}")
+        return {"id": req["id"], "status": "failed", **metadata}
+
+    ok, why = verify_request(req)
+    if not ok:
+        metadata = failure_metadata("request_invalid")
+        set_status(req["id"], "invalid", finished_at=time.time(),
+                   result=json.dumps(metadata, ensure_ascii=False))
+        protocol.emit("request_failure", "error", 0, **metadata)
+        if notify_telegram:
+            notify(f"⛔ Заявка {req['id']} НЕ запущена — {metadata['error_code']}")
+        return {"id": req["id"], "status": "invalid", **metadata}
+    try:
+        spec = executors.get(req["task_type"])
+    except SystemExit as exc:
+        return fail("unknown_or_disabled_task_type")
+    contract_ok, contract_why = _task_contract_ok(spec, req["params"])
+    if not contract_ok:
+        return fail("contract_rejected")
+    input_ok, input_why = _input_ok(str(req["input_path"]))
+    if not input_ok:
+        return fail("input_rejected")
+
+    if not claim_for_execution(req["id"]):
+        current = load(req["id"])
+        status = current["status"] if current else "unknown"
+        # One request must not execute twice after an interrupted caller.  A
+        # recovery is a new signed request, not an implicit replay.
+        return {"id": req["id"], "status": status, "replayed": True}
+
+    Path(OUT_DIR).mkdir(parents=True, exist_ok=True)
+    out_path = str(Path(OUT_DIR) / f"{req['id']}.txt")
+    started = time.time()
+    try:
+        with protocol.stage("executor_run", external=spec["external"],
+                            task_type=req["task_type"],
+                            input_sha256=req["input_sha256"][:16]):
+            result = spec["run"](req, req["params"], out_path)
+        if not isinstance(result, dict) or result.get("ok") is not True:
+            return fail("executor_unconfirmed", started)
+    except SystemExit as exc:
+        return fail("executor_failed", started)
+    except Exception as exc:  # executor failure must become an auditable status
+        return fail("executor_exception", started)
+
+    took = int(time.time() - started)
+    set_status(req["id"], "done", finished_at=time.time(),
+               result=json.dumps(result, ensure_ascii=False))
+    record_metric(f"air-worker {req['task_type']} {req['id']}",
+                  str(result.get("model", "")), result.get("tokens_in", ""),
+                  result.get("tokens_out", ""), took, "accepted",
+                  f"chars_in={result.get('chars_in')} chars_out={result.get('chars_out')}")
+    if notify_telegram:
+        notify(f"✅ Заявка {req['id']} отработала за {took} с\n"
+               f"Тип: {req['task_type']}, модель: {result.get('model', '—')}\n"
+               f"Результат: {result.get('output_path')}")
+    return {"id": req["id"], "status": "done", "task_type": req["task_type"],
+            "result": result}
+
+
 # --- команды -----------------------------------------------------------------
 
 def cmd_create(argv: list[str]) -> int:
-    """Положить подписанную заявку и прислать ЛПР кнопку.
+    """Create a signed request and execute it directly by default.
 
     ЗАЯВКА ХРАНИТ ТИП И ПАРАМЕТРЫ, А НЕ КОМАНДУ. Ровно то же решение, что в
     air-ruflo-bridge после блокировки классификатором 08.08.2026: протащить в
@@ -395,14 +577,18 @@ def cmd_create(argv: list[str]) -> int:
     parser.add_argument("--param", action="append", default=[],
                         metavar="k=v", help="параметр исполнителя, можно несколько")
     parser.add_argument("--ttl-hours", type=float, default=TTL_SECONDS / 3600)
+    parser.add_argument("--approval", choices=("direct", "telegram"), default="direct",
+                        help="direct (default) or optional legacy Telegram approval")
+    parser.add_argument("--privacy", choices=("external", "local"), default="external",
+                        help="signed material classification; local blocks external executors")
     args = parser.parse_args(argv)
 
     import executors
     spec = executors.get(args.task_type)          # неизвестный/выключенный тип — отказ
 
-    input_path = os.path.abspath(args.input_path)
-    if not os.path.isfile(input_path):
-        raise SystemExit(f"нет файла материала: {input_path}")
+    input_path, input_why = validate_input_path(args.input_path)
+    if input_path is None:
+        raise SystemExit(input_why)
 
     params: dict = {}
     for item in args.param:
@@ -410,15 +596,22 @@ def cmd_create(argv: list[str]) -> int:
             raise SystemExit(f"--param ждёт k=v, получено: {item}")
         key, value = item.split("=", 1)
         params[key.strip()] = value
+    if "privacy" in params:
+        raise SystemExit("privacy задаётся только флагом --privacy и входит в подпись")
+    params["privacy"] = args.privacy
     spec["validate"](params)                       # проверка ДО подписи и отправки
+    contract_ok, contract_why = _task_contract_ok(spec, params)
+    if not contract_ok:
+        raise SystemExit(contract_why)
 
     # Канал общий с air-ruflo-bridge: пока бота слушает чужой процесс, кнопку слать
     # нельзя — её нажатие достанется ему. `unknown` тоже запрещает: непроверенный
     # канал не значит свободный.
-    channel, why = foreign_listener_state()
-    if channel != "free":
-        raise SystemExit(f"канал бота недоступен ({channel}): {why}. "
-                         f"Заявка НЕ создана — иначе кнопка уйдёт не тому.")
+    if args.approval == "telegram":
+        channel, why = foreign_listener_state()
+        if channel != "free":
+            raise SystemExit(f"канал бота недоступен ({channel}): {why}. "
+                             f"Заявка НЕ создана — иначе кнопка уйдёт не тому.")
 
     rid = secrets.token_hex(4)
     request = {
@@ -435,11 +628,21 @@ def cmd_create(argv: list[str]) -> int:
     with db() as conn:
         conn.execute(
             "INSERT INTO requests (id,title,task_type,input_path,input_sha256,"
-            "params,created_at,ttl_seconds,sig,status) VALUES (?,?,?,?,?,?,?,?,?,'pending')",
+            "params,created_at,ttl_seconds,sig,status) VALUES (?,?,?,?,?,?,?,?,?,?)",
             (rid, request["title"], request["task_type"], request["input_path"],
              request["input_sha256"],
              json.dumps(params, ensure_ascii=False, sort_keys=True),
-             request["created_at"], request["ttl_seconds"], request["sig"]))
+             request["created_at"], request["ttl_seconds"], request["sig"],
+             "pending" if args.approval == "telegram" else "queued"))
+
+    if args.approval == "direct":
+        # Reload proves the exact signed material persisted to SQLite is what
+        # reaches the executor.  No Telegram API/keyring bot call is reachable.
+        persisted = load(rid)
+        assert persisted is not None
+        outcome = execute_request(persisted, notify_telegram=False)
+        print(json.dumps(outcome, ensure_ascii=False))
+        return 0 if outcome["status"] == "done" else 1
 
     size = os.path.getsize(input_path)
     text = (f"⚙ {request['title']}\n"
@@ -462,8 +665,9 @@ def cmd_create(argv: list[str]) -> int:
         ]]},
     })
     if not resp.get("ok"):
+        metadata = failure_metadata("telegram_send_failed")
         set_status(rid, "failed", result=json.dumps(
-            {"error": "telegram отклонил отправку"}, ensure_ascii=False))
+            metadata, ensure_ascii=False))
         raise SystemExit(f"Telegram отклонил отправку заявки: {resp.get('error', resp)}")
     print(json.dumps({"request_id": rid, "task_type": args.task_type,
                       "input_sha256": request["input_sha256"], "db": DB_PATH},

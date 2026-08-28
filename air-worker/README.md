@@ -1,61 +1,63 @@
 # air-worker
 
-Отцеплённый исполнитель тяжёлых **не**роевых задач AIR OS под гейтом ЛПР в Telegram.
+`air-worker` is the canonical dual-host plugin for Claude and Codex. It executes
+heavy non-swarm tasks through the existing `llm-queue`.
+Version 0.3.0 changes the default: a signed request is created and executed locally
+immediately. Telegram approval remains available only as `--approval telegram`.
 
-Рой ruflo делает код. Всё остальное тяжёлое — обработка файла сторонней или локальной
-моделью, OCR, длинная перегонка — рою не нужно, а в контекст сессии-оркестратора не
-помещается. Схема исполнения та же: оркестратор → отцеплённый процесс →
-подтверждение ЛПР кнопкой → сводка. Меняется только то, что запускается по нажатию.
+Install and release this directory as the one Claude+Codex package. The sibling
+`../air-worker-codex` directory is a checkout-only compatibility adapter for older
+Codex layouts; it runs this shared core and is not a release source. It contains no
+duplicate executor, runtime, or secret.
 
-```
-skills/run-worker-task/
-  SKILL.md              порядок, границы канала, цикл проверки
-  scripts/
-    worker.py           заявка, подпись, лок, состояние канала, журнал замеров
-    listener.py         слушатель кнопки; запускает подписанный тип задачи
-    executors.py        реестр типов задач — здесь и появляется второй тип
-    protocol.py         протокол по этапам (JSONL, только скаляры)
-    selftest.py         python selftest.py — 27 проверок, без сети и keyring
-    live_check.py       живой вызов исполнителя при сборке, без Telegram
-```
+## Direct execution
 
-Рантайм — `E:\-4-\air-worker` (база заявок, замок, протокол, результаты), вне git.
-Секреты — Windows keyring, сервис `air-comms-telegram-bot`; своего бота плагин не
-заводит и своего ключа OpenRouter не держит.
-
-## Что здесь считается защитой, а не удобством
-
-- заявка подписана HMAC-SHA256 по фиксированному списку полей **и** по sha256 самого
-  материала: между кнопкой и нажатием проходят часы, и переписать можно и то, и другое;
-- «проверить не смог» = отказ. Третьего исхода нет ни у подписи, ни у замка;
-- замок трёхсостоянийный, и `unknown` никогда не приравнивается к `free`;
-- бот общий с `air-ruflo-bridge` — параллельный `getUpdates` запрещён замком, а не
-  договорённостью: 10.08.2026 кнопка air-worker досталась чужому слушателю;
-- содержимое материала не поднимается в протокол и в Telegram — механически.
-
-Алгоритм подписи портирован из
-`air-ruflo-bridge/skills/run-via-ruflo/scripts/approve_via_telegram.py` (редакция
-10.08.2026) — источник назван в шапке `worker.py`, вторым разом код не писался.
-
-## Быстрая проверка
-
-```powershell
-python skills\run-worker-task\scripts\selftest.py     # 27 проверок + protocol selfcheck
-python skills\run-worker-task\scripts\worker.py lock  # свободен ли канал бота
-python skills\run-worker-task\scripts\protocol.py     # где ушло время
+```text
+python skills/run-worker-task/scripts/worker.py create openrouter-llm <file> \
+  --param model=nvidia/nemotron-3.5-lightning:free \
+  --param instruction="..." --privacy external
 ```
 
-Собран по `E:\-0-\air-vibecoding\NEW_PLUGIN_CHECKLIST.md` — первый плагин, прошедший
-этот список целиком (TASK-OBS-0046).
+Set `AIR_WORKER_RUNTIME` to a host-local runtime directory when you need an explicit
+location. Otherwise the resolver uses `AIR_RUNTIME_ROOT` when present, then the
+platform state directory (`%LOCALAPPDATA%/air-worker` or `$XDG_STATE_HOME/air-worker`).
+An existing legacy `E:\-4-\air-worker` state is read-compatible migration fallback only.
+On hosts without the existing Windows keyring setup, supply `AIR_WORKER_HMAC_KEY`
+through the host secret store. `AIR_WORKER_FREE_ONLY=1` is the default and only
+admits `:free` OpenRouter models. `--privacy local` rejects external OpenRouter
+execution.
 
-## Журнал версий
+The contract is HMAC-signed and includes the task type, parameters, input path and
+input digest. Before execution the core rechecks the signature, registry, privacy,
+input size and executor bounds. It uses a single atomic claim:
 
-**0.2.0 (TASK-OBS-0070).** Коммит поднимает версию и переносит уже исправленные
-skip-контракты лестницы из TASK-OBS-0067 (правка была готова до этого коммита, сам
-коммит её не создавал). Живой синхронный вызов `--escalate` на боевом реестре (87
-заявок) в этой сессии **не завершился** — подробности и метрики см.
-`E:\-4-\ruflo-hive\metrics-TASK-OBS-0070.json` (M1/M2): инфраструктурные блокеры
-(llama-server не поднят, `codex-companion.mjs` отсутствует на диске,
-`claude_judge_run.py` падает на кириллице из-за кодировки консоли) плюс режим
-«всё или ничего» с оценкой полного прогона ~87 минут — сверх предела инструмента на
-один вызов. Живая эскалация лестницы остаётся открытой работой.
+```text
+queued → running → done | failed | invalid
+```
+
+An id cannot execute twice. A failed/interrupted task is recovered with a new signed
+request; llm-queue owns bounded retries and concurrency, so this plugin does not
+start a second competing process.
+
+Direct queue dispatch now requires the queue's targeted `run-job` and
+`show-job-json` capability contract. It atomically starts exactly one known queue
+id, then polls that same id's redacted JSON receipt. The historical global
+`run --limit` implementation is unsafe with concurrent jobs and is rejected
+fail-closed; see [docs/GOAL.md](docs/GOAL.md).
+
+## Legacy Telegram
+
+Use `--approval telegram` only when a human button is wanted. Then run
+`listener.py --once 30`. The listener preserves shared-bot locking, callback-only
+input and chat-id validation, but delegates execution to the same core.
+
+## Observability and safety
+
+`protocol.py` is append-only JSONL with separate external legs; `run_metrics.csv`
+records model/counters/outcome. Prompt payload, secrets, and local input/output paths
+are excluded from protocol and metrics. Results remain in the configured local
+runtime, identified by task id and status.
+
+Run `python skills/run-worker-task/scripts/selftest.py` from this plugin root for the
+offline suite. It includes 36 checks; live route verification is separate. See
+[docs/GOAL.md](docs/GOAL.md) and the shared skill for migration and acceptance.

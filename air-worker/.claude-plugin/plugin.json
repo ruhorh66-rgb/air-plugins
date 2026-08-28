@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.2.0",
-  "description": "Отцеплённый исполнитель тяжёлых НЕроевых задач под гейтом ЛПР в Telegram. Оркестратор кладёт подписанную заявку в SQLite и шлёт кнопку в уже существующего бота контура (air-comms-telegram-bot, keyring — своего бота плагин не заводит); слушатель по нажатию запускает ОДИН зафиксированный при создании заявки шаблон исполнителя, а не текст из чата. Первый тип задачи — LLM-обработка файла через локальный air_llm_router (OpenRouter, free-only guard); разъём под второй тип (локальная Qwen для материала под границей приватности) существует и пуст. Лок трёхсостоянийный (held/free/unknown, unknown НИКОГДА не равен free) и закрывает общий с air-ruflo-bridge ресурс — один Telegram-бот: параллельный getUpdates запрещён, иначе кнопка уходит чужому слушателю.",
+  "version": "0.3.0",
+  "description": "Отцеплённый исполнитель тяжёлых нероевых задач для Claude Code и Codex. По умолчанию создаёт подписанную SQLite-заявку и немедленно исполняет её через llm-queue с проверкой подписи, registry, приватности, free-only, размера и статуса. Telegram с shared-bot locks сохранён только как явный legacy --approval telegram; listener вызывает тот же core. OpenRouter и локальная Qwen используют существующую очередь; prompt, секреты и пути материала не попадают в protocol/metrics.",
   "author": {
     "name": "AIR OS"
   },
@@ -9,7 +9,8 @@
   "keywords": [
     "air-os",
     "dispatch",
-    "telegram-gate",
+    "direct-execution",
+    "telegram-legacy",
     "openrouter",
     "detached-execution",
     "heavy-tasks"

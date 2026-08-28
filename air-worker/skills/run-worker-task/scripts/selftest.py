@@ -37,12 +37,14 @@ Telegram не вызывается вовсе, база и журнал увод
 from __future__ import annotations
 
 import csv
+import io
 import json
 import os
 import sys
 import tempfile
 import time
-from pathlib import Path
+import urllib.error
+from pathlib import Path, PurePosixPath
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -54,8 +56,11 @@ os.environ["AIR_WORKER_PROTOCOL_PATH"] = os.path.join(TMP, "protocol.jsonl")
 import apply_verification  # noqa: E402
 import executors  # noqa: E402
 import ladder  # noqa: E402
+import listener  # noqa: E402
 import level0_check  # noqa: E402
+import live_check  # noqa: E402
 import protocol  # noqa: E402
+import runtime_paths  # noqa: E402
 import worker  # noqa: E402
 
 try:
@@ -275,6 +280,277 @@ def test_metrics_row_is_appended():
     assert "selftest" in lines[-1] and "accepted" in lines[-1], lines[-1]
 
 
+def _insert_request(req: dict, status: str = "pending") -> None:
+    with worker.db() as conn:
+        conn.execute(
+            "INSERT INTO requests (id,title,task_type,input_path,input_sha256,"
+            "params,created_at,ttl_seconds,sig,status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (req["id"], req["title"], req["task_type"], req["input_path"],
+             req["input_sha256"], json.dumps(req["params"], ensure_ascii=False),
+             req["created_at"], req["ttl_seconds"], req["sig"], status))
+
+
+def _fake_spec(name: str = "_selftest_direct") -> dict:
+    def validate(params: dict) -> None:
+        if not str(params.get("instruction", "")).strip():
+            raise ValueError("instruction required")
+
+    def run(req: dict, params: dict, out_path: str) -> dict:
+        with open(out_path, "w", encoding="utf-8") as fh:
+            fh.write("offline result")
+        return {"ok": True, "model": "offline-test", "chars_in": 1,
+                "chars_out": 14, "tokens_in": 1, "tokens_out": 1,
+                "output_path": out_path}
+
+    return {"enabled": True, "title": name, "privacy": "test",
+            "validate": validate, "run": run, "external": "offline"}
+
+
+def test_direct_create_ignores_held_foreign_listener_and_never_calls_telegram():
+    """Default direct mode must not consult or call the shared Telegram channel."""
+    name = "_selftest_direct"
+    executors.REGISTRY[name] = _fake_spec(name)
+    original_foreign, original_api = worker.foreign_listener_state, worker.api
+    api_calls: list[str] = []
+    worker.foreign_listener_state = lambda: ("held", "mock foreign listener")
+
+    def forbidden_api(method, *args, **kwargs):
+        api_calls.append(method)
+        raise AssertionError("direct execution called Telegram")
+
+    worker.api = forbidden_api
+    try:
+        assert worker.cmd_create([name, MATERIAL, "--param", "instruction=run"]) == 0
+        with worker.db() as conn:
+            row = conn.execute("SELECT status,result FROM requests ORDER BY created_at DESC LIMIT 1").fetchone()
+        assert row["status"] == "done", row["status"]
+        assert json.loads(row["result"])["ok"] is True
+        assert not api_calls, api_calls
+        assert MATERIAL not in Path(worker.METRICS_PATH).read_text(encoding="utf-8")
+        assert MATERIAL not in Path(os.environ["AIR_WORKER_PROTOCOL_PATH"]).read_text(encoding="utf-8")
+    finally:
+        worker.foreign_listener_state, worker.api = original_foreign, original_api
+        del executors.REGISTRY[name]
+
+
+def test_direct_core_rejects_tampered_signed_contract():
+    req = signed()
+    req["id"] = "aw-invalid-direct"
+    req["sig"] = worker.sign_request(req)
+    _insert_request(req, "queued")
+    with worker.db() as conn:
+        conn.execute("UPDATE requests SET title=? WHERE id=?", ("подмена", req["id"]))
+    outcome = worker.execute_request(worker.load(req["id"]), notify_telegram=False)
+    assert outcome["status"] == "invalid", outcome
+    assert outcome["failure_class"] == "validation"
+    assert outcome["error_code"] == "request_invalid"
+    stored = json.loads(worker.load(req["id"])["result"])
+    assert stored == {"failure_class": "validation", "error_code": "request_invalid"}
+    assert MATERIAL not in Path(os.environ["AIR_WORKER_PROTOCOL_PATH"]).read_text(encoding="utf-8")
+    assert worker.load(req["id"])["status"] == "invalid"
+
+
+def test_execution_claim_is_idempotent_after_done():
+    name = "_selftest_idempotent"
+    calls = 0
+    spec = _fake_spec(name)
+    original_run = spec["run"]
+
+    def counted_run(*args):
+        nonlocal calls
+        calls += 1
+        return original_run(*args)
+
+    spec["run"] = counted_run
+    executors.REGISTRY[name] = spec
+    req = {"id": "aw-idempotent", "title": "idempotent", "task_type": name,
+           "input_path": MATERIAL, "input_sha256": worker.file_digest(MATERIAL),
+           "params": {"instruction": "run", "privacy": "external"},
+           "created_at": time.time(), "ttl_seconds": 3600.0}
+    req["sig"] = worker.sign_request(req)
+    _insert_request(req, "queued")
+    try:
+        assert worker.execute_request(worker.load(req["id"]))["status"] == "done"
+        replay = worker.execute_request(worker.load(req["id"]))
+        assert replay == {"id": req["id"], "status": "done", "replayed": True}
+        assert calls == 1
+    finally:
+        del executors.REGISTRY[name]
+
+
+def test_openrouter_free_only_and_privacy_contract_are_enforced():
+    old = os.environ.pop("AIR_WORKER_FREE_ONLY", None)
+    try:
+        try:
+            executors.validate_openrouter({"model": "vendor/paid", "instruction": "x"})
+            raise AssertionError("paid model accepted in default free-only mode")
+        except ValueError as exc:
+            assert ":free" in str(exc)
+    finally:
+        if old is not None:
+            os.environ["AIR_WORKER_FREE_ONLY"] = old
+    spec = executors.get("openrouter-llm")
+    ok, why = worker._task_contract_ok(
+        spec, {"model": "vendor/model:free", "instruction": "x", "privacy": "local"})
+    assert not ok and "локальный материал" in why, why
+
+
+def test_legacy_listener_uses_shared_core_offline():
+    name = "_selftest_legacy"
+    executors.REGISTRY[name] = _fake_spec(name)
+    req = {
+        "id": "aw-legacy", "title": "legacy", "task_type": name,
+        "input_path": MATERIAL, "input_sha256": worker.file_digest(MATERIAL),
+        "params": {"instruction": "run", "privacy": "external"},
+        "created_at": time.time(), "ttl_seconds": 3600.0,
+    }
+    req["sig"] = worker.sign_request(req)
+    _insert_request(req)
+    original_api, original_secret = worker.api, worker.secret
+    calls: list[str] = []
+
+    def fake_api(method, payload=None, timeout=30):
+        calls.append(method)
+        if method == "getUpdates":
+            return {"ok": True, "result": [{"update_id": 991,
+                "callback_query": {"id": "cb", "from": {"id": "77"},
+                "data": "awrun:aw-legacy", "message": {"message_id": 1}}}]}
+        return {"ok": True, "result": {}}
+
+    worker.api = fake_api
+    worker.secret = lambda account: "77"  # mocked legacy bot identity, no keyring
+    try:
+        assert listener.poll_once("77") == 1
+        final = worker.load(req["id"])
+        assert final["status"] == "done", final
+        assert json.loads(final["result"])["ok"] is True
+        assert "answerCallbackQuery" in calls and "sendMessage" in calls, calls
+    finally:
+        worker.api, worker.secret = original_api, original_secret
+        del executors.REGISTRY[name]
+
+
+def test_openrouter_errors_and_malformed_responses_do_not_report_done():
+    tmp = tempfile.mkdtemp(prefix="air-worker-openrouter-")
+    material = os.path.join(tmp, "input.txt")
+    output = os.path.join(tmp, "output.txt")
+    job_path = os.path.join(tmp, "job.json")
+    Path(material).write_text("x", encoding="utf-8")
+    Path(job_path).write_text(json.dumps({"input_path": material, "max_input_chars": 10,
+        "model": "vendor/model:free", "instruction": "x", "temperature": 0,
+        "timeout": 1, "out_path": output}), encoding="utf-8")
+    original_post = executors._post
+    try:
+        executors._post = lambda *a, **k: {}
+        assert executors._openrouter_job_main(job_path) == 1
+        assert not os.path.exists(job_path + ".result.json")
+        executors._post = lambda *a, **k: (_ for _ in ()).throw(
+            urllib.error.HTTPError("http://router", 502, "bad gateway", {}, io.BytesIO(b"bad")))
+        assert executors._openrouter_job_main(job_path) == 1
+        assert not os.path.exists(job_path + ".result.json")
+    finally:
+        executors._post = original_post
+
+
+def test_runtime_layout_accepts_synthetic_posix_paths():
+    root = PurePosixPath("/var/tmp/air-worker")
+    layout = worker.runtime_layout(root)
+    assert layout["db"] == PurePosixPath("/var/tmp/air-worker/worker.sqlite3")
+    assert layout["out"] == PurePosixPath("/var/tmp/air-worker/out")
+    env = {"AIR_WORKER_RUNTIME": "C:/explicit", "AIR_RUNTIME_ROOT": "C:/documented",
+           "LOCALAPPDATA": "C:/Users/test/AppData/Local"}
+    assert runtime_paths.resolve_runtime_root(env, system="nt") == Path("C:/explicit")
+    env.pop("AIR_WORKER_RUNTIME")
+    assert runtime_paths.resolve_runtime_root(env, system="nt") == Path("C:/documented")
+    env.pop("AIR_RUNTIME_ROOT")
+    env["AIR_WORKER_LEGACY_RUNTIME"] = str(Path(TMP) / "missing-legacy")
+    assert runtime_paths.resolve_runtime_root(env, system="nt") == Path(
+        "C:/Users/test/AppData/Local/air-worker")
+    assert runtime_paths.resolve_runtime_root(
+        {"XDG_STATE_HOME": "/var/state", "AIR_WORKER_LEGACY_RUNTIME": "ignored"},
+        system="posix") == PurePosixPath("/var/state/air-worker")
+
+
+def test_input_path_normalisation_and_live_check_validation_happen_before_execution():
+    """Path syntax is deterministic, and no malformed material reaches OpenRouter."""
+    assert worker.normalize_input_path(r"C:\work\in\..\input.txt",
+                                       system="nt") == r"C:\work\input.txt"
+    assert worker.normalize_input_path("/var/tmp/in/../input.txt", system="posix") == "/var/tmp/input.txt"
+    assert worker.normalize_input_path("material.txt", cwd="/var/tmp", system="posix") == "/var/tmp/material.txt"
+
+    relative = os.path.relpath(MATERIAL)
+    normalised, why = worker.validate_input_path(relative)
+    assert normalised == worker.normalize_input_path(relative), why
+    missing, why = worker.validate_input_path(MATERIAL + ".missing")
+    assert missing is None and "недоступен" in why, why
+
+    original_run = executors.run_openrouter
+    calls: list[dict] = []
+
+    def forbidden_run(*args, **kwargs):
+        calls.append({"args": args, "kwargs": kwargs})
+        raise AssertionError("invalid input reached OpenRouter executor")
+
+    executors.run_openrouter = forbidden_run
+    try:
+        try:
+            live_check.main(["--input-path", "vendor/model:free"])
+            raise AssertionError("model id accepted as input_path")
+        except SystemExit as exc:
+            assert "--input-path" in str(exc), exc
+        try:
+            live_check.main(["vendor/model:free"])
+            raise AssertionError("legacy positional model id accepted")
+        except SystemExit:
+            pass
+    finally:
+        executors.run_openrouter = original_run
+    assert not calls, calls
+
+
+def test_queue_targeting_requires_capability_and_never_uses_global_run():
+    calls: list[tuple[str, ...]] = []
+
+    def targeted_queue(*args: str, timeout: int = 600) -> str:
+        calls.append(args)
+        if args[:2] == ("capabilities", "--format"):
+            return json.dumps({"capabilities": ["run-job", "show-job-json"]})
+        if args[:3] == ("show", "--job", "42"):
+            return json.dumps({
+                "job_id": 42,
+                "kind": "safe-test",
+                "status": "done",
+                "attempts": 1,
+                "max_attempts": 3,
+                "created_at": "2026-08-16T00:00:00+00:00",
+                "started_at": "2026-08-16T00:00:01+00:00",
+                "finished_at": "2026-08-16T00:00:02+00:00",
+                "result_present": True,
+                "result_path": "safe-result.txt",
+                "error_class": None,
+            })
+        return ""
+
+    with ladder._patch_global("_run_dispatcher", targeted_queue):
+        fields = executors._await_job("задание 42 поставлено: test", 5)
+    assert fields["status"] == "done"
+    assert ("run", "--job", "42") in calls
+    assert ("show", "--job", "42", "--json") in calls
+    assert not any(c and c[0] in ("wait", "cancel") for c in calls), calls
+    assert not any("--limit" in c for c in calls), calls
+
+    with ladder._patch_global("_run_dispatcher", lambda *a, **k: json.dumps({
+            "capabilities": ["run-job", "show-job-json"]})):
+        executors._require_targeted_queue()
+
+    with ladder._patch_global("_run_dispatcher", lambda *a, **k: "{}"):
+        try:
+            executors._require_targeted_queue()
+            raise AssertionError("queue without capabilities accepted")
+        except SystemExit as exc:
+            assert "missing required targeted capability" in str(exc)
+
+
 def test_ladder_escalate_without_reason_fails():
     """2а: подъём — только по названной причине, молчаливая эскалация запрещена."""
     for bad_reason in ("", "   ", None):
@@ -354,11 +630,16 @@ def test_ladder_levels_4_5_execute_by_default():
     fake_result.close()
 
     def fake_claude_queue(*args: str, timeout: int = 600) -> str:
+        if args[:2] == ("capabilities", "--format"):
+            return json.dumps({"capabilities": ["run-job", "show-job-json"]})
         if args[0] == "enqueue-exec":
             return "задание 99 поставлено: claude-judgement-haiku (приоритет 5)\n"
         if args[0] == "show":
-            return (f"  status         done\n  result_path    {fake_result.name}\n"
-                   f"  error          None\n")
+            return json.dumps({"job_id": 99, "kind": "claude-judgement-haiku",
+                               "status": "done", "result_path": fake_result.name,
+                               "error_class": None})
+        if args[:2] == ("run", "--job"):
+            return "  [99] claude-judgement-haiku — done\n"
         return ""
 
     try:
