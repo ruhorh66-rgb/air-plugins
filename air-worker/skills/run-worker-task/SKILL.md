@@ -5,8 +5,11 @@ description: Запустить тяжёлую нероевую задачу ч�
 
 # air-worker — локальный исполнитель тяжёлых нероевых задач
 
-Один Python core обслуживает Claude Code/Anthropic и Codex. Он создаёт подписанную
-SQLite-заявку, повторно проверяет контракт перед запуском и передаёт работу только
+`air-worker` — canonical plugin root для Claude Code/Anthropic и Codex; команды ниже
+запускаются именно из этого корня. `../air-worker-codex` сохранён только как checkout
+compatibility adapter для старых Codex-раскладок, запускает этот core и не является
+release source. Core создаёт подписанную SQLite-заявку, повторно проверяет контракт
+перед запуском и передаёт работу только
 в существующий `llm-queue`; собственный HTTP-клиент, subprocess-очередь и ключ
 OpenRouter не создаются.
 
@@ -20,11 +23,12 @@ protocol JSONL). Если его нет, core использует `AIR_RUNTIME_
 ## Обычный порядок: direct
 
 ```text
-1. python worker.py types
-2. python worker.py create openrouter-llm <file> \
+1. python skills/run-worker-task/scripts/worker.py types
+2. python skills/run-worker-task/scripts/worker.py create openrouter-llm <file> \
        --param model=nvidia/nemotron-3.5-lightning:free \
        --param instruction="..." --privacy external
-3. python worker.py status <id>; python protocol.py
+3. python skills/run-worker-task/scripts/worker.py status <id>; \
+   python skills/run-worker-task/scripts/protocol.py
 ```
 
 `create` по умолчанию ставит и исполняет задачу сразу. Он **не** вызывает Telegram,
@@ -74,8 +78,9 @@ Listener — тонкий адаптер: после callback он вызыва�
 показ  — один status/result/metrics/protocol summary
 ```
 
-`python selftest.py` — офлайн-проверка (включая direct, legacy mock, protocol,
-malformed router и POSIX-path). Живой вызов отдельно: `python live_check.py`.
+`python skills/run-worker-task/scripts/selftest.py` — офлайн-проверка (включая
+direct, legacy mock, protocol, malformed router и POSIX-path). Живой вызов отдельно:
+`python skills/run-worker-task/scripts/live_check.py`.
 Selftest не заменяет проверку живого маршрута.
 
 ## Миграция 0.3.0

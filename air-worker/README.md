@@ -1,11 +1,14 @@
 # air-worker
 
-`air-worker` executes heavy non-swarm tasks through the existing `llm-queue`.
+`air-worker` is the canonical dual-host plugin for Claude and Codex. It executes
+heavy non-swarm tasks through the existing `llm-queue`.
 Version 0.3.0 changes the default: a signed request is created and executed locally
 immediately. Telegram approval remains available only as `--approval telegram`.
 
-The runtime code is shared by the Claude plugin and the thin sibling Codex adapter
-(`../air-worker-codex`); the adapter contains no duplicate executor or secret.
+Install and release this directory as the one Claude+Codex package. The sibling
+`../air-worker-codex` directory is a checkout-only compatibility adapter for older
+Codex layouts; it runs this shared core and is not a release source. It contains no
+duplicate executor, runtime, or secret.
 
 ## Direct execution
 
@@ -55,6 +58,6 @@ records model/counters/outcome. Prompt payload, secrets, and local input/output 
 are excluded from protocol and metrics. Results remain in the configured local
 runtime, identified by task id and status.
 
-Run `python skills/run-worker-task/scripts/selftest.py` for the offline suite.
-It includes 35 checks; live route verification is separate. See
+Run `python skills/run-worker-task/scripts/selftest.py` from this plugin root for the
+offline suite. It includes 36 checks; live route verification is separate. See
 [docs/GOAL.md](docs/GOAL.md) and the shared skill for migration and acceptance.

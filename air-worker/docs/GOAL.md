@@ -6,8 +6,9 @@ Supersedes the previous version of this file.
 
 ## Goal
 
-Make signed local execution the default for both Claude Code and Codex while retaining
-the Telegram approval path solely as an explicit legacy compatibility mode.
+Make `air-worker` the canonical dual-host Claude Code/Codex plugin with signed local
+execution as its default, while retaining the Telegram approval path solely as an
+explicit legacy compatibility mode.
 
 ## In scope
 
@@ -15,7 +16,8 @@ the Telegram approval path solely as an explicit legacy compatibility mode.
 - signed task contract, registry, privacy classification, `:free`, input/timeout bounds,
   llm-queue concurrency/retry ownership, protocol and metrics;
 - direct state transition and idempotent claim/recovery behavior;
-- thin Codex adapter with no copied runtime;
+- one canonical `.claude-plugin` + `.codex-plugin` package with no copied runtime;
+- `air-worker-codex` only as a checkout compatibility adapter, never a release source;
 - offline and one safe live direct OpenRouter acceptance.
 
 ## Boundaries
@@ -34,6 +36,8 @@ the Telegram approval path solely as an explicit legacy compatibility mode.
 - legacy listener works offline with the shared core; status/result/metrics/protocol are auditable;
 - existing selftests plus the new direct tests pass, packaging validates, and the live
   `nvidia/nemotron-3.5-lightning:free` task succeeds without touching PID 16044.
+- the canonical manifest and checkout adapter manifests declare matching 0.3.0 package
+  versions, and the adapter contains no copied shared core.
 
 ## Deferred
 
