@@ -56,6 +56,10 @@ forbidden here. See `docs/GOAL.md` for the upstream blocker.
 - Результат, status и строка metrics содержат id, тип, модель, счётчики и код
   исхода; prompt, секреты, input/output paths и текст материала не пишутся в
   protocol или metrics. Protocol — append-only JSONL с отдельной `external` ногой.
+- На текущем AIR OS product knowledge и roadmap принадлежат vault
+  `E:\-5-\011_Plugins\AirWorker_Wiki`; runtime, заявки, результаты, metrics,
+  protocol и секреты туда не копируются. На другом хосте координату находят через
+  AIR Storage registry, а не предполагают наличие диска `E:`.
 - Повторы/ретраи, backoff, cancellation, durable resume и 429 handling не являются
   контрактом air-worker; air-worker не запускает второй независимый процесс.
   Платная эскалация не молчаливая: `ladder.escalate(..., reason)` требует

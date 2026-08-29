@@ -56,6 +56,16 @@ OpenRouter key, copy secrets, or silently start a privileged process. The curren
 Windows deployment supervises it with a user-level scheduled task; POSIX and other
 hosts may use their native user service manager while keeping the same two URLs.
 
+## Product vault
+
+On the current AIR OS coordinator, the canonical product-owned vault is
+`E:\-5-\011_Plugins\AirWorker_Wiki`. It contains roadmap, product tasks,
+operations/runbooks, release history and accepted product knowledge. It is not a
+runtime directory: requests, results, metrics, protocol and secrets remain under
+the host-local `AIR_WORKER_RUNTIME`. `010_Task_Control_Platform` keeps only the
+aggregated status and a link. Other hosts resolve the equivalent coordinate through
+their AIR Storage registry instead of assuming the Windows drive path.
+
 ## Legacy Telegram
 
 Use `--approval telegram` only when a human button is wanted. Then run
