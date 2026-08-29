@@ -45,6 +45,17 @@ id, then polls that same id's redacted JSON receipt. The historical global
 `run --limit` implementation is unsafe with concurrent jobs and is rejected
 fail-closed; see [docs/GOAL.md](docs/GOAL.md).
 
+## Router dependency
+
+The OpenRouter executor requires an OpenAI-compatible router at
+`AIR_WORKER_ROUTER_URL` (default
+`http://127.0.0.1:8090/v1/chat/completions`). Health checks use
+`AIR_WORKER_ROUTER_MODELS_URL` (default `http://127.0.0.1:8090/v1/models`).
+The router is an external host service: this cross-platform plugin does not read its
+OpenRouter key, copy secrets, or silently start a privileged process. The current
+Windows deployment supervises it with a user-level scheduled task; POSIX and other
+hosts may use their native user service manager while keeping the same two URLs.
+
 ## Legacy Telegram
 
 Use `--approval telegram` only when a human button is wanted. Then run

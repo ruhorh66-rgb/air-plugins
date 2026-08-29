@@ -39,16 +39,23 @@ explicit legacy compatibility mode.
 - the canonical manifest and checkout adapter manifests declare matching 0.3.0 package
   versions, and the adapter contains no copied shared core.
 
-## Deferred
+## Release status
 
-Installation, marketplace/cache changes, tag/push/merge, and changing `defaultEnabled`
-require their own explicit release decision after live acceptance.
+Live acceptance and the explicit release gate completed on 2026-08-28. Version 0.3.0
+is merged into the canonical repository, installed from the personal marketplace and
+uses the deployed targeted llm-queue contract. The checkout feature worktree may remain
+temporarily as rollback evidence, but it is not a second release source.
+
+Tag/push and changing `defaultEnabled` remain separate release-policy decisions. Router
+lifecycle is also host operations rather than plugin ownership: air-worker consumes a
+configured loopback or host-provided router, but never reads its OpenRouter secret or
+silently starts a privileged service.
 
 ## Queue capability and deferred controls
 
 Direct execution requires the queue to advertise JSON capabilities `run-job` and
 `show-job-json`, and uses only targeted `run --job` plus `show --job --json`. The
-feature worktree supplies that contract; an older installed queue still fails closed
+deployed queue supplies that contract; an older installed queue still fails closed
 rather than using global `run --limit`. This repository does not access the queue
 database. Retry/backoff policy, cancellation, durable resume, and 429 handling remain
 explicitly deferred; no support for those controls is claimed here.
