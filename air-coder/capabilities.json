@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "product": "air-coder",
+  "version": "0.1.0-beta.1",
+  "capabilities": [
+    {
+      "id": "executor_selection",
+      "status": "AVAILABLE",
+      "runtime_path": "skills/route-coding-task/scripts/select_executor.py",
+      "contract": "Deterministically select chatgpt_rdc, ruflo, or native_cli from task/economics facts."
+    },
+    {
+      "id": "executor_handoff",
+      "status": "AVAILABLE",
+      "runtime_path": "skills/route-coding-task/SKILL.md",
+      "contract": "Hand off to an already existing executor after a live availability probe; AirCoder does not reimplement that executor."
+    },
+    {
+      "id": "comparable_run_result",
+      "status": "AVAILABLE",
+      "runtime_path": "contracts/run-result.schema.json",
+      "contract": "Record acceptance, time, direct cost, scarce quota burden, model class and attempts."
+    }
+  ],
+  "non_capabilities": ["swarm engine", "scheduler", "watchdog", "learning database", "LLM gateway", "autonomous queue"]
+}

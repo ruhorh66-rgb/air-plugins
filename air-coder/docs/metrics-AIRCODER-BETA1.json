@@ -1,0 +1,21 @@
+{
+  "task_id": "AIRCODER-BETA1",
+  "route": "chatgpt_rdc",
+  "acceptance": {
+    "accepted": 6,
+    "total": 6
+  },
+  "elapsed_min": 16.0,
+  "direct_cost_usd": null,
+  "scarce_quota_burden": "low",
+  "model_class": "GPT-5.6 Sol / ChatGPT + RDC",
+  "attempts": 1,
+  "evidence": [
+    "python -m unittest discover -s air-coder/tests -v: 8/8 PASS",
+    "three selector representative routes reproduced",
+    "git diff -- air-worker air-ruflo-bridge air-worker-codex: empty",
+    "marketplace ./air-coder entry present",
+    "claude plugin validate air-coder: PASS",
+    "shared marketplace baseline validation failure reproduced unchanged on plugins[2]._moved"
+  ]
+}

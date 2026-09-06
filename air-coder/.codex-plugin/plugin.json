@@ -1,0 +1,16 @@
+{
+  "name": "air-coder",
+  "version": "0.1.0-beta.1",
+  "description": "Thin AIR coding executor selector.",
+  "author": {"name": "AIR OS"},
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AirCoder",
+    "shortDescription": "Choose the cheapest suitable coding executor.",
+    "longDescription": "Routes coding work to ChatGPT+RDC, Ruflo, or native Codex/Claude and records one comparable result contract.",
+    "developerName": "AIR OS",
+    "category": "Productivity",
+    "capabilities": ["Interactive"],
+    "defaultPrompt": "Route this coding task through AirCoder."
+  }
+}

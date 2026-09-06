@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "name": "air-coder",
+  "display_name": "AirCoder",
+  "version": "0.1.0-beta.1",
+  "release_channel": "development",
+  "product_model": "Selector != Executor",
+  "entry_skill": "skills/route-coding-task/SKILL.md",
+  "supported_hosts": ["chatgpt-rdc", "codex", "claude-code"],
+  "contracts": {
+    "goal": "docs/GOAL.md",
+    "capabilities": "capabilities.json",
+    "run_result": "contracts/run-result.schema.json"
+  },
+  "living_document": "00_STRATEGY/AIR_CODER_LIVING_DOCUMENT.md",
+  "runtime_state_policy": "none; executor state remains owned by each external executor",
+  "instruction_freshness": {
+    "required_startup_read": true,
+    "required_release_gate": true,
+    "tracked_paths": ["product.json", "capabilities.json", "skills/", "contracts/", "docs/"]
+  }
+}
