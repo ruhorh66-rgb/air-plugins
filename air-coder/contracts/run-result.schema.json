@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AirCoder run result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_id", "route", "acceptance", "elapsed_min", "direct_cost_usd", "scarce_quota_burden", "model_class", "attempts", "evidence"],
+  "properties": {
+    "task_id": {"type": "string", "minLength": 1},
+    "route": {"enum": ["chatgpt_rdc", "ruflo", "native_cli"]},
+    "acceptance": {
+      "type": "object",
+      "required": ["accepted", "total"],
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 1}
+      }
+    },
+    "elapsed_min": {"type": "number", "minimum": 0},
+    "direct_cost_usd": {"type": ["number", "null"], "minimum": 0},
+    "scarce_quota_burden": {"enum": ["low", "medium", "high"]},
+    "model_class": {"type": "string", "minLength": 1},
+    "attempts": {"type": "integer", "minimum": 1},
+    "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+  }
+}

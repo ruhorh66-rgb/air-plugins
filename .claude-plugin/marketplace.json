@@ -32,6 +32,11 @@
       "name": "air-worker",
       "source": "./air-worker",
       "description": "Detached executor for heavy NON-swarm work (file processing, OCR, long LLM passes) behind an LPR approval button in Telegram. Signed, TTL-limited requests in SQLite; the listener runs one task type fixed at request creation, never text from the chat. Shares air-ruflo-bridge's bot, so the lock covers the shared channel too: three states, unknown never equals free. First task type — OpenRouter over the local air_llm_router; the socket for a second (local Qwen, privacy level 1) exists and is empty."
+    },
+    {
+      "name": "air-coder",
+      "source": "./air-coder",
+      "description": "Thin executor selector for AIR coding work: choose ChatGPT+RDC, Ruflo, or native Codex/Claude by task size and execution economics; no second orchestration engine."
     }
   ]
 }
