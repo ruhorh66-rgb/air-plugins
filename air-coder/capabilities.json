@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "product": "air-coder",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "capabilities": [
     {
       "id": "executor_selection",

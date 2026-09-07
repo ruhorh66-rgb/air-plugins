@@ -95,7 +95,7 @@ def select_executor(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _load_payload(path: str) -> dict[str, Any]:
-    text = Path(path).read_text(encoding="utf-8") if path != "-" else __import__("sys").stdin.read()
+    text = Path(path).read_text(encoding="utf-8-sig") if path != "-" else __import__("sys").stdin.read()
     data = json.loads(text)
     if not isinstance(data, dict):
         raise ValueError("input JSON must be an object")

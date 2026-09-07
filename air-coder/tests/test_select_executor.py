@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import tempfile
 from pathlib import Path
 import unittest
 
@@ -67,7 +68,7 @@ class SelectorTests(unittest.TestCase):
             ROOT / ".codex-plugin" / "plugin.json",
         ]
         versions = {json.loads(path.read_text(encoding="utf-8"))["version"] for path in files}
-        self.assertEqual({"0.1.0-beta.1"}, versions)
+        self.assertEqual({"0.1.0-beta.2"}, versions)
 
     def test_product_contract_paths_exist(self) -> None:
         product = json.loads((ROOT / "product.json").read_text(encoding="utf-8"))
@@ -75,6 +76,13 @@ class SelectorTests(unittest.TestCase):
         self.assertTrue((ROOT / product["living_document"]).is_file())
         for path in product["contracts"].values():
             self.assertTrue((ROOT / path).is_file(), path)
+
+    def test_load_payload_accepts_utf8_bom(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "task.json"
+            path.write_bytes(b"\xef\xbb\xbf" + b'{"mode":"implementation","size":"small"}')
+            payload = module._load_payload(str(path))
+            self.assertEqual("small", payload["size"])
 
     def test_invalid_size_fails_closed(self) -> None:
         with self.assertRaises(ValueError):
