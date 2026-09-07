@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "profile_version": "2026-09-07",
+  "upstream_repo": "ruvnet/ruflo",
+  "upstream_release": "v3.38.21",
+  "observed_native_plugin_count": 35,
+  "full_loop_install_mode": "CLI init/runtime, not plugin-lite",
+  "engine": {
+    "required_version": "3.38.21",
+    "rollback_version": "3.38.11"
+  },
+  "bridge": {
+    "skill": "air-ruflo-bridge:run-via-ruflo",
+    "script": "skills/run-via-ruflo/scripts/run_task.ps1"
+  },
+  "required_full_loop_capabilities": [
+    "mcp",
+    "hooks",
+    "daemon",
+    "swarm",
+    "autopilot",
+    "memory-agentdb",
+    "claude-launch"
+  ],  "handoff_sequence": [
+    "preflight",
+    "run_task_without_approval",
+    "inspect_dry_run_and_objective_delivery",
+    "use_existing_exact_lpr_approval_or_request_once",
+    "run_same_bridge_with_approval",
+    "verify_product_and_receipts"
+  ],
+  "forbidden_from_aircoder": [
+    "direct claude -p Ruflo execution",
+    "manual swarm/task MCP orchestration",
+    "direct hive-mind CLI orchestration outside run_task.ps1"
+  ],
+  "plugin_policy": {
+    "ruflo-core": "not separately mandatory when the full CLI loop is active; current upstream core is broader than the 2026-08-14 donor-only assumption",
+    "ruflo-cost-tracker": "recommended for executor economics and run receipts",
+    "ruflo-observability": "candidate for structured run telemetry; not required for basic swarm correctness",
+    "ruflo-goals": "candidate for large-goal decomposition; not required for basic swarm correctness",
+    "ruflo-aidefence": "candidate for prompt-injection and PII hardening; not required for basic swarm correctness",
+    "ruflo-rag-memory": "do not adopt into AirCoder/Ruflo bridge; AIR Storage owns shared agent-memory integration",
+    "ruflo-loop-workers": "do not adopt by default; AIR automation controllers own background scheduling",
+    "ruflo-federation": "not required for single-host SRVLM01 runs",
+    "domain_plugins": "task-triggered only"
+  },
+  "catalog_recheck_required_before_engine_upgrade": true
+}

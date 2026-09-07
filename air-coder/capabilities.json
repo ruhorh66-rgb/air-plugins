@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "product": "air-coder",
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "capabilities": [
     {
       "id": "executor_selection",
@@ -22,5 +22,12 @@
       "contract": "Record acceptance, time, direct cost, scarce quota burden, model class and attempts."
     }
   ],
-  "non_capabilities": ["swarm engine", "scheduler", "watchdog", "learning database", "LLM gateway", "autonomous queue"]
+  "non_capabilities": [
+    "swarm engine",
+    "scheduler",
+    "watchdog",
+    "learning database",
+    "LLM gateway",
+    "autonomous queue"
+  ]
 }

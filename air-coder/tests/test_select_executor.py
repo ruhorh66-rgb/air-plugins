@@ -13,6 +13,12 @@ module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
 spec.loader.exec_module(module)
 
+PROBE = ROOT / "skills" / "route-coding-task" / "scripts" / "probe_ruflo_route.py"
+probe_spec = importlib.util.spec_from_file_location("aircoder_ruflo_probe", PROBE)
+probe = importlib.util.module_from_spec(probe_spec)
+assert probe_spec.loader is not None
+probe_spec.loader.exec_module(probe)
+
 
 class SelectorTests(unittest.TestCase):
     def test_analysis_stays_chatgpt_rdc(self) -> None:
@@ -68,7 +74,7 @@ class SelectorTests(unittest.TestCase):
             ROOT / ".codex-plugin" / "plugin.json",
         ]
         versions = {json.loads(path.read_text(encoding="utf-8"))["version"] for path in files}
-        self.assertEqual({"0.1.0-beta.2"}, versions)
+        self.assertEqual({"0.1.0-beta.3"}, versions)
 
     def test_product_contract_paths_exist(self) -> None:
         product = json.loads((ROOT / "product.json").read_text(encoding="utf-8"))
@@ -83,6 +89,26 @@ class SelectorTests(unittest.TestCase):
             path.write_bytes(b"\xef\xbb\xbf" + b'{"mode":"implementation","size":"small"}')
             payload = module._load_payload(str(path))
             self.assertEqual("small", payload["size"])
+
+    def test_ruflo_probe_evaluation_passes_complete_runtime(self) -> None:
+        facts = {
+            "engine_version": "3.38.21", "required_version": "3.38.21",
+            "engine_rollback": "3.38.11", "required_cli_count": 1, "rollback_cli_count": 1,
+            "mcp_exists": True, "mcp_points_to_required_engine": True,
+            "run_config_exists": True, "bridge_script_exists": True, "booster_samefile": True,
+        }
+        self.assertEqual("PASS", probe.evaluate_facts(facts)["status"])
+
+    def test_ruflo_probe_fails_closed_on_mcp_drift(self) -> None:
+        facts = {
+            "engine_version": "3.38.21", "required_version": "3.38.21",
+            "engine_rollback": "3.38.11", "required_cli_count": 1, "rollback_cli_count": 1,
+            "mcp_exists": True, "mcp_points_to_required_engine": False,
+            "run_config_exists": True, "bridge_script_exists": True, "booster_samefile": True,
+        }
+        result = probe.evaluate_facts(facts)
+        self.assertEqual("FAIL", result["status"])
+        self.assertIn("mcp_engine_sync", result["failed"])
 
     def test_invalid_size_fails_closed(self) -> None:
         with self.assertRaises(ValueError):

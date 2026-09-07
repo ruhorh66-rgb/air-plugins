@@ -33,6 +33,8 @@ description: Run a coding or shell task through an installed Ruflo/claude-flow r
 
 Use the real Ruflo CLI; do not implement a swarm or orchestration substitute.
 
+Before any engine upgrade or new run profile, read `docs/RUFLO_COMPONENT_AUDIT_2026-09-07.md`. The 2026-08-14 assumption that `ruflo-core` is only an MCP donor is superseded. Current upstream separates plugin-lite from the full CLI loop; AIR validates full-loop capabilities first and treats sibling plugins as task-triggered additions unless the audit/profile marks them required.
+
 ## Где искать ответ про сам движок — порядок обязательный
 
 Указание ЛПР 10.08.2026: «поменьше лезь в исходники, побольше в репозиторий и help;

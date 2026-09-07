@@ -2,11 +2,15 @@
   "schema_version": 1,
   "name": "air-coder",
   "display_name": "AirCoder",
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "release_channel": "development",
   "product_model": "Selector != Executor",
   "entry_skill": "skills/route-coding-task/SKILL.md",
-  "supported_hosts": ["chatgpt-rdc", "codex", "claude-code"],
+  "supported_hosts": [
+    "chatgpt-rdc",
+    "codex",
+    "claude-code"
+  ],
   "contracts": {
     "goal": "docs/GOAL.md",
     "capabilities": "capabilities.json",
@@ -17,6 +21,12 @@
   "instruction_freshness": {
     "required_startup_read": true,
     "required_release_gate": true,
-    "tracked_paths": ["product.json", "capabilities.json", "skills/", "contracts/", "docs/"]
+    "tracked_paths": [
+      "product.json",
+      "capabilities.json",
+      "skills/",
+      "contracts/",
+      "docs/"
+    ]
   }
 }
