@@ -1,0 +1,25 @@
+{
+  "product": "air-coder",
+  "version": "0.1.0-beta.2",
+  "release_tag": "air-coder--v0.1.0-beta.2",
+  "source_commit": "41793b5f30e0ee92dcf9ef6efe016fbd7eb782ee",
+  "marketplace_source": "github:ruhorh66-rgb/air-plugins@main",
+  "hosts": {
+    "codex": {
+      "version": "0.145.0",
+      "plugin": "installed, enabled",
+      "bom_smoke": "PASS"
+    },
+    "claude_code": {
+      "version": "2.1.226",
+      "plugin": "installed, enabled",
+      "bom_smoke": "PASS"
+    }
+  },
+  "tests": "9/9 PASS",
+  "plugin_validation": "PASS",
+  "marketplace_validation": "PASS",
+  "selector_sha256": "E238894C7851DA5573C41694423B2A76D9B7B362B7AEEF20F1B3ED1960FF2D69",
+  "sha_parity": "source=codex=claude",
+  "outcome": "RELEASE_ACCEPTANCE_PASS"
+}
