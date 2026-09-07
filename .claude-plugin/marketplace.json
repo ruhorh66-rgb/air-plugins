@@ -16,9 +16,6 @@
       "description": "Convert PDFs/Office docs/images to Markdown locally before reading them into the model — save tokens, keep sensitive files off cloud extractors. Recipe wrapping the local MarkItDown install (E:\\-4-)."
     },
     {
-      "_moved": "legal-analysis переехал 2026-07-22 в приватный репозиторий legal-analysis (маркетплейс air-legal, каталог E:\\-8-\\legal-analysis). Причина: продукт вырос, появилась коммерческая перспектива, своя линия релизов. История перенесена subtree split целиком — опубликованное не отзывается, версии v1.0.0..v1.1.0 остаются в истории этого репозитория, она не переписывается. Найдено 28.07.2026: запись здесь была стале почти неделю — тот же класс, что ERR-2026-000056."
-    },
-    {
       "name": "air-loop",
       "source": "./air-loop",
       "description": "Canonical verification loop for every AIR OS plugin — goal, gate, turn limit, one final hand-off — plus the runner that actually counts the turns. Written after a single job burned seven overnight runs reformatting output because nobody held the goal or counted the rounds."

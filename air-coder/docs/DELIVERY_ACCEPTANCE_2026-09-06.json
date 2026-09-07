@@ -1,0 +1,25 @@
+{
+  "date": "2026-09-06",
+  "version": "0.1.0-beta.1",
+  "source_main": "bb9f8a009ac3fcc3ef64a7fccb374255e5502989",
+  "hosts": {
+    "codex": {
+      "cli_version": "0.145.0",
+      "installed": true,
+      "enabled": true,
+      "cache_selector_rc": 0,
+      "representative_route": "chatgpt_rdc"
+    },
+    "claude_code": {
+      "cli_version": "2.1.226",
+      "installed": true,
+      "enabled": true,
+      "direct_plugin_load": "PASS",
+      "cache_selector_rc": 0,
+      "representative_route": "ruflo"
+    }
+  },
+  "marketplace_fix": "remove invalid plugins[2]._moved tombstone; preserve note in .claude-plugin/MOVED_PLUGINS.md",
+  "claude_marketplace_validate": "PASS",
+  "codex_marketplace_add": "PASS"
+}
