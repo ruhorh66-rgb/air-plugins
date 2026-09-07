@@ -37,3 +37,12 @@ confirmed: 2026-09-06
 - Regression test covers BOM input explicitly.
 - Keep the three-route selector and product boundaries unchanged.
 - Re-run canonical Claude/Codex delivery after merge before tagging a release.
+
+## Release state — 2026-09-07
+
+- beta.2 merged to `main` at `41793b5`;
+- canonical GitHub marketplace is active in Claude Code and Codex;
+- both installed caches execute PowerShell BOM task facts successfully;
+- source/Codex/Claude selector SHA-256 parity is confirmed;
+- release acceptance: PASS;
+- release tag: `air-coder--v0.1.0-beta.2`.
