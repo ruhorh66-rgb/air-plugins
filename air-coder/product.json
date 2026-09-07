@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "air-coder",
   "display_name": "AirCoder",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "release_channel": "development",
   "product_model": "Selector != Executor",
   "entry_skill": "skills/route-coding-task/SKILL.md",

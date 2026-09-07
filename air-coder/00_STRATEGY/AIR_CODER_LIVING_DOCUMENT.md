@@ -1,6 +1,6 @@
 # AirCoder — Product Instruction / Living Document
 
-Development target: 0.1.0-beta.1
+Development target: 0.1.0-beta.2
 Updated: 2026-09-06
 
 ## Purpose

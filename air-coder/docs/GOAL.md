@@ -1,6 +1,6 @@
-# Goal — AirCoder 0.1.0-beta.1
+# Goal — AirCoder 0.1.0-beta.2
 
-plan_for_version: 0.1.0-beta.1
+plan_for_version: 0.1.0-beta.2
 status: confirmed_by_lpr
 confirmed: 2026-09-06
 
@@ -30,3 +30,10 @@ confirmed: 2026-09-06
 - installed-cache selector smoke passes on both hosts;
 - shared marketplace delivery is blocked only by the pre-existing invalid `_moved` tombstone; the fix removes it from the machine-readable plugin list and preserves the history in `.claude-plugin/MOVED_PLUGINS.md`;
 - no AirWorker or Ruflo runtime change is part of this delivery fix.
+
+## Beta.2 Windows input hardening
+
+- Accept UTF-8 BOM in task-facts JSON (`utf-8-sig`), matching Windows PowerShell output.
+- Regression test covers BOM input explicitly.
+- Keep the three-route selector and product boundaries unchanged.
+- Re-run canonical Claude/Codex delivery after merge before tagging a release.

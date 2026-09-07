@@ -1,6 +1,6 @@
 {
   "name": "air-coder",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "description": "Thin AIR coding executor selector. Routes a coding task to ChatGPT+RDC, Ruflo, or native Codex/Claude without implementing a second orchestration engine.",
   "author": {"name": "AIR OS"},
   "license": "MIT",
