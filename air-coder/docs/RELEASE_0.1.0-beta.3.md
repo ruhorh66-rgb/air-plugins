@@ -1,7 +1,7 @@
-# AirCoder 0.1.0-beta.3 — release dossier DRAFT
+# AirCoder 0.1.0-beta.3
 
-Status: PREPARED, NOT RELEASED
-Prepared: 2026-09-08
+Release status: PACKAGE ACCEPTED FOR TAG
+Release date: 2026-09-08
 Release type: prerelease
 Intended tag: `air-coder--v0.1.0-beta.3`
 Rollback tag: `air-coder--v0.1.0-beta.2`
@@ -51,9 +51,9 @@ Formal native-executor pilot is 4/5 accepted: 001, 002, 003B, 005B. 004B remains
 
 LPR-authorized manual execution fixed and independently verified the two nonaccepted product defects. This functional evidence is additive and does not rewrite the original executor receipts.
 
-## Remaining release gate
+## Release authorization
 
-R1-R4, AC-04 4/5, false-ready=0, live interruption/resume and ordinary-entry E2E are closed. The remaining gate is the explicit release decision for default-branch merge, tag, production marketplace update/install and final smoke.
+LPR authorized the beta.3 release sequence on 2026-09-08. Product changes merged to `main` at `1dd9fb47d2b11066caa12f70ccc8618d393e7cf1`. This release commit records package acceptance for tag creation; production install/smoke evidence is recorded after the tag and is not pre-claimed here.
 
 ## Intended release sequence after gate opens
 
@@ -70,4 +70,4 @@ R1-R4, AC-04 4/5, false-ready=0, live interruption/resume and ordinary-entry E2E
 - R4 ordinary chat entry: PASS; session inferred route facts and completed Codex runner 3/3.
 - AC-04: 4/5 accepted, false-ready=0.
 - Economics: 8 preserved native calls across current/replaced AC-04 attempts, 0 repairs, 35.190 receipt-minutes; direct cost unknown.
-- Release remains not executed pending explicit release decision.
+- Product merge complete at `1dd9fb47d2b11066caa12f70ccc8618d393e7cf1`; release package accepted for tag. Production update/smoke follows after tag.
