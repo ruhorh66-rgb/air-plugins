@@ -53,3 +53,9 @@ Replacement red baselines prepared for the next native window:
 - `AC04-005B` bridge listener non-object approval request: `900aa82df54c7414e6c4e640bf2f21c541659f79`.
 
 These branches contain protected regression tests only; product fixes are intentionally absent so they remain valid AC-04 coding pilots after native quota recovers.
+
+## Canonical five-task registry
+
+The concrete AC-04 five-task scope is now recorded in `docs/AC04_TASK_REGISTRY_2026-09-08.json`. It contains the two accepted tasks and the three replacement red-baseline tasks, including isolated roots/branches, allowed/protected paths, checks, initial/final commits where known, executor/model, elapsed time, attempts, manual returns, cost reporting and acceptance state.
+
+This registry is the authoritative five-task pilot scope for the next native window; it does not authorize unrelated product changes.
