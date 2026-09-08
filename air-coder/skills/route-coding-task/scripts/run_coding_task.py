@@ -79,6 +79,14 @@ def require_text(task: dict[str, Any], key: str) -> str:
     return value.strip()
 
 
+def require_task_id(task: dict[str, Any]) -> str:
+    task_id = require_text(task, "task_id")
+    allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
+    if any(ch not in allowed for ch in task_id) or task_id in {".", ".."}:
+        raise ContractError("task_id may contain only letters, digits, '-', '_' and '.' and may not be '.' or '..'")
+    return task_id
+
+
 def require_string_list(task: dict[str, Any], key: str) -> list[str]:
     value = task.get(key)
     if not isinstance(value, list) or not value:
@@ -610,9 +618,7 @@ def finalize_result(task: dict[str, Any], state: dict[str, Any], state_path: Pat
 def initialize_run(task_path: Path, run_root: Path) -> tuple[dict[str, Any], dict[str, Any], Path]:
     task = read_json(task_path)
     validate_task(task)
-    task_id = require_text(task, "task_id")
-    if any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_." for ch in task_id):
-        raise ContractError("task_id may contain only letters, digits, '-', '_' and '.'")
+    task_id = require_task_id(task)
     run_dir = run_root / task_id
     state_path = run_dir / "state.json"
     if state_path.exists():
@@ -628,7 +634,7 @@ def initialize_run(task_path: Path, run_root: Path) -> tuple[dict[str, Any], dic
 def load_run(task_path: Path, run_root: Path) -> tuple[dict[str, Any], dict[str, Any], Path]:
     requested = read_json(task_path)
     validate_task(requested)
-    task_id = require_text(requested, "task_id")
+    task_id = require_task_id(requested)
     state_path = run_root / task_id / "state.json"
     if not state_path.is_file():
         raise ContractError(f"no saved state for task {task_id}")
