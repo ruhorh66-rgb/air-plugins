@@ -20,6 +20,10 @@ class LimitsValuesAC04(unittest.TestCase):
             {"max_repair_attempts": "bad"},
             {"executor_timeout_seconds": "bad"},
             {"check_timeout_seconds": "bad"},
+            {"max_repair_attempts": True},
+            {"executor_timeout_seconds": 0},
+            {"check_timeout_seconds": -1},
+            {"unexpected": 1},
         ]
         for limits in cases:
             with self.subTest(limits=limits):

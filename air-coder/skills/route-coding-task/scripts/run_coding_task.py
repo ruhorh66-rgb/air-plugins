@@ -135,6 +135,8 @@ def validate_task(task: dict[str, Any]) -> None:
         raise ContractError("executor must be an object")
     if "limits" in task and not isinstance(task["limits"], dict):
         raise ContractError("limits must be an object")
+    if "limits" in task:
+        limits(task)
     quota = task.get("scarce_quota_burden", "medium")
     if quota not in {"low", "medium", "high"}:
         raise ContractError("scarce_quota_burden must be one of: low, medium, high")
@@ -405,14 +407,26 @@ def failed_checks(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def limits(task: dict[str, Any]) -> tuple[int, int, int]:
     raw = task.get("limits", {}) if isinstance(task.get("limits", {}), dict) else {}
-    try:
-        repairs = int(raw.get("max_repair_attempts", 2))
-        executor_timeout = int(raw.get("executor_timeout_seconds", 900))
-        check_timeout = int(raw.get("check_timeout_seconds", 300))
-    except (TypeError, ValueError) as exc:
-        raise ContractError("limit values must be integers") from exc
+    allowed = {"max_repair_attempts", "executor_timeout_seconds", "check_timeout_seconds"}
+    unknown = sorted(set(raw) - allowed)
+    if unknown:
+        raise ContractError("unknown limit fields: " + ", ".join(unknown))
+
+    def strict_int(name: str, default: int) -> int:
+        value = raw.get(name, default)
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ContractError(f"{name} must be an integer")
+        return value
+
+    repairs = strict_int("max_repair_attempts", 2)
+    executor_timeout = strict_int("executor_timeout_seconds", 900)
+    check_timeout = strict_int("check_timeout_seconds", 300)
     if repairs < 0 or repairs > 2:
         raise ContractError("max_repair_attempts must be between 0 and 2")
+    if executor_timeout < 1:
+        raise ContractError("executor_timeout_seconds must be at least 1")
+    if check_timeout < 1:
+        raise ContractError("check_timeout_seconds must be at least 1")
     return repairs, executor_timeout, check_timeout
 
 

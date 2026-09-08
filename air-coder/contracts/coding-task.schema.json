@@ -91,7 +91,23 @@
       "type": "object"
     },
     "limits": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_repair_attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "executor_timeout_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "check_timeout_seconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
     }
   }
 }
