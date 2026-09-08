@@ -308,5 +308,150 @@ class RunnerTests(unittest.TestCase):
             self.assertIn("do not", prompt.lower())
 
 
+    def test_resume_rechecks_protected_diff_before_acceptance(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp); repo = make_repo(base)
+            task_path = save_task(base / "task.json", make_task(repo, "RESUME-PROTECTED"))
+            task, state, state_path = module.initialize_run(task_path, base / "runs")
+            (repo / "tests" / "test_app.py").write_text("tampered\n", encoding="utf-8")
+            module.save_state(state_path, state, "executor_completed")
+            with mock.patch.object(module, "run_acceptance", return_value=check_record(True)) as checks, mock.patch.object(module, "invoke_codex") as invoke:
+                code, resumed = module.run_task(task_path, base / "runs", True)
+            self.assertEqual("blocked_protected", resumed["status"])
+            self.assertEqual(2, code)
+            checks.assert_not_called(); invoke.assert_not_called()
+
+    def test_resume_rechecks_scope_diff_before_acceptance(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp); repo = make_repo(base)
+            task_path = save_task(base / "task.json", make_task(repo, "RESUME-SCOPE"))
+            task, state, state_path = module.initialize_run(task_path, base / "runs")
+            (repo / "outside.txt").write_text("outside\n", encoding="utf-8")
+            module.save_state(state_path, state, "executor_completed")
+            with mock.patch.object(module, "run_acceptance", return_value=check_record(True)) as checks, mock.patch.object(module, "invoke_codex") as invoke:
+                code, resumed = module.run_task(task_path, base / "runs", True)
+            self.assertEqual("blocked_scope", resumed["status"])
+            self.assertEqual(2, code)
+            checks.assert_not_called(); invoke.assert_not_called()
+
+    def test_staged_whitespace_fails_diff_check(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(Path(tmp)); task = make_task(repo)
+            (repo / "app.py").write_text("VALUE = 2   \n", encoding="utf-8")
+            git(repo, "add", "app.py")
+            records = module.run_acceptance(task, 30)
+            self.assertFalse(records[0]["passed"])
+            self.assertIn("git diff HEAD --check", records[0]["command"])
+
+    def test_final_resume_preserves_existing_result(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp); repo = make_repo(base)
+            task_path = save_task(base / "task.json", make_task(repo, "FINAL-RESULT"))
+            task, state, state_path = module.initialize_run(task_path, base / "runs")
+            original = {"task_id":"FINAL-RESULT","route":"native_cli","acceptance":{"accepted":2,"total":2},"elapsed_min":12.34,"direct_cost_usd":None,"scarce_quota_burden":"medium","model_class":"Codex CLI configured","attempts":1,"evidence":["original"]}
+            state["result"] = original.copy(); module.save_state(state_path, state, "accepted")
+            before = json.loads(state_path.read_text(encoding="utf-8"))["updated_at"]
+            with mock.patch.object(module, "invoke_codex") as invoke:
+                code, resumed = module.run_task(task_path, base / "runs", True)
+            after = json.loads(state_path.read_text(encoding="utf-8"))["updated_at"]
+            self.assertEqual(0, code); self.assertEqual(original, resumed["result"]); self.assertEqual(before, after)
+            invoke.assert_not_called()
+
+    def test_resume_allowed_diff_runs_checks_without_second_executor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp); repo = make_repo(base)
+            task_path = save_task(base / "task.json", make_task(repo, "RESUME-ALLOWED"))
+            task, state, state_path = module.initialize_run(task_path, base / "runs")
+            (repo / "app.py").write_text("VALUE = 2\n", encoding="utf-8")
+            state["thread_id"]="thread-allowed"; state["executor_attempts"]=1
+            module.save_state(state_path, state, "executor_completed")
+            with mock.patch.object(module, "invoke_codex") as invoke, mock.patch.object(module, "run_acceptance", return_value=check_record(True)):
+                code, resumed = module.run_task(task_path, base / "runs", True)
+            self.assertEqual(0, code); self.assertEqual("accepted", resumed["status"]); self.assertEqual(1, resumed["executor_attempts"])
+            invoke.assert_not_called()
+
+    def test_build_result_uses_persisted_active_elapsed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp); repo = make_repo(base); task = make_task(repo, "TIMING")
+            task_path = save_task(base / "task.json", task); task, state, state_path = module.initialize_run(task_path, base / "runs")
+            state["timing"]={"active_elapsed_s":120.0,"resume_wait_elapsed_s":30.0,"resume_count":1,"calendar_started_at":state["created_at"],"calendar_completed_at":None}
+            result = module.build_result(task, state)
+            self.assertEqual(2.0, result["elapsed_min"])
+
+
+    def test_acceptance_cannot_create_final_protected_diff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp); repo = make_repo(base)
+            task_path = save_task(base / "task.json", make_task(repo, "ACCEPTANCE-PROTECTED"))
+            task, state, state_path = module.initialize_run(task_path, base / "runs")
+            (repo / "app.py").write_text("VALUE = 2\n", encoding="utf-8")
+            state["thread_id"] = "thread-acceptance"
+            state["executor_attempts"] = 1
+            module.save_state(state_path, state, "executor_completed")
+            def mutating_acceptance(_task, _timeout):
+                (repo / "tests" / "test_app.py").write_text("mutated by check\n", encoding="utf-8")
+                return check_record(True)
+            with mock.patch.object(module, "invoke_codex") as invoke, \
+                 mock.patch.object(module, "run_acceptance", side_effect=mutating_acceptance):
+                code, resumed = module.run_task(task_path, base / "runs", True)
+            self.assertEqual(4, code)
+            self.assertEqual("blocked_protected", resumed["status"])
+            invoke.assert_not_called()
+
+
+    def test_resume_after_repair_rechecks_protected_diff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp); repo = make_repo(base)
+            task_path = save_task(base / "task.json", make_task(repo, "RESUME-REPAIR-PROTECTED"))
+            task, state, state_path = module.initialize_run(task_path, base / "runs")
+            state["thread_id"] = "thread-repair"; state["executor_attempts"] = 2; state["repair_attempts"] = 1
+            (repo / "tests" / "test_app.py").write_text("tampered after repair\n", encoding="utf-8")
+            module.save_state(state_path, state, "executor_completed")
+            with mock.patch.object(module, "run_acceptance", return_value=check_record(True)) as checks, mock.patch.object(module, "invoke_codex") as invoke:
+                code, resumed = module.run_task(task_path, base / "runs", True)
+            self.assertEqual(2, code); self.assertEqual("blocked_protected", resumed["status"])
+            checks.assert_not_called(); invoke.assert_not_called()
+
+    def test_acceptance_side_effect_cannot_bypass_protected_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp); repo = make_repo(base)
+            task_path = save_task(base / "task.json", make_task(repo, "ACCEPTANCE-SIDE-EFFECT"))
+            def mutating_checks(task, timeout):
+                (repo / "tests" / "test_app.py").write_text("mutated by check\n", encoding="utf-8")
+                return check_record(True)
+            with mock.patch.object(module, "invoke_codex", return_value=successful_executor()), mock.patch.object(module, "run_acceptance", side_effect=mutating_checks):
+                code, state = module.run_task(task_path, base / "runs", False)
+            self.assertEqual(4, code); self.assertEqual("blocked_protected", state["status"])
+
+    def test_resume_accumulates_persisted_timing_without_executor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp); repo = make_repo(base)
+            task_path = save_task(base / "task.json", make_task(repo, "RESUME-TIMING"))
+            task, state, state_path = module.initialize_run(task_path, base / "runs")
+            (repo / "app.py").write_text("VALUE = 2\n", encoding="utf-8")
+            state["thread_id"] = "thread-time"; state["executor_attempts"] = 1
+            state["timing"]["active_elapsed_s"] = 60.0
+            module.save_state(state_path, state, "executor_completed")
+            with mock.patch.object(module, "invoke_codex") as invoke, mock.patch.object(module, "run_acceptance", return_value=check_record(True)):
+                code, resumed = module.run_task(task_path, base / "runs", True)
+            self.assertEqual(0, code); self.assertGreaterEqual(resumed["result"]["elapsed_min"], 1.0)
+            self.assertEqual(1, resumed["timing"]["resume_count"]); self.assertEqual(1, resumed["executor_attempts"])
+            invoke.assert_not_called()
+
+
+    def test_executor_elapsed_is_persisted_at_completed_boundary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp); repo = make_repo(base)
+            task_path = save_task(base / "task.json", make_task(repo, "EXECUTOR-TIMING"))
+            task, state, state_path = module.initialize_run(task_path, base / "runs")
+            fake = successful_executor("thread-timing")
+            fake["elapsed_s"] = 123.0
+            with mock.patch.object(module, "invoke_codex", return_value=fake):
+                self.assertTrue(module.execute_one_turn(task, state, state_path, "work", 30, repair=False))
+            persisted = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual("executor_completed", persisted["status"])
+            self.assertEqual(123.0, persisted["timing"]["active_elapsed_s"])
+
+
 if __name__ == "__main__":
     unittest.main()

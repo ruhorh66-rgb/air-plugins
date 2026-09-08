@@ -45,8 +45,9 @@ class RunResultContractPilot(unittest.TestCase):
                 ]],
                 "changed_paths": ["air-coder/example.py"],
                 "run_dir": str(repo / ".aircoder-run"),
+                "timing": {"active_elapsed_s": 2.0},
             }
-            result = module.build_result(task, state, time.monotonic() - 2.0)
+            result = module.build_result(task, state)
             schema = json.loads((ROOT / "contracts" / "run-result.schema.json").read_text(encoding="utf-8"))
             Draft202012Validator(schema).validate(result)
             self.assertEqual(result["route"], "native_cli")
@@ -54,6 +55,8 @@ class RunResultContractPilot(unittest.TestCase):
             self.assertEqual(result["direct_cost_usd"], None)
             self.assertEqual(result["scarce_quota_burden"], "medium")
             self.assertEqual(result["attempts"], 1)
+            self.assertEqual(result["elapsed_min"], 0.033)
+            self.assertIn("configured:", result["model_class"])
             self.assertTrue(result["evidence"])
 
 
