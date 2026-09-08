@@ -5,7 +5,8 @@ Status: prepared; native execution deferred until Codex quota is available.
 Task: `AIRCODER-AC04-RESUME-001`
 Product: `air-coder`
 Isolated branch: `ai/aircoder-ac04-resume-taskid`
-Red baseline: `11540c62bcd9e554c76a6e9905fbd95451c2b544`
+Red regression commit: `11540c62bcd9e554c76a6e9905fbd95451c2b544`
+Execution baseline after resume-context hardening: `67a4dc6e596fab2f4a392613a97c30314463a372`
 Runtime contract: `E:\-4-\air-coder\pilot-tasks\AIRCODER-AC04-RESUME-001.json`
 
 ## Real defect
