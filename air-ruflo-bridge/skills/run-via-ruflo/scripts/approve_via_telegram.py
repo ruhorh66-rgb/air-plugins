@@ -345,8 +345,15 @@ def status(argv: list[str]) -> int:
     if not os.path.isfile(path):
         print(json.dumps({"status": "unknown"}))
         return 1
-    with open(path, encoding="utf-8") as fh:
-        data = json.load(fh)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        print(json.dumps({"status": "unverifiable"}))
+        return 2
+    if not isinstance(data, dict):
+        print(json.dumps({"status": "unverifiable"}))
+        return 2
     if data.get("status") == "pending" and time.time() - data.get("created_at", 0) > TTL_SECONDS:
         data["status"] = "expired"
     print(json.dumps({k: data.get(k) for k in ("id", "status", "title", "decided_at")},
