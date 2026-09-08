@@ -262,7 +262,7 @@ def scope_violations(task: dict[str, Any], changed: Iterable[str]) -> list[str]:
 def run_acceptance(task: dict[str, Any], timeout_s: int) -> list[dict[str, Any]]:
     repo = Path(require_text(task, "repo_root")).resolve()
     records: list[dict[str, Any]] = []
-    commands = ["git diff --check", *require_string_list(task, "acceptance_commands")]
+    commands = ["git diff HEAD --check", *require_string_list(task, "acceptance_commands")]
     for command in commands:
         result = run_command(command, repo, timeout_s, shell=True)
         records.append({
@@ -410,13 +410,14 @@ def run_root_from_args(value: str | None) -> Path:
 
 
 def new_state(task: dict[str, Any], task_path: Path, run_dir: Path) -> dict[str, Any]:
+    created_at = utc_now()
     return {
         "schema_version": 1,
         "task_id": task["task_id"],
         "product": task["product"],
         "status": "created",
-        "created_at": utc_now(),
-        "updated_at": utc_now(),
+        "created_at": created_at,
+        "updated_at": created_at,
         "task_contract": str(task_path.resolve()),
         "run_dir": str(run_dir),
         "thread_id": None,
@@ -427,6 +428,13 @@ def new_state(task: dict[str, Any], task_path: Path, run_dir: Path) -> dict[str,
         "changed_paths": [],
         "failure": None,
         "result": None,
+        "timing": {
+            "active_elapsed_s": 0.0,
+            "resume_wait_elapsed_s": 0.0,
+            "resume_count": 0,
+            "calendar_started_at": created_at,
+            "calendar_completed_at": None,
+        },
     }
 
 
@@ -502,6 +510,7 @@ def execute_one_turn(
         state["repair_attempts"] += 1
     state["thread_id"] = run.get("thread_id")
     state["executor_runs"].append(run)
+    add_active_elapsed(state, float(run.get("elapsed_s") or 0.0))
     if executor_failed(run):
         unavailable = executor_unavailability(run)
         if unavailable:
@@ -525,7 +534,41 @@ def execute_one_turn(
     return True
 
 
-def build_result(task: dict[str, Any], state: dict[str, Any], started: float) -> dict[str, Any]:
+def ensure_timing(state: dict[str, Any]) -> dict[str, Any]:
+    timing = state.setdefault("timing", {})
+    timing.setdefault("active_elapsed_s", 0.0)
+    timing.setdefault("resume_wait_elapsed_s", 0.0)
+    timing.setdefault("resume_count", 0)
+    timing.setdefault("calendar_started_at", state.get("created_at"))
+    timing.setdefault("calendar_completed_at", None)
+    return timing
+
+
+def add_active_elapsed(state: dict[str, Any], elapsed_s: float) -> None:
+    timing = ensure_timing(state)
+    timing["active_elapsed_s"] = round(float(timing["active_elapsed_s"]) + max(0.0, elapsed_s), 3)
+
+
+def record_acceptance_elapsed(state: dict[str, Any], records: list[dict[str, Any]]) -> None:
+    add_active_elapsed(state, sum(float(record.get("elapsed_s") or 0.0) for record in records))
+
+
+def record_resume_wait(state: dict[str, Any]) -> None:
+    timing = ensure_timing(state)
+    raw = state.get("updated_at")
+    if isinstance(raw, str):
+        try:
+            dt = __import__("datetime").datetime.fromisoformat(raw)
+            now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=__import__("datetime").timezone.utc)
+            timing["resume_wait_elapsed_s"] = round(float(timing["resume_wait_elapsed_s"]) + max(0.0, (now - dt).total_seconds()), 3)
+        except ValueError:
+            pass
+    timing["resume_count"] = int(timing["resume_count"]) + 1
+
+
+def build_result(task: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
     executor = task.get("executor", {}) if isinstance(task.get("executor", {}), dict) else {}
     latest_checks = state.get("acceptance_runs", [])[-1] if state.get("acceptance_runs") else []
     total_checks = len(latest_checks) or (1 + len(require_string_list(task, "acceptance_commands")))
@@ -541,13 +584,24 @@ def build_result(task: dict[str, Any], state: dict[str, Any], started: float) ->
         "task_id": task["task_id"],
         "route": "native_cli",
         "acceptance": {"accepted": accepted_checks, "total": total_checks},
-        "elapsed_min": round((time.monotonic() - started) / 60.0, 3),
+        "elapsed_min": round(float(ensure_timing(state)["active_elapsed_s"]) / 60.0, 3),
         "direct_cost_usd": None,
         "scarce_quota_burden": quota,
-        "model_class": f"Codex CLI / {executor.get('model', 'config-default')}",
+        "model_class": f"Codex CLI / configured:{executor.get('model', 'config-default')}",
         "attempts": max(1, int(state.get("executor_attempts", 0))),
         "evidence": evidence,
     }
+
+
+def finalize_result(task: dict[str, Any], state: dict[str, Any], state_path: Path, started: float) -> None:
+    timing = ensure_timing(state)
+    timing["completed_invocation_elapsed_s"] = round(
+        float(timing.get("completed_invocation_elapsed_s", 0.0)) + max(0.0, time.monotonic() - started), 3
+    )
+    if state.get("status") in FINAL_STATES and not timing.get("calendar_completed_at"):
+        timing["calendar_completed_at"] = utc_now()
+    state["result"] = build_result(task, state)
+    save_state(state_path, state)
 
 
 def initialize_run(task_path: Path, run_root: Path) -> tuple[dict[str, Any], dict[str, Any], Path]:
@@ -608,11 +662,14 @@ def prepare_or_resume(
         return task, state, state_path, False
     if state.get("status") in FINAL_STATES:
         return task, state, state_path, False
+    record_resume_wait(state)
     ok_context, failures = check_context(task)
     ok_identity, identity_failures = check_repo_identity(task, check_clean=False)
     if not ok_context or not ok_identity:
         state["failure"] = {"kind": "resume_context_gate", "details": failures + identity_failures}
         save_state(state_path, state, "blocked_context")
+        return task, state, state_path, False
+    if not gate_changed_paths(task, state, state_path):
         return task, state, state_path, False
     return task, state, state_path, True
 
@@ -621,23 +678,26 @@ def run_task(task_path: Path, run_root: Path, resume: bool) -> tuple[int, dict[s
     started = time.monotonic()
     task, state, state_path, may_continue = prepare_or_resume(task_path, run_root, resume)
     if not may_continue:
-        state["result"] = build_result(task, state, started)
-        save_state(state_path, state)
+        if state.get("status") in FINAL_STATES and state.get("result") is not None:
+            return (0 if state["status"] == "accepted" else 2), state
+        finalize_result(task, state, state_path, started)
         return (0 if state["status"] == "accepted" else 2), state
 
     max_repairs, executor_timeout, check_timeout = limits(task)
     if state["status"] == "preflight_passed":
         if not execute_one_turn(task, state, state_path, context_prompt(task), executor_timeout, repair=False):
-            state["result"] = build_result(task, state, started)
-            save_state(state_path, state)
+            finalize_result(task, state, state_path, started)
             return 3, state
         if not gate_changed_paths(task, state, state_path):
-            state["result"] = build_result(task, state, started)
-            save_state(state_path, state)
+            finalize_result(task, state, state_path, started)
             return 4, state
 
     checks = run_acceptance(task, check_timeout)
     state["acceptance_runs"].append(checks)
+    record_acceptance_elapsed(state, checks)
+    if not gate_changed_paths(task, state, state_path):
+        finalize_result(task, state, state_path, started)
+        return 4, state
     if acceptance_passed(checks):
         save_state(state_path, state, "accepted")
     else:
@@ -646,15 +706,17 @@ def run_task(task_path: Path, run_root: Path, resume: bool) -> tuple[int, dict[s
         attempt = state["repair_attempts"] + 1
         prompt = repair_prompt(task, failed_checks(checks), attempt)
         if not execute_one_turn(task, state, state_path, prompt, executor_timeout, repair=True):
-            state["result"] = build_result(task, state, started)
-            save_state(state_path, state)
+            finalize_result(task, state, state_path, started)
             return 3, state
         if not gate_changed_paths(task, state, state_path):
-            state["result"] = build_result(task, state, started)
-            save_state(state_path, state)
+            finalize_result(task, state, state_path, started)
             return 4, state
         checks = run_acceptance(task, check_timeout)
         state["acceptance_runs"].append(checks)
+        record_acceptance_elapsed(state, checks)
+        if not gate_changed_paths(task, state, state_path):
+            finalize_result(task, state, state_path, started)
+            return 4, state
         if acceptance_passed(checks):
             save_state(state_path, state, "accepted")
         else:
@@ -668,8 +730,7 @@ def run_task(task_path: Path, run_root: Path, resume: bool) -> tuple[int, dict[s
         }
         save_state(state_path, state, "repair_limit_reached")
 
-    state["result"] = build_result(task, state, started)
-    save_state(state_path, state)
+    finalize_result(task, state, state_path, started)
     return (0 if state["status"] == "accepted" else 5), state
 
 
