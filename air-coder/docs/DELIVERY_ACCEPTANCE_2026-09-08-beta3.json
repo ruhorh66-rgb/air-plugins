@@ -1,7 +1,7 @@
 {
   "product": "air-coder",
   "version": "0.1.0-beta.3",
-  "status": "PREPARED_NOT_RELEASED",
+  "status": "RELEASE_PACKAGE_ACCEPTED_FOR_TAG",
   "code_candidate_commit": "0a1ce69b53b67e817305d582904945309688efa7",
   "intended_release_tag": "air-coder--v0.1.0-beta.3",
   "rollback_tag": "air-coder--v0.1.0-beta.2",
@@ -58,10 +58,8 @@
     "manual_verified_nonaccepted": 1,
     "functional_defects_fixed": 5
   },
-  "blockers": [
-    "explicit release decision for merge/tag/production install/smoke"
-  ],
-  "outcome": "AC05_TECHNICAL_GATES_CLOSED_RELEASE_DECISION_PENDING",
+  "blockers": [],
+  "outcome": "RELEASE_PACKAGE_ACCEPTANCE_PASS",
   "live_resume": {
     "status": "PASS",
     "initial_commit": "67a4dc6e596fab2f4a392613a97c30314463a372",
@@ -91,5 +89,9 @@
     "automatic_paid_retries_after_infra_failure": 0,
     "manual_returns": 0,
     "roi_claim": "not made; comparable baseline unavailable"
-  }
+  },
+  "release_tag": "air-coder--v0.1.0-beta.3",
+  "source_commit": "1dd9fb47d2b11066caa12f70ccc8618d393e7cf1",
+  "marketplace_source": "github:ruhorh66-rgb/air-plugins@main",
+  "production_install_status": "PENDING_POST_TAG_SMOKE"
 }

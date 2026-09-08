@@ -117,3 +117,11 @@ Acceptance accounting remains conservative: formal native-executor AC-04 score s
 - Ordinary chat -> selector -> Codex -> checks -> receipt: PASS.
 - Final technical/economics evidence: `docs/ASTRA_FINAL_ACCEPTANCE_2026-09-08.md`.
 - Merge/tag/production install remain behind the explicit release decision.
+
+## Beta.3 release execution — 2026-09-08
+
+- LPR release decision: authorized.
+- Product candidate merged to `main`: `1dd9fb47d2b11066caa12f70ccc8618d393e7cf1` (PR #6).
+- Release package gate: accepted for `air-coder--v0.1.0-beta.3`.
+- Production remains beta.2 until the tag is created and post-tag install/smoke passes.
+- Rollback remains `air-coder--v0.1.0-beta.2` at `f7e9020146cca41015c1ed4832bb317f4126cd4b`.
