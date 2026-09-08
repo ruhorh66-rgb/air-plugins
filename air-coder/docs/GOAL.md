@@ -96,3 +96,15 @@ Current continuation evidence is recorded in `docs/ASTRA_CONTINUATION_STATUS_202
 - 005B is red and clean but native execution is quota-blocked; no automatic retry is allowed.
 - AC04-RESUME-001 remains intentionally red and untouched until the live one-turn interruption/resume run.
 - AC-05 release/merge/tag/install remains blocked until AC-04 reaches at least 4/5 and live resume passes.
+
+## LPR-authorized self-execution — 2026-09-08 21:45 local
+
+Because native Codex returned a usage-limit receipt, LPR explicitly authorized the current ChatGPT+RDC session to continue implementation itself rather than wait for native quota.
+
+Development result:
+- AC04-005B product defect fixed and fully regression-checked without altering its original Codex `executor_unavailable` receipt.
+- Resume `task_id` path escape fixed before state-path construction and protected by a permanent regression.
+- R1-R4 and all known AC-04 functional defects are now integrated in candidate `f7233a9f3f04bcff7ce6c1433aa641cd18670fcd`.
+- Combined mechanical gate is green: AirCoder 52/52 plus bridge/listener AC-04 checks.
+
+Acceptance accounting remains conservative: formal native-executor AC-04 score stays 3/5; manual self-execution evidence is tracked separately. AC-05 release materials may be prepared, but default-branch merge/tag/install remain gated until the final release decision.

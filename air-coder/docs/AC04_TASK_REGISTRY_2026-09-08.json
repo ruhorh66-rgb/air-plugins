@@ -207,7 +207,20 @@
         "failure=executor_unavailable/usage_limit",
         "automatic_retry=0",
         "changed_paths=0"
-      ]
+      ],
+      "manual_executor_evidence": {
+        "authorized_by_lpr": true,
+        "pilot_status_unchanged": true,
+        "fix_commit": "17d94ace96c0cca57266472e578071ea5fb0ecf6",
+        "integrated_commit": "c14c487",
+        "verification": [
+          "protected regression PASS",
+          "listener verification 8/8 PASS",
+          "listener liveness 10/10 PASS",
+          "queue regression 7/7 PASS",
+          "git diff --check PASS"
+        ]
+      }
     }
   ],
   "current_summary": {
@@ -215,6 +228,9 @@
     "total": 5,
     "false_ready": 0,
     "automatic_paid_retries_after_infra_failure": 0,
-    "updated_at": "2026-09-08T21:25:00+08:00"
+    "updated_at": "2026-09-08T21:45:00+08:00",
+    "functional_defects_fixed": 5,
+    "formal_pilot_accepted": 3,
+    "manual_verified_nonaccepted": 2
   }
 }

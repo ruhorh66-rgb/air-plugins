@@ -1,0 +1,57 @@
+{
+  "product": "air-coder",
+  "version": "0.1.0-beta.3",
+  "status": "PREPARED_NOT_RELEASED",
+  "code_candidate_commit": "f7233a9f3f04bcff7ce6c1433aa641cd18670fcd",
+  "intended_release_tag": "air-coder--v0.1.0-beta.3",
+  "rollback_tag": "air-coder--v0.1.0-beta.2",
+  "rollback_commit": "f7e9020146cca41015c1ed4832bb317f4126cd4b",
+  "hosts": {
+    "codex": {
+      "version": "0.145.0",
+      "isolated_install": "0.1.0-beta.3 PASS",
+      "production_before_release": "0.1.0-beta.2"
+    },
+    "claude_code": {
+      "version": "2.1.226",
+      "isolated_install": "0.1.0-beta.3 PASS",
+      "production_before_release": "0.1.0-beta.2"
+    }
+  },
+  "tests": {
+    "air_coder": "52/52 PASS",
+    "queue_invalid_time": "PASS",
+    "listener_nonobject": "PASS",
+    "listener_verification": "8/8 PASS",
+    "listener_liveness": "10/10 PASS",
+    "queue": "7/7 PASS",
+    "diff_check": "PASS"
+  },
+  "validation": {
+    "plugin": "PASS",
+    "marketplace": "PASS",
+    "isolated_install_codex": "PASS",
+    "isolated_install_claude": "PASS",
+    "installed_selector_smoke": "PASS"
+  },
+  "sha256": {
+    "selector": "FBB0A572CF2297DC630E648B5A2F301DFC38693341B39716653CC1C9B0E424C1",
+    "runner": "ED034F7AD7247FC8708121EBBD9DC8219416AA0D7A8E745DBAE668EC8C03F3C2",
+    "skill": "4346DD893B128C87266AB1042F61F028E032112D92646A1BB731DF4F45CECDEA",
+    "product": "2924F19DD5C7308260C97ABB870406AF2CC530E630DF14E78D94BEB55198002A",
+    "parity": "source=isolated_codex=isolated_claude"
+  },
+  "ac04": {
+    "formal_native_accepted": 3,
+    "total": 5,
+    "false_ready": 0,
+    "manual_verified_nonaccepted": 2,
+    "functional_defects_fixed": 5
+  },
+  "blockers": [
+    "real native-executor live interruption/resume proof",
+    "formal 4/5 AC-04 gate unless LPR changes acceptance policy",
+    "release decision for merge/tag/production install"
+  ],
+  "outcome": "AC05_RELEASE_PACKAGE_READY_BUT_GATE_CLOSED"
+}

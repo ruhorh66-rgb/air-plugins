@@ -28,3 +28,16 @@ Release gate: CLOSED.
 3. Demonstrate ordinary chat entry end-to-end through the new R4 route when native executor is available.
 4. Reconcile final AC04 registry/economics and require at least 4/5 accepted before AC-05.
 5. Only then prepare merge/tag/install/smoke/rollback package.
+
+## Self-executor continuation — 2026-09-08 21:45 +08
+
+LPR explicitly authorized this session to continue development as the coding executor while Codex native quota is unavailable.
+
+- Current candidate: `f7233a9f3f04bcff7ce6c1433aa641cd18670fcd`.
+- AC04-005B functional defect is fixed manually: isolated `17d94ace96c0cca57266472e578071ea5fb0ecf6`, integrated as `c14c487`; protected test PASS, listener verification 8/8, liveness 10/10, queue 7/7.
+- Resume task-id escape is fixed manually: isolated `d22bc562f063938a1d39e53bbe550d3d053e4a96`, integrated as `4b3df94`, protected regression integrated as `b36585a`.
+- Combined candidate verification: AirCoder 52/52 PASS; AC04-004B PASS; AC04-005B PASS; listener 8/8 + 10/10; queue 7/7; `task_id=".."` fail-closed; `git diff --check` PASS.
+- Claude candidate plugin validation PASS and marketplace validation PASS.
+- Installed production baseline remains `0.1.0-beta.2` in both Claude Code and Codex; no beta.3 install/update/tag/merge was performed.
+
+Formal AC-04 executor evidence remains 3/5 accepted. Manual fixes do not rewrite the 004B timeout or 005B usage-limit receipts. Functional defects across all five AC-04 task cases are fixed and integrated; the remaining evidence gap is real native-executor/live-resume proof.
