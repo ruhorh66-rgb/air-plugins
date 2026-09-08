@@ -13,14 +13,15 @@ Rollback commit: `f7e9020146cca41015c1ed4832bb317f4126cd4b`
 - Fail-closed context, repository, allowed-path and protected-path gates.
 - Staged + unstaged `git diff --check` coverage and bounded repair.
 - Persisted timing and resume state with no automatic replay of uncertain in-flight calls.
-- Resume task-id validation before state-path construction.
+- Resume task-id validation before state-path construction, with the same safe-segment rule enforced by JSON Schema and runtime validator.
 - Ordinary implementation routes to ready Codex by default; size alone no longer forces Ruflo.
 - Ruflo remains explicit for substantial implementation signs through `air-ruflo-bridge`.
 - Bridge hardening for invalid queue timestamps and non-object approval request files.
 
 ## Mechanical acceptance
 
-- AirCoder unittest: 52/52 PASS.
+- AirCoder unittest: 53/53 PASS.
+- Draft 2020-12 coding-task schema validation and task-id schema/runtime parity: PASS.
 - AC04 queue invalid-time regression: PASS.
 - AC04 listener non-object regression: PASS.
 - Listener signature/security checks: 8/8 PASS.
@@ -29,14 +30,18 @@ Rollback commit: `f7e9020146cca41015c1ed4832bb317f4126cd4b`
 - `git diff --check`: PASS.
 - Claude plugin validation: PASS.
 - Shared marketplace validation: PASS.
+- Version parity across product/Codex/Claude manifests: `0.1.0-beta.3` PASS.
+- All 14 AirCoder JSON files parse: PASS.
+- Both Draft 2020-12 contract schemas validate: PASS.
+- Python `compileall` for AirCoder: PASS.
 
 ## Installability evidence
 
-An isolated test consumer was created under `E:/-4-/air-coder/install-smoke`; production user installs remained beta.2.
+An isolated test consumer was created under `E:/-4-/air-coder/install-smoke-schema`; production user installs remained beta.2.
 
 - Codex isolated marketplace/add installed `air-coder@air-plugins` version `0.1.0-beta.3`: PASS.
 - Claude isolated local-scope install installed version `0.1.0-beta.3`: PASS.
-- Source / isolated Codex / isolated Claude SHA-256 parity: PASS for selector, runner, skill instruction and product manifest.
+- Source / isolated Codex / isolated Claude SHA-256 parity: PASS for selector, runner, skill instruction, product manifest and coding-task schema.
 - Installed selector smoke on both caches: ordinary implementation -> `native_cli`, target `native CLI (codex)`: PASS.
 
 ## AC-04 evidence accounting

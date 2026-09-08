@@ -2,7 +2,7 @@
   "product": "air-coder",
   "version": "0.1.0-beta.3",
   "status": "PREPARED_NOT_RELEASED",
-  "code_candidate_commit": "f7233a9f3f04bcff7ce6c1433aa641cd18670fcd",
+  "code_candidate_commit": "129d43261e446576b07163180e2ad4c5abf4d885",
   "intended_release_tag": "air-coder--v0.1.0-beta.3",
   "rollback_tag": "air-coder--v0.1.0-beta.2",
   "rollback_commit": "f7e9020146cca41015c1ed4832bb317f4126cd4b",
@@ -19,27 +19,34 @@
     }
   },
   "tests": {
-    "air_coder": "52/52 PASS",
+    "air_coder": "53/53 PASS",
     "queue_invalid_time": "PASS",
     "listener_nonobject": "PASS",
     "listener_verification": "8/8 PASS",
     "listener_liveness": "10/10 PASS",
     "queue": "7/7 PASS",
-    "diff_check": "PASS"
+    "diff_check": "PASS",
+    "task_id_schema_runtime_alignment": "PASS"
   },
   "validation": {
     "plugin": "PASS",
     "marketplace": "PASS",
     "isolated_install_codex": "PASS",
     "isolated_install_claude": "PASS",
-    "installed_selector_smoke": "PASS"
+    "installed_selector_smoke": "PASS",
+    "draft202012_coding_task_schema": "PASS",
+    "version_parity": "0.1.0-beta.3 PASS",
+    "json_parse": "14/14 PASS",
+    "all_contract_schemas_draft202012": "2/2 PASS",
+    "python_compileall": "PASS"
   },
   "sha256": {
     "selector": "FBB0A572CF2297DC630E648B5A2F301DFC38693341B39716653CC1C9B0E424C1",
-    "runner": "ED034F7AD7247FC8708121EBBD9DC8219416AA0D7A8E745DBAE668EC8C03F3C2",
+    "runner": "826F94532A775236D75ED72268DFDCAF24CF48C1D641E48DB7335DF7CF0861B5",
     "skill": "4346DD893B128C87266AB1042F61F028E032112D92646A1BB731DF4F45CECDEA",
     "product": "2924F19DD5C7308260C97ABB870406AF2CC530E630DF14E78D94BEB55198002A",
-    "parity": "source=isolated_codex=isolated_claude"
+    "parity": "source=isolated_codex=isolated_claude",
+    "coding_task_schema": "74AF4473EEDD5370C6AC52F8BDAAAB2402F135AD1EFBD06A055EFD7A9D5EA760"
   },
   "ac04": {
     "formal_native_accepted": 3,
