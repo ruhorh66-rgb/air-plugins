@@ -106,6 +106,9 @@ def validate_task(task: dict[str, Any]) -> None:
         raise ContractError("schema_version must be 1")
     for key in ("task_id", "product", "repo_root", "objective"):
         require_text(task, key)
+    task_id = require_text(task, "task_id")
+    if any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_." for ch in task_id):
+        raise ContractError("task_id may contain only letters, digits, '-', '_' and '.'")
     for key in ("allowed_paths", "context_files", "acceptance_commands"):
         require_string_list(task, key)
     protected = task.get("protected_paths", [])
@@ -554,8 +557,6 @@ def initialize_run(task_path: Path, run_root: Path) -> tuple[dict[str, Any], dic
     task = read_json(task_path)
     validate_task(task)
     task_id = require_text(task, "task_id")
-    if any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_." for ch in task_id):
-        raise ContractError("task_id may contain only letters, digits, '-', '_' and '.'")
     run_dir = run_root / task_id
     state_path = run_dir / "state.json"
     if state_path.exists():
