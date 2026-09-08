@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -187,6 +188,52 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(0, code)
             self.assertEqual("accepted", resumed["status"])
             invoke.assert_not_called()
+
+
+    def test_codex_args_use_leaf_user_config_isolation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(Path(tmp))
+            task = make_task(repo)
+            with mock.patch.object(module, "codex_executable", return_value="codex.cmd"):
+                initial = module.codex_args(task, "do")
+                resumed = module.codex_args(task, "fix", "thread-1")
+            self.assertIn("--ignore-user-config", initial)
+            self.assertIn("--ignore-user-config", resumed)
+
+    def test_invoke_codex_marks_child_as_leaf(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(Path(tmp))
+            task = make_task(repo)
+            raw = "\n".join([
+                json.dumps({"type": "thread.started", "thread_id": "leaf-thread"}),
+                json.dumps({"type": "turn.completed", "usage": {"input_tokens": 1, "output_tokens": 1}}),
+            ])
+
+            fake = module.CommandResult("codex", 0, raw, "", 0.1)
+            with mock.patch.object(module, "codex_args", return_value=["codex.cmd", "exec"]), \
+                 mock.patch.object(module, "run_command", return_value=fake) as run:
+                result = module.invoke_codex(task, "work", 30)
+            self.assertEqual("leaf-thread", result["thread_id"])
+            self.assertEqual("1", run.call_args.kwargs["env"][module.LEAF_ENV])
+
+    def test_recursive_runner_is_blocked_in_leaf_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            repo = make_repo(base)
+            task_path = save_task(base / "task.json", make_task(repo, "NO-RECURSE"))
+            with mock.patch.dict(os.environ, {module.LEAF_ENV: "1"}), \
+                 mock.patch.object(module, "invoke_codex") as invoke:
+                with self.assertRaises(module.ContractError):
+                    module.run_task(task_path, base / "runs", False)
+            invoke.assert_not_called()
+
+    def test_context_prompt_declares_leaf_executor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(Path(tmp))
+            prompt = module.context_prompt(make_task(repo))
+            self.assertIn("leaf coding executor", prompt)
+            self.assertIn("do not invoke AirCoder", prompt)
+            self.assertIn("do not", prompt.lower())
 
 
 if __name__ == "__main__":
