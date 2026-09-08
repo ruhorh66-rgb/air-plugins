@@ -31,6 +31,7 @@ autoMode.allow (тот снял бы блок классификатора во�
 from __future__ import annotations
 
 import json
+import math
 import os
 import secrets
 import sys
@@ -384,10 +385,15 @@ def queue(argv: list[str]) -> int:
             continue
         if not isinstance(d, dict):
             continue  # синтаксически валидный, но не объект — тоже мусор
+        created_at = d.get("created_at")
+        if (isinstance(created_at, bool)
+                or not isinstance(created_at, (int, float))
+                or not math.isfinite(created_at)):
+            continue
         st = d.get("status", "?")
-        if st == "pending" and now - d.get("created_at", 0) > TTL_SECONDS:
+        if st == "pending" and now - created_at > TTL_SECONDS:
             st = "expired"
-        age = int((now - d.get("created_at", 0)) / 60)
+        age = int((now - created_at) / 60)
         items.append((st, d.get("id", "?"), d.get("title", ""), age, d.get("workers")))
 
     order = {"pending": 0, "approved": 1, "rejected": 2, "expired": 3, "cancelled": 4}
