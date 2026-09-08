@@ -70,17 +70,18 @@ def run_case(mutate) -> tuple[bool, list[str]]:
             stdout = "EXECUTED."
             stderr = ""
 
-        saved = (al.subprocess.run, al._notify, al._queue_record, al._hive_busy)
+        saved = (al.subprocess.run, al._notify, al._queue_record, al._hive_busy, al._push_next)
         al.subprocess.run = lambda argv, *a, **k: (launched.append(list(argv)),
                                                   _Proc())[1]
         al._notify = lambda text, **k: said.append(text)
         al._queue_record = lambda *a, **k: ""
         al._hive_busy = lambda: False
+        al._push_next = lambda: None
         try:
             al._run_request(req)
         finally:
             (al.subprocess.run, al._notify, al._queue_record,
-             al._hive_busy) = saved
+             al._hive_busy, al._push_next) = saved
     return (launched[0] if launched else None), said
 
 
