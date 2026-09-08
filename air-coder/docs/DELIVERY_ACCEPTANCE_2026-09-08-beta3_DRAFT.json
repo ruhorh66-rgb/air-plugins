@@ -2,7 +2,7 @@
   "product": "air-coder",
   "version": "0.1.0-beta.3",
   "status": "PREPARED_NOT_RELEASED",
-  "code_candidate_commit": "129d43261e446576b07163180e2ad4c5abf4d885",
+  "code_candidate_commit": "140852ecdd34ff859919a7b7a9242f558bbd49cc",
   "intended_release_tag": "air-coder--v0.1.0-beta.3",
   "rollback_tag": "air-coder--v0.1.0-beta.2",
   "rollback_commit": "f7e9020146cca41015c1ed4832bb317f4126cd4b",
@@ -26,7 +26,8 @@
     "listener_liveness": "10/10 PASS",
     "queue": "7/7 PASS",
     "diff_check": "PASS",
-    "task_id_schema_runtime_alignment": "PASS"
+    "task_id_schema_runtime_alignment": "PASS",
+    "limits_contract_hardening": "PASS"
   },
   "validation": {
     "plugin": "PASS",
@@ -42,11 +43,11 @@
   },
   "sha256": {
     "selector": "FBB0A572CF2297DC630E648B5A2F301DFC38693341B39716653CC1C9B0E424C1",
-    "runner": "826F94532A775236D75ED72268DFDCAF24CF48C1D641E48DB7335DF7CF0861B5",
+    "runner": "45B291238541C015D96E466C199DD7A5411C555137A55D35CE1873D08231BC56",
     "skill": "4346DD893B128C87266AB1042F61F028E032112D92646A1BB731DF4F45CECDEA",
     "product": "2924F19DD5C7308260C97ABB870406AF2CC530E630DF14E78D94BEB55198002A",
     "parity": "source=isolated_codex=isolated_claude",
-    "coding_task_schema": "74AF4473EEDD5370C6AC52F8BDAAAB2402F135AD1EFBD06A055EFD7A9D5EA760"
+    "coding_task_schema": "308AF83E8A5366AB225463F6C70C31861F3652A0C7436577A7B20A6303F14844"
   },
   "ac04": {
     "formal_native_accepted": 3,

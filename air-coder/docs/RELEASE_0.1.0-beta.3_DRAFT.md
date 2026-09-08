@@ -22,6 +22,7 @@ Rollback commit: `f7e9020146cca41015c1ed4832bb317f4126cd4b`
 
 - AirCoder unittest: 53/53 PASS.
 - Draft 2020-12 coding-task schema validation and task-id schema/runtime parity: PASS.
+- Limit contract hardening: strict integer values, positive executor/check timeouts, bounded repairs and unknown-field rejection: PASS.
 - AC04 queue invalid-time regression: PASS.
 - AC04 listener non-object regression: PASS.
 - Listener signature/security checks: 8/8 PASS.
@@ -37,7 +38,7 @@ Rollback commit: `f7e9020146cca41015c1ed4832bb317f4126cd4b`
 
 ## Installability evidence
 
-An isolated test consumer was created under `E:/-4-/air-coder/install-smoke-schema`; production user installs remained beta.2.
+An isolated test consumer was created under `E:/-4-/air-coder/install-smoke-limits`; production user installs remained beta.2.
 
 - Codex isolated marketplace/add installed `air-coder@air-plugins` version `0.1.0-beta.3`: PASS.
 - Claude isolated local-scope install installed version `0.1.0-beta.3`: PASS.
