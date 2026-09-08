@@ -193,20 +193,20 @@
       },
       "scarce_quota_burden": "high",
       "manual_returns": 0,
-      "status": "executor_unavailable_usage_limit",
-      "elapsed_min": 0.734,
+      "status": "accepted",
+      "elapsed_min": 4.019,
       "attempts": 1,
       "direct_cost_usd": null,
       "cost_reporting": "unknown",
       "acceptance": {
-        "accepted": 0,
+        "accepted": 3,
         "total": 3
       },
       "evidence": [
         "state=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-005B\\state.json",
-        "failure=executor_unavailable/usage_limit",
-        "automatic_retry=0",
-        "changed_paths=0"
+        "previous_usage_limit_state=E:\\-4-\\air-coder\\runs\\_archive\\AIRCODER-AC04-005B-usage-limit-20260908T211627+08\\state.json",
+        "retry_after_infrastructure_window=1",
+        "changed_paths=air-ruflo-bridge/skills/run-via-ruflo/scripts/approve_listener.py"
       ],
       "manual_executor_evidence": {
         "authorized_by_lpr": true,
@@ -220,17 +220,31 @@
           "queue regression 7/7 PASS",
           "git diff --check PASS"
         ]
-      }
+      },
+      "native_retry_history": [
+        {
+          "attempt": 1,
+          "status": "executor_unavailable_usage_limit",
+          "state": "E:\\-4-\\air-coder\\runs\\_archive\\AIRCODER-AC04-005B-usage-limit-20260908T211627+08\\state.json",
+          "automatic_retry": false
+        },
+        {
+          "attempt": 2,
+          "status": "accepted",
+          "state": "E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-005B\\state.json",
+          "automatic_retry": false
+        }
+      ]
     }
   ],
   "current_summary": {
-    "accepted": 3,
+    "accepted": 4,
     "total": 5,
     "false_ready": 0,
     "automatic_paid_retries_after_infra_failure": 0,
-    "updated_at": "2026-09-08T21:45:00+08:00",
+    "updated_at": "2026-09-08T23:06:46+08:00",
     "functional_defects_fixed": 5,
-    "formal_pilot_accepted": 3,
-    "manual_verified_nonaccepted": 2
+    "formal_pilot_accepted": 4,
+    "manual_verified_nonaccepted": 1
   }
 }
