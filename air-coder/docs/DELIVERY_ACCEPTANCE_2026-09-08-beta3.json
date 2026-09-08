@@ -1,7 +1,7 @@
 {
   "product": "air-coder",
   "version": "0.1.0-beta.3",
-  "status": "RELEASE_PACKAGE_ACCEPTED_FOR_TAG",
+  "status": "RELEASED_PRODUCTION_ACCEPTED",
   "code_candidate_commit": "0a1ce69b53b67e817305d582904945309688efa7",
   "intended_release_tag": "air-coder--v0.1.0-beta.3",
   "rollback_tag": "air-coder--v0.1.0-beta.2",
@@ -10,12 +10,19 @@
     "codex": {
       "version": "0.145.0",
       "isolated_install": "0.1.0-beta.3 PASS",
-      "production_before_release": "0.1.0-beta.2"
+      "production_before_release": "0.1.0-beta.2",
+      "plugin": "installed, enabled 0.1.0-beta.3",
+      "production_cache": "C:\\Users\\admin_loc\\.codex\\plugins\\cache\\air-plugins\\air-coder\\0.1.0-beta.3",
+      "production_selector_smoke": "PASS"
     },
     "claude_code": {
       "version": "2.1.226",
       "isolated_install": "0.1.0-beta.3 PASS",
-      "production_before_release": "0.1.0-beta.2"
+      "production_before_release": "0.1.0-beta.2",
+      "plugin": "installed, enabled 0.1.0-beta.3",
+      "production_cache": "C:\\Users\\admin_loc\\.claude\\plugins\\cache\\air-plugins\\air-coder\\0.1.0-beta.3",
+      "production_selector_smoke": "PASS",
+      "session_note": "existing already-running Claude sessions require restart; new sessions load beta.3"
     }
   },
   "tests": {
@@ -44,11 +51,11 @@
     "live_interruption_resume": "PASS"
   },
   "sha256": {
-    "selector": "FBB0A572CF2297DC630E648B5A2F301DFC38693341B39716653CC1C9B0E424C1",
+    "selector": "7F3766C370A6489213543F0861B63249F6085433B6A7DD66E406C4C415650FD1",
     "runner": "45B291238541C015D96E466C199DD7A5411C555137A55D35CE1873D08231BC56",
     "skill": "4346DD893B128C87266AB1042F61F028E032112D92646A1BB731DF4F45CECDEA",
-    "product": "2924F19DD5C7308260C97ABB870406AF2CC530E630DF14E78D94BEB55198002A",
-    "parity": "source=isolated_codex=isolated_claude",
+    "product": "21D638D6E518E92CB5F154395394C71F7F4C914F68B4694C25E1462783E4C066",
+    "parity": "tag_source=production_codex=production_claude",
     "coding_task_schema": "308AF83E8A5366AB225463F6C70C31861F3652A0C7436577A7B20A6303F14844"
   },
   "ac04": {
@@ -59,7 +66,7 @@
     "functional_defects_fixed": 5
   },
   "blockers": [],
-  "outcome": "RELEASE_PACKAGE_ACCEPTANCE_PASS",
+  "outcome": "RELEASE_ACCEPTANCE_PASS",
   "live_resume": {
     "status": "PASS",
     "initial_commit": "67a4dc6e596fab2f4a392613a97c30314463a372",
@@ -93,5 +100,19 @@
   "release_tag": "air-coder--v0.1.0-beta.3",
   "source_commit": "1dd9fb47d2b11066caa12f70ccc8618d393e7cf1",
   "marketplace_source": "github:ruhorh66-rgb/air-plugins@main",
-  "production_install_status": "PENDING_POST_TAG_SMOKE"
+  "production_install_status": "PASS",
+  "release_commit": "a760a0c6b024426d6ef43a0ab9baa5a0f26d507b",
+  "production_rollout": {
+    "completed_local": "2026-09-09",
+    "tag": "air-coder--v0.1.0-beta.3",
+    "tag_commit": "a760a0c6b024426d6ef43a0ab9baa5a0f26d507b",
+    "codex_marketplace_upgrade": "PASS",
+    "codex_plugin_add_refresh": "PASS",
+    "claude_marketplace_update": "PASS",
+    "claude_plugin_update": "PASS",
+    "production_hash_parity": "PASS",
+    "ordinary_selector_smoke_codex": "PASS",
+    "ordinary_selector_smoke_claude": "PASS",
+    "rollback_snapshot": "E:\\-4-\\air-coder\\rollback-beta2-pre-beta3"
+  }
 }
