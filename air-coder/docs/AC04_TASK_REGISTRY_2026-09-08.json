@@ -1,0 +1,253 @@
+{
+  "schema_version": 1,
+  "scope": "Astra AC-04 five-task pilot registry",
+  "acceptance_target": {
+    "accepted_min": 4,
+    "total": 5,
+    "false_ready_max": 0
+  },
+  "products": [
+    "air-coder",
+    "air-ruflo-bridge"
+  ],
+  "tasks": [
+    {
+      "task_id": "AIRCODER-AC04-001",
+      "product": "air-coder",
+      "basis": "LPR-approved AirCoder modernization AC-04; isolated branch/worktree; no production business-logic mutation",
+      "repo_root": "E:\\-7-\\_worktrees\\aircoder-ac04-001-20260908",
+      "initial_commit": "3c53be47084bb00f27323e8563ccac06d2bd7dba",
+      "final_commit": "cabcc54efa74f2e11bb6196b32bd7a83a8a627b3",
+      "allowed_paths": [
+        "air-coder/skills/route-coding-task/scripts/run_coding_task.py"
+      ],
+      "protected_paths": [
+        "air-coder/tests/test_string_list_contract_ac04.py"
+      ],
+      "acceptance_commands": [
+        "python air-coder/tests/test_string_list_contract_ac04.py",
+        "python -m unittest discover -s air-coder/tests -v"
+      ],
+      "executor": {
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "low",
+        "sandbox": "workspace-write"
+      },
+      "scarce_quota_burden": "high",
+      "manual_returns": 0,
+      "status": "accepted",
+      "elapsed_min": 4.815,
+      "attempts": 1,
+      "direct_cost_usd": null,
+      "cost_reporting": "unknown",
+      "acceptance": {
+        "accepted": 3,
+        "total": 3
+      },
+      "evidence": [
+        "task_contract=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-001\\task.json",
+        "state=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-001\\state.json",
+        "changed_paths=air-coder/skills/route-coding-task/scripts/run_coding_task.py"
+      ]
+    },
+    {
+      "task_id": "AIRCODER-AC04-002",
+      "product": "air-ruflo-bridge",
+      "basis": "LPR-approved AirCoder modernization AC-04; isolated branch/worktree; no production business-logic mutation",
+      "repo_root": "E:\\-7-\\_worktrees\\aircoder-ac04-002-20260908",
+      "initial_commit": "a3f76afb44baf009831a1e3b9d58fa6b3dbb7a38",
+      "final_commit": "bd9a2931f41d4480ec74f795d1ed42c92407bac7",
+      "allowed_paths": [
+        "air-ruflo-bridge/skills/run-via-ruflo/scripts/approve_via_telegram.py"
+      ],
+      "protected_paths": [
+        "air-ruflo-bridge/skills/run-via-ruflo/scripts/test_status_unverifiable_ac04.py"
+      ],
+      "acceptance_commands": [
+        "python air-ruflo-bridge/skills/run-via-ruflo/scripts/test_status_unverifiable_ac04.py",
+        "python air-ruflo-bridge/skills/run-via-ruflo/scripts/test_request_signature.py",
+        "python air-ruflo-bridge/skills/run-via-ruflo/scripts/test_approve_queue.py"
+      ],
+      "executor": {
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "low",
+        "sandbox": "workspace-write"
+      },
+      "scarce_quota_burden": "high",
+      "manual_returns": 0,
+      "status": "accepted",
+      "elapsed_min": 4.373,
+      "attempts": 1,
+      "direct_cost_usd": null,
+      "cost_reporting": "unknown",
+      "acceptance": {
+        "accepted": 4,
+        "total": 4
+      },
+      "evidence": [
+        "task_contract=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-002\\task.json",
+        "state=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-002\\state.json",
+        "changed_paths=air-ruflo-bridge/skills/run-via-ruflo/scripts/approve_via_telegram.py"
+      ]
+    },
+    {
+      "task_id": "AIRCODER-AC04-003B",
+      "product": "air-coder",
+      "basis": "LPR-approved AirCoder modernization AC-04; isolated branch/worktree; no production business-logic mutation",
+      "repo_root": "E:\\-7-\\_worktrees\\aircoder-ac04-003b-20260908",
+      "initial_commit": "a44d89ec71f4613104518dda46116fd673b6e541",
+      "final_commit": "9fbbf44c6629ef161aeb393ceef9348280bcc37a",
+      "allowed_paths": [
+        "air-coder/skills/route-coding-task/scripts/run_coding_task.py"
+      ],
+      "protected_paths": [
+        "air-coder/tests/test_limits_values_ac04.py"
+      ],
+      "acceptance_commands": [
+        "python air-coder/tests/test_limits_values_ac04.py",
+        "python -m unittest discover -s air-coder/tests -v"
+      ],
+      "executor": {
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "low",
+        "sandbox": "workspace-write"
+      },
+      "scarce_quota_burden": "high",
+      "manual_returns": 0,
+      "status": "accepted",
+      "elapsed_min": 7.749,
+      "attempts": 1,
+      "direct_cost_usd": null,
+      "cost_reporting": "unknown",
+      "acceptance": {
+        "accepted": 3,
+        "total": 3
+      },
+      "evidence": [
+        "task_contract=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-003B\\task.json",
+        "state=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-003B\\state.json",
+        "changed_paths=air-coder/skills/route-coding-task/scripts/run_coding_task.py"
+      ]
+    },
+    {
+      "task_id": "AIRCODER-AC04-004B",
+      "product": "air-ruflo-bridge",
+      "basis": "LPR-approved AirCoder modernization AC-04; isolated branch/worktree; no production business-logic mutation",
+      "repo_root": "E:\\-7-\\_worktrees\\aircoder-ac04-004b-20260908",
+      "initial_commit": "fc225a127c9a4277d46d75d7eba22bfd01b120f4",
+      "final_commit": "e83129800618af5f940ee142025e19e66948c3a8",
+      "allowed_paths": [
+        "air-ruflo-bridge/skills/run-via-ruflo/scripts/approve_via_telegram.py"
+      ],
+      "protected_paths": [
+        "air-ruflo-bridge/skills/run-via-ruflo/scripts/test_queue_invalid_time_ac04.py"
+      ],
+      "acceptance_commands": [
+        "python air-ruflo-bridge/skills/run-via-ruflo/scripts/test_queue_invalid_time_ac04.py",
+        "python air-ruflo-bridge/skills/run-via-ruflo/scripts/test_approve_queue.py"
+      ],
+      "executor": {
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "low",
+        "sandbox": "workspace-write"
+      },
+      "scarce_quota_burden": "high",
+      "manual_returns": 0,
+      "status": "executor_failed_timeout",
+      "elapsed_min": 12.252,
+      "attempts": 1,
+      "direct_cost_usd": null,
+      "cost_reporting": "unknown",
+      "acceptance": {
+        "accepted": 0,
+        "total": 3
+      },
+      "evidence": [
+        "state=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-004B\\state.json",
+        "timed_out=true",
+        "recovered_fix_commit=e83129800618af5f940ee142025e19e66948c3a8",
+        "recovered_fix_independent_acceptance=PASS; pilot remains failed"
+      ]
+    },
+    {
+      "task_id": "AIRCODER-AC04-005B",
+      "product": "air-ruflo-bridge",
+      "basis": "LPR-approved AirCoder modernization AC-04; isolated branch/worktree; no production business-logic mutation",
+      "repo_root": "E:\\-7-\\_worktrees\\aircoder-ac04-005b-20260908",
+      "initial_commit": "900aa82df54c7414e6c4e640bf2f21c541659f79",
+      "final_commit": "fbed80c84ec314ddef49b72cbe1c7ec4dad537aa",
+      "allowed_paths": [
+        "air-ruflo-bridge/skills/run-via-ruflo/scripts/approve_listener.py"
+      ],
+      "protected_paths": [
+        "air-ruflo-bridge/skills/run-via-ruflo/scripts/test_listener_nonobject_request_ac04.py"
+      ],
+      "acceptance_commands": [
+        "python air-ruflo-bridge/skills/run-via-ruflo/scripts/test_listener_nonobject_request_ac04.py",
+        "python air-ruflo-bridge/skills/run-via-ruflo/scripts/test_listener_verifies.py"
+      ],
+      "executor": {
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "low",
+        "sandbox": "workspace-write"
+      },
+      "scarce_quota_burden": "high",
+      "manual_returns": 0,
+      "status": "accepted",
+      "elapsed_min": 4.019,
+      "attempts": 1,
+      "direct_cost_usd": null,
+      "cost_reporting": "unknown",
+      "acceptance": {
+        "accepted": 3,
+        "total": 3
+      },
+      "evidence": [
+        "state=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-005B\\state.json",
+        "previous_usage_limit_state=E:\\-4-\\air-coder\\runs\\_archive\\AIRCODER-AC04-005B-usage-limit-20260908T211627+08\\state.json",
+        "retry_after_infrastructure_window=1",
+        "changed_paths=air-ruflo-bridge/skills/run-via-ruflo/scripts/approve_listener.py",
+        "native_accepted_final_commit=fbed80c84ec314ddef49b72cbe1c7ec4dad537aa",
+        "native_patch_id=b6b6e98d8a2a69dfe81bb6d79e4bb7ec9db85610",
+        "native_patch_matches_manual_fix=17d94ace96c0cca57266472e578071ea5fb0ecf6"
+      ],
+      "manual_executor_evidence": {
+        "authorized_by_lpr": true,
+        "pilot_status_unchanged": true,
+        "fix_commit": "17d94ace96c0cca57266472e578071ea5fb0ecf6",
+        "integrated_commit": "c14c487",
+        "verification": [
+          "protected regression PASS",
+          "listener verification 8/8 PASS",
+          "listener liveness 10/10 PASS",
+          "queue regression 7/7 PASS",
+          "git diff --check PASS"
+        ]
+      },
+      "native_retry_history": [
+        {
+          "attempt": 1,
+          "status": "executor_unavailable_usage_limit",
+          "state": "E:\\-4-\\air-coder\\runs\\_archive\\AIRCODER-AC04-005B-usage-limit-20260908T211627+08\\state.json",
+          "automatic_retry": false
+        },
+        {
+          "attempt": 2,
+          "status": "accepted",
+          "state": "E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-005B\\state.json",
+          "automatic_retry": false
+        }
+      ]
+    }
+  ],
+  "current_summary": {
+    "accepted": 4,
+    "total": 5,
+    "false_ready": 0,
+    "automatic_paid_retries_after_infra_failure": 0,
+    "updated_at": "2026-09-08T23:06:46+08:00",
+    "functional_defects_fixed": 5,
+    "formal_pilot_accepted": 4,
+    "manual_verified_nonaccepted": 1
+  }
+}

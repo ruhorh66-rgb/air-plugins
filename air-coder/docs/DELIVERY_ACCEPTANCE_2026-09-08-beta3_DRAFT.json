@@ -1,0 +1,95 @@
+{
+  "product": "air-coder",
+  "version": "0.1.0-beta.3",
+  "status": "PREPARED_NOT_RELEASED",
+  "code_candidate_commit": "0a1ce69b53b67e817305d582904945309688efa7",
+  "intended_release_tag": "air-coder--v0.1.0-beta.3",
+  "rollback_tag": "air-coder--v0.1.0-beta.2",
+  "rollback_commit": "f7e9020146cca41015c1ed4832bb317f4126cd4b",
+  "hosts": {
+    "codex": {
+      "version": "0.145.0",
+      "isolated_install": "0.1.0-beta.3 PASS",
+      "production_before_release": "0.1.0-beta.2"
+    },
+    "claude_code": {
+      "version": "2.1.226",
+      "isolated_install": "0.1.0-beta.3 PASS",
+      "production_before_release": "0.1.0-beta.2"
+    }
+  },
+  "tests": {
+    "air_coder": "54/54 PASS",
+    "queue_invalid_time": "PASS",
+    "listener_nonobject": "PASS",
+    "listener_verification": "8/8 PASS",
+    "listener_liveness": "10/10 PASS",
+    "queue": "7/7 PASS",
+    "diff_check": "PASS",
+    "task_id_schema_runtime_alignment": "PASS",
+    "limits_contract_hardening": "PASS"
+  },
+  "validation": {
+    "plugin": "PASS",
+    "marketplace": "PASS",
+    "isolated_install_codex": "PASS",
+    "isolated_install_claude": "PASS",
+    "installed_selector_smoke": "PASS",
+    "draft202012_coding_task_schema": "PASS",
+    "version_parity": "0.1.0-beta.3 PASS",
+    "json_parse": "14/14 PASS",
+    "all_contract_schemas_draft202012": "2/2 PASS",
+    "python_compileall": "PASS",
+    "r4_ordinary_chat_e2e": "PASS",
+    "live_interruption_resume": "PASS"
+  },
+  "sha256": {
+    "selector": "FBB0A572CF2297DC630E648B5A2F301DFC38693341B39716653CC1C9B0E424C1",
+    "runner": "45B291238541C015D96E466C199DD7A5411C555137A55D35CE1873D08231BC56",
+    "skill": "4346DD893B128C87266AB1042F61F028E032112D92646A1BB731DF4F45CECDEA",
+    "product": "2924F19DD5C7308260C97ABB870406AF2CC530E630DF14E78D94BEB55198002A",
+    "parity": "source=isolated_codex=isolated_claude",
+    "coding_task_schema": "308AF83E8A5366AB225463F6C70C31861F3652A0C7436577A7B20A6303F14844"
+  },
+  "ac04": {
+    "formal_native_accepted": 4,
+    "total": 5,
+    "false_ready": 0,
+    "manual_verified_nonaccepted": 1,
+    "functional_defects_fixed": 5
+  },
+  "blockers": [
+    "explicit release decision for merge/tag/production install/smoke"
+  ],
+  "outcome": "AC05_TECHNICAL_GATES_CLOSED_RELEASE_DECISION_PENDING",
+  "live_resume": {
+    "status": "PASS",
+    "initial_commit": "67a4dc6e596fab2f4a392613a97c30314463a372",
+    "native_final_commit": "86caeadd61e4c5b60257ecbe2faa2205ee83eb71",
+    "executor_attempts": 1,
+    "executor_runs": 1,
+    "second_llm_turns": 0,
+    "resume_count": 1,
+    "active_elapsed_s": 446.076,
+    "resume_wait_elapsed_s": 0.457
+  },
+  "r4_e2e": {
+    "status": "PASS",
+    "initial_commit": "f8681318843f08dc7301503a501f0d1d9e1dc357",
+    "native_final_commit": "28897c0290c8b2804d08663fbe7a19af07c39eac",
+    "integrated_commit": "0a1ce69b53b67e817305d582904945309688efa7",
+    "acceptance": "3/3",
+    "attempts": 1,
+    "repairs": 0,
+    "elapsed_min": 8.09
+  },
+  "economics": {
+    "ac04_historical_native_calls": 8,
+    "ac04_repairs": 0,
+    "ac04_receipt_minutes_including_preserved_failures": 35.19,
+    "direct_cost_usd": "unknown/null",
+    "automatic_paid_retries_after_infra_failure": 0,
+    "manual_returns": 0,
+    "roi_claim": "not made; comparable baseline unavailable"
+  }
+}

@@ -45,15 +45,16 @@ def _handoff(route: str, native_preference: str) -> dict[str, str]:
         return {"target": "ChatGPT + RDC", "probe": "check RDC availability"}
     if route == "ruflo":
         return {"target": "air-ruflo-bridge:run-via-ruflo", "probe": "check documented Ruflo runtime"}
-    return {"target": f"native CLI ({native_preference})", "probe": "check codex/claude CLI"}
+    native_target = "codex" if native_preference == "auto" else native_preference
+    return {"target": f"native CLI ({native_target})", "probe": "check codex/claude CLI"}
 
 
 def select_executor(payload: dict[str, Any]) -> dict[str, Any]:
     mode = _require_choice(payload, "mode", MODES, "implementation")
     size = _require_choice(payload, "size", SIZES, "small")
-    quota = _require_choice(payload, "scarce_quota_policy", QUOTA_POLICIES, "conserve")
+    quota = _require_choice(payload, "scarce_quota_policy", QUOTA_POLICIES, "balanced")
     hands = _require_choice(payload, "repo_hands_priority", HANDS_PRIORITIES, "normal")
-    native_preference = _require_choice(payload, "native_preference", NATIVE_PREFERENCES, "auto")
+    native_preference = _require_choice(payload, "native_preference", NATIVE_PREFERENCES, "codex")
     signs = _substantial_signs(payload)
 
     override = payload.get("lpr_route")
@@ -66,17 +67,16 @@ def select_executor(payload: dict[str, Any]) -> dict[str, Any]:
     elif mode == "analysis":
         route = "chatgpt_rdc"
         reasons = ["analysis-only work favors strong reasoning without scarce CLI quota"]
-    elif signs or size == "large":
+    elif signs:
         route = "ruflo"
-        reasons = ["substantial implementation should use Ruflo"]
-        if signs:
-            reasons.append("substantial signs: " + ", ".join(sorted(signs)))
-    elif hands == "high" and quota in {"balanced", "speed"}:
-        route = "native_cli"
-        reasons = ["fast repository hands are worth scarce native CLI quota"]
-    else:
+        reasons = ["explicit substantial implementation signs justify Ruflo overhead", "substantial signs: " + ", ".join(sorted(signs))]
+    elif quota == "conserve":
         route = "chatgpt_rdc"
-        reasons = ["small/local work does not justify Ruflo overhead or scarce native CLI quota"]
+        reasons = ["explicit conserve policy keeps implementation in the ChatGPT+RDC control channel"]
+    else:
+        route = "native_cli"
+        reasons = ["ordinary repository implementation uses the ready native executor by default"]
+        if hands == "high": reasons.append("high repository-hands priority reinforces native execution")
 
     return {
         "route": route,

@@ -1,14 +1,20 @@
-# AirCoder rollback — 0.1.0-beta.2
+# AirCoder rollback — 0.1.0-beta.3 candidate
 
-There is no previous AirCoder Stable.
+Previous released AirCoder: `air-coder--v0.1.0-beta.2`.
 
-Rollback target: pre-AirCoder state of `air-plugins` at `7dca858845a48a6347c05a91b22bdf8daaaf7775`.
+## Source rollback
 
-## Procedure
+1. Restore/install beta.2 from its release tag; do not recover from a working-directory path.
+2. Verify AirCoder manifests/product contract report `0.1.0-beta.2`.
+3. Verify the installed selector executes on both intended hosts before declaring rollback complete.
+4. Keep `air-ruflo-bridge`, AirWorker, Codex CLI, Claude Code and LM Router unchanged by the AirCoder rollback.
 
-1. Disable/remove the AirCoder marketplace entry and plugin directory from the candidate branch/release.
-2. Verify `air-worker`, `air-ruflo-bridge`, `air-worker-codex`, Codex CLI and Claude Code files are unchanged by the AirCoder commit.
-3. Continue using the existing executor routes directly.
-4. Verify `git diff 7dca858845a48a6347c05a91b22bdf8daaaf7775..HEAD -- air-worker air-ruflo-bridge air-worker-codex` is empty for the AirCoder change set.
+## Runtime/state rollback
 
-No runtime database or state migration exists, so rollback does not touch `E:\-4-` state.
+Beta.3 adds only task contracts/receipts under `AIR_CODER_RUN_ROOT` (default `E:/-4-/air-coder/runs`). These are evidence, not a migration database. Rollback does not delete them.
+
+Do not automatically resume an `executor_running` or `repair_running` receipt after rollback; its execution state is uncertain and requires explicit inspection.
+
+## Release gate
+
+Before beta.3 installation, record the exact beta.2 tag as rollback target and prove the install/update path on a copy/test consumer. A green source test suite alone is not rollback evidence.

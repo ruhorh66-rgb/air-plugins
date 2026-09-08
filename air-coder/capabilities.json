@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "product": "air-coder",
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "capabilities": [
     {
       "id": "executor_selection",
@@ -10,17 +10,37 @@
       "contract": "Deterministically select chatgpt_rdc, ruflo, or native_cli from task/economics facts."
     },
     {
+      "id": "bounded_codex_execution",
+      "status": "CANDIDATE",
+      "runtime_path": "skills/route-coding-task/scripts/run_coding_task.py",
+      "contract": "Context-gated Codex exec/resume with independent scope, protected-path and repository acceptance gates; at most two repair attempts."
+    },
+    {
+      "id": "execution_resume",
+      "status": "CANDIDATE",
+      "runtime_path": "skills/route-coding-task/scripts/run_coding_task.py",
+      "contract": "Persist task state and Codex thread_id outside Git; refuse automatic duplicate execution when prior state is uncertain in-flight."
+    },
+    {
       "id": "executor_handoff",
       "status": "AVAILABLE",
       "runtime_path": "skills/route-coding-task/SKILL.md",
-      "contract": "Hand off to an already existing executor after a live availability probe; AirCoder does not reimplement that executor."
+      "contract": "Hand off to an existing executor after live availability probe; Ruflo uses only the canonical bridge/full-loop contract."
     },
     {
       "id": "comparable_run_result",
       "status": "AVAILABLE",
       "runtime_path": "contracts/run-result.schema.json",
-      "contract": "Record acceptance, time, direct cost, scarce quota burden, model class and attempts."
+      "contract": "Record acceptance, time, direct cost when measurable, scarce quota burden, model class and attempts."
     }
   ],
-  "non_capabilities": ["swarm engine", "scheduler", "watchdog", "learning database", "LLM gateway", "autonomous queue"]
+  "non_capabilities": [
+    "custom planner",
+    "custom agent loop",
+    "scheduler",
+    "watchdog",
+    "learning database",
+    "LLM gateway",
+    "autonomous queue"
+  ]
 }
