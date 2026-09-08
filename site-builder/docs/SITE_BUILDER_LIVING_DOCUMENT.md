@@ -195,3 +195,20 @@ runtime-entrypoints, release-state или source-of-truth boundary продук�
   план 0.3.0 не начат, автоматизации/контроллеров/воркеров нет (см. §2), а
   цикл продукта запускается только по прямому обращению пользователя с
   брифом.
+
+## Состояние гейтов на SRVLM01 — замер 08.09.2026
+
+Живой прогон `scripts/gates.mjs` на тестовой странице: 1 pass, 3 fail, 3 not_run, код возврата 1. Отказы настоящие: axe нашёл `target-size` (3 узла), pa11y независимо нашёл поле без метки, разметка провалилась из-за отсутствия `JobPosting` на тестовой странице. Lighthouse не выдал пригодного отчёта, и скрипт сам переключился на Unlighthouse: LCP 762 мс, CLS 0, TBT 0.
+
+Работают без установки, через `npx --yes`: axe, pa11y, lhci, unlighthouse-ci, sdtt.
+
+Не установлены на машине — соответствующие гейты дают `not_run` с причиной, а не молчаливый пропуск:
+
+| Гейт | Чего не хватает | Как поставить |
+|---|---|---|
+| битые ссылки | `lychee` | `cargo install lychee` либо релизный бинарь из `github.com/lycheeverse/lychee/releases` |
+| sitemap | `xmllint` | libxml2: MSYS2 `pacman -S libxml2` либо сборка под Windows |
+| доступность, axe | Chromedriver | `npm i -g browser-driver-manager && npx browser-driver-manager install chrome` |
+| клавиатурный фокус | `playwright` | `npm i -D playwright && npx playwright install chromium` |
+
+Пока они не поставлены, полностью зелёного прогона на этой машине быть не может — и это видно в отчёте, а не скрыто.
