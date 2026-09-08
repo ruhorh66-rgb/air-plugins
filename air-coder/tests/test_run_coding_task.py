@@ -217,15 +217,24 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual("leaf-thread", result["thread_id"])
             self.assertEqual("1", run.call_args.kwargs["env"][module.LEAF_ENV])
 
-    def test_recursive_runner_is_blocked_in_leaf_mode(self) -> None:
+    def test_recursive_cli_is_blocked_in_leaf_mode(self) -> None:
+        with mock.patch.dict(os.environ, {module.LEAF_ENV: "1"}), \
+             mock.patch.object(module, "run_task") as run:
+            self.assertEqual(2, module.main())
+            run.assert_not_called()
+
+    def test_internal_run_task_is_allowed_in_leaf_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
             repo = make_repo(base)
-            task_path = save_task(base / "task.json", make_task(repo, "NO-RECURSE"))
+            task_path = save_task(base / "task.json", make_task(repo, "LEAF-TEST"))
+            task, state, state_path = module.initialize_run(task_path, base / "runs")
+            module.save_state(state_path, state, "accepted")
             with mock.patch.dict(os.environ, {module.LEAF_ENV: "1"}), \
                  mock.patch.object(module, "invoke_codex") as invoke:
-                with self.assertRaises(module.ContractError):
-                    module.run_task(task_path, base / "runs", False)
+                code, resumed = module.run_task(task_path, base / "runs", True)
+            self.assertEqual(0, code)
+            self.assertEqual("accepted", resumed["status"])
             invoke.assert_not_called()
 
     def test_context_prompt_declares_leaf_executor(self) -> None:

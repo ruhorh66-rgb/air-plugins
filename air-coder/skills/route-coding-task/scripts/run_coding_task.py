@@ -98,6 +98,9 @@ def validate_task(task: dict[str, Any]) -> None:
     protected = task.get("protected_paths", [])
     if not isinstance(protected, list) or any(not str(item).strip() for item in protected):
         raise ContractError("protected_paths must be a list of non-empty strings")
+    quota = task.get("scarce_quota_burden", "medium")
+    if quota not in {"low", "medium", "high"}:
+        raise ContractError("scarce_quota_burden must be one of: low, medium, high")
 
 
 def run_command(
@@ -542,8 +545,6 @@ def prepare_or_resume(
 
 
 def run_task(task_path: Path, run_root: Path, resume: bool) -> tuple[int, dict[str, Any]]:
-    if os.environ.get(LEAF_ENV) == "1":
-        raise ContractError("recursive AirCoder invocation is blocked in leaf executor mode")
     started = time.monotonic()
     task, state, state_path, may_continue = prepare_or_resume(task_path, run_root, resume)
     if not may_continue:
@@ -600,6 +601,12 @@ def run_task(task_path: Path, run_root: Path, resume: bool) -> tuple[int, dict[s
 
 
 def main() -> int:
+    if os.environ.get(LEAF_ENV) == "1":
+        print(json.dumps({
+            "status": "contract_error",
+            "error": "recursive AirCoder CLI invocation is blocked in leaf executor mode",
+        }, ensure_ascii=False, indent=2))
+        return 2
     parser = argparse.ArgumentParser(description="Run one bounded AirCoder coding task through Codex CLI")
     parser.add_argument("--task", required=True, help="Path to the coding-task JSON contract")
     parser.add_argument("--run-root", help="Runtime state root; defaults to AIR_CODER_RUN_ROOT or E:/-4-/air-coder/runs")
