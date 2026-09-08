@@ -52,3 +52,16 @@ confirmed: 2026-09-08
 - first AC-03 real pilot: pending until this implementation packet is committed/pushed.
 
 Beta.3 is `implemented_candidate` until the real pilot passes. It is not `pilot_passed`, `released` or `stable` merely because tests are green.
+## Control gate — 2026-09-08
+
+LPR decision: stop after the current approximately 20-minute implementation run,
+produce a control slice, request Astra review, and only then continue development.
+
+Current AC-04 state at the gate:
+- 2/5 accepted across two products (`air-coder`, `air-ruflo-bridge`);
+- 2/5 stopped as executor-unavailable because native Codex quota was exhausted;
+- false-ready = 0; automatic paid retry on those failures = 0;
+- AC04-005 red baseline is prepared and pushed but intentionally not executed;
+- evidence: `docs/AC04_CONTROL_SLICE_2026-09-08.md`.
+
+Release, merge, tag, install and AirStorage modernization remain after this review gate.
