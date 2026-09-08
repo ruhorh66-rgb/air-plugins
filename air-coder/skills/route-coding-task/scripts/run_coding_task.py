@@ -82,7 +82,9 @@ def require_string_list(task: dict[str, Any], key: str) -> list[str]:
     value = task.get(key)
     if not isinstance(value, list) or not value:
         raise ContractError(f"{key} must be a non-empty list")
-    items = [str(item).strip() for item in value]
+    if any(not isinstance(item, str) for item in value):
+        raise ContractError(f"{key} must contain only strings")
+    items = [item.strip() for item in value]
     if any(not item for item in items):
         raise ContractError(f"{key} contains an empty item")
     return items
@@ -96,7 +98,10 @@ def validate_task(task: dict[str, Any]) -> None:
     for key in ("allowed_paths", "context_files", "acceptance_commands"):
         require_string_list(task, key)
     protected = task.get("protected_paths", [])
-    if not isinstance(protected, list) or any(not str(item).strip() for item in protected):
+    if (
+        not isinstance(protected, list)
+        or any(not isinstance(item, str) or not item.strip() for item in protected)
+    ):
         raise ContractError("protected_paths must be a list of non-empty strings")
     quota = task.get("scarce_quota_burden", "medium")
     if quota not in {"low", "medium", "high"}:
