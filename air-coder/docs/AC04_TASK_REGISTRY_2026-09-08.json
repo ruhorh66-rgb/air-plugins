@@ -96,7 +96,7 @@
       "basis": "LPR-approved AirCoder modernization AC-04; isolated branch/worktree; no production business-logic mutation",
       "repo_root": "E:\\-7-\\_worktrees\\aircoder-ac04-003b-20260908",
       "initial_commit": "a44d89ec71f4613104518dda46116fd673b6e541",
-      "final_commit": null,
+      "final_commit": "9fbbf44c6629ef161aeb393ceef9348280bcc37a",
       "allowed_paths": [
         "air-coder/skills/route-coding-task/scripts/run_coding_task.py"
       ],
@@ -114,15 +114,19 @@
       },
       "scarce_quota_burden": "high",
       "manual_returns": 0,
-      "status": "prepared_red_baseline",
-      "elapsed_min": null,
-      "attempts": null,
+      "status": "accepted",
+      "elapsed_min": 7.749,
+      "attempts": 1,
       "direct_cost_usd": null,
       "cost_reporting": "unknown",
-      "acceptance": null,
+      "acceptance": {
+        "accepted": 3,
+        "total": 3
+      },
       "evidence": [
-        "red_baseline=a44d89ec71f4613104518dda46116fd673b6e541",
-        "task_contract=E:\\-4-\\air-coder\\pilot-tasks\\AIRCODER-AC04-003B.json"
+        "task_contract=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-003B\\task.json",
+        "state=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-003B\\state.json",
+        "changed_paths=air-coder/skills/route-coding-task/scripts/run_coding_task.py"
       ]
     },
     {
@@ -131,7 +135,7 @@
       "basis": "LPR-approved AirCoder modernization AC-04; isolated branch/worktree; no production business-logic mutation",
       "repo_root": "E:\\-7-\\_worktrees\\aircoder-ac04-004b-20260908",
       "initial_commit": "fc225a127c9a4277d46d75d7eba22bfd01b120f4",
-      "final_commit": null,
+      "final_commit": "e83129800618af5f940ee142025e19e66948c3a8",
       "allowed_paths": [
         "air-ruflo-bridge/skills/run-via-ruflo/scripts/approve_via_telegram.py"
       ],
@@ -149,15 +153,20 @@
       },
       "scarce_quota_burden": "high",
       "manual_returns": 0,
-      "status": "prepared_red_baseline",
-      "elapsed_min": null,
-      "attempts": null,
+      "status": "executor_failed_timeout",
+      "elapsed_min": 12.252,
+      "attempts": 1,
       "direct_cost_usd": null,
       "cost_reporting": "unknown",
-      "acceptance": null,
+      "acceptance": {
+        "accepted": 0,
+        "total": 3
+      },
       "evidence": [
-        "red_baseline=fc225a127c9a4277d46d75d7eba22bfd01b120f4",
-        "task_contract=E:\\-4-\\air-coder\\pilot-tasks\\AIRCODER-AC04-004B.json"
+        "state=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-004B\\state.json",
+        "timed_out=true",
+        "recovered_fix_commit=e83129800618af5f940ee142025e19e66948c3a8",
+        "recovered_fix_independent_acceptance=PASS; pilot remains failed"
       ]
     },
     {
@@ -184,16 +193,28 @@
       },
       "scarce_quota_burden": "high",
       "manual_returns": 0,
-      "status": "prepared_red_baseline",
-      "elapsed_min": null,
-      "attempts": null,
+      "status": "executor_unavailable_usage_limit",
+      "elapsed_min": 0.734,
+      "attempts": 1,
       "direct_cost_usd": null,
       "cost_reporting": "unknown",
-      "acceptance": null,
+      "acceptance": {
+        "accepted": 0,
+        "total": 3
+      },
       "evidence": [
-        "red_baseline=900aa82df54c7414e6c4e640bf2f21c541659f79",
-        "task_contract=E:\\-4-\\air-coder\\pilot-tasks\\AIRCODER-AC04-005B.json"
+        "state=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-005B\\state.json",
+        "failure=executor_unavailable/usage_limit",
+        "automatic_retry=0",
+        "changed_paths=0"
       ]
     }
-  ]
+  ],
+  "current_summary": {
+    "accepted": 3,
+    "total": 5,
+    "false_ready": 0,
+    "automatic_paid_retries_after_infra_failure": 0,
+    "updated_at": "2026-09-08T21:25:00+08:00"
+  }
 }

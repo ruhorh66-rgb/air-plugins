@@ -84,3 +84,15 @@ LPR decision: freeze development at the current control point and request Astra 
 
 Review package: `docs/ASTRA_REVIEW_SLICE_2026-09-08.md` + `.json`.
 Release/merge/tag/install, AirStorage modernization and AIRVR remain blocked by this review gate unless LPR explicitly overrides it.
+
+## Post-Astra continuation — 2026-09-08 21:25 local
+
+Current continuation evidence is recorded in `docs/ASTRA_CONTINUATION_STATUS_2026-09-08.md`.
+
+- R1/R2/R3 are closed and regression-covered.
+- R4 mechanical routing is closed; live ordinary-chat E2E remains a release blocker.
+- AC-04 accepted count is 3/5: 001, 002, 003B.
+- 004B remains an honest timeout result although its independently verified fix is integrated.
+- 005B is red and clean but native execution is quota-blocked; no automatic retry is allowed.
+- AC04-RESUME-001 remains intentionally red and untouched until the live one-turn interruption/resume run.
+- AC-05 release/merge/tag/install remains blocked until AC-04 reaches at least 4/5 and live resume passes.
