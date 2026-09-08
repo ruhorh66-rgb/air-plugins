@@ -581,6 +581,9 @@ def poll_once(chat_id: str) -> int:
             continue
         with open(path, encoding="utf-8") as fh:
             req = json.load(fh)
+        if not isinstance(req, dict):
+            _answer(cq["id"], "Заявка повреждена — неверный формат")
+            continue
         if req.get("status") != "pending":
             _answer(cq["id"], f"Уже {req.get('status')}")
             continue
