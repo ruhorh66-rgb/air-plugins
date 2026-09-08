@@ -14,5 +14,11 @@
       "sensitive": true,
       "required": false
     }
+  },
+  "living_document": "docs/SITE_BUILDER_LIVING_DOCUMENT.md",
+  "instruction_freshness": {
+    "required_startup_read": true,
+    "required_release_gate": true,
+    "tracked_paths": [".claude-plugin/plugin.json", "skills/build-site/", "agents/", "scripts/"]
   }
 }

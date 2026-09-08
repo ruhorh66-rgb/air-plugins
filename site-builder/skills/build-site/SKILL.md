@@ -51,8 +51,23 @@ Components from Phase 3 are structure; this step fills the imagery they frame. F
 
 If the Glif token is unset, skip generation and emit marked placeholders instead (see Precondition 2).
 
-### Phase 4 — Verify (drive it, don't assume — Module_01 п. 6.28)
-`npm run build` must pass; start `npm run dev` and open the preview to confirm it renders (use the browser/preview tools). Fix errors before declaring done. Check responsive (mobile + desktop) and light/dark if in scope.
+### Phase 4 — Verify (measure it, don't claim it)
+`npm run build` must pass; start `npm run dev` and open the preview to confirm it renders. Fix errors before declaring done.
+
+**Then run the gates — they are a script, not a judgement:**
+
+```
+node scripts/gates.mjs --url http://localhost:3000 --out ./
+```
+
+It writes `GATES.json` (machine) and `GATES.md` (human): accessibility (axe, pa11y), Core Web Vitals (Lighthouse/Unlighthouse, mobile profile), broken links (lychee), schema.org incl. JobPosting (sdtt), sitemap (xmllint), and keyboard focus visibility (Playwright, `scripts/keyboard-focus.mjs`).
+
+Read the three rules the script enforces, because they decide what you may report:
+- a missing tool is `not_run` with a reason — never a silent skip;
+- a tool that ran but produced unparseable output is `fail`, never `pass` — unreadable is not success;
+- exit code 1 if anything failed. A `not_run`-only run exits 0 but carries a warning banner: it is not a clean pass.
+
+**Never report a gate as passed from your own reading of the page.** The numbers come from `GATES.json` or they do not exist — a model's impression of contrast, performance or link health is not evidence.
 
 **Design + motion audit (checkers, not generators).** After the build renders:
 - **`improve-animations`** (vendored, always run) — invoke it on the built project. It is **read-only by design**: it emits a prioritized `AUDIT.md` plus self-contained implementation plans, and applies nothing. **You** then apply the plans it produced — do not report the audit as if it were the fix.
@@ -62,6 +77,22 @@ Record which audits ran, which plans you applied, and their headline findings in
 
 ### Phase 5 — Hand off
 Write `SITE_REPORT.md`: what was built (pages, chosen style/palette/fonts), which images are Glif-generated vs. user-supplied vs. still placeholders, how to `npm run dev` / build, and deployment notes. **Publishing/deploying externally is a separate explicit user decision** — do not deploy without it.
+
+## Delegation and economy
+
+Three roles live in `agents/`, each with its model fixed under the task, not under habit:
+
+| Role | Model | Why |
+|---|---|---|
+| `site-page-builder` | haiku | one page from ready tokens and ready content; volume, not judgement |
+| `site-designer` | sonnet | design direction, palette, typography — judgement |
+| `site-reviewer` | opus | independent verdict before hand-off; reads `GATES.json`, fixes nothing |
+
+Two economy rules that matter more than the model choice:
+- **the cheapest check is a script, not a model.** Facts come from `gates.mjs`; a subagent is for judgement. Delegating a measurement is how you get a self-report instead of a number;
+- **a subagent keeps its own prompt cache and it expires in five minutes by default.** When calling the same role repeatedly — page after page — set `cacheTtl: 1h` in its definition, or every call warms from cold.
+
+There is no programmatic API for the cost of one subagent call; that is documented as absent. Read `/usage` and append a row to `docs/ECONOMY_LOG.md` after each run.
 
 ## Non-goals / guardrails
 - Do not deploy or publish without explicit user go-ahead.
