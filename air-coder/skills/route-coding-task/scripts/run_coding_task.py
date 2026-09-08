@@ -25,6 +25,7 @@ FINAL_STATES = {
 }
 INFLIGHT_STATES = {"executor_running", "repair_running"}
 MAX_OUTPUT_CHARS = 12000
+LEAF_ENV = "AIR_CODER_LEAF_ACTIVE"
 
 
 class ContractError(ValueError):
@@ -105,6 +106,7 @@ def run_command(
     timeout_s: int,
     *,
     shell: bool = False,
+    env: dict[str, str] | None = None,
 ) -> CommandResult:
     started = time.monotonic()
     printable = command if isinstance(command, str) else subprocess.list2cmdline(command)
@@ -119,6 +121,7 @@ def run_command(
             errors="replace",
             timeout=timeout_s,
             shell=shell,
+            env=env,
         )
         return CommandResult(
             printable,
@@ -262,7 +265,7 @@ def codex_args(task: dict[str, Any], prompt: str, thread_id: str | None = None) 
     executor = task.get("executor", {}) if isinstance(task.get("executor", {}), dict) else {}
     args = [codex_executable(), "exec"]
     if thread_id:
-        args += ["resume", "--json"]
+        args += ["resume", "--json", "--ignore-user-config"]
         model = executor.get("model")
         if model:
             args += ["-m", str(model)]
@@ -271,7 +274,7 @@ def codex_args(task: dict[str, Any], prompt: str, thread_id: str | None = None) 
             args += ["-c", f'model_reasoning_effort="{effort}"']
         args += [thread_id, prompt]
         return args
-    args += ["--json", "-s", str(executor.get("sandbox", "workspace-write"))]
+    args += ["--json", "--ignore-user-config", "-s", str(executor.get("sandbox", "workspace-write"))]
     args += ["-C", str(Path(require_text(task, "repo_root")).resolve())]
     model = executor.get("model")
     if model:
@@ -314,6 +317,8 @@ def context_prompt(task: dict[str, Any]) -> str:
         f"Read these context files before editing:\n{context}\n\n"
         f"You may modify only these paths:\n{allowed}\n\n"
         f"Protected paths; do not modify them:\n{protected}\n\n"
+        "You are a leaf coding executor. Work directly on the requested code; do not invoke AirCoder, "
+        "select or route another executor, spawn or delegate to agents, create another task contract, or call run_coding_task.py. "
         "Do not commit, push, merge, tag, release, or change runtime outside this repository. "
         "Make the smallest sufficient code change. Repository checks are run independently after you finish."
     )
@@ -336,7 +341,9 @@ def repair_prompt(task: dict[str, Any], failures: list[dict[str, Any]], attempt:
 
 def invoke_codex(task: dict[str, Any], prompt: str, timeout_s: int, thread_id: str | None = None) -> dict[str, Any]:
     repo = Path(require_text(task, "repo_root")).resolve()
-    result = run_command(codex_args(task, prompt, thread_id), repo, timeout_s)
+    child_env = os.environ.copy()
+    child_env[LEAF_ENV] = "1"
+    result = run_command(codex_args(task, prompt, thread_id), repo, timeout_s, env=child_env)
     parsed = parse_codex_events(result.stdout)
     return {
         "returncode": result.returncode,
@@ -532,6 +539,8 @@ def prepare_or_resume(
 
 
 def run_task(task_path: Path, run_root: Path, resume: bool) -> tuple[int, dict[str, Any]]:
+    if os.environ.get(LEAF_ENV) == "1":
+        raise ContractError("recursive AirCoder invocation is blocked in leaf executor mode")
     started = time.monotonic()
     task, state, state_path, may_continue = prepare_or_resume(task_path, run_root, resume)
     if not may_continue:
