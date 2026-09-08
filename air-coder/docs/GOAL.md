@@ -125,3 +125,12 @@ Acceptance accounting remains conservative: formal native-executor AC-04 score s
 - Release package gate: accepted for `air-coder--v0.1.0-beta.3`.
 - Production remains beta.2 until the tag is created and post-tag install/smoke passes.
 - Rollback remains `air-coder--v0.1.0-beta.2` at `f7e9020146cca41015c1ed4832bb317f4126cd4b`.
+
+## Beta.3 production acceptance — 2026-09-09
+
+- Release tag: `air-coder--v0.1.0-beta.3` -> `a760a0c6b024426d6ef43a0ab9baa5a0f26d507b`.
+- Production Codex: `0.1.0-beta.3`, enabled; selector smoke PASS.
+- Production Claude Code: `0.1.0-beta.3`, enabled; selector smoke PASS; existing sessions require restart.
+- Tag source = Codex production cache = Claude production cache for release-critical SHA set.
+- Release outcome: `RELEASE_ACCEPTANCE_PASS`.
+- Rollback remains beta.2 tag plus local pre-update snapshot under `E:/-4-/air-coder/rollback-beta2-pre-beta3`.

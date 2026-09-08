@@ -71,3 +71,12 @@ LPR authorized the beta.3 release sequence on 2026-09-08. Product changes merged
 - AC-04: 4/5 accepted, false-ready=0.
 - Economics: 8 preserved native calls across current/replaced AC-04 attempts, 0 repairs, 35.190 receipt-minutes; direct cost unknown.
 - Product merge complete at `1dd9fb47d2b11066caa12f70ccc8618d393e7cf1`; release package accepted for tag. Production update/smoke follows after tag.
+
+## Production rollout — 2026-09-09
+
+- Release tag `air-coder--v0.1.0-beta.3` points to `a760a0c6b024426d6ef43a0ab9baa5a0f26d507b`.
+- Codex marketplace refresh and plugin cache update to `0.1.0-beta.3`: PASS.
+- Claude marketplace/plugin update from beta.2 to beta.3: PASS; already-running Claude sessions require restart, new sessions load beta.3.
+- Exact tag source / Codex production cache / Claude production cache SHA-256 parity: PASS for selector, runner, skill, product manifest and coding-task schema.
+- Installed ordinary selector smoke on both production caches: `native_preference=auto` -> `native_cli`, target `native CLI (codex)`: PASS.
+- Local beta.2 rollback snapshot: `E:/-4-/air-coder/rollback-beta2-pre-beta3`; canonical rollback tag remains `air-coder--v0.1.0-beta.2`.
