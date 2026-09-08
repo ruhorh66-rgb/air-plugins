@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "status": "READY_FOR_ASTRA_REVIEW",
+  "product": "air-coder",
+  "candidate_version": "0.1.0-beta.3",
+  "branch": "ai/aircoder-ruflo-contract-beta3-20260907",
+  "review_code_baseline": "0e658f80ca704cd519b0e520e91bd7c96e5239b1",
+  "release_gate": "closed",
+  "ac03": {
+    "status": "pass",
+    "self_hosting": true,
+    "executor_attempts": 1,
+    "repair_attempts": 0,
+    "regression_suite": "37/37 PASS"
+  },
+  "ac04": {
+    "accepted": 2,
+    "target_total": 5,
+    "required_accepted": 4,
+    "false_ready": 0,
+    "native_quota_failure_class": "executor_unavailable/usage_limit",
+    "automatic_retry_on_quota": 0
+  },
+  "review_required_before": ["merge", "tag", "release", "install", "AirStorage modernization", "AIRVR restart"]
+}

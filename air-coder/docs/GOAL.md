@@ -77,3 +77,10 @@ During this window:
 - once Astra becomes available, provide the corrected control slice before release decisions.
 
 Current integration baseline after manual hardening: `fd88acf058be637ee6d8e96918d3d396568617ee`.
+
+## Astra review handoff — 2026-09-08 18:06 local
+
+LPR decision: freeze development at the current control point and request Astra review before any further AC-04 execution or AC-05 release work.
+
+Review package: `docs/ASTRA_REVIEW_SLICE_2026-09-08.md` + `.json`.
+Release/merge/tag/install, AirStorage modernization and AIRVR remain blocked by this review gate unless LPR explicitly overrides it.
