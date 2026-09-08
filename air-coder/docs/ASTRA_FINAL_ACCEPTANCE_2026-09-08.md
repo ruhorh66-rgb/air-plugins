@@ -1,7 +1,7 @@
 # AirCoder ? Astra final acceptance checkpoint ? 2026-09-08
 
-review_base: `eaf4b2e51bb7421ff29479ce3a24145f126a0f56`  
-candidate_code_tip: `0a1ce69b53b67e817305d582904945309688efa7`  
+review_base: `eaf4b2e51bb7421ff29479ce3a24145f126a0f56`
+candidate_code_tip: `0a1ce69b53b67e817305d582904945309688efa7`
 version: `0.1.0-beta.3` development candidate
 
 ## Astra findings
