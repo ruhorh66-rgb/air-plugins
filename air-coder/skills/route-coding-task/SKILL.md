@@ -16,7 +16,7 @@ AirCoder is a selector, not an orchestration engine. It must not implement a swa
 
 ## Input facts
 
-Prepare a small JSON object for `scripts/select_executor.py`:
+Infer a small selector payload from the user's ordinary chat request. Do not ask the user to choose a route or prepare JSON when repository/context facts are already available. The internal payload for `scripts/select_executor.py` uses:
 
 - `mode`: `analysis` or `implementation`;
 - `size`: `small`, `medium`, `large`;
@@ -28,17 +28,14 @@ Prepare a small JSON object for `scripts/select_executor.py`:
 
 ## Selection rules
 
-1. `analysis` → `chatgpt_rdc`: use the strong reasoning channel without spending scarce native CLI quota.
-2. substantial implementation or `size=large` → `ruflo`: substantial work is where Ruflo overhead is justified.
-3. otherwise, when fast repository hands are high priority and quota policy is not `conserve` → `native_cli`.
-4. all other small/local work → `chatgpt_rdc`.
-5. explicit `lpr_route` wins over the selector.
+1. explicit `lpr_route` wins over the selector.
+2. `analysis` → `chatgpt_rdc`: keep reasoning in the normal control channel.
+3. implementation with explicit `substantial_signs` → `ruflo`; size alone must not force Ruflo.
+4. ordinary implementation → `native_cli`, with Codex as the default ready executor for this release cycle.
+5. explicit `scarce_quota_policy=conserve` may keep implementation in `chatgpt_rdc`.
+6. if the selected native executor is quota-blocked/unavailable, return the real unavailable/waiting status; do not silently fall back to a paid API or force Ruflo.
 
-Run:
-
-```powershell
-python skills/route-coding-task/scripts/select_executor.py --input task.json --pretty
-```
+The session may materialize this payload as an internal task-facts file and run the selector itself. Internal routing JSON is implementation detail, not a user-facing prerequisite.
 
 ## Mandatory live probe
 
