@@ -21,6 +21,18 @@ probe_spec.loader.exec_module(probe)
 
 
 class SelectorTests(unittest.TestCase):
+    def test_plain_implementation_uses_ready_native_executor(self) -> None:
+        result = module.select_executor({})
+        self.assertEqual("native_cli", result["route"])
+        self.assertIn("codex", result["handoff"]["target"])
+
+    def test_large_without_substantial_signs_does_not_force_ruflo(self) -> None:
+        result = module.select_executor({
+            "mode": "implementation",
+            "size": "large",
+        })
+        self.assertEqual("native_cli", result["route"])
+
     def test_analysis_stays_chatgpt_rdc(self) -> None:
         result = module.select_executor({
             "mode": "analysis",
