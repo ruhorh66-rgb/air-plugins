@@ -4,29 +4,26 @@
   "display_name": "AirCoder",
   "version": "0.1.0-beta.3",
   "release_channel": "development",
-  "product_model": "Selector != Executor",
+  "product_model": "Selector + thin ready-executor adapter; no custom agent loop",
   "entry_skill": "skills/route-coding-task/SKILL.md",
-  "supported_hosts": [
-    "chatgpt-rdc",
-    "codex",
-    "claude-code"
-  ],
+  "supported_hosts": ["chatgpt-rdc", "codex", "claude-code"],
   "contracts": {
     "goal": "docs/GOAL.md",
     "capabilities": "capabilities.json",
-    "run_result": "contracts/run-result.schema.json"
+    "coding_task": "contracts/coding-task.schema.json",
+    "run_result": "contracts/run-result.schema.json",
+    "ruflo_route": "contracts/ruflo-route-profile.json"
   },
   "living_document": "00_STRATEGY/AIR_CODER_LIVING_DOCUMENT.md",
-  "runtime_state_policy": "none; executor state remains owned by each external executor",
+  "runtime_state_policy": {
+    "owned": true,
+    "content": "task contracts and execution receipts only; executor session remains owned by Codex/Claude/Ruflo",
+    "env": "AIR_CODER_RUN_ROOT",
+    "windows_default": "E:/-4-/air-coder/runs"
+  },
   "instruction_freshness": {
     "required_startup_read": true,
     "required_release_gate": true,
-    "tracked_paths": [
-      "product.json",
-      "capabilities.json",
-      "skills/",
-      "contracts/",
-      "docs/"
-    ]
+    "tracked_paths": ["product.json", "capabilities.json", "skills/", "contracts/", "docs/"]
   }
 }

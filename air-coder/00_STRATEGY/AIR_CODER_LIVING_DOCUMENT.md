@@ -1,39 +1,46 @@
 # AirCoder — Product Instruction / Living Document
 
-Development target: 0.1.0-beta.2
-Updated: 2026-09-06
+Development target: 0.1.0-beta.3
+Updated: 2026-09-08
 
 ## Purpose
 
-AirCoder chooses the economically appropriate executor for coding work and hands the task to an already existing execution path. It does not execute a second orchestration stack of its own.
+AirCoder keeps the user's normal chat task entrypoint while selecting and adapting existing coding executors. It must prefer ready executor mechanisms over custom planning/agent infrastructure.
 
 ## Canonical boundaries
 
 - product source: `air-coder/` inside the `air-plugins` repository;
 - entry skill: `skills/route-coding-task/SKILL.md`;
 - deterministic selector: `skills/route-coding-task/scripts/select_executor.py`;
-- result contract: `contracts/run-result.schema.json`;
-- runtime/state: none owned by AirCoder;
-- executor-specific state remains owned by RDC, Ruflo, Codex, Claude Code, or their existing components.
+- bounded ready-agent runner: `skills/route-coding-task/scripts/run_coding_task.py`;
+- task contract: `contracts/coding-task.schema.json`;
+- comparable result contract: `contracts/run-result.schema.json`;
+- runtime receipts: `AIR_CODER_RUN_ROOT`, default `E:/-4-/air-coder/runs`;
+- executor session/runtime remains owned by Codex, Claude Code or Ruflo.
+
+## Primary ready-agent path
+
+For the Astra adaptation cycle the first full working path is Codex CLI. Live evidence on SRVLM01 2026-09-08: `codex-cli 0.145.0`, authenticated with ChatGPT, and `codex exec --json` returns a persistent `thread_id`, completion events and token usage.
+## Execution contract
+
+1. Validate task/product/repository/context before allowing edits.
+2. Run the selected ready executor with bounded scope; AirCoder does not ask it to commit, push or release.
+3. Independently inspect changed paths and protected paths.
+4. Run repository acceptance commands plus `git diff --check` outside the model.
+5. On a product-check failure, resume the same Codex thread for at most two repair attempts.
+6. On executor/infrastructure failure, stop without paying for an identical retry.
+7. Persist status, `thread_id`, attempts, usage and evidence; an uncertain in-flight state is never silently replayed.
 
 ## Executor routes
 
-- `chatgpt_rdc`: strong reasoning, low scarce-quota burden in the LPR working contour, slower repository hands;
-- `ruflo`: substantial implementation where orchestration/parallelism justifies overhead;
-- `native_cli`: fast Codex/Claude repository hands when speed benefit justifies scarce quota.
-
-## Runtime truth rule
-
-Selection is not proof of availability. The chosen route must be live-probed at execution time. On 2026-09-06 SRVLM01 exposed `codex-cli 0.145.0` and `Claude Code 2.1.226`; Ruflo was not a direct PATH command, while `npx @claude-flow/cli@latest --version` returned `ruflo v3.38.21`. These are observations, not pinned product configuration.
+- `chatgpt_rdc`: orchestration, analysis and small local engineering;
+- `native_cli`: ready Codex/Claude repository agent; Codex is the primary AC-03 implementation path;
+- `ruflo`: substantial/swarm route through `air-ruflo-bridge:run-via-ruflo`, using the documented dry-run → approval → execution sequence only.
 
 ## Non-goals
 
-AirCoder does not own a scheduler, watchdog, autonomous queue, controller, learning database, model router, billing layer, or provider transport. It does not absorb `air-worker` or `air-ruflo-bridge`.
+No custom planner, swarm engine, scheduler, watchdog, autonomous queue, learning database, model gateway or provider transport. AirCoder stores only task/receipt state needed to make execution verifiable and resumable.
 
-## Release rule
+## Current gates
 
-The first beta is accepted only when selector tests pass, manifest/product versions match, all contract paths exist, three representative route decisions are reproduced mechanically, and the marketplace points to `./air-coder`. There is no previous AirCoder Stable; rollback is removal/disablement of the new plugin while the pre-existing executor paths remain unchanged.
-
-## Known degraded mode
-
-The root `air-plugins/.claude-plugin/marketplace.json` already fails `claude plugin validate` on historical `plugins[2]._moved` (missing `name/source`). The same two errors reproduce from pre-AirCoder HEAD. AirCoder's own plugin manifest validates successfully; the shared marketplace defect is not changed by this release task.
+The Codex runner remains `CANDIDATE` until one real isolated AC-03 task completes end-to-end. AC-04 then requires five comparable small tasks from at least two AIR products with the acceptance defined in the Astra 2026-09-08 specification. Release is a later gate; source implementation is committed/pushed first.

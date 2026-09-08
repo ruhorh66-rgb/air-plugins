@@ -56,6 +56,20 @@ Ruflo component truth is `contracts/ruflo-route-profile.json`. Full CLI loop cap
 
 If the selected route is unavailable, report the failed probe and re-run selection only with the changed availability/economics facts or an explicit LPR override. Do not invent a substitute executor inside AirCoder.
 
+## Ready-agent execution (Astra AC-03)
+
+When the chosen implementation path is the ready Codex agent, do not hand the user internal CLI commands. Build a `contracts/coding-task.schema.json` task contract and run:
+
+```powershell
+python skills/route-coding-task/scripts/run_coding_task.py --task <task.json>
+```
+
+The runner owns only the thin adaptation layer: context/repository gate, Codex `exec/resume`, changed/protected path gate, repository checks, at most two repair attempts, and a persisted receipt. Runtime state goes to `AIR_CODER_RUN_ROOT` (default `E:/-4-/air-coder/runs`).
+
+A saved task is resumed with the same contract plus `--resume`. If the previous state is `executor_running` or `repair_running`, the runner returns `uncertain_inflight` and MUST NOT replay the paid call automatically.
+
+Codex must not commit, push, merge, tag or release from this path. Those remain outer AIR development/release stages.
+
 ## Result contract
 
 Every real execution records one result matching `contracts/run-result.schema.json`:
