@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-08",
+  "status": "prepared_red_baselines",
+  "integration_code_head": "fd88acf058be637ee6d8e96918d3d396568617ee",
+  "tasks": [
+    {
+      "task_id": "AIRCODER-AC04-003B",
+      "product": "air-coder",
+      "branch": "ai/aircoder-ac04-003b-limits-values",
+      "baseline_commit": "a44d89ec71f4613104518dda46116fd673b6e541",
+      "defect": "malformed inner limit values leak ValueError instead of ContractError",
+      "preflight": "PASS"
+    },
+    {
+      "task_id": "AIRCODER-AC04-004B",
+      "product": "air-ruflo-bridge",
+      "branch": "ai/aircoder-ac04-004b-bridge-queue-time",
+      "baseline_commit": "fc225a127c9a4277d46d75d7eba22bfd01b120f4",
+      "defect": "invalid created_at breaks the whole approval queue summary",
+      "preflight": "PASS"
+    },
+    {
+      "task_id": "AIRCODER-AC04-005B",
+      "product": "air-ruflo-bridge",
+      "branch": "ai/aircoder-ac04-005b-listener-nonobject",
+      "baseline_commit": "900aa82df54c7414e6c4e640bf2f21c541659f79",
+      "defect": "non-object approval request JSON crashes callback processing",
+      "preflight": "PASS"
+    }
+  ]
+}

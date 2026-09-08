@@ -65,3 +65,15 @@ Current AC-04 state at the gate:
 - evidence: `docs/AC04_CONTROL_SLICE_2026-09-08.md`.
 
 Release, merge, tag, install and AirStorage modernization remain after this review gate.
+
+## Extended work window before Astra review - 2026-09-08
+
+LPR decision: Astra review is temporarily unavailable because of its five-hour quota window. Continue productive AirCoder work for roughly one hour, but keep the review/release gate in place.
+
+During this window:
+- do manual hardening and prepare new regression-backed AC-04 tasks;
+- do not spend native Codex calls while its own usage limit is exhausted;
+- do not start release, merge, install, AirStorage modernization, or AIRVR;
+- once Astra becomes available, provide the corrected control slice before release decisions.
+
+Current integration baseline after manual hardening: `fd88acf058be637ee6d8e96918d3d396568617ee`.
