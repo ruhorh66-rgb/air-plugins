@@ -45,7 +45,8 @@ def _handoff(route: str, native_preference: str) -> dict[str, str]:
         return {"target": "ChatGPT + RDC", "probe": "check RDC availability"}
     if route == "ruflo":
         return {"target": "air-ruflo-bridge:run-via-ruflo", "probe": "check documented Ruflo runtime"}
-    return {"target": f"native CLI ({native_preference})", "probe": "check codex/claude CLI"}
+    native_target = "codex" if native_preference == "auto" else native_preference
+    return {"target": f"native CLI ({native_target})", "probe": "check codex/claude CLI"}
 
 
 def select_executor(payload: dict[str, Any]) -> dict[str, Any]:
