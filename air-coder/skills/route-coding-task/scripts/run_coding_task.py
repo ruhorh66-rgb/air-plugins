@@ -91,7 +91,17 @@ def require_string_list(task: dict[str, Any], key: str) -> list[str]:
     return items
 
 
+TASK_KEYS = {
+    "schema_version", "task_id", "product", "repo_root", "expected_remote",
+    "expected_head", "objective", "allowed_paths", "protected_paths",
+    "context_files", "acceptance_commands", "require_clean_start",
+    "scarce_quota_burden", "executor", "limits",
+}
+
 def validate_task(task: dict[str, Any]) -> None:
+    unknown = sorted(set(task) - TASK_KEYS)
+    if unknown:
+        raise ContractError("unknown task fields: " + ", ".join(unknown))
     if task.get("schema_version") != 1:
         raise ContractError("schema_version must be 1")
     for key in ("task_id", "product", "repo_root", "objective"):
@@ -104,6 +114,16 @@ def validate_task(task: dict[str, Any]) -> None:
         or any(not isinstance(item, str) or not item.strip() for item in protected)
     ):
         raise ContractError("protected_paths must be a list of non-empty strings")
+    for key in ("expected_remote", "expected_head"):
+        value = task.get(key)
+        if value is not None and not isinstance(value, str):
+            raise ContractError(f"{key} must be a string or null")
+    if "require_clean_start" in task and not isinstance(task["require_clean_start"], bool):
+        raise ContractError("require_clean_start must be boolean")
+    if "executor" in task and not isinstance(task["executor"], dict):
+        raise ContractError("executor must be an object")
+    if "limits" in task and not isinstance(task["limits"], dict):
+        raise ContractError("limits must be an object")
     quota = task.get("scarce_quota_burden", "medium")
     if quota not in {"low", "medium", "high"}:
         raise ContractError("scarce_quota_burden must be one of: low, medium, high")
