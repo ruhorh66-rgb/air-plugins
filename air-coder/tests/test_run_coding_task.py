@@ -190,15 +190,16 @@ class RunnerTests(unittest.TestCase):
             invoke.assert_not_called()
 
 
-    def test_codex_args_use_leaf_user_config_isolation(self) -> None:
+    def test_codex_args_keep_workspace_write_user_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(Path(tmp))
             task = make_task(repo)
             with mock.patch.object(module, "codex_executable", return_value="codex.cmd"):
                 initial = module.codex_args(task, "do")
                 resumed = module.codex_args(task, "fix", "thread-1")
-            self.assertIn("--ignore-user-config", initial)
-            self.assertIn("--ignore-user-config", resumed)
+            self.assertIn("workspace-write", initial)
+            self.assertNotIn("--ignore-user-config", initial)
+            self.assertNotIn("--ignore-user-config", resumed)
 
     def test_invoke_codex_marks_child_as_leaf(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

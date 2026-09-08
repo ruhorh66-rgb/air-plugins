@@ -265,7 +265,7 @@ def codex_args(task: dict[str, Any], prompt: str, thread_id: str | None = None) 
     executor = task.get("executor", {}) if isinstance(task.get("executor", {}), dict) else {}
     args = [codex_executable(), "exec"]
     if thread_id:
-        args += ["resume", "--json", "--ignore-user-config"]
+        args += ["resume", "--json"]
         model = executor.get("model")
         if model:
             args += ["-m", str(model)]
@@ -274,7 +274,7 @@ def codex_args(task: dict[str, Any], prompt: str, thread_id: str | None = None) 
             args += ["-c", f'model_reasoning_effort="{effort}"']
         args += [thread_id, prompt]
         return args
-    args += ["--json", "--ignore-user-config", "-s", str(executor.get("sandbox", "workspace-write"))]
+    args += ["--json", "-s", str(executor.get("sandbox", "workspace-write"))]
     args += ["-C", str(Path(require_text(task, "repo_root")).resolve())]
     model = executor.get("model")
     if model:
@@ -458,24 +458,27 @@ def execute_one_turn(
 
 
 def build_result(task: dict[str, Any], state: dict[str, Any], started: float) -> dict[str, Any]:
-    repo = Path(require_text(task, "repo_root")).resolve()
-    stat = git(repo, "diff", "--stat")
     executor = task.get("executor", {}) if isinstance(task.get("executor", {}), dict) else {}
-    usage = [run.get("usage") for run in state["executor_runs"] if run.get("usage")]
+    latest_checks = state.get("acceptance_runs", [])[-1] if state.get("acceptance_runs") else []
+    total_checks = len(latest_checks) or (1 + len(require_string_list(task, "acceptance_commands")))
+    accepted_checks = sum(1 for record in latest_checks if bool(record.get("passed")))
+    quota = str(task.get("scarce_quota_burden", "medium"))
+    if quota not in {"low", "medium", "high"}:
+        quota = "medium"
+    run_dir = Path(str(state.get("run_dir", "")))
+    evidence = [f"task_contract={state.get('task_contract')}", f"state={run_dir / 'state.json'}"]
+    if state.get("changed_paths"):
+        evidence.append("changed_paths=" + ",".join(str(item) for item in state["changed_paths"]))
     return {
         "task_id": task["task_id"],
-        "status": state["status"],
-        "thread_id": state.get("thread_id"),
-        "executor": "codex-cli",
-        "model": executor.get("model", "config-default"),
-        "attempts": state["executor_attempts"],
-        "repair_attempts": state["repair_attempts"],
-        "elapsed_s": round(time.monotonic() - started, 3),
+        "route": "native_cli",
+        "acceptance": {"accepted": accepted_checks, "total": total_checks},
+        "elapsed_min": round((time.monotonic() - started) / 60.0, 3),
         "direct_cost_usd": None,
-        "usage": usage,
-        "changed_paths": state.get("changed_paths", []),
-        "diff_stat": stat.stdout.strip() if stat.passed else None,
-        "acceptance_passed": state["status"] == "accepted",
+        "scarce_quota_burden": quota,
+        "model_class": f"Codex CLI / {executor.get('model', 'config-default')}",
+        "attempts": max(1, int(state.get("executor_attempts", 0))),
+        "evidence": evidence,
     }
 
 
