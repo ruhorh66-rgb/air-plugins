@@ -3,6 +3,8 @@ name: site-page-builder
 description: Build a single page from design tokens and brief content without choosing style or creating content.
 model: haiku
 tools: Read, Write, Edit, Glob, Grep
+experimental:
+  cacheTtl: 1h
 ---
 
 You are a focused page-builder agent. Your job: take a ready-made design-system token file and content from the brief, then assemble ONE HTML page without inventing style, content, or running the build pipeline.

@@ -1,0 +1,211 @@
+{
+  "$schema_note": "Machine-readable capability source-of-truth for the site-builder plugin, per DEV-050 (Capability/help contract). docs/PLUGIN_CAPABILITIES.md is generated from this file — edit here, not there.",
+  "product": "site-builder",
+  "version": "0.2.2",
+  "generated_at": "2026-09-08",
+  "status_definitions": {
+    "AVAILABLE": "runtime-path exists and is exercised; an input/output contract is defined; a mechanical test or a named external gate verifies it.",
+    "EXPERIMENTAL": "runtime-path exists and is callable, but no mechanical gate verifies its result — correctness rests on model judgment or an unwired script.",
+    "PLANNED": "no runtime-path exists yet; not offered to the user as available."
+  },
+  "capabilities": [
+    {
+      "id": "site-build-from-brief",
+      "title": "Собрать сайт из брифа",
+      "summary": "Читает brief.yaml + контент-документы и производит собранный Next.js (App Router + TypeScript + Tailwind + shadcn/ui + Framer Motion) сайт с SITE_REPORT.md. Один прогон = один сайт, не пайплайн.",
+      "status": "AVAILABLE",
+      "runtime_path": [
+        "skills/build-site/SKILL.md",
+        "agents/site-builder.md",
+        "commands/site.md"
+      ],
+      "contract": {
+        "input": "папка брифа: brief.yaml (см. skills/build-site/references/brief-schema.md) + контент/логотип/исходники",
+        "output": "самодостаточный Next.js проект в целевой директории + SITE_REPORT.md (состав сборки, стиль/палитра, список визуалов, инструкция запуска)"
+      },
+      "verification": "Phase 4 требует прохождения `npm run build` (код возврата) и рендера в `npm run dev`-превью перед объявлением готовности; дополнительно запускается scripts/gates.mjs. STOP-ASK на пробелах брифа — не гейт, а human-gate по Phase 0.",
+      "limitations": [
+        "Один бриф = один сайт за прогон; не серийная генерация (Non-goals SKILL.md).",
+        "Требует Node.js на PATH (v24 подтверждён на этой машине).",
+        "Не публикует и не деплоит — отдельное явное решение пользователя.",
+        "Самообучение продукта — дописывание references/stack.md после реальной сборки, не БД/стор."
+      ]
+    },
+    {
+      "id": "design-system-and-tokens",
+      "title": "Дизайн-система и токены",
+      "summary": "Подбирает дизайн-направление и палитру/типографику/spacing из вендорных баз (design-taste-frontend, design-system, ui-ux-pro-max), эмитит токены (Tailwind theme + CSS variables) и проверяет вёрстку на соответствие им.",
+      "status": "AVAILABLE",
+      "runtime_path": [
+        "skills/design-system/scripts/generate-tokens.cjs",
+        "skills/design-system/scripts/embed-tokens.cjs",
+        "skills/design-system/scripts/validate-tokens.cjs",
+        "skills/design-system/scripts/html-token-validator.py",
+        "skills/design-system/scripts/tests/test_validate_tokens.py"
+      ],
+      "contract": {
+        "input": "бриф (бренд/аудитория/интент) + выбор стиля из вендорной базы",
+        "output": "файл токенов (цвета, типографика, spacing, radius, тени, границы) + HTML/CSS-вёрстка, использующая только эти токены"
+      },
+      "verification": "`python skills/design-system/scripts/html-token-validator.py <файл.html>` — код возврата 0/1 по наличию хардкод-значений (hex/rgb/rgba/hsl/шрифт мимо var()); это же — канонический гейт цикла в skills/build-site/SKILL.md (раздел «Цикл»). Юнит-тесты: scripts/tests/test_validate_tokens.py.",
+      "limitations": [
+        "Валидатор проверяет соответствие токенам конкретных HTML-артефактов, не подтверждает автоматически, что Tailwind-тема в живом Next.js-проекте подключена корректно.",
+        "Вендорные базы (design-taste-frontend, ui-ux-pro-max, design-system) — read-only с точки зрения продукта; правятся только переоформлением вендоринга (VENDOR.md)."
+      ]
+    },
+    {
+      "id": "glif-visual-generation",
+      "title": "Генерация визуалов через Glif",
+      "summary": "Опциональный шаг Phase 3b: подбирает Glif-воркфлоу и генерирует hero/иллюстрации/иконки/OG-изображения под сайт, вписывая их в дизайн-систему брифа.",
+      "status": "EXPERIMENTAL",
+      "runtime_path": [
+        ".mcp.json",
+        "skills/build-site/SKILL.md#Phase-3b"
+      ],
+      "contract": {
+        "input": "промпт с палитрой/mood/style из Phase 1 + выбранный Glif-воркфлоу (search_workflows/run_workflow)",
+        "output": "сгенерированные изображения, сохранённые локально (например public/images/) и referenced из вёрстки; при отсутствии токена — явные помеченные заглушки"
+      },
+      "verification": "Нет. Успех/неуспех одного вызова виден в ответе MCP-инструмента, но ни один скрипт репозитория не проверяет, что сгенерированные файлы существуют, сохранены на диск, не хотлинкнуты и соответствуют дизайн-системе — это остаётся утверждением модели.",
+      "limitations": [
+        "Требует опциональный userConfig `glif_api_token`; без него шаг пропускается штатно, без блокировки сборки.",
+        "Бренд-критичные визуалы (логотип, юридически/маркетингово значимые изображения) не генерируются в принципе — это policy-запрет, а не автоматическая проверка.",
+        "Сгенерированные URL истекают — обязательное локальное сохранение не подтверждается гейтом."
+      ]
+    },
+    {
+      "id": "animation-audit",
+      "title": "Аудит анимаций (improve-animations)",
+      "summary": "Read-only аудит движения в собранном проекте: сканирует код, оценивает по восьми категориям (AUDIT.md) и выдаёт приоритизированный AUDIT.md + самодостаточные implementation-планы. Ничего не применяет сама.",
+      "status": "EXPERIMENTAL",
+      "runtime_path": [
+        "skills/improve-animations/SKILL.md",
+        "skills/improve-animations/AUDIT.md",
+        "skills/improve-animations/PLAN-TEMPLATE.md"
+      ],
+      "contract": {
+        "input": "собранный проект (исходники компонентов/анимаций)",
+        "output": "AUDIT.md (приоритизированные находки) + файлы планов в plans/ (или animation-plans/); заявленные планы применяет исполнитель отдельно"
+      },
+      "verification": "Нет. Оценка идёт по текстовому каталогу правил AUDIT.md силами модели; ни один скрипт не проверяет находки или готовые планы механически.",
+      "limitations": [
+        "Только чтение — не правит код; применение планов остаётся ручным шагом Phase 4.",
+        "Всегда запускается моделью (не disable-model-invocation), но её выводы не проверяются гейтом."
+      ]
+    },
+    {
+      "id": "animation-review",
+      "title": "Проверка диффа анимаций (review-animations)",
+      "summary": "Ревью анимационного/motion-кода диффа против STANDARDS.md (философия Emil Kowalski): таблица находок + вердикт PASS/BLOCK.",
+      "status": "EXPERIMENTAL",
+      "runtime_path": [
+        "skills/review-animations/SKILL.md",
+        "skills/review-animations/STANDARDS.md"
+      ],
+      "contract": {
+        "input": "дифф с motion-кодом",
+        "output": "таблица находок (Before/After/Why) + вердикт Approve/Block"
+      },
+      "verification": "Нет. Вердикт — суждение модели по каталогу правил STANDARDS.md, ни один скрипт не подтверждает его.",
+      "limitations": [
+        "Апстрим помечает скилл `disable-model-invocation: true` — оркестрирующий агент/скилл build-site вызвать его сам не может, только пользователь командой `/review-animations` (Phase 4, agents/site-builder.md)."
+      ]
+    },
+    {
+      "id": "ssl-cert-issuance",
+      "title": "Выпуск SSL-сертификата (issue-ssl-cert)",
+      "summary": "Самостоятельная утилита вне пайплайна брифа: выпускает мультидоменный Let's Encrypt сертификат через минимальный ACME v2 (HTTP-01) клиент без CLI-инструмента и без регистрации аккаунта в веб-визарде.",
+      "status": "AVAILABLE",
+      "runtime_path": [
+        "skills/issue-ssl-cert/scripts/get_cert.py"
+      ],
+      "contract": {
+        "input": "список доменов (--domain ...), FTP-хост/логин/докрут (--ftp-host/--ftp-user/--docroot), пароль вводится в рантайме видимым вводом",
+        "output": "fullchain.pem + приватный ключ, скопированные на Desktop для ручной загрузки через панель хостинга; печатает `DONE` по завершении"
+      },
+      "verification": "Явно названный внешний гейт (SKILL.md, раздел «Verifying the result»): `openssl s_client -connect host:443 -servername host -verify_hostname host` (или обычный `curl` без `-k`) с машины, не участвовавшей в выпуске — `curl -k`/`openssl s_client` без -verify_hostname не считаются доказательством.",
+      "limitations": [
+        "Требует `openssl` на PATH и FTP-доступ на запись в докрут домена, отвечающий по HTTP на порту 80 без редиректа /.well-known/acme-challenge/.",
+        "Финальная загрузка сертификата в панель хостинга — ручной шаг, не автоматизирован.",
+        "Не является частью цепочки brief→сайт — вызывается отдельно при проблеме с HTTPS уже выпущенного сайта."
+      ]
+    },
+    {
+      "id": "quality-gates-runner",
+      "title": "Гейты качества сайта (scripts/gates.mjs)",
+      "summary": "Единая точка запуска детерминированных проверок собранного и запущенного сайта: доступность (axe, pa11y), Core Web Vitals (Lighthouse/Unlighthouse), битые ссылки (lychee), schema.org (structured-data-testing-tool), sitemap (xmllint) и клавиатурный фокус (Playwright). Ни один шаг не обращается к LLM.",
+      "status": "AVAILABLE",
+      "runtime_path": [
+        "scripts/gates.mjs"
+      ],
+      "contract": {
+        "input": "`node scripts/gates.mjs --url <запущенный сайт> [--out ./]`",
+        "output": "GATES.json (машинный) + GATES.md (человекочитаемый); каждая секция несёт status (pass/fail/not_run), команду, длительность, причину при not_run/fail; код возврата 1 при любом fail, 0 иначе"
+      },
+      "verification": "Скрипт сам себе гейт: детерминированный код возврата, парсинг вывода нижележащих инструментов, явные правила (пропавший инструмент → not_run с причиной, нечитаемый вывод → fail, никогда молчаливый pass). Живой прогон зафиксирован в docs/SITE_BUILDER_LIVING_DOCUMENT.md 08.09.2026 на SRVLM01: 1 pass, 3 fail, 3 not_run, код возврата 1 — реальные находки axe/pa11y/структурных данных, не заглушка.",
+      "limitations": [
+        "На этой машине (SRVLM01) на дату записи не установлены: lychee (битые ссылки), xmllint/libxml2 (sitemap), Chromedriver (нужен axe), Playwright+Chromium (клавиатурный фокус) — эти секции дают not_run с явной причиной и командой установки, а не молчаливый пропуск. Это ограничение среды, не дефект самого runtime-пути: скрипт исполним и корректно это отражает.",
+        "Полностью зелёного прогона на этой машине до установки перечисленных инструментов быть не может."
+      ]
+    },
+    {
+      "id": "keyboard-focus-gate",
+      "title": "Клавиатурный проход и видимость фокуса",
+      "summary": "Закрывает пробел, который не покрывают axe/pa11y: реальная табуляция по интерактивным элементам страницы (Playwright) с сравнением фокусного и нефокусного computed style — обнаруживает элементы без видимого фокуса.",
+      "status": "AVAILABLE",
+      "runtime_path": [
+        "scripts/keyboard-focus.mjs"
+      ],
+      "contract": {
+        "input": "`node scripts/keyboard-focus.mjs --url <запущенный сайт> [--out ./] [--timeout] [--max-elements]`; либо программный импорт `runKeyboardFocusGate()` из scripts/gates.mjs",
+        "output": "keyboard-focus.json (или секция `keyboardFocus` в GATES.json): status, counts (candidates/checked/withoutVisibleFocus), список failingElements"
+      },
+      "verification": "Самопроверяющийся скрипт: код возврата 1 при fail; отсутствие Playwright/Chromium → not_run с явной причиной и командой установки, а не крах или молчаливый pass; ноль протабленных элементов → not_run, а не pass с нулевым результатом.",
+      "limitations": [
+        "Проверяет только реальные DOM tab-stops по FOCUSABLE_SELECTOR; не заходит в same-origin iframes и open shadow roots.",
+        "«Видимый фокус» приближённо определяется как изменившийся outline (не none/0px) ИЛИ изменившийся box-shadow — фокус-стиль, реализованный чистой сменой цвета текста без outline/shadow, не обнаруживается.",
+        "Требует установленный Playwright + Chromium; на этой машине на дату записи не установлен (see quality-gates-runner limitations) — сам скрипт исполним, зависимость среды нет."
+      ]
+    },
+    {
+      "id": "sitemap-standalone-check",
+      "title": "Отдельная проверка sitemap.xml (scripts/sitemap_check.py)",
+      "summary": "Самостоятельный Python-скрипт без внешних зависимостей: проверяет корректность XML и структурные правила протокола sitemaps.org (namespace, лимит 50000 записей / 50МБ, обязательный <loc> у каждой записи).",
+      "status": "EXPERIMENTAL",
+      "runtime_path": [
+        "scripts/sitemap_check.py"
+      ],
+      "contract": {
+        "input": "`python scripts/sitemap_check.py <путь к sitemap.xml>`",
+        "output": "JSON в stdout: status (pass/fail/not_run), entries, missing_loc, problems[]; код возврата 0 при pass/not_run, 1 при fail"
+      },
+      "verification": "Скрипт сам себе гейт и подтверждён рабочим тест-прогоном в рамках этого аудита (синтетический sitemap → status: pass, exit 0). Это доказывает, что сам скрипт исправен — но не то, что он подключён к продукту.",
+      "limitations": [
+        "ПОНИЖЕНО против ожидаемого: скрипт не вызывается ни из scripts/gates.mjs, ни из skills/build-site/SKILL.md, ни из какого-либо agents/*.md — grep по репозиторию не находит ни одного вызывающего места, кроме самого файла. Секция `sitemap` в GATES.json сегодня формируется отдельной реализацией внутри gates.mjs через системный `xmllint`, а не этим скриптом.",
+        "Функционально дублирует xmllint-гейт внутри gates.mjs (валидность XML), плюс добавляет проверки протокола sitemaps.org, которых xmllint не делает — но эта добавленная ценность сегодня никому не доступна, пока скрипт не подключён.",
+        "До подключения к gates.mjs (или явного документирования как самостоятельного ручного инструмента) капабилити не может считаться AVAILABLE по DEV-050 п.4: docs/help должны получать её из того же source-of-truth, а сегодня она нигде не упомянута."
+      ]
+    },
+    {
+      "id": "subagent-delegation",
+      "title": "Делегирование трём ролям (agents/)",
+      "summary": "Три специализированные роли с фиксированной моделью и ограниченным набором инструментов: генерация страницы по готовым токенам (haiku), дизайн-направление (sonnet), независимая проверка перед сдачей (opus).",
+      "status": "AVAILABLE",
+      "runtime_path": [
+        "agents/site-page-builder.md",
+        "agents/site-designer.md",
+        "agents/site-reviewer.md"
+      ],
+      "contract": {
+        "input": "вызов агента по имени (Task/Agent-инструмент) с ролевым заданием: site-page-builder — готовые токены + контент страницы; site-designer — бриф; site-reviewer — путь к GATES.json + проект",
+        "output": "site-page-builder — путь к файлу страницы + список использованных токенов; site-designer — выбранный стиль/палитра/шрифты + путь к файлу токенов; site-reviewer — вердикт PASS/BLOCK с числовыми находками из GATES.json"
+      },
+      "verification": "Frontmatter каждого файла машинно проверяем: `model:` (haiku/sonnet/opus соответственно) и `tools:` присутствуют и заданы явно — это и есть метод приёмки, которым сам план продукта (docs/GOAL.md, метрики §5) измеряет эту возможность («роли субагентов с явной моделью» и «набор инструментов субагента ограничен» — вычиткой frontmatter).",
+      "limitations": [
+        "Верификация покрывает конфигурацию (наличие полей model/tools), а не функциональный результат ролей — ни один регрессионный тест не прогоняет всех трёх агентов end-to-end и не сверяет их вывод.",
+        "`cacheTtl: 1h`, который skills/build-site/SKILL.md и docs/GOAL.md называют обязательным при серийных вызовах одной роли, сегодня НЕ прописан ни в одном из трёх файлов agents/*.md — экономия кэша, описанная в документации, на сегодня не реализована как конфигурация.",
+        "agents/site-builder.md (оркестрирующий агент, без явной model в frontmatter) — не одна из трёх ролей делегирования, а точка входа всего пайплайна; входит в capability site-build-from-brief, не сюда."
+      ]
+    }
+  ]
+}

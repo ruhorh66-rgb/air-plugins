@@ -30,7 +30,12 @@
 import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { runKeyboardFocusGate } from './keyboard-focus.mjs';
+
+// Каталог самого скрипта: рядом лежат вспомогательные проверки, и путь к ним
+// не должен зависеть от того, откуда запущен прогон.
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
 // CLI
@@ -666,15 +671,54 @@ async function runSitemapGate({ url, tmpDir, timeoutMs }) {
 
   const versionCheck = await checkBinaryOnPath('xmllint');
   if (!versionCheck.available) {
+    // Fallback to the bundled Python checker instead of reporting not_run.
+    // Added 2026-09-08: libxml2 has no winget package, and `xmllint --noout` only
+    // checks well-formedness - which the standard library already does. The bundled
+    // checker does MORE: sitemaps.org rules (namespace, required <loc>, the 50000
+    // entry and 50MB limits) that xmllint does not know about.
+    // Reporting not_run while a working checker sits in the same folder would be a
+    // gate refusing to run for no reason.
+    const pyChecker = path.join(scriptDir, 'sitemap_check.py');
+    const python = (await checkBinaryOnPath('python')).available
+      ? 'python'
+      : ((await checkBinaryOnPath('python3')).available ? 'python3' : null);
+
+    if (!python) {
+      return {
+        tool: 'sitemap_check.py',
+        command: `python ${pyChecker} ${sitemapPath}`,
+        status: 'not_run',
+        reason: 'neither xmllint nor python found on PATH; install either to run this gate',
+        durationMs: Date.now() - startedAt,
+        sitemapFetched: true,
+        sitemapUrl,
+      };
+    }
+
+    const pyCommand = buildCommandString(python, [pyChecker, sitemapPath]);
+    const pyRes = await runCommand(pyCommand, { timeoutMs });
+    let parsed = null;
+    try { parsed = JSON.parse((pyRes.stdout || '').trim()); } catch { /* unreadable is not success */ }
+
+    if (!parsed) {
+      return {
+        tool: 'sitemap_check.py',
+        command: pyCommand,
+        status: 'fail',
+        reason: 'sitemap checker produced output this script cannot parse - unreadable is not success',
+        stderr: (pyRes.stderr || '').slice(0, 400),
+        durationMs: Date.now() - startedAt,
+        sitemapFetched: true,
+        sitemapUrl,
+      };
+    }
+
     return {
-      tool: 'xmllint',
-      command: buildCommandString('xmllint', ['--noout', sitemapPath]),
-      status: 'not_run',
-      reason:
-        'xmllint binary not found on PATH. It ships with libxml2, not npm. Install: ' +
-        '`apt install libxml2-utils` (Debian/Ubuntu), `brew install libxml2` (macOS), or on ' +
-        'Windows via MSYS2 `pacman -S libxml2` or the libxml2 binaries from ' +
-        'https://www.zlatkovic.com/libxml.en.html.',
+      tool: 'sitemap_check.py',
+      command: pyCommand,
+      status: parsed.status === 'pass' ? 'pass' : (parsed.status === 'not_run' ? 'not_run' : 'fail'),
+      details: parsed,
+      note: 'xmllint absent; validated with the bundled checker, which also applies sitemaps.org rules',
       durationMs: Date.now() - startedAt,
       sitemapFetched: true,
       sitemapUrl,
