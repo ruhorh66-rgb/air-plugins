@@ -163,6 +163,31 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual("executor_failed", state["status"])
             self.assertEqual(1, invoke.call_count)
 
+    def test_usage_limit_is_executor_unavailable_without_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            repo = make_repo(base)
+            task_path = save_task(base / "task.json", make_task(repo, "QUOTA"))
+            message = "You've hit your usage limit. Try again at 5:46 PM."
+            failed = successful_executor("thread-quota")
+            failed.update({
+                "returncode": 1,
+                "stdout": "\n".join([
+                    json.dumps({"type": "thread.started", "thread_id": "thread-quota"}),
+                    json.dumps({"type": "error", "message": message}),
+                    json.dumps({"type": "turn.failed", "error": {"message": message}}),
+                ]),
+                "stderr": "Reading additional input from stdin...\n",
+            })
+            with mock.patch.object(module, "invoke_codex", return_value=failed) as invoke:
+                code, state = module.run_task(task_path, base / "runs", False)
+            self.assertEqual(3, code)
+            self.assertEqual("executor_unavailable", state["status"])
+            self.assertEqual("executor_unavailable", state["failure"]["kind"])
+            self.assertEqual("usage_limit", state["failure"]["reason"])
+            self.assertEqual("5:46 PM", state["failure"]["retry_after_hint"])
+            self.assertEqual(1, invoke.call_count)
+
     def test_inflight_resume_refuses_duplicate_execution(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)

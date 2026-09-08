@@ -20,6 +20,7 @@ FINAL_STATES = {
     "blocked_scope",
     "blocked_protected",
     "executor_failed",
+    "executor_unavailable",
     "repair_limit_reached",
     "uncertain_inflight",
 }
@@ -436,6 +437,34 @@ def executor_failed(run: dict[str, Any]) -> bool:
     return bool(run["timed_out"]) or int(run["returncode"]) != 0 or not run.get("thread_id")
 
 
+def executor_unavailability(run: dict[str, Any]) -> dict[str, Any] | None:
+    messages: list[str] = []
+    for line in str(run.get("stdout") or "").splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        if event.get("type") == "error" and event.get("message"):
+            messages.append(str(event["message"]))
+        elif event.get("type") == "turn.failed":
+            error = event.get("error")
+            if isinstance(error, dict) and error.get("message"):
+                messages.append(str(error["message"]))
+    text = "\n".join(messages)
+    if "usage limit" not in text.lower():
+        return None
+    hint = None
+    marker = "try again at "
+    lower = text.lower()
+    pos = lower.find(marker)
+    if pos >= 0:
+        raw = text[pos + len(marker):].splitlines()[0].strip()
+        hint = raw.rstrip(". ") or None
+    return {"reason": "usage_limit", "message": messages[0] if messages else "usage limit", "retry_after_hint": hint}
+
+
 def execute_one_turn(
     task: dict[str, Any],
     state: dict[str, Any],
@@ -453,6 +482,16 @@ def execute_one_turn(
     state["thread_id"] = run.get("thread_id")
     state["executor_runs"].append(run)
     if executor_failed(run):
+        unavailable = executor_unavailability(run)
+        if unavailable:
+            state["failure"] = {
+                "kind": "executor_unavailable",
+                **unavailable,
+                "returncode": run["returncode"],
+                "timed_out": run["timed_out"],
+            }
+            save_state(state_path, state, "executor_unavailable")
+            return False
         state["failure"] = {
             "kind": "executor_failure",
             "returncode": run["returncode"],
