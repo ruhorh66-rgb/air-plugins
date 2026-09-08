@@ -394,11 +394,14 @@ def failed_checks(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def limits(task: dict[str, Any]) -> tuple[int, int, int]:
     raw = task.get("limits", {}) if isinstance(task.get("limits", {}), dict) else {}
-    repairs = int(raw.get("max_repair_attempts", 2))
+    try:
+        repairs = int(raw.get("max_repair_attempts", 2))
+        executor_timeout = int(raw.get("executor_timeout_seconds", 900))
+        check_timeout = int(raw.get("check_timeout_seconds", 300))
+    except (TypeError, ValueError) as exc:
+        raise ContractError("limit values must be integers") from exc
     if repairs < 0 or repairs > 2:
         raise ContractError("max_repair_attempts must be between 0 and 2")
-    executor_timeout = int(raw.get("executor_timeout_seconds", 900))
-    check_timeout = int(raw.get("check_timeout_seconds", 300))
     return repairs, executor_timeout, check_timeout
 
 
