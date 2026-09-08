@@ -81,6 +81,8 @@ def require_text(task: dict[str, Any], key: str) -> str:
 
 def require_task_id(task: dict[str, Any]) -> str:
     task_id = require_text(task, "task_id")
+    if task.get("task_id") != task_id:
+        raise ContractError("task_id may not have leading or trailing whitespace")
     allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
     if any(ch not in allowed for ch in task_id) or task_id in {".", ".."}:
         raise ContractError("task_id may contain only letters, digits, '-', '_' and '.' and may not be '.' or '..'")
@@ -112,7 +114,8 @@ def validate_task(task: dict[str, Any]) -> None:
         raise ContractError("unknown task fields: " + ", ".join(unknown))
     if task.get("schema_version") != 1:
         raise ContractError("schema_version must be 1")
-    for key in ("task_id", "product", "repo_root", "objective"):
+    require_task_id(task)
+    for key in ("product", "repo_root", "objective"):
         require_text(task, key)
     for key in ("allowed_paths", "context_files", "acceptance_commands"):
         require_string_list(task, key)

@@ -67,5 +67,27 @@ class RuntimeSchemaKeyTests(unittest.TestCase):
         schema = json.loads((ROOT / "contracts" / "coding-task.schema.json").read_text(encoding="utf-8"))
         self.assertEqual(module.TASK_KEYS, set(schema["properties"]))
 
+    def test_task_id_constraints_match_schema_and_runtime(self) -> None:
+        import json
+        import re
+
+        schema = json.loads((ROOT / "contracts" / "coding-task.schema.json").read_text(encoding="utf-8"))
+        pattern = re.compile(schema["properties"]["task_id"]["pattern"])
+        valid = ["TASK-1", "a.b_c-9", "A", "0"]
+        invalid = ["", ".", "..", "../escape", "a/b", " a", "a ", "a\\b"]
+        for value in valid:
+            with self.subTest(valid=value):
+                self.assertIsNotNone(pattern.fullmatch(value))
+                task = valid_task()
+                task["task_id"] = value
+                module.validate_task(task)
+        for value in invalid:
+            with self.subTest(invalid=value):
+                self.assertIsNone(pattern.fullmatch(value))
+                task = valid_task()
+                task["task_id"] = value
+                with self.assertRaises(module.ContractError):
+                    module.validate_task(task)
+
 if __name__ == "__main__":
     unittest.main()
