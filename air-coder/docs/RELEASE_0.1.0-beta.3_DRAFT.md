@@ -20,7 +20,7 @@ Rollback commit: `f7e9020146cca41015c1ed4832bb317f4126cd4b`
 
 ## Mechanical acceptance
 
-- AirCoder unittest: 53/53 PASS.
+- AirCoder unittest: 54/54 PASS.
 - Draft 2020-12 coding-task schema validation and task-id schema/runtime parity: PASS.
 - Limit contract hardening: strict integer values, positive executor/check timeouts, bounded repairs and unknown-field rejection: PASS.
 - AC04 queue invalid-time regression: PASS.
@@ -47,15 +47,13 @@ An isolated test consumer was created under `E:/-4-/air-coder/install-smoke-limi
 
 ## AC-04 evidence accounting
 
-Formal native-executor pilot remains 3/5 accepted: 001, 002, 003B. 004B remains an honest timeout receipt; 005B remains an honest usage-limit receipt. No false-ready result and no automatic paid retry occurred.
+Formal native-executor pilot is 4/5 accepted: 001, 002, 003B, 005B. 004B remains an honest timeout receipt. The first 005B usage-limit receipt is preserved in the archive. False-ready=0; automatic paid retries after infrastructure failure=0.
 
 LPR-authorized manual execution fixed and independently verified the two nonaccepted product defects. This functional evidence is additive and does not rewrite the original executor receipts.
 
-## Remaining release gates
+## Remaining release gate
 
-1. Real native-executor/live interruption-resume proof remains outstanding.
-2. Formal AC-04 acceptance is still below the original 4/5 target unless LPR explicitly changes the acceptance policy.
-3. Default-branch merge, tag, production marketplace update/install and final smoke require the release decision.
+R1-R4, AC-04 4/5, false-ready=0, live interruption/resume and ordinary-entry E2E are closed. The remaining gate is the explicit release decision for default-branch merge, tag, production marketplace update/install and final smoke.
 
 ## Intended release sequence after gate opens
 
@@ -65,3 +63,11 @@ LPR-authorized manual execution fixed and independently verified the two nonacce
 4. Update marketplace snapshots, then update/install AirCoder on Codex and Claude Code.
 5. Verify reported version, selector/runner SHA parity and ordinary-entry smoke on both hosts.
 6. On failure, restore `air-coder--v0.1.0-beta.2`; preserve beta.3 runtime receipts for diagnosis.
+
+## Final Astra gate status ? 2026-09-08
+
+- Live interruption/resume: PASS; one executor turn, same thread, no replay.
+- R4 ordinary chat entry: PASS; session inferred route facts and completed Codex runner 3/3.
+- AC-04: 4/5 accepted, false-ready=0.
+- Economics: 8 preserved native calls across current/replaced AC-04 attempts, 0 repairs, 35.190 receipt-minutes; direct cost unknown.
+- Release remains not executed pending explicit release decision.

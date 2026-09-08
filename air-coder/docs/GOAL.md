@@ -108,3 +108,12 @@ Development result:
 - Combined mechanical gate is green: AirCoder 52/52 plus bridge/listener AC-04 checks.
 
 Acceptance accounting remains conservative: formal native-executor AC-04 score stays 3/5; manual self-execution evidence is tracked separately. AC-05 release materials may be prepared, but default-branch merge/tag/install remain gated until the final release decision.
+
+## Astra final checkpoint ? 2026-09-08
+
+- R1/R2/R3/R4: closed.
+- AC-04: 4/5 accepted across two products; false-ready=0.
+- Live interruption/resume: PASS with one executor turn and no replay.
+- Ordinary chat -> selector -> Codex -> checks -> receipt: PASS.
+- Final technical/economics evidence: `docs/ASTRA_FINAL_ACCEPTANCE_2026-09-08.md`.
+- Merge/tag/production install remain behind the explicit release decision.

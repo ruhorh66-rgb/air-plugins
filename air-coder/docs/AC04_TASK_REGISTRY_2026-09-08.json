@@ -175,7 +175,7 @@
       "basis": "LPR-approved AirCoder modernization AC-04; isolated branch/worktree; no production business-logic mutation",
       "repo_root": "E:\\-7-\\_worktrees\\aircoder-ac04-005b-20260908",
       "initial_commit": "900aa82df54c7414e6c4e640bf2f21c541659f79",
-      "final_commit": null,
+      "final_commit": "fbed80c84ec314ddef49b72cbe1c7ec4dad537aa",
       "allowed_paths": [
         "air-ruflo-bridge/skills/run-via-ruflo/scripts/approve_listener.py"
       ],
@@ -206,7 +206,10 @@
         "state=E:\\-4-\\air-coder\\runs\\AIRCODER-AC04-005B\\state.json",
         "previous_usage_limit_state=E:\\-4-\\air-coder\\runs\\_archive\\AIRCODER-AC04-005B-usage-limit-20260908T211627+08\\state.json",
         "retry_after_infrastructure_window=1",
-        "changed_paths=air-ruflo-bridge/skills/run-via-ruflo/scripts/approve_listener.py"
+        "changed_paths=air-ruflo-bridge/skills/run-via-ruflo/scripts/approve_listener.py",
+        "native_accepted_final_commit=fbed80c84ec314ddef49b72cbe1c7ec4dad537aa",
+        "native_patch_id=b6b6e98d8a2a69dfe81bb6d79e4bb7ec9db85610",
+        "native_patch_matches_manual_fix=17d94ace96c0cca57266472e578071ea5fb0ecf6"
       ],
       "manual_executor_evidence": {
         "authorized_by_lpr": true,

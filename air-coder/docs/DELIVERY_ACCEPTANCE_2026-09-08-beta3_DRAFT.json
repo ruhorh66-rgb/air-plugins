@@ -2,7 +2,7 @@
   "product": "air-coder",
   "version": "0.1.0-beta.3",
   "status": "PREPARED_NOT_RELEASED",
-  "code_candidate_commit": "140852ecdd34ff859919a7b7a9242f558bbd49cc",
+  "code_candidate_commit": "0a1ce69b53b67e817305d582904945309688efa7",
   "intended_release_tag": "air-coder--v0.1.0-beta.3",
   "rollback_tag": "air-coder--v0.1.0-beta.2",
   "rollback_commit": "f7e9020146cca41015c1ed4832bb317f4126cd4b",
@@ -19,7 +19,7 @@
     }
   },
   "tests": {
-    "air_coder": "53/53 PASS",
+    "air_coder": "54/54 PASS",
     "queue_invalid_time": "PASS",
     "listener_nonobject": "PASS",
     "listener_verification": "8/8 PASS",
@@ -39,7 +39,9 @@
     "version_parity": "0.1.0-beta.3 PASS",
     "json_parse": "14/14 PASS",
     "all_contract_schemas_draft202012": "2/2 PASS",
-    "python_compileall": "PASS"
+    "python_compileall": "PASS",
+    "r4_ordinary_chat_e2e": "PASS",
+    "live_interruption_resume": "PASS"
   },
   "sha256": {
     "selector": "FBB0A572CF2297DC630E648B5A2F301DFC38693341B39716653CC1C9B0E424C1",
@@ -50,16 +52,44 @@
     "coding_task_schema": "308AF83E8A5366AB225463F6C70C31861F3652A0C7436577A7B20A6303F14844"
   },
   "ac04": {
-    "formal_native_accepted": 3,
+    "formal_native_accepted": 4,
     "total": 5,
     "false_ready": 0,
-    "manual_verified_nonaccepted": 2,
+    "manual_verified_nonaccepted": 1,
     "functional_defects_fixed": 5
   },
   "blockers": [
-    "real native-executor live interruption/resume proof",
-    "formal 4/5 AC-04 gate unless LPR changes acceptance policy",
-    "release decision for merge/tag/production install"
+    "explicit release decision for merge/tag/production install/smoke"
   ],
-  "outcome": "AC05_RELEASE_PACKAGE_READY_BUT_GATE_CLOSED"
+  "outcome": "AC05_TECHNICAL_GATES_CLOSED_RELEASE_DECISION_PENDING",
+  "live_resume": {
+    "status": "PASS",
+    "initial_commit": "67a4dc6e596fab2f4a392613a97c30314463a372",
+    "native_final_commit": "86caeadd61e4c5b60257ecbe2faa2205ee83eb71",
+    "executor_attempts": 1,
+    "executor_runs": 1,
+    "second_llm_turns": 0,
+    "resume_count": 1,
+    "active_elapsed_s": 446.076,
+    "resume_wait_elapsed_s": 0.457
+  },
+  "r4_e2e": {
+    "status": "PASS",
+    "initial_commit": "f8681318843f08dc7301503a501f0d1d9e1dc357",
+    "native_final_commit": "28897c0290c8b2804d08663fbe7a19af07c39eac",
+    "integrated_commit": "0a1ce69b53b67e817305d582904945309688efa7",
+    "acceptance": "3/3",
+    "attempts": 1,
+    "repairs": 0,
+    "elapsed_min": 8.09
+  },
+  "economics": {
+    "ac04_historical_native_calls": 8,
+    "ac04_repairs": 0,
+    "ac04_receipt_minutes_including_preserved_failures": 35.19,
+    "direct_cost_usd": "unknown/null",
+    "automatic_paid_retries_after_infra_failure": 0,
+    "manual_returns": 0,
+    "roi_claim": "not made; comparable baseline unavailable"
+  }
 }

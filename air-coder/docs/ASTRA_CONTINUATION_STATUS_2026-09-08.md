@@ -41,3 +41,12 @@ LPR explicitly authorized this session to continue development as the coding exe
 - Installed production baseline remains `0.1.0-beta.2` in both Claude Code and Codex; no beta.3 install/update/tag/merge was performed.
 
 Formal AC-04 executor evidence remains 3/5 accepted. Manual fixes do not rewrite the 004B timeout or 005B usage-limit receipts. Functional defects across all five AC-04 task cases are fixed and integrated; the remaining evidence gap is real native-executor/live-resume proof.
+
+## Astra final checkpoint ? 2026-09-08
+
+- R1/R2/R3/R4: closed.
+- AC-04: 4/5 accepted across two products; false-ready=0.
+- Live interruption/resume: PASS with one executor turn and no replay.
+- Ordinary chat -> selector -> Codex -> checks -> receipt: PASS.
+- Final technical/economics evidence: `docs/ASTRA_FINAL_ACCEPTANCE_2026-09-08.md`.
+- Merge/tag/production install remain behind the explicit release decision.
