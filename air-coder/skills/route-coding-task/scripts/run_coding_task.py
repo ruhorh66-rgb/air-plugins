@@ -231,7 +231,7 @@ def check_context(task: dict[str, Any]) -> tuple[bool, list[str]]:
     return not failures, failures
 
 
-def check_repo_identity(task: dict[str, Any]) -> tuple[bool, list[str]]:
+def check_repo_identity(task: dict[str, Any], *, check_clean: bool | None = None) -> tuple[bool, list[str]]:
     repo = Path(require_text(task, "repo_root")).resolve()
     failures: list[str] = []
     expected_remote = task.get("expected_remote")
@@ -241,7 +241,8 @@ def check_repo_identity(task: dict[str, Any]) -> tuple[bool, list[str]]:
         expected = str(expected_remote).strip().rstrip("/")
         if actual != expected:
             failures.append(f"origin mismatch: expected {expected}; actual {actual or remote.stderr.strip()}")
-    if bool(task.get("require_clean_start", True)):
+    require_clean = bool(task.get("require_clean_start", True)) if check_clean is None else check_clean
+    if require_clean:
         changed = collect_changed_paths(repo)
         if changed:
             failures.append("working tree not clean at task start: " + ", ".join(changed))
@@ -605,7 +606,15 @@ def prepare_or_resume(
         }
         save_state(state_path, state, "uncertain_inflight")
         return task, state, state_path, False
-    return task, state, state_path, state.get("status") not in FINAL_STATES
+    if state.get("status") in FINAL_STATES:
+        return task, state, state_path, False
+    ok_context, failures = check_context(task)
+    ok_identity, identity_failures = check_repo_identity(task, check_clean=False)
+    if not ok_context or not ok_identity:
+        state["failure"] = {"kind": "resume_context_gate", "details": failures + identity_failures}
+        save_state(state_path, state, "blocked_context")
+        return task, state, state_path, False
+    return task, state, state_path, True
 
 
 def run_task(task_path: Path, run_root: Path, resume: bool) -> tuple[int, dict[str, Any]]:

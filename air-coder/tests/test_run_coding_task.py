@@ -215,6 +215,43 @@ class RunnerTests(unittest.TestCase):
             invoke.assert_not_called()
 
 
+    def test_resume_continues_after_executor_completed_without_second_executor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            repo = make_repo(base)
+            task_path = save_task(base / "task.json", make_task(repo, "RESUME-CONTINUE"))
+            task, state, state_path = module.initialize_run(task_path, base / "runs")
+            (repo / "app.py").write_text("VALUE = 2\n", encoding="utf-8")
+            state["thread_id"] = "thread-resume"
+            state["executor_attempts"] = 1
+            module.save_state(state_path, state, "executor_completed")
+            with mock.patch.object(module, "invoke_codex") as invoke, \
+                 mock.patch.object(module, "run_acceptance", return_value=check_record(True)):
+                code, resumed = module.run_task(task_path, base / "runs", True)
+            self.assertEqual(0, code)
+            self.assertEqual("accepted", resumed["status"])
+            self.assertEqual(1, resumed["executor_attempts"])
+            self.assertEqual("thread-resume", resumed["thread_id"])
+            invoke.assert_not_called()
+
+    def test_resume_blocks_when_expected_head_drifted(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            repo = make_repo(base)
+            task_path = save_task(base / "task.json", make_task(repo, "RESUME-DRIFT"))
+            task, state, state_path = module.initialize_run(task_path, base / "runs")
+            module.save_state(state_path, state, "executor_completed")
+            (repo / "context.md").write_text("external change\n", encoding="utf-8")
+            git(repo, "add", "context.md")
+            git(repo, "commit", "-m", "external drift")
+            with mock.patch.object(module, "invoke_codex") as invoke:
+                code, resumed = module.run_task(task_path, base / "runs", True)
+            self.assertEqual(2, code)
+            self.assertEqual("blocked_context", resumed["status"])
+            self.assertEqual("resume_context_gate", resumed["failure"]["kind"])
+            self.assertTrue(any("HEAD mismatch" in item for item in resumed["failure"]["details"]))
+            invoke.assert_not_called()
+
     def test_codex_args_keep_workspace_write_user_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(Path(tmp))
