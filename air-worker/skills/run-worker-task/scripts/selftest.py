@@ -478,9 +478,21 @@ def test_input_path_normalisation_and_live_check_validation_happen_before_execut
     assert worker.normalize_input_path("/var/tmp/in/../input.txt", system="posix") == "/var/tmp/input.txt"
     assert worker.normalize_input_path("material.txt", cwd="/var/tmp", system="posix") == "/var/tmp/material.txt"
 
-    relative = os.path.relpath(MATERIAL)
-    normalised, why = worker.validate_input_path(relative)
-    assert normalised == worker.normalize_input_path(relative), why
+    # Относительный путь считается ОТ КАТАЛОГА МАТЕРИАЛА, а не от текущего рабочего.
+    # Прежняя редакция звала os.path.relpath(MATERIAL) без start и тем молча требовала,
+    # чтобы материал и рабочий каталог лежали на ОДНОМ томе: на этой машине продукт на
+    # F:, временный каталог на C:, и проверка падала с
+    # «ValueError: path is on mount 'C:', start on mount 'F:'» — то есть тест
+    # отказывал не из-за продукта, а из-за собственного предположения о раскладке дисков.
+    material_dir = os.path.dirname(MATERIAL)
+    relative = os.path.relpath(MATERIAL, start=material_dir)
+    previous_cwd = os.getcwd()
+    os.chdir(material_dir)
+    try:
+        normalised, why = worker.validate_input_path(relative)
+        assert normalised == worker.normalize_input_path(relative), why
+    finally:
+        os.chdir(previous_cwd)
     missing, why = worker.validate_input_path(MATERIAL + ".missing")
     assert missing is None and "недоступен" in why, why
 

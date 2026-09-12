@@ -1,6 +1,6 @@
 # air-worker goal
 
-plan_for_version: 0.3.0
+plan_for_version: 0.4.0
 
 Supersedes the previous version of this file.
 
