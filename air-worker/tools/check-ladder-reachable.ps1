@@ -48,6 +48,12 @@ function Assert-That([string]$title, [scriptblock]$check) {
 $ladderText = [System.IO.File]::ReadAllText($ladder, [System.Text.Encoding]::UTF8)
 $judgeText  = [System.IO.File]::ReadAllText($judgeRun, [System.Text.Encoding]::UTF8)
 
+$py = $null
+foreach ($n in @('python', 'python3')) {
+    $c = Get-Command $n -ErrorAction SilentlyContinue
+    if ($c) { $py = $c.Source; break }
+}
+
 # 1. Ступени 2-3: отсутствие команды даёт ПРОПУСК, а не исключение.
 Assert-That 'ступень 2 при отсутствии команды пропускает, а не бросает исключение' {
     $ladderText -match 'openrouter_cmd' -and $ladderText -notmatch 'raise ValueError\([^)]*openrouter_cmd'
@@ -67,8 +73,6 @@ Assert-That 'путь к claude не прибит в коде' {
     $judgeText -notmatch 'AppData\\\\Roaming\\\\npm\\\\node_modules'
 }
 Assert-That 'claude резолвится на этой машине' {
-    $py = $null
-    foreach ($n in @('python','python3')) { $c = Get-Command $n -ErrorAction SilentlyContinue; if ($c) { $py = $c.Source; break } }
     if (-not $py) { throw 'интерпретатор не найден — это нечем проверить' }
     $out = & $py -c "import sys; sys.path.insert(0, r'$scriptsDir'); import claude_judge_run as m; print(m._resolve_claude_exe())" 2>&1 | Out-String
     $resolved = ($out -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 1)
@@ -79,6 +83,64 @@ Assert-That 'claude резолвится на этой машине' {
 #    купленное там дважды и здесь в третий раз.
 Assert-That 'промпт передаётся через стандартный ввод, а не в командной строке' {
     $judgeText -match 'input=prompt'
+}
+
+# 5. Живой прогон 12.09.2026 (шаг 3 плана — не чтение, а прогон) НАШЁЛ то, что
+#    статический разбор не видит: код на всех ступенях 1-5 не роняет исключение
+#    даже когда инфраструктура под ним лежит (llama-server 8080 и роутер 8090
+#    были недоступны, codex не авторизован, claude резолвился, но подпроцессом
+#    ответил «Not logged in» — все три легли ЧИСТО, честным «не смог», без
+#    исключения). Офлайн-самотест ladder.py (demo(), мокает сеть/очередь)
+#    проверяет ровно эти случаи регрессией — быстро, без сети.
+Assert-That 'офлайн-самотест ladder.py (demo) проходит целиком' {
+    if (-not $py) { throw 'интерпретатор не найден — это нечем проверить' }
+    # По коду возврата, не по совпадению кириллической строки: PowerShell ловит
+    # stdout python.exe в системной кодовой странице, и «все проверки прошли»
+    # приходит битым — demo() либо падает AssertionError (код ≠ 0), либо нет.
+    & $py $ladder *> $null
+    $LASTEXITCODE -eq 0
+}
+
+# 6. Сама очередь (llm-queue) — инфраструктура ступеней 1-3 — должна отвечать
+#    независимо от того, поднят ли backend под ней. Если ляжет ОНА САМА (а не
+#    llama-server/роутер/codex под ней), это уже обрыв: ступеням 1-3 не во что
+#    ставить задание.
+Assert-That 'llm-queue dispatcher отвечает на capabilities (есть куда ставить ступени 1-3)' {
+    if (-not $py) { throw 'интерпретатор не найден — это нечем проверить' }
+    $dispatcherPath = $env:LLM_QUEUE_DISPATCHER
+    if (-not $dispatcherPath) { $dispatcherPath = 'E:\-8-\llm-queue\llm-queue\dispatcher.py' }
+    if (-not (Test-Path -LiteralPath $dispatcherPath)) { throw "dispatcher.py не найден: $dispatcherPath" }
+    $out = & $py $dispatcherPath capabilities --format json 2>&1 | Out-String
+    ($out -match '"run-job"') -and ($out -match '"show-job-json"')
+}
+
+# 7. Живая картина достижимости ступеней 1-5 — ИНФОРМАЦИОННО, не PASS/FAIL:
+#    «инструмент не поднят/не авторизован» — законный исход (2а), а не провал
+#    ЭТОЙ проверки. Печатается, чтобы обрыв верха лестницы (как 12.09.2026)
+#    больше не читался как «100% закрыто на нулевом уровне» без объяснения.
+Write-Output ''
+Write-Output 'живая картина достижимости (справочно, в PASS/FAIL не входит):'
+if ($py) {
+    $routerOut = & $py -c "import sys; sys.path.insert(0, r'$scriptsDir'); import ladder; print(ladder.router_alive(timeout=2))" 2>&1 | Out-String
+    Write-Output ("  роутер ступени 2 (127.0.0.1:8090): {0}" -f $routerOut.Trim())
+} else {
+    Write-Output '  роутер ступени 2: интерпретатор не найден — не проверено'
+}
+$codexCmd = Get-Command codex -ErrorAction SilentlyContinue
+if ($codexCmd) {
+    # codex.ps1 (npm-обёртка) пишет предупреждение в stderr и выходит ненулевым
+    # кодом при неавторизованной сессии — это НЕ ошибка PowerShell-вызова, а
+    # содержательный ответ; ослабляем предпочтение на время вызова и судим по
+    # коду, а не по факту записи в error-поток (см. ограничения задания).
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+    & codex login status *> $null
+    $loginCode = $LASTEXITCODE
+    $ErrorActionPreference = $prevEap
+    $loginState = if ($loginCode -eq 0) { 'авторизован' } else { "не авторизован (код $loginCode)" }
+    Write-Output ("  codex (ступень 3): CLI найден, {0}" -f $loginState)
+} else {
+    Write-Output '  codex (ступень 3): CLI не найден в PATH'
 }
 
 Write-Output ''
