@@ -83,16 +83,21 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 	if runner.Kind == "codex" {
 		tool = "codex"
 	}
-	if _, err := exec.LookPath(tool); err != nil {
+	// Исполнитель ищется ОБЩЕЙ функцией: явное перекрытие, PATH, известные расположения.
+	// Здесь стоял голый exec.LookPath — и на машине, где клиент лежит в профиле и на PATH
+	// его нет, петля объявила бы «исполнителя нет» при наличном исполнителе. Тот же
+	// дефект, что дважды чинен в этом продукте до меня; я внесла его третьим.
+	exePath, err := resolveRunnerTool(tool)
+	if err != nil {
 		// Инструмента нет — это «нечем исполнить», а не «модель не справилась».
 		// Различать обязательно: иначе петля поднимет ступень и заплатит за то же.
-		line("  ОТКАЗ: '" + tool + "' не резолвится. Мерить надо составленным PATH: свой процесс держит копию окружения на момент запуска.")
+		line("  ОТКАЗ: " + err.Error())
 		return stepResult{Subtype: "no_runner"}
 	}
 	if runner.Kind == "codex" {
-		return c.invokeCodex(prompt, runner)
+		return c.invokeCodex(exePath, prompt, runner)
 	}
-	return c.invokeClaude(prompt, runner)
+	return c.invokeClaude(exePath, prompt, runner)
 }
 
 type claudeResult struct {
@@ -105,7 +110,7 @@ type claudeResult struct {
 	Type         string   `json:"type"`
 }
 
-func (c *loopCtx) invokeClaude(prompt string, runner runnerSpec) stepResult {
+func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec) stepResult {
 	args := []string{"-p", prompt, "--model", runner.Model, "--output-format", "json",
 		"--max-turns", fmt.Sprintf("%d", c.MaxTurns)}
 	// Уровни усилия: low, medium, high, xhigh, max. Неизвестное значение CLI не отвергает,
@@ -120,7 +125,7 @@ func (c *loopCtx) invokeClaude(prompt string, runner runnerSpec) stepResult {
 	if left := c.MaxUSD - c.spent; left > 0 {
 		args = append(args, "--max-budget-usd", fmt.Sprintf("%.2f", left))
 	}
-	cmd := exec.Command("claude", args...)
+	cmd := exec.Command(exePath, args...)
 	cmd.Dir = c.Root
 	out, _ := cmd.CombinedOutput()
 	raw := decodeOutput(out)
@@ -168,7 +173,7 @@ type codexEvent struct {
 	} `json:"usage"`
 }
 
-func (c *loopCtx) invokeCodex(prompt string, runner runnerSpec) stepResult {
+func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec) stepResult {
 	// Поток у codex — JSONL событиями, а не одним объектом.
 	//
 	// stdin ОБЯЗАТЕЛЬНО закрывается. Без этого codex печатает «Reading additional input
@@ -183,7 +188,7 @@ func (c *loopCtx) invokeCodex(prompt string, runner runnerSpec) stepResult {
 		args = append(args, "-c", "model_reasoning_effort="+runner.Effort)
 	}
 	args = append(args, prompt)
-	cmd := exec.Command("codex", args...)
+	cmd := exec.Command(exePath, args...)
 	cmd.Dir = c.Root
 	cmd.Stdin = nil
 	out, _ := cmd.CombinedOutput()

@@ -233,21 +233,11 @@ func uniq(in []string) []string {
 // callPlanner — ОДИН вызов. Не «немного», не «сколько понадобится»: разбивка, требующая
 // пяти заходов, — это разведка боем, от которой шаг и защищает.
 func callPlanner(root, prompt, model, answerPath string) int {
-	exe, err := exec.LookPath("claude")
+	// Своя копия поиска УБРАНА: она была верной, но вторая верная копия того же правила —
+	// это и есть будущее расхождение. Ровно так петля и осталась без запасного пути.
+	exe, err := resolveRunnerTool("claude")
 	if err != nil {
-		// Инструмент ищется по ответу, а не по прибитому пути: тот же класс отказа, что
-		// оборвал верх лестницы 12.09.2026 — npm-путь остался в коде, а клиент переехал.
-		if c := os.Getenv("CLAUDE_JUDGE_EXE"); c != "" {
-			exe = c
-		} else if home, e := os.UserHomeDir(); e == nil {
-			cand := filepath.Join(home, ".local", "bin", "claude.exe")
-			if _, e := os.Stat(cand); e == nil {
-				exe = cand
-			}
-		}
-	}
-	if exe == "" {
-		line("ОТКАЗ: claude не найден. Это «нечем исполнить», а не «модель не справилась».")
+		line("ОТКАЗ: " + err.Error() + ". Это «нечем исполнить», а не «модель не справилась».")
 		return 2
 	}
 	line("зову разбивщика (один вызов)...")
