@@ -45,6 +45,7 @@ type loopCtx struct {
 	JudgePath   string
 	JudgeArgs   []string
 	Permission  string
+	Tools       string
 
 	spent       float64
 	iter        int
@@ -123,9 +124,14 @@ func cmdLoop(argv []string) int {
 		Subagents:   orInt(cfg.Orchestration.Subagents, 2),
 		StepsPath:   filepath.Join(root, "steps.jsonl"),
 		Permission:  cfg.Runner.PermissionMode,
+		Tools:       cfg.Runner.AllowedTools,
 	}
 	if c.Permission == "" {
 		c.Permission = "acceptEdits"
+	}
+	if c.Tools == "" {
+		// Список проверенной ветви 13.09.2026 — той, что реально писала файлы.
+		c.Tools = "Read,Write,Edit,Glob,Grep,Bash"
 	}
 	if len(c.Ladder) == 0 {
 		c.Ladder = []string{"script", "haiku", "sonnet", "opus"}
@@ -197,7 +203,7 @@ func cmdLoop(argv []string) int {
 	// следам в git.
 	// Права называются вслух ДО первой итерации, и называются честно: объявленный режим
 	// сам по себе НЕ даёт отцеплённому исполнителю писать файлы — это проверено прогоном.
-	line("права исполн: " + c.Permission + " (полного отключения проверок нет — исполнитель писать не сможет, см. шаг плана)")
+	line("права исполн: " + c.Permission + " · инструменты: " + c.Tools)
 	if c.Orchestrate {
 		line(fmt.Sprintf("оркестрация : включена, субагентов %d", c.Subagents))
 	} else {
