@@ -11,7 +11,7 @@ import (
 // utf8BOM — единственная уступка прошлому. Файлы, написанные PowerShell 5.1, несут BOM;
 // разбор JSON на нём спотыкается. Снимаем молча: наличие BOM — свойство того, кто писал,
 // а не смысл содержимого. Сами пишем без BOM: в UTF-8 он не нужен и никогда не был.
-var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
+var utf8BOM = utf8BOMBytes
 
 func readJSON(path string, v any) error {
 	raw, err := os.ReadFile(path)

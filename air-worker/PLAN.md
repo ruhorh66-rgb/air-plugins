@@ -1,4 +1,4 @@
-﻿# PLAN — air-worker 0.4.0: довести исполнителя до гарантированного результата
+# PLAN — air-worker 0.4.0: довести исполнителя до гарантированного результата
 
 Постановка: `AIR_OS/04_AI_OPERATIONS/CHANGE_PACKAGES/AIR-CHG-2026-000091_AIR_WORKER_GUARANTEED_RESULT_OBJECTIVE.md`
 Формат: контракт петли Дятла Вуди (`skills/woody/` этого продукта) — шаги со ступенями,

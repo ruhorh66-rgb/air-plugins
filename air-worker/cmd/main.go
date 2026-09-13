@@ -62,6 +62,11 @@ func usage() {
         Каким исполнителем пойдёт петля и каким правилом он найден. Ничего не
         запускает и не стоит ни копейки.
 
+  air-worker encoding -path <файл|каталог> [-fix] [-quiet]
+        Правило о BOM одним местом: .ps1 обязан его иметь, .md/.json/.go — не имеют
+        права. Зовётся хуком при каждой записи файла, чтобы правило исполнялось,
+        а не помнилось.
+
   air-worker version
 `)
 }
@@ -83,6 +88,8 @@ func main() {
 		os.Exit(cmdPlan(os.Args[2:]))
 	case "tool":
 		os.Exit(cmdTool(os.Args[2:]))
+	case "encoding":
+		os.Exit(cmdEncoding(os.Args[2:]))
 	case "version", "-v", "--version":
 		fmt.Printf("%s %s\n", appName, version)
 		os.Exit(0)

@@ -1,4 +1,4 @@
-﻿# CHANGELOG — air-worker
+# CHANGELOG — air-worker
 
 ## 0.5.0 — 13.09.2026
 
