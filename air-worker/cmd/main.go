@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.6.0"
+	version = "0.7.0"
 )
 
 func usage() {
@@ -67,6 +67,12 @@ func usage() {
         права. Зовётся хуком при каждой записи файла, чтобы правило исполнялось,
         а не помнилось.
 
+  air-worker report -product <корень> [-json]
+        Числа хода одним замером: вердикт судьи ПРОГОНОМ, расстояние, застой, расход,
+        изменения в дереве и следующий шаг плана. Вставляется в ход дословно; -json
+        сверяет страж. Поля, которые прежде требовались от модели словами, здесь
+        нельзя ни забыть, ни сочинить.
+
   air-worker version
 `)
 }
@@ -90,6 +96,8 @@ func main() {
 		os.Exit(cmdTool(os.Args[2:]))
 	case "encoding":
 		os.Exit(cmdEncoding(os.Args[2:]))
+	case "report":
+		os.Exit(cmdReport(os.Args[2:]))
 	case "version", "-v", "--version":
 		fmt.Printf("%s %s\n", appName, version)
 		os.Exit(0)

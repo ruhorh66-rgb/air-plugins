@@ -48,7 +48,17 @@ foreach ($base in @('R:\_tools', 'C:\Program Files', "$env:LOCALAPPDATA\Programs
 $interpreter = $null
 foreach ($candidate in ($candidates | Select-Object -Unique)) {
     try {
-        $answer = & $candidate -V 2>&1 | Select-Object -First 1
+        # ВЫВОД БЕРЁТСЯ ЦЕЛИКОМ, А НЕ ЧЕРЕЗ Select-Object -First 1.
+        #
+        # `Select-Object -First` ОБРЫВАЕТ конвейер, как только получил нужное число
+        # строк, и внешняя команда не доходит до конца — $LASTEXITCODE остаётся
+        # ПУСТЫМ, а не нулём. Условие ниже тогда ложно ВСЕГДА, и самотест отвечал
+        # «нечем проверить» на машине, где python -V печатает «Python 3.14.7».
+        # Найдено прогоном 13.09.2026: самотест механизма молча не запускался.
+        #
+        # Пустой $LASTEXITCODE и ненулевой — разные вещи, и складывать их нельзя:
+        # первое значит «код не дошёл», второе «интерпретатор отказал».
+        $answer = (& $candidate -V 2>&1) -join ' '
         if ($LASTEXITCODE -eq 0 -and "$answer" -match '^Python\s+\d') { $interpreter = $candidate; break }
     } catch { }
 }

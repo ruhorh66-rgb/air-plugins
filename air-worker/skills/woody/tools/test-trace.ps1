@@ -127,109 +127,81 @@ Write-Output ''
 try {
 
 $turnGuardPath = Join-Path $skillRoot 'hooks\turn-guard.ps1'
-$promptGuardPath = Join-Path $skillRoot 'hooks\prompt-guard.ps1'
 $subagentTrackPath = Join-Path $skillRoot 'hooks\subagent-track.ps1'
 $modeScript = Join-Path $skillRoot 'hooks\mode.ps1'
 
 # ======================================================================================
-# РЕГРЕССИЯ: ТОЧНЫЙ сценарий пробы 12.09.2026, не прошедшей живьём.
+# СТРАЖ (Stop): каждое решение оставляет след — отказ, пропуск и «нечем сверять».
+#
+# Здесь было четыре блока: регрессия на формат сообщения, пропуск при полном формате,
+# судья внутри стража и второй рубеж на UserPromptSubmit. Надзор за формой снят
+# 13.09.2026 целиком, судья вынесен в `air-worker report`, второй рубеж снят вместе с
+# prompt-guard. Осталась суть проверки, которая и была её смыслом: СТРАЖ, НЕ ОСТАВИВШИЙ
+# СЛЕДА, неотличим от незапущенного — ровно тот класс, что стоил суток 11-12.09.2026.
 # ======================================================================================
-$sidR = New-TestSessionId
-Set-ModeFile $sidR $true 0 | Out-Null
-$rR = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-    session_id = $sidR; hook_event_name = 'Stop'; last_assistant_message = $badMsg
-})
-Assert-That 'РЕГРЕССИЯ: короткое сообщение без формата -- turn-guard.ps1 отдаёт код 2, не 0' {
-    $rR.Code -eq 2
-}
-$traceR = Get-Trace $sidR
-Assert-That 'РЕГРЕССИЯ: страж записал в след РОВНО ЭТО решение (роль страж, отклонил)' {
-    @($traceR | Where-Object { $_.role -eq 'страж' -and $_.decision -eq 'отклонил' }).Count -gt 0
-}
-Assert-That 'РЕГРЕССИЯ: запись стража несёт названные недостачи в detail, а не пусто' {
-    $rec = @($traceR | Where-Object { $_.role -eq 'страж' })[0]
-    ($rec.detail) -and ($rec.detail.Length -gt 0)
+$guardProdT = Join-Path ([System.IO.Path]::GetTempPath()) ("woody-trace-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
+New-Item -ItemType Directory -Force -Path $guardProdT | Out-Null
+& git -C $guardProdT init -q 2>&1 | Out-Null
+Set-Content -LiteralPath (Join-Path $guardProdT 'README.md') -Value 'проба' -Encoding UTF8
+
+function Set-TraceProduct([string]$key) {
+    $f = Join-Path $stateDir "woody-product-$key.json"
+    @{ path = $guardProdT; declared_at = (Get-Date).ToString('s') } | ConvertTo-Json |
+        Set-Content -LiteralPath $f -Encoding UTF8
+    Register-Cleanup $f
+    Register-Cleanup (Join-Path $stateDir "woody-turn-$key.json")
 }
 
-# ======================================================================================
-# СТРАЖ (Stop): пропуск тоже пишется, не только отказ.
-# ======================================================================================
-$sid1 = New-TestSessionId
-Set-ModeFile $sid1 $true 0 | Out-Null
-$r1 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-    session_id = $sid1; hook_event_name = 'Stop'; last_assistant_message = $goodMsg
-})
-Assert-That 'страж: полный формат -- код 0' { $r1.Code -eq 0 }
-$trace1 = Get-Trace $sid1
-Assert-That 'страж: полный формат -- след несёт "пропустил", а не только отказы' {
-    @($trace1 | Where-Object { $_.role -eq 'страж' -and $_.decision -eq 'пропустил' }).Count -gt 0
-}
-
-# ======================================================================================
-# СУДЬЯ: нет run-config.json -- "пропущено-нечем"; есть -- "записал".
-# ======================================================================================
-$sidJ0 = New-TestSessionId
-$prodJ0 = Join-Path ([System.IO.Path]::GetTempPath()) ('woody-test-trace-j0-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
-New-Item -ItemType Directory -Force -Path $prodJ0 | Out-Null
-Set-ModeFile $sidJ0 $true 0 | Out-Null
 try {
-    $null = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-        session_id = $sidJ0; hook_event_name = 'Stop'; last_assistant_message = $goodMsg; cwd = $prodJ0
+    # -- отказ: отчёта в ходе нет ------------------------------------------------
+    $sidR = New-TestSessionId
+    Set-TraceProduct $sidR
+    $rR = Invoke-HookStdin $turnGuardPath (New-EventJson @{
+        session_id = $sidR; hook_event_name = 'Stop'; last_assistant_message = $badMsg
     })
-    $traceJ0 = Get-Trace $sidJ0
-    Assert-That 'судья: нет run-config.json -- след несёт "пропущено-нечем"' {
-        @($traceJ0 | Where-Object { $_.role -eq 'судья' -and $_.decision -eq 'пропущено-нечем' }).Count -gt 0
+    Assert-That 'страж: ход без отчёта -- код 2' { $rR.Code -eq 2 }
+    $traceR = Get-Trace $sidR
+    Assert-That 'страж: отказ записан в след (роль страж, отклонил)' {
+        @($traceR | Where-Object { $_.role -eq 'страж' -and $_.decision -eq 'отклонил' }).Count -gt 0
     }
-} finally { Remove-Item -LiteralPath $prodJ0 -Recurse -Force -ErrorAction SilentlyContinue }
+    Assert-That 'страж: запись отказа несёт причину в detail, а не пусто' {
+        $rec = @($traceR | Where-Object { $_.role -eq 'страж' })[0]
+        ($rec.detail) -and ($rec.detail.Length -gt 0)
+    }
 
-$sidJ1 = New-TestSessionId
-$prodJ1 = Join-Path ([System.IO.Path]::GetTempPath()) ('woody-test-trace-j1-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
-New-Item -ItemType Directory -Force -Path $prodJ1 | Out-Null
-Set-ModeFile $sidJ1 $true 0 | Out-Null
-try {
-    Set-Content -LiteralPath (Join-Path $prodJ1 'run-config.json') -Value '{"judge":{"checks":[]},"ladder":["script","sonnet"]}' -Encoding UTF8
-    $null = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-        session_id = $sidJ1; hook_event_name = 'Stop'; last_assistant_message = $goodMsg; cwd = $prodJ1
-    })
-    $traceJ1 = Get-Trace $sidJ1
-    Assert-That 'судья: run-config.json есть -- след несёт "записал" с кодом в detail' {
-        @($traceJ1 | Where-Object { $_.role -eq 'судья' -and $_.decision -eq 'записал' -and $_.detail -match 'код|таймаут' }).Count -gt 0
+    # -- пропуск: числа сошлись ---------------------------------------------------
+    # Пропуск пишется НАРАВНЕ с отказом. Страж, отмечающий только отказы, в следе
+    # выглядит неработающим ровно тогда, когда работает лучше всего.
+    $exeT = Join-Path (Split-Path -Parent (Split-Path -Parent $skillRoot)) 'bin\air-worker.exe'
+    if (Test-Path -LiteralPath $exeT) {
+        $realT = (& $exeT drift -product $guardProdT -json 2>$null | Out-String) | ConvertFrom-Json
+        $treeT = @((& git -C $guardProdT status --porcelain 2>$null) | Where-Object { $_.Trim() -ne '' }).Count
+        $distT = if ($null -eq $realT.distance) { 'нечем измерить' } else { [string]$realT.distance }
+        $okMsg = "Расстояние : $distT · застой $($realT.stall_moves) · вердикт $($realT.verdict)`n" +
+                 "Дерево     : изменено файлов $treeT, из них новых 0"
+
+        $sid1 = New-TestSessionId
+        Set-TraceProduct $sid1
+        $r1 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
+            session_id = $sid1; hook_event_name = 'Stop'; last_assistant_message = $okMsg
+        })
+        Assert-That 'страж: числа сошлись -- код 0' { $r1.Code -eq 0 }
+        $trace1 = Get-Trace $sid1
+        Assert-That 'страж: пропуск тоже пишется в след, а не только отказы' {
+            @($trace1 | Where-Object { $_.role -eq 'страж' -and $_.decision -eq 'пропустил' }).Count -gt 0
+        }
+        Assert-That 'страж: запись пропуска называет сверенные числа' {
+            $rec = @($trace1 | Where-Object { $_.role -eq 'страж' -and $_.decision -eq 'пропустил' })[0]
+            "$($rec.detail)" -match 'расстояние'
+        }
     }
-} finally {
-    Remove-Item -LiteralPath $prodJ1 -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath (Join-Path $stateDir "woody-verdict-$sidJ1.json") -Force -ErrorAction SilentlyContinue
+    else {
+        Write-Host '[SKIP] bin\air-worker.exe не найден: пропуск стража не проверялся' -ForegroundColor Yellow
+    }
 }
-
-# ======================================================================================
-# ВТОРОЙ РУБЕЖ (UserPromptSubmit): пропуск и отказ оба пишутся.
-# ======================================================================================
-$sidP1 = New-TestSessionId
-Set-ModeFile $sidP1 $true 0 | Out-Null
-$transcriptGood = [System.IO.Path]::GetTempFileName()
-try {
-    New-FakeTranscript $transcriptGood $goodMsg
-    $null = Invoke-HookStdin $promptGuardPath (New-EventJson @{
-        session_id = $sidP1; hook_event_name = 'UserPromptSubmit'; transcript_path = $transcriptGood
-    })
-    $traceP1 = Get-Trace $sidP1
-    Assert-That 'второй рубеж: предыдущий ход полон -- след несёт "пропустил"' {
-        @($traceP1 | Where-Object { $_.role -eq 'второй рубеж' -and $_.decision -eq 'пропустил' }).Count -gt 0
-    }
-} finally { Remove-Item -LiteralPath $transcriptGood -Force -ErrorAction SilentlyContinue }
-
-$sidP2 = New-TestSessionId
-Set-ModeFile $sidP2 $true 0 | Out-Null
-$transcriptBad = [System.IO.Path]::GetTempFileName()
-try {
-    New-FakeTranscript $transcriptBad 'Фаза 1 · Тест · ступень sonnet · ведущая · раздаю'
-    $null = Invoke-HookStdin $promptGuardPath (New-EventJson @{
-        session_id = $sidP2; hook_event_name = 'UserPromptSubmit'; transcript_path = $transcriptBad
-    })
-    $traceP2 = Get-Trace $sidP2
-    Assert-That 'второй рубеж: предыдущий ход прерван -- след несёт "отклонил" (сообщение ЛПР при этом не блокируется)' {
-        @($traceP2 | Where-Object { $_.role -eq 'второй рубеж' -and $_.decision -eq 'отклонил' }).Count -gt 0
-    }
-} finally { Remove-Item -LiteralPath $transcriptBad -Force -ErrorAction SilentlyContinue }
+finally {
+    Remove-Item -LiteralPath $guardProdT -Recurse -Force -ErrorAction SilentlyContinue
+}
 
 # ======================================================================================
 # УЧЁТ (SubagentStart/SubagentStop): пишет независимо от режима оркестрации.
@@ -370,12 +342,26 @@ Assert-That 'mode.ps1 -Trace: пустой след объявлен явной 
     $modeSource.Contains('следа нет') -and $modeSource.Contains('НЕ «всё спокойно»')
 }
 
+# Запись стража делается ОБЪЯВЛЕННЫМ продуктом, а не файлом режима: страж молчит, пока
+# продукт сессии не объявлен, и без объявления следа не будет вовсе — а тогда проверка
+# «поля непусты» прошла бы по пустому списку и доказала бы форму, а не существо.
+$prodT1 = Join-Path ([System.IO.Path]::GetTempPath()) ("woody-tracefields-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
+New-Item -ItemType Directory -Force -Path $prodT1 | Out-Null
+& git -C $prodT1 init -q 2>&1 | Out-Null
 $sidT1 = New-TestSessionId
-Set-ModeFile $sidT1 $true 0 | Out-Null
+$prodFileT1 = Join-Path $stateDir "woody-product-$sidT1.json"
+@{ path = $prodT1; declared_at = (Get-Date).ToString('s') } | ConvertTo-Json |
+    Set-Content -LiteralPath $prodFileT1 -Encoding UTF8
+Register-Cleanup $prodFileT1
+Register-Cleanup (Join-Path $stateDir "woody-turn-$sidT1.json")
 $null = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-    session_id = $sidT1; hook_event_name = 'Stop'; last_assistant_message = $goodMsg
+    session_id = $sidT1; hook_event_name = 'Stop'; last_assistant_message = 'ход без отчёта'
 })
+Remove-Item -LiteralPath $prodT1 -Recurse -Force -ErrorAction SilentlyContinue
 $recordsT1 = Get-Trace $sidT1
+Assert-That 'mode.ps1 -Trace: след стража вообще появился (пустой список доказал бы форму, а не существо)' {
+    @($recordsT1).Count -gt 0
+}
 Assert-That 'mode.ps1 -Trace: данные под печатью (Get-WoodyTrace) несут все пять полей непусто' {
     ($recordsT1.Count -gt 0) -and (@($recordsT1 | Where-Object { -not ($_.ts -and $_.role -and $_.event -and $_.decision) }).Count -eq 0)
 }

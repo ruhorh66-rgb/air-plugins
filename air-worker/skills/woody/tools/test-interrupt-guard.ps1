@@ -167,241 +167,117 @@ try {
 }
 
 # ======================================================================================
-# ЗАДАЧА 2 -- строка субагента обязана называть ступень, названная ступень обязана
-# существовать в лестнице продукта, когда лестница известна.
-# ======================================================================================
-. (Join-Path $skillRoot 'lib\turn-format.ps1')
-
-Assert-That 'Test-TurnFormat: полная строка (задача 1-6 baseline) не даёт недостач' {
-    $running = @([pscustomobject]@{ id = 'a1'; type = 'general-purpose' })
-    (Test-TurnFormat -Msg $goodMsg -Running $running -DeclaredSubagents 1 -Ladder @('script','sonnet')).Count -eq 0
-}
-
-Assert-That 'Test-TurnFormat: строка субагента без "ступень" -- недостача названа' {
-    $bad = $goodMsg -replace '· ступень sonnet · прогон идёт', '· прогон идёт'
-    $running = @([pscustomobject]@{ id = 'a1'; type = 'general-purpose' })
-    $missing = @(Test-TurnFormat -Msg $bad -Running $running -DeclaredSubagents 1 -Ladder @('script','sonnet'))
-    @($missing | Where-Object { $_ -match 'без названной ступени' }).Count -gt 0
-}
-
-Assert-That 'Test-TurnFormat: ступень субагента вне лестницы продукта -- недостача названа' {
-    $bad = $goodMsg -replace '· ступень sonnet · прогон идёт', '· ступень luna · прогон идёт'
-    $running = @([pscustomobject]@{ id = 'a1'; type = 'general-purpose' })
-    $missing = @(Test-TurnFormat -Msg $bad -Running $running -DeclaredSubagents 1 -Ladder @('script','sonnet'))
-    @($missing | Where-Object { $_ -match "которой нет в лестнице продукта" }).Count -gt 0
-}
-
-Assert-That 'Test-TurnFormat: без конфигурации (Ladder = $null) ступень вне общего списка не считается недостачей' {
-    $running = @([pscustomobject]@{ id = 'a1'; type = 'general-purpose' })
-    $missing = @(Test-TurnFormat -Msg $goodMsg -Running $running -DeclaredSubagents 1 -Ladder $null)
-    @($missing | Where-Object { $_ -match "которой нет в лестнице продукта" }).Count -eq 0
-}
-
-# ======================================================================================
-# СКВОЗНЫЕ ПРОГОНЫ turn-guard.ps1 (Stop) -- фиктивные session_id, реальный хук.
+# СТРАЖ ХОДА: СВЕРКА ЧИСЛА С ЧИСЛОМ.
+#
+# На этом месте было 238 строк проверок надзора за формой сообщения: семь обязательных
+# строк, ступень в строке субагента, частичный выход из режима, судья внутри стража и
+# prompt-guard вторым рубежом. Всё это снято 13.09.2026 вместе с самим надзором — разбор
+# показал, что 4 264 строки надзора за речью не улучшили за сутки ни одного продукта,
+# а лечением каждой их блокировки была переписанная модель абзаца.
+#
+# Проверки ниже — те же четыре случая, которыми страж был проверен вручную на живом
+# продукте, но записанные прогоном. Каждая сверяет ЧИСЛО, а не форму: подставное дерево
+# и подставное расстояние обязаны быть пойманы, верный отчёт обязан пройти молча.
 # ======================================================================================
 $turnGuardPath = Join-Path $skillRoot 'hooks\turn-guard.ps1'
 
-$sid1 = New-TestSessionId
-Set-ModeFile $sid1 $true 0 | Out-Null
-$r1 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-    session_id = $sid1; hook_event_name = 'Stop'; last_assistant_message = $goodMsg
-})
-Assert-That 'turn-guard.ps1: полное сообщение без продукта в рабочем каталоге -- код 0' {
-    $r1.Code -eq 0
+function New-GuardProduct {
+    # Настоящий каталог с настоящим git: страж считает изменённые файлы через
+    # `git status --porcelain`, и подставить их файлом-заглушкой нельзя — в этом и смысл.
+    $dir = Join-Path ([System.IO.Path]::GetTempPath()) ("woody-guard-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    & git -C $dir init -q 2>&1 | Out-Null
+    Set-Content -LiteralPath (Join-Path $dir 'README.md') -Value 'проба' -Encoding UTF8
+    return $dir
 }
 
-$sid2 = New-TestSessionId
-Set-ModeFile $sid2 $true 0 | Out-Null
-$badMsg2 = $goodMsg -replace '· ступень sonnet · прогон идёт', '· прогон идёт'
-$r2 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-    session_id = $sid2; hook_event_name = 'Stop'; last_assistant_message = $badMsg2
-})
-Assert-That 'turn-guard.ps1: строка субагента без ступени -- код 2, причина названа' {
-    ($r2.Code -eq 2) -and ($r2.Stderr -match 'без названной ступени')
+function Set-GuardProductBinding([string]$sessionKey, [string]$path) {
+    $f = Join-Path $stateDir "woody-product-$sessionKey.json"
+    @{ path = $path; declared_at = (Get-Date).ToString('s') } | ConvertTo-Json |
+        Set-Content -LiteralPath $f -Encoding UTF8
+    Register-Cleanup $f
+    Register-Cleanup (Join-Path $stateDir "woody-turn-$sessionKey.json")
 }
 
-# --- Задача 4: петля обязательна -----------------------------------------------------
-$sid4 = New-TestSessionId
-$prod4 = Join-Path ([System.IO.Path]::GetTempPath()) ('woody-test-prod4-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
-New-Item -ItemType Directory -Force -Path $prod4 | Out-Null
-Set-ModeFile $sid4 $true 0 | Out-Null
+$guardProd = New-GuardProduct
 try {
-    Set-Content -LiteralPath (Join-Path $prod4 'run-config.json') -Value '{"judge":{"checks":[]}}' -Encoding UTF8
-    Set-Content -LiteralPath (Join-Path $prod4 'PLAN.md') -Value "- [ ] script  Шаг`n" -Encoding UTF8
-    $r4 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-        session_id = $sid4; hook_event_name = 'Stop'; last_assistant_message = $goodMsg; cwd = $prod4
-    })
-    Assert-That 'turn-guard.ps1: конфигурация и PLAN.md есть, steps.jsonl нет -- ход не заканчивается, команда названа' {
-        ($r4.Code -eq 2) -and ($r4.Stderr -match 'steps\.jsonl') -and ($r4.Stderr -match 'woody\.ps1')
+    $exe = Join-Path (Split-Path -Parent (Split-Path -Parent $skillRoot)) 'bin\air-worker.exe'
+    if (-not (Test-Path -LiteralPath $exe)) {
+        # Нет бинарника — нечем мерить. Это НЕ «проверка прошла»: код 2 у судьи означает
+        # «проверять нечем», и здесь ровно тот же случай.
+        Write-Host '[SKIP] bin\air-worker.exe не найден: страж хода не проверялся' -ForegroundColor Yellow
     }
+    else {
+        $driftJson = & $exe drift -product $guardProd -json 2>$null | Out-String
+        $real = $null
+        try { $real = $driftJson | ConvertFrom-Json } catch { }
 
-    # Обязательный выход: PLAN.md объявляет "Вуди неприменим" -- блокировки больше нет.
-    Add-Content -LiteralPath (Join-Path $prod4 'PLAN.md') -Value "`nВуди неприменим: работа не имеет машинного судьи`n" -Encoding UTF8
-    $r4b = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-        session_id = $sid4; hook_event_name = 'Stop'; last_assistant_message = $goodMsg; cwd = $prod4
-    })
-    Assert-That 'turn-guard.ps1: PLAN.md объявил "Вуди неприменим" -- петля больше не требуется' {
-        -not ($r4b.Stderr -match 'steps\.jsonl')
-    }
+        $treeN = @((& git -C $guardProd status --porcelain 2>$null) | Where-Object { $_.Trim() -ne '' }).Count
+        $realDist = if ($null -eq $real.distance) { 'нечем измерить' } else { [string]$real.distance }
 
-    # Со steps.jsonl требование снимается и без объявления неприменимости.
-    Remove-Item -LiteralPath (Join-Path $prod4 'PLAN.md') -Force
-    Set-Content -LiteralPath (Join-Path $prod4 'PLAN.md') -Value "- [ ] script  Шаг`n" -Encoding UTF8
-    Set-Content -LiteralPath (Join-Path $prod4 'steps.jsonl') -Value '{}' -Encoding UTF8
-    $r4c = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-        session_id = $sid4; hook_event_name = 'Stop'; last_assistant_message = $goodMsg; cwd = $prod4
-    })
-    Assert-That 'turn-guard.ps1: steps.jsonl появился -- требование снято' {
-        -not ($r4c.Stderr -match 'steps\.jsonl')
+        # -- случай 1: отчёта в ходе нет вовсе -------------------------------------
+        $sidG1 = New-TestSessionId
+        Set-GuardProductBinding $sidG1 $guardProd
+        $rG1 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
+            session_id = $sidG1; hook_event_name = 'Stop'
+            last_assistant_message = 'Сделал работу, всё хорошо.'
+        })
+        Assert-That 'turn-guard: ход без отчёта -- код 2, названа команда замера' {
+            ($rG1.Code -eq 2) -and ($rG1.Stderr -match 'ХОД БЕЗ ЗАМЕРА') -and ($rG1.Stderr -match 'air-worker report')
+        }
+
+        # -- случай 2: отчёт совпадает с замером ------------------------------------
+        $good = "Расстояние : $realDist · застой $($real.stall_moves) · вердикт $($real.verdict)`n" +
+                "Дерево     : изменено файлов $treeN, из них новых 0"
+        $sidG2 = New-TestSessionId
+        Set-GuardProductBinding $sidG2 $guardProd
+        $rG2 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
+            session_id = $sidG2; hook_event_name = 'Stop'; last_assistant_message = $good
+        })
+        Assert-That 'turn-guard: числа сошлись -- код 0, страж молчит' {
+            ($rG2.Code -eq 0) -and (-not ($rG2.Stderr -match 'НЕ СОВПАЛИ'))
+        }
+
+        # -- случай 3: расстояние подменено ----------------------------------------
+        $fakeDist = if ($realDist -eq '1') { '2' } else { '1' }
+        $badDist = "Расстояние : $fakeDist · застой $($real.stall_moves) · вердикт $($real.verdict)`n" +
+                   "Дерево     : изменено файлов $treeN, из них новых 0"
+        $sidG3 = New-TestSessionId
+        Set-GuardProductBinding $sidG3 $guardProd
+        $rG3 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
+            session_id = $sidG3; hook_event_name = 'Stop'; last_assistant_message = $badDist
+        })
+        Assert-That 'turn-guard: подменённое расстояние -- код 2, названы ОБА числа' {
+            ($rG3.Code -eq 2) -and ($rG3.Stderr -match 'расстояние') -and
+            ($rG3.Stderr -match [regex]::Escape($fakeDist)) -and ($rG3.Stderr -match [regex]::Escape($realDist))
+        }
+
+        # -- случай 4: дерево подменено ---------------------------------------------
+        $badTree = "Расстояние : $realDist · застой $($real.stall_moves) · вердикт $($real.verdict)`n" +
+                   "Дерево     : изменено файлов 99, из них новых 0"
+        $sidG4 = New-TestSessionId
+        Set-GuardProductBinding $sidG4 $guardProd
+        $rG4 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
+            session_id = $sidG4; hook_event_name = 'Stop'; last_assistant_message = $badTree
+        })
+        Assert-That 'turn-guard: подменённое число изменённых файлов -- код 2' {
+            ($rG4.Code -eq 2) -and ($rG4.Stderr -match 'изменённых файлов') -and ($rG4.Stderr -match '99')
+        }
+
+        # -- случай 5: продукт НЕ объявлен -- страж молчит ---------------------------
+        # Правило безопасности, а не удобство: угадывание продукта по рабочему каталогу
+        # один раз уже поймало каталог, мимо которого сессия проходила.
+        $sidG5 = New-TestSessionId
+        $rG5 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
+            session_id = $sidG5; hook_event_name = 'Stop'; last_assistant_message = 'Без отчёта и без объявленного продукта.'
+        })
+        Assert-That 'turn-guard: продукт не объявлен -- код 0, страж не вмешивается' {
+            $rG5.Code -eq 0
+        }
     }
-} finally {
-    Remove-Item -LiteralPath $prod4 -Recurse -Force -ErrorAction SilentlyContinue
 }
-
-# --- Задача 5: частичный выход из режима без согласования запрещён -------------------
-$sid5 = New-TestSessionId
-$prod5 = Join-Path ([System.IO.Path]::GetTempPath()) ('woody-test-prod5-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
-New-Item -ItemType Directory -Force -Path $prod5 | Out-Null
-Set-ModeFile $sid5 $true 0 | Out-Null
-try {
-    # Конфигурация есть, ключа ladder в ней нет -- лестницу сняли.
-    Set-Content -LiteralPath (Join-Path $prod5 'run-config.json') -Value '{"judge":{"checks":[]}}' -Encoding UTF8
-    $r5 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-        session_id = $sid5; hook_event_name = 'Stop'; last_assistant_message = $goodMsg; cwd = $prod5
-    })
-    Assert-That 'turn-guard.ps1: ladder снят из конфигурации без согласования -- ход не заканчивается' {
-        ($r5.Code -eq 2) -and ($r5.Stderr -match 'сокращение режима равносильно выходу')
-    }
-
-    # Конфигурации нет вовсе -- пропускаем (сессия работает вне продукта).
-    Remove-Item -LiteralPath (Join-Path $prod5 'run-config.json') -Force
-    $r5b = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-        session_id = $sid5; hook_event_name = 'Stop'; last_assistant_message = $goodMsg; cwd = $prod5
-    })
-    Assert-That 'turn-guard.ps1: конфигурации нет вовсе -- частичный выход не проверяется' {
-        $r5b.Code -eq 0
-    }
-
-    # Конфигурация вернулась без ladder, но теперь есть согласование ЛПР -- выход
-    # проходит и согласование РАСХОДУЕТСЯ.
-    Set-Content -LiteralPath (Join-Path $prod5 'run-config.json') -Value '{"judge":{"checks":[]}}' -Encoding UTF8
-    $approval5 = Join-Path $stateDir "woody-mode-off-approved-$sid5.json"
-    @{ session_id = $sid5 } | ConvertTo-Json | Set-Content -LiteralPath $approval5 -Encoding UTF8
-    $r5c = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-        session_id = $sid5; hook_event_name = 'Stop'; last_assistant_message = $goodMsg; cwd = $prod5
-    })
-    Assert-That 'turn-guard.ps1: согласование ЛПР есть -- частичный выход больше не в недостачах' {
-        -not ($r5c.Stderr -match 'сокращение режима равносильно выходу')
-    }
-    Assert-That 'turn-guard.ps1: согласование РАСХОДУЕТСЯ -- файл снят после использования' {
-        -not (Test-Path -LiteralPath $approval5)
-    }
-    Assert-That 'turn-guard.ps1: после расхода согласования режим сессии выключен' {
-        $body = Get-Content -LiteralPath (Join-Path $stateDir "woody-mode-$sid5.json") -Raw -Encoding UTF8 | ConvertFrom-Json
-        -not $body.enabled
-    }
-} finally {
-    Remove-Item -LiteralPath $prod5 -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath (Join-Path $stateDir "woody-mode-off-approved-$sid5.json") -Force -ErrorAction SilentlyContinue
-}
-
-# --- Задача 3: судья зовётся отдельным процессом, вердикт NULL при таймауте/отсутствии -
-$sid3 = New-TestSessionId
-$prod3 = Join-Path ([System.IO.Path]::GetTempPath()) ('woody-test-prod3-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
-New-Item -ItemType Directory -Force -Path $prod3 | Out-Null
-Set-ModeFile $sid3 $true 0 | Out-Null
-$verdict3 = Join-Path $stateDir "woody-verdict-$sid3.json"
-try {
-    # Нет run-config.json -- судья не зовётся, файла вердикта не появляется.
-    $rV0 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-        session_id = $sid3; hook_event_name = 'Stop'; last_assistant_message = $goodMsg; cwd = $prod3
-    })
-    Assert-That 'turn-guard.ps1: нет run-config.json -- судья не зовётся, вердикта нет' {
-        (-not (Test-Path -LiteralPath $verdict3)) -and ($rV0.Code -eq 0)
-    }
-
-    # Конфигурация есть -- судья зовётся, вердикт пишется файлом с полями code/time.
-    # ladder указан явно (и включает 'sonnet' -- $goodMsg называет эту ступень в строке
-    # субагента), чтобы не зацепить ни задачу 5 (частичный выход), ни задачу 2 (ступень
-    # вне лестницы) -- обе проверяются отдельными сценариями и здесь были бы посторонним
-    # источником недостачи.
-    Set-Content -LiteralPath (Join-Path $prod3 'run-config.json') -Value '{"judge":{"checks":[]},"ladder":["script","sonnet"]}' -Encoding UTF8
-    $rV1 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-        session_id = $sid3; hook_event_name = 'Stop'; last_assistant_message = $goodMsg; cwd = $prod3
-    })
-    Assert-That 'turn-guard.ps1: конфигурация есть -- вердикт судьи записан файлом' {
-        Test-Path -LiteralPath $verdict3
-    }
-    $body3 = $null
-    if (Test-Path -LiteralPath $verdict3) { $body3 = Get-Content -LiteralPath $verdict3 -Raw -Encoding UTF8 | ConvertFrom-Json }
-    Assert-That 'turn-guard.ps1: вердикт несёт время и корень продукта' {
-        ($body3) -and ($body3.time) -and ($body3.product_root -eq $prod3)
-    }
-    Assert-That 'turn-guard.ps1: вердикт НЕ БЛОКИРУЕТ ход -- код возврата не зависит от судьи' {
-        $rV1.Code -eq 0
-    }
-
-    # Повторный прогон РАНЬШЕ 60 секунд -- время в файле не должно поменяться.
-    Start-Sleep -Milliseconds 200
-    $timeBefore = $body3.time
-    $rV2 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
-        session_id = $sid3; hook_event_name = 'Stop'; last_assistant_message = $goodMsg; cwd = $prod3
-    })
-    $bodyAfter = Get-Content -LiteralPath $verdict3 -Raw -Encoding UTF8 | ConvertFrom-Json
-    Assert-That 'turn-guard.ps1: судья не чаще раза в 60 секунд -- повторный прогон не тронул файл' {
-        $bodyAfter.time -eq $timeBefore
-    }
-} finally {
-    Remove-Item -LiteralPath $prod3 -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $verdict3 -Force -ErrorAction SilentlyContinue
-}
-
-# ======================================================================================
-# ЗАДАЧА 1 -- prompt-guard.ps1 (UserPromptSubmit): читает журнал сессии, не
-# last_assistant_message, и НЕ БЛОКИРУЕТ сообщение -- несёт замечание additionalContext.
-# ======================================================================================
-$promptGuardPath = Join-Path $skillRoot 'hooks\prompt-guard.ps1'
-
-function New-FakeTranscript([string]$path, [string]$assistantText) {
-    $lines = @(
-        (@{ type = 'user'; message = @{ role = 'user'; content = 'привет' }; cwd = 'C:\fake'; sessionId = 'x' } | ConvertTo-Json -Depth 5 -Compress),
-        (@{ type = 'assistant'; message = @{ role = 'assistant'; content = @(@{ type = 'text'; text = $assistantText }) }; cwd = 'C:\fake'; sessionId = 'x' } | ConvertTo-Json -Depth 5 -Compress)
-    )
-    Set-Content -LiteralPath $path -Value ($lines -join "`n") -Encoding UTF8
-}
-
-$sidP1 = New-TestSessionId
-Set-ModeFile $sidP1 $true 0 | Out-Null
-$transcriptGood = [System.IO.Path]::GetTempFileName()
-try {
-    New-FakeTranscript $transcriptGood $goodMsg
-    $rP1 = Invoke-HookStdin $promptGuardPath (New-EventJson @{
-        session_id = $sidP1; hook_event_name = 'UserPromptSubmit'; transcript_path = $transcriptGood
-    })
-    Assert-That 'prompt-guard.ps1: последнее сообщение в журнале полное -- код 0, без замечания' {
-        ($rP1.Code -eq 0) -and ($rP1.Stdout -notmatch 'additionalContext')
-    }
-} finally { Remove-Item -LiteralPath $transcriptGood -Force -ErrorAction SilentlyContinue }
-
-$sidP2 = New-TestSessionId
-Set-ModeFile $sidP2 $true 0 | Out-Null
-$transcriptBad = [System.IO.Path]::GetTempFileName()
-try {
-    $interrupted = 'Фаза 1 · Тест · ступень sonnet · ведущая · раздаю'   # ход прерван на первой строке
-    New-FakeTranscript $transcriptBad $interrupted
-    $rP2 = Invoke-HookStdin $promptGuardPath (New-EventJson @{
-        session_id = $sidP2; hook_event_name = 'UserPromptSubmit'; transcript_path = $transcriptBad
-    })
-    Assert-That 'prompt-guard.ps1: прерванный ход в журнале -- замечание additionalContext, но код 0 (не блокирует ЛПР)' {
-        ($rP2.Code -eq 0) -and ($rP2.Stdout -match 'additionalContext') -and ($rP2.Stdout -match 'ПРЕРВАН')
-    }
-} finally { Remove-Item -LiteralPath $transcriptBad -Force -ErrorAction SilentlyContinue }
-
-Assert-That 'prompt-guard.ps1: пишет снимок stdin в woody-prompt-probe-<session_id>.json' {
-    $probe = Join-Path $stateDir "woody-prompt-probe-$sidP2.json"
-    Register-Cleanup $probe
-    Test-Path -LiteralPath $probe
+finally {
+    Remove-Item -LiteralPath $guardProd -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 # ======================================================================================

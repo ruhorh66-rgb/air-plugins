@@ -161,11 +161,46 @@ function Set-Product($key, [string]$path) {
     $script:productSet = $true
 }
 
-# Команды хуков объявлены во frontmatter скила АБСОЛЮТНЫМ путём, а регистрация скила идёт
-# через <CLAUDE_CONFIG_DIR>\skills\air-woody. Пути РАЗНЫЕ, и разойтись они могут молча:
-# скил зарегистрируется, а хуки будут указывать в пустоту. Найдено 12.09.2026 на второй
-# машине, где каталога из frontmatter не существовало вовсе.
+# Команды хуков ищутся ТАМ, ГДЕ ОНИ ОБЪЯВЛЕНЫ СЕЙЧАС, — в манифесте плагина
+# hooks/hooks.json, и только при его отсутствии во frontmatter скила.
+#
+# Проверка стерегла СТАРОЕ МЕСТО и потому отказывала на исправном скиле: хуки переехали
+# из frontmatter в манифест плагина (там путь переносимый, ${CLAUDE_PLUGIN_ROOT}, а во
+# frontmatter он был абсолютным путём машины разработчика и на второй машине указывал в
+# пустоту). Переезд состоялся, а эта функция осталась смотреть в frontmatter — и
+# `mode.ps1 -On` отвечал «во frontmatter не найдено ни одной команды хука» на скиле, где
+# все хуки объявлены и работают. Найдено прогоном 13.09.2026.
+#
+# Это тот же класс, что механизм ловит у продуктов: проверка, доказывающая форму старого
+# устройства, а не существо нынешнего. Разбор frontmatter оставлен запасным путём — скил
+# может стоять и без плагина.
 function Get-DeclaredHookCommands {
+    $pluginRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+    $pluginHooks = Join-Path $pluginRoot 'hooks\hooks.json'
+    if (Test-Path -LiteralPath $pluginHooks) {
+        try {
+            $manifest = Get-Content -LiteralPath $pluginHooks -Raw -Encoding UTF8 | ConvertFrom-Json
+            $cmds = @()
+            foreach ($eventName in $manifest.hooks.PSObject.Properties.Name) {
+                foreach ($group in @($manifest.hooks.$eventName)) {
+                    foreach ($h in @($group.hooks)) {
+                        if ($h.command) {
+                            # Команда в манифесте записана переносимо: в кавычках и
+                            # с ${CLAUDE_PLUGIN_ROOT}, который подставляет харнесс в
+                            # момент вызова. Здесь проверяется существование файла,
+                            # поэтому подстановка делается сама — иначе Test-Path
+                            # получит путь с фигурными скобками и скажет «недопустимые
+                            # знаки», а человек прочитает это как «хука нет».
+                            $c = ([string]$h.command).Trim().Trim([char]34)
+                            $c = $c.Replace('${CLAUDE_PLUGIN_ROOT}', $pluginRoot).Replace('/', [char]92)
+                            $cmds += $c
+                        }
+                    }
+                }
+            }
+            if ($cmds.Count -gt 0) { return ($cmds | Select-Object -Unique) }
+        } catch { }
+    }
     $skillFile = Join-Path (Split-Path -Parent $PSScriptRoot) 'SKILL.md'
     if (-not (Test-Path -LiteralPath $skillFile)) { return @() }
     $found = @()
@@ -508,9 +543,10 @@ if ($Off) {
 # запускается, а состояние показывает ВКЛЮЧЁН. Ровно этот класс стоил суток 11-12.09.
 $declared = Get-DeclaredHookCommands
 if ($declared.Count -eq 0) {
-    Write-Output 'ОТКАЗ: во frontmatter скила не найдено ни одной команды хука. Проверять нечем — это не «всё хорошо», а «нечем проверить».'
-    Write-Output 'Ожидался SKILL.md рядом с каталогом hooks. Включение без хуков дало бы режим, который никто не держит.'
-    Write-ModeTrace $sessionKey '-On' 'отклонил' 'во frontmatter скила нет ни одной команды хука'
+    Write-Output 'ОТКАЗ: ни одной команды хука не объявлено. Проверять нечем — это не «всё хорошо», а «нечем проверить».'
+    Write-Output 'Ожидался hooks/hooks.json в корне плагина либо frontmatter в SKILL.md рядом с каталогом hooks.'
+    Write-Output 'Включение без хуков дало бы режим, который никто не держит.'
+    Write-ModeTrace $sessionKey '-On' 'отклонил' 'ни в манифесте плагина, ни во frontmatter нет ни одной команды хука'
     exit 2
 }
 $missing = @($declared | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) })
@@ -518,7 +554,7 @@ if ($missing.Count -gt 0) {
     Write-Output 'ОТКАЗ: режим не включён — команды хуков объявлены, но по указанным путям их нет:'
     foreach ($item in $missing) { Write-Output "  нет: $item" }
     Write-Output 'Включить сейчас значило бы записать обещание, которое некому исполнить: страж не запустится, а состояние покажет ВКЛЮЧЁН.'
-    Write-Output 'Лечится тем, что путь из frontmatter должен существовать на этой машине — junction на фактический клон скила решает это, не ломая единственность источника.'
+    Write-Output 'Лечится тем, что объявленный путь должен существовать на этой машине: для плагина это ${CLAUDE_PLUGIN_ROOT}, для скила — junction на фактический клон.'
     Write-ModeTrace $sessionKey '-On' 'отклонил' ("команды хуков не найдены на диске: " + ($missing -join '; '))
     exit 1
 }
