@@ -45,7 +45,7 @@ $plannerPath = $null
 foreach ($c in @(
     $env:WOODY_PLANNER,
     $(if ($env:CLAUDE_CONFIG_DIR) { Join-Path $env:CLAUDE_CONFIG_DIR 'skills\air-woody\scripts\planner.ps1' } else { $null }),
-    'E:\-5-\014_Skills\air-woody\scripts\planner.ps1'
+    'F:\-7-\air-worker\skills\woody\scripts\planner.ps1'
 )) { if ($c -and (Test-Path -LiteralPath $c -PathType Leaf)) { $plannerPath = $c; break } }
 if (-not $plannerPath) {
     $unknown += 'планировщик не найден: ни WOODY_PLANNER, ни скил air-woody, ни известное расположение'

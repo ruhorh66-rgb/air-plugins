@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "contract_version": "0.1",
+  "updated": "2026-09-11",
+  "owner": "air-woody",
+  "status": "candidate",
+  "entry_point": "scripts/woody.ps1",
+  "available": [
+    "goal_judge_loop",
+    "tier_ladder",
+    "hand_editable_plan",
+    "script_tier_without_model",
+    "turn_cap_narrows_step",
+    "budget_stop_usd",
+    "iteration_stop",
+    "orchestration_subagents",
+    "cost_journal"
+  ],
+  "delegates_to": {
+    "goal_judge_loop": "judge.path из run-config.json; судья принадлежит продукту, не Дятлу",
+    "tier_ladder": "ladder из run-config.json, по умолчанию script -> haiku -> sonnet -> opus",
+    "hand_editable_plan": "PLAN.md в корне продукта, формат '- [ ] <ступень> <шаг> :: <команда>'",
+    "script_tier_without_model": "команда после '::' исполняется powershell.exe, модель не зовётся",
+    "turn_cap_narrows_step": "subtype=error_max_turns останавливает петлю с требованием сузить шаг",
+    "budget_stop_usd": "сумма total_cost_usd прогонов против budget.usd",
+    "orchestration_subagents": "директива в задании ведущей сессии; флага CLI не существует",
+    "cost_journal": "steps.jsonl в корне продукта"
+  },
+  "requires": {
+    "judge": "скрипт продукта, возвращающий 0 только при достижении цели",
+    "plan": "PLAN.md; без плана петля не стартует намеренно",
+    "shell": "Windows PowerShell 5.1 или PowerShell 7; файл сохраняется UTF-8 с BOM"
+  },
+  "boundaries": {
+    "judge_is_not_rewritten": "Судья проверяет цель, а не исполнителя. Петля только запускает его и читает код возврата.",
+    "no_model_on_script_tier": "Шаг с проверяемым точным выходом, отданный модели, — оплаченное бесплатное.",
+    "escalation_only_on_stall": "Ступень поднимается только когда судья не сдвинулся. Упор в потолок ходов подъёмом не является."
+  },
+  "verified_surface": {
+    "verified_at": "2026-09-11",
+    "checks": [
+      "parse_windows_powershell_5_1",
+      "parse_powershell_7"
+    ],
+    "note": "Разбор проверен обеими оболочками: 1558 токенов, ноль ошибок. Боевой прогон петли на продукте ещё не выполнялся."
+  }
+}

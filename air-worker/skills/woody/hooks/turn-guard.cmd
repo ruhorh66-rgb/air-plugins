@@ -1,0 +1,9 @@
+@echo off
+rem Wrapper: the hook "command" field takes an executable path, and a .ps1 is not one.
+rem stdin is inherited, so the event JSON reaches the script.
+rem Windows PowerShell 5.1 on purpose: present on every machine of the contour,
+rem unlike pwsh, which AIR-ENV-002 does not have at all.
+rem ASCII only in this file: cmd.exe reads .cmd in the OEM codepage and would try to
+rem execute mangled Cyrillic comments as commands. Measured 11.09.2026.
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0turn-guard.ps1"
+exit /b %ERRORLEVEL%

@@ -151,7 +151,7 @@ foreach ($item in $toCheck) {
 # объявил orchestration.enabled=true, а тем самым вызывающим — air-woody Invoke-ModelStep.
 # Путь переопределяем переменной среды, а не прибиваем единственным вариантом — по тому
 # же принципу, что LLM_QUEUE_DISPATCHER в ladder.py.
-$woodyScript = if ($env:AIR_WOODY_SCRIPT) { $env:AIR_WOODY_SCRIPT } else { 'E:\-5-\014_Skills\air-woody\scripts\woody.ps1' }
+$woodyScript = if ($env:AIR_WOODY_SCRIPT) { $env:AIR_WOODY_SCRIPT } else { 'F:\-7-\air-worker\skills\woody\scripts\woody.ps1' }
 Assert-That 'вызывающий код (air-woody) пишет задание ФАЙЛОМ, а не строкой в аргумент' {
     if (-not (Test-Path -LiteralPath $woodyScript -PathType Leaf)) {
         throw "air-woody не найден по '$woodyScript' (переопределяется AIR_WOODY_SCRIPT) — нечем свериться"

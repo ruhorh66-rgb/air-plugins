@@ -43,7 +43,7 @@ $driftPath = $null
 foreach ($cand in @(
     $env:WOODY_GOAL_DRIFT,
     $(if ($env:CLAUDE_CONFIG_DIR) { Join-Path $env:CLAUDE_CONFIG_DIR 'skills\air-woody\scripts\goal-drift.ps1' } else { $null }),
-    'E:\-5-\014_Skills\air-woody\scripts\goal-drift.ps1'
+    'F:\-7-\air-worker\skills\woody\scripts\goal-drift.ps1'
 )) {
     if ($cand -and (Test-Path -LiteralPath $cand -PathType Leaf)) { $driftPath = $cand; break }
 }
