@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.5.0"
+	version = "0.6.0"
 )
 
 func usage() {

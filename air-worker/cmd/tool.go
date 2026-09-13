@@ -165,3 +165,19 @@ func cmdTool(argv []string) int {
 	}
 	return worst
 }
+
+// runnerEnv — окружение дочернего процесса, с токеном, который мог не доехать.
+//
+// Подставляется ЯВНО, а не в надежде на наследование: процесс петли мог стартовать
+// раньше, чем переменную поставили, и своего окружения не перечитывает. Значение не
+// печатается и не логируется — диагностика говорит только «взят» или «не найден».
+func runnerEnv() ([]string, bool) {
+	if os.Getenv("CLAUDE_CODE_OAUTH_TOKEN") != "" {
+		return nil, false
+	}
+	v := userEnvVar("CLAUDE_CODE_OAUTH_TOKEN")
+	if v == "" {
+		return nil, false
+	}
+	return append(os.Environ(), "CLAUDE_CODE_OAUTH_TOKEN="+v), true
+}

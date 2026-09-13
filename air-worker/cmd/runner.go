@@ -100,6 +100,8 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 	return c.invokeClaude(exePath, prompt, runner)
 }
 
+// Detail несёт текст отказа исполнителя. Без него петля могла бы только сказать «не
+// получилось», и человек шёл бы искать причину сам — а она уже пришла в ответе.
 type claudeResult struct {
 	IsError      bool     `json:"is_error"`
 	TotalCostUSD *float64 `json:"total_cost_usd"`
@@ -108,6 +110,7 @@ type claudeResult struct {
 	Subtype      string   `json:"subtype"`
 	DurationAPI  *int     `json:"duration_api_ms"`
 	Type         string   `json:"type"`
+	Result       string   `json:"result"`
 }
 
 func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec) stepResult {
@@ -127,6 +130,10 @@ func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec) stepRe
 	}
 	cmd := exec.Command(exePath, args...)
 	cmd.Dir = c.Root
+	if env, took := runnerEnv(); took {
+		cmd.Env = env
+		line("  токен взят из окружения пользователя (в процессе его не было)")
+	}
 	out, _ := cmd.CombinedOutput()
 	raw := decodeOutput(out)
 
@@ -159,9 +166,18 @@ func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec) stepRe
 		}
 		return stepResult{Subtype: "unparsed"}
 	}
+	// ПОЛЕ subtype ВРЁТ. Живой ответ claude на «Not logged in» приходит с is_error=true и
+	// subtype="success" одновременно: клиент считает успехом сам факт ответа, а не работу.
+	// Петля смотрела только на subtype, отказа не замечала и шла поднимать ступень —
+	// оплачивая дороже вызов, который вообще не состоялся. Решает is_error, а не subtype.
+	sub := res.Subtype
+	if res.IsError {
+		sub = "runner_error"
+	}
 	return stepResult{
 		Ok: !res.IsError, Cost: res.TotalCostUSD, Turns: res.NumTurns,
-		Session: res.SessionID, Subtype: res.Subtype, ApiMs: res.DurationAPI,
+		Session: res.SessionID, Subtype: sub, ApiMs: res.DurationAPI,
+		Detail: strings.TrimSpace(res.Result),
 	}
 }
 
@@ -190,6 +206,10 @@ func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec) stepRes
 	args = append(args, prompt)
 	cmd := exec.Command(exePath, args...)
 	cmd.Dir = c.Root
+	if env, took := runnerEnv(); took {
+		cmd.Env = env
+		line("  токен взят из окружения пользователя (в процессе его не было)")
+	}
 	cmd.Stdin = nil
 	out, _ := cmd.CombinedOutput()
 
