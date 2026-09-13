@@ -143,7 +143,7 @@ func cmdJudge(argv []string) int {
 	res := runJudge(root, cfg, *minFacts)
 	code, text := verdict(res)
 	publishVerdict(root, code, text, res)
-	fmt.Println(text)
+	fmt.Print(text + lineEnding)
 	return code
 }
 
@@ -387,7 +387,14 @@ func distanceOf(code int, r judgeResult) *int {
 }
 
 func publishVerdict(root string, code int, text string, r judgeResult) {
-	_ = os.WriteFile(filepath.Join(root, ".goal-verdict"), []byte(text), 0o644)
+	// ЗАВЕРШАЮЩИЙ ПЕРЕВОД СТРОКИ — КАК У СКРИПТА (CRLF на Windows).
+	// Найдено AIR-ENV-002 13.09.2026 побайтовой сверкой: 105 байт против 104, diff
+	// расхождение видит, глаз нет. Её же довод и решил вопрос: всё, что сравнивает файл
+	// вердикта БАЙТАМИ — хеш, diff, «изменился ли вердикт с прошлого прогона», — при
+	// чередовании двух реализаций увидело бы изменение на каждом прогоне, хотя не
+	// изменилось ничего. Ложное движение вместо ложного застоя, зеркало той беды, что
+	// лечит двигатель цели.
+	_ = os.WriteFile(filepath.Join(root, ".goal-verdict"), []byte(text+lineEnding), 0o644)
 	passed := len(r.Passed)
 	failed := len(r.Failed)
 	if r.FactsLine != "" {

@@ -293,6 +293,11 @@ function Publish-Verdict([string]$text, [int]$code) {
         facts_gated    = $gatedCount
         facts_required = $want
         verdict_text   = $text
+        # ЧЕМ ПОСЧИТАНО. Поле завёл бинарник, и AIR-ENV-002 13.09.2026 верно заметила,
+        # что оно полезное, но его отсутствие у скрипта делает набор полей несимметричным —
+        # а несимметричность двух реализаций одного правила и есть то, что расходится
+        # молча. Пока обе живут рядом, по этому полю видно, которая считала.
+        by             = "judge.ps1 0.4.0"
     }
     try {
         $json = $machine | ConvertTo-Json -Depth 4

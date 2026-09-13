@@ -82,14 +82,47 @@ try {
     function Compare-Judge([string]$case) {
         $psOut = (& powershell -NoProfile -ExecutionPolicy Bypass -File $judgePs -ProductRoot $fx 2>&1 | Out-String).Trim()
         $psCode = $LASTEXITCODE
+        $psVerdict = $null
+        try { $psVerdict = Get-Content (Join-Path $fx '.goal-verdict.json') -Raw -Encoding UTF8 | ConvertFrom-Json } catch { }
         $goOut = (& $exe judge -product $fx 2>&1 | Out-String).Trim()
         $goCode = $LASTEXITCODE
+        $goVerdict = $null
+        try { $goVerdict = Get-Content (Join-Path $fx '.goal-verdict.json') -Raw -Encoding UTF8 | ConvertFrom-Json } catch { }
         if ($psCode -ne $goCode) {
             $script:fail += "судья, $case : код скрипта $psCode, код бинарника $goCode"
-        } elseif ($psOut -ne $goOut) {
+            return
+        }
+        if ($psOut -ne $goOut) {
             $script:fail += "судья, $case : текст расходится. скрипт «$psOut»; бинарник «$goOut»"
-        } else {
-            $script:ok += "судья согласен, $case (код $psCode)"
+            return
+        }
+        # СРАВНИВАЮТСЯ И ЧИСЛА ВЕРДИКТА, А НЕ ТОЛЬКО КОД. Найдено AIR-ENV-002 13.09.2026:
+        # проверка сверяла один код возврата, а утверждение делалось про совпадение
+        # формата файлов — верный замер, вывод шире основания. Тот же класс, на котором
+        # она в тот же день поймала собственный гейт.
+        #
+        # Сравниваются ЗНАЧЕНИЯ, а не байты: сериализация у двух реализаций разная
+        # намеренно (отступы ConvertTo-Json против отступов Go), и требовать побайтового
+        # равенства значило бы подгонять одну реализацию под причуды форматирования
+        # другой. Равны обязаны быть числа и вердикт, а не расстановка пробелов.
+        if (-not $psVerdict -or -not $goVerdict) {
+            $script:fail += "судья, $case : машинный вердикт не прочитан у одной из реализаций"
+            return
+        }
+        foreach ($k in @('code','distance','checks_passed','checks_failed','checks_unknown','facts_closed','facts_gated','facts_required','verdict_text')) {
+            if ([string]$psVerdict.$k -ne [string]$goVerdict.$k) {
+                $script:fail += "судья, $case : поле $k расходится — скрипт «$($psVerdict.$k)», бинарник «$($goVerdict.$k)»"
+            }
+        }
+        # Набор полей тоже сверяется: поле, появившееся у одной реализации и не у другой,
+        # и есть начало молчаливого расхождения.
+        $psKeys = @($psVerdict.PSObject.Properties.Name | Sort-Object) -join ','
+        $goKeys = @($goVerdict.PSObject.Properties.Name | Sort-Object) -join ','
+        if ($psKeys -ne $goKeys) {
+            $script:fail += "судья, $case : наборы полей вердикта различаются — скрипт «$psKeys», бинарник «$goKeys»"
+        }
+        if ($script:fail.Count -eq 0 -or -not ($script:fail[-1] -like "судья, $case*")) {
+            $script:ok += "судья согласен, $case : код, текст и все числа вердикта"
         }
     }
 
