@@ -231,6 +231,106 @@ func readHistory(path string) []*int {
 	return out
 }
 
+// driftOnce — один замер двигателя цели ВНУТРИ процесса, без подпроцесса.
+//
+// Заведено переносом петли в бинарник: прежде петля звала goal-drift.ps1 отдельным
+// процессом на каждой итерации. Подпроцесс здесь был бы платой за то, что уже лежит под
+// рукой, — а ходы и есть цена.
+//
+// Возвращает код: 0 ALLOW, 1 THROTTLE, 2 ESCALATE, 3 ЖДЁТ ЛПР.
+func driftOnce(root string, record bool, note string) int {
+	m, _, _ := measureDrift(root, note)
+	if record {
+		recordMeasure(root, m)
+	}
+	switch m.Verdict {
+	case verdictEscalate:
+		return 2
+	case verdictBlocked:
+		return 3
+	case verdictThrottle:
+		return 1
+	}
+	return 0
+}
+
+func recordMeasure(root string, m driftMeasure) {
+	// История ДОПИСЫВАЕТСЯ и не переписывается: по ней видно не только что стояли, но и
+	// НА ЧТО ушли ходы, простоявшие мимо цели.
+	histDir := filepath.Join(root, ".woody")
+	_ = os.MkdirAll(histDir, 0o755)
+	b, err := json.Marshal(m)
+	if err != nil {
+		return
+	}
+	f, err := os.OpenFile(filepath.Join(histDir, "goal-drift.jsonl"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	_, _ = f.Write(append(b, '\r', '\n'))
+}
+
+// measureDrift — сбор фактов и применение правил. Отделено от вывода намеренно: то, что
+// считает, и то, что печатает, — разные обязанности, и смешение их мешает проверить
+// первое тестом.
+func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
+	lim := defaultLimits()
+	var cfg runConfig
+	if readJSON(filepath.Join(root, "run-config.json"), &cfg) == nil {
+		lim = lim.withConfig(cfg.GoalDrift)
+	}
+
+	var limits []string
+	var judgeDistance, judgeCode *int
+	var mv machineVerdict
+	vPath := filepath.Join(root, ".goal-verdict.json")
+	if err := readJSON(vPath, &mv); err != nil {
+		limits = append(limits, fmt.Sprintf(
+			"машинного вердикта нет (%s): расстояние по судье не измеряется. Судья должен быть прогнан хотя бы раз.", vPath))
+	} else {
+		judgeCode = intPtr(mv.Code)
+		if mv.Distance != nil {
+			judgeDistance = intPtr(*mv.Distance)
+		} else {
+			limits = append(limits, "судья вернул «нечем проверить»: расстояние неизвестно, а не ноль")
+		}
+	}
+
+	planPath := filepath.Join(root, "PLAN.md")
+	plan := parsePlan(planPath)
+	var planOpen *int
+	if !plan.Found {
+		limits = append(limits, fmt.Sprintf("плана нет (%s): расстояние по шагам не измеряется", planPath))
+	} else {
+		planOpen = intPtr(plan.OpenWork())
+	}
+
+	// Непроверенное НЕ СВОРАЧИВАЕТСЯ В НОЛЬ и не складывается: если хоть одна часть
+	// неизвестна, неизвестно и целое. Иначе пропажа судьи выглядела бы как приближение.
+	var distance *int
+	if judgeDistance != nil && planOpen != nil {
+		distance = intPtr(*judgeDistance + *planOpen)
+	}
+
+	history := readHistory(filepath.Join(root, ".woody", "goal-drift.jsonl"))
+	v, reasons := evaluate(distance, judgeCode, history, lim)
+	stall, unverifiable := countStreaks(history, distance)
+
+	return driftMeasure{
+		At:                 time.Now().Format("2006-01-02T15:04:05"),
+		Distance:           distance,
+		JudgeDistance:      judgeDistance,
+		JudgeCode:          judgeCode,
+		PlanOpenSteps:      planOpen,
+		PlanGates:          plan.Gates(),
+		StallMoves:         stall,
+		UnverifiableStreak: unverifiable,
+		Verdict:            v,
+		Note:               note,
+		By:                 appName + " " + version,
+	}, reasons, limits
+}
 func cmdDrift(argv []string) int {
 	fs := flag.NewFlagSet("drift", flag.ContinueOnError)
 	product := fs.String("product", ".", "корень продукта")

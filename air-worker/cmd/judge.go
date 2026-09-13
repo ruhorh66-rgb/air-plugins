@@ -41,6 +41,27 @@ type judgeSpec struct {
 	Checks    []checkSpec `json:"checks"`
 	Checklist string      `json:"checklist"`
 	MinFacts  int         `json:"min_facts"`
+	// Свой судья продукта берётся, ТОЛЬКО если он назван. Умолчание — универсальный:
+	// продукт объявляет, ЧТО проверять, а не КАК. Раньше каждый продукт писал своего, и
+	// частности одного протекали в образец для всех.
+	Path string   `json:"path"`
+	Args []string `json:"args"`
+}
+
+type budgetSpec struct {
+	// Три потолка, любой останавливает петлю. Защита от разорения, а не настройка вкуса.
+	Iterations        int     `json:"iterations"`
+	USD               float64 `json:"usd"`
+	TurnsPerIteration int     `json:"turns_per_iteration"`
+	// Четвёртый предохранитель: прогонов без сдвига вердикта. Требование 7 нормы
+	// AUTO-080 — механизм, молча жгущий квоту на работе, которая не идёт, хуже
+	// остановленного: он ВЫГЛЯДИТ работающим.
+	StallRuns int `json:"stall_runs"`
+}
+
+type orchestrationSpec struct {
+	Enabled   bool `json:"enabled"`
+	Subagents int  `json:"subagents"`
 }
 
 type driftThresholds struct {
@@ -50,9 +71,13 @@ type driftThresholds struct {
 }
 
 type runConfig struct {
-	Judge     judgeSpec       `json:"judge"`
-	Plan      string          `json:"plan"`
-	GoalDrift driftThresholds `json:"goal_drift"`
+	Judge         judgeSpec             `json:"judge"`
+	Plan          string                `json:"plan"`
+	GoalDrift     driftThresholds       `json:"goal_drift"`
+	Ladder        []string              `json:"ladder"`
+	Runners       map[string]runnerSpec `json:"runners"`
+	Orchestration orchestrationSpec     `json:"orchestration"`
+	Budget        budgetSpec            `json:"budget"`
 }
 
 type factItem struct {

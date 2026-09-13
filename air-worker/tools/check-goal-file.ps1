@@ -114,26 +114,43 @@ Assert-That 'taskFile похож на путь, а не на вклеенное 
 }
 
 # --- 5. охват: список объявленных путей собран и он НЕ ПУСТ — до цикла, не после ------
+# ОТНОСИТЕЛЬНЫЕ ПУТИ РАЗРЕШАЮТСЯ ОТ КОРНЯ ПРОДУКТА, а не от каталога вызова и не от
+# машины автора. Найдено AIR-ENV-002 13.09.2026 при развёртывании на второй машине:
+# в договоре стояли абсолютные пути машины разработчика, и продукт про двигатель цели
+# оказался с целью, написанной под один хост.
+#
+# Хуже того, у неё каталог с тем же абсолютным путём СУЩЕСТВОВАЛ — старый неполный клон.
+# Поэтому отказ говорил про отсутствующий PLAN.md ВНУТРИ него, то есть указывал на файл,
+# а не на корень. Неверный путь, ведущий в существующее место, врёт убедительнее
+# отсутствующего, и диагноз уводил в сторону.
+function Resolve-Declared([string]$path) {
+    if (-not $path) { return $null }
+    if ([System.IO.Path]::IsPathRooted($path)) { return $path }
+    return [System.IO.Path]::GetFullPath((Join-Path $productRoot $path))
+}
+
+# Первое слово команды — исполняемый файл. Прежде отсюда доставали аргумент -File, и это
+# работало ровно пока судья был скриптом PowerShell; теперь он бинарник продукта, и
+# образец, знающий одну форму вызова, объявил бы исправный договор неполным.
+function Get-CommandExe([string]$cmd) {
+    if (-not $cmd) { return $null }
+    $m = [regex]::Match($cmd, '-File\s+"([^"]+)"')
+    if (-not $m.Success) { $m = [regex]::Match($cmd, "-File\s+'([^']+)'") }
+    if ($m.Success) { return $m.Groups[1].Value }
+    $first = ($cmd.Trim() -split '\s+')[0].Trim('"', "'")
+    return $first
+}
+
 $toCheck = New-Object System.Collections.Generic.List[object]
-if ($goal.workdir) { $toCheck.Add([pscustomobject]@{ Name = 'workdir'; Path = [string]$goal.workdir }) }
+if ($goal.workdir) { $toCheck.Add([pscustomobject]@{ Name = 'workdir'; Path = (Resolve-Declared ([string]$goal.workdir)) }) }
 if ($goal.workdir -and $goal.taskFile) {
     $tf = [string]$goal.taskFile
-    $tfPath = if ([System.IO.Path]::IsPathRooted($tf)) { $tf } else { Join-Path ([string]$goal.workdir) $tf }
+    $tfPath = if ([System.IO.Path]::IsPathRooted($tf)) { $tf } else { Join-Path (Resolve-Declared ([string]$goal.workdir)) $tf }
     $toCheck.Add([pscustomobject]@{ Name = 'taskFile'; Path = $tfPath })
 }
-if ($goal.judge) {
-    $judgeText = [string]$goal.judge
-    $m = [regex]::Match($judgeText, '-File\s+"([^"]+)"')
-    if (-not $m.Success) { $m = [regex]::Match($judgeText, "-File\s+'([^']+)'") }
-    if ($m.Success) { $toCheck.Add([pscustomobject]@{ Name = 'судья (-File)'; Path = $m.Groups[1].Value }) }
-}
-# Поле engine (шаг 6 плана) — той же формы, что judge: команда, а не описание. Извлекается
-# тем же способом, тем же требованием: объявленный путь обязан существовать на машине.
-if ($goal.engine) {
-    $engineText = [string]$goal.engine
-    $m = [regex]::Match($engineText, '-File\s+"([^"]+)"')
-    if (-not $m.Success) { $m = [regex]::Match($engineText, "-File\s+'([^']+)'") }
-    if ($m.Success) { $toCheck.Add([pscustomobject]@{ Name = 'двигатель (-File)'; Path = $m.Groups[1].Value }) }
+foreach ($pair in @(@{ N = 'судья'; V = $goal.judge }, @{ N = 'двигатель'; V = $goal.engine })) {
+    $exe = Get-CommandExe ([string]$pair.V)
+    if ($exe) { $toCheck.Add([pscustomobject]@{ Name = "$($pair.N) (исполняемый)"; Path = (Resolve-Declared $exe) }) }
 }
 if ($toCheck.Count -eq 0) {
     Write-Output 'НЕЧЕМ ПРОВЕРИТЬ: из goal.json не собрано ни одного пути — договор пуст либо не разобран.'

@@ -50,6 +50,10 @@ func usage() {
   air-worker drift  -product <корень> [-record] [-note "..."] [-json] [-quiet]
         Двигатель цели. Коды: 0 ALLOW, 1 THROTTLE, 2 ESCALATE, 3 ЖДЁТ ЛПР.
 
+  air-worker loop   -product <корень> [-config <путь>] [-plan-only] [-whatif]
+        Петля: следующий незакрытый шаг плана на назначенной ступени, до вердикта
+        либо до объявленного потолка. Ступень поднимается только когда судья не сдвинулся.
+
   air-worker version
 `)
 }
@@ -65,6 +69,8 @@ func main() {
 		os.Exit(cmdJudge(os.Args[2:]))
 	case "drift":
 		os.Exit(cmdDrift(os.Args[2:]))
+	case "loop":
+		os.Exit(cmdLoop(os.Args[2:]))
 	case "version", "-v", "--version":
 		fmt.Printf("%s %s\n", appName, version)
 		os.Exit(0)

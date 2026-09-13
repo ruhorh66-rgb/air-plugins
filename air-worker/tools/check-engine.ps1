@@ -104,21 +104,43 @@ Assert-That 'goal.json называет команду двигателя (по�
 }
 
 $engineText = [string]$goal.engine
+
+# ФОРМА ВЫЗОВА НЕ ОДНА, И ПРОВЕРКА ОБЯЗАНА ЗНАТЬ ОБЕ. Прежде отсюда доставали только
+# аргумент -File, и это работало ровно пока двигателем был скрипт PowerShell. 13.09.2026
+# двигателем стал бинарник продукта, договор стал верным — а проверка объявила его
+# неполным: «из команды двигателя извлекается путь к скрипту (-File)». Проверка, знающая
+# одну форму, проверяет форму, а не предмет. Четвёртый случай за сутки, когда неправа
+# оказалась проверка, а не проверяемое.
+#
+# ПУТИ ОТНОСИТЕЛЬНЫЕ — от корня продукта. Найдено AIR-ENV-002 при развёртывании на второй
+# машине: абсолютные пути машины автора делали цель продукта пригодной для одного хоста.
+function Resolve-Declared([string]$path) {
+    if (-not $path) { return $null }
+    if ([System.IO.Path]::IsPathRooted($path)) { return $path }
+    return [System.IO.Path]::GetFullPath((Join-Path $productRoot $path))
+}
+
 $m = [regex]::Match($engineText, '-File\s+"([^"]+)"')
 if (-not $m.Success) { $m = [regex]::Match($engineText, "-File\s+'([^']+)'") }
-$enginePath = if ($m.Success) { $m.Groups[1].Value } else { $null }
+$exeToken = ($engineText.Trim() -split '\s+')[0].Trim('"', "'")
+$enginePath = if ($m.Success) { Resolve-Declared $m.Groups[1].Value } else { Resolve-Declared $exeToken }
 
-Assert-That 'из команды двигателя извлекается путь к скрипту (-File)' { $null -ne $enginePath }.GetNewClosure()
-Assert-That 'скрипт двигателя существует на этой машине' {
+Assert-That 'из команды двигателя извлекается исполняемый файл' { $null -ne $enginePath }.GetNewClosure()
+Assert-That 'двигатель существует на этой машине' {
     if (-not $enginePath) { throw 'путь не извлечён — нечем проверить существование' }
     Test-Path -LiteralPath $enginePath -PathType Leaf
 }.GetNewClosure()
 
-# Первое слово команды — исполняемый файл (powershell/powershell.exe); он обязан
-# резолвиться в PATH этого процесса, а не предполагаться существующим.
-$exeToken = ($engineText.Trim() -split '\s+')[0]
-Assert-That "исполняемый файл команды резолвится в PATH: $exeToken" {
-    [bool](Get-Command $exeToken -ErrorAction SilentlyContinue)
+# Исполняемый файл обязан резолвиться: либо как путь внутри продукта, либо в PATH этого
+# процесса. Второе — для форм вызова через powershell/интерпретатор.
+# Значение вычисляется ДО замыкания. .GetNewClosure() кладёт блок в собственный модуль,
+# и функции скрипта внутри него не видны — вызов Resolve-Declared оттуда падал с «не
+# распознано», а проверка объявляла исправный договор сломанным. Внутрь замыкания уходят
+# только переменные.
+$exeResolvesAsPath = Test-Path -LiteralPath (Resolve-Declared $exeToken) -PathType Leaf
+$exeResolvesInPath = [bool](Get-Command $exeToken -ErrorAction SilentlyContinue)
+Assert-That "исполняемый файл команды резолвится: $exeToken" {
+    $exeResolvesAsPath -or $exeResolvesInPath
 }.GetNewClosure()
 
 # --- 2. потолки прочитаны и осмысленны: не ноль, не отрицательные ----------------------
@@ -143,19 +165,45 @@ Assert-That 'команда двигателя не заводит задачу 
     $engineText -notmatch '(?i)schtasks|Register-ScheduledTask'
 }
 
+# ИСТОЧНИК ДВИГАТЕЛЯ ИЩЕТСЯ ПО ТОМУ, ЧЕМ ОН ЯВЛЯЕТСЯ, А НЕ ПО ТОМУ, ЧЕМ БЫЛ.
+#
+# Прежде здесь читался текст .ps1 и искались `while` и `Invoke-Judge`. 13.09.2026
+# двигателем стал бинарник: договор верен, механизм исправен — а проверка объявила его
+# сломанным, потому что искала синтаксис PowerShell в исполняемом файле. Это уже четвёртый
+# за сутки случай, когда неправа оказалась ПРОВЕРКА: она знала одну форму предмета и
+# проверяла форму вместо предмета.
+#
+# Предмет же неизменен и не зависит от языка: цикл крутится ВНУТРИ одного процесса и зовёт
+# судью больше одного раза за запуск, а задачи планировщика ОС не заводит ни он, ни команда
+# его запуска.
+$engineSrcPath = $null
+$engineLang = $null
 if ($enginePath -and (Test-Path -LiteralPath $enginePath -PathType Leaf)) {
-    $engineSrc = [System.IO.File]::ReadAllText($enginePath, [System.Text.Encoding]::UTF8)
-    Assert-That 'сам скрипт двигателя не заводит задачу планировщика ОС' {
+    if ($enginePath -like '*.ps1') {
+        $engineSrcPath = $enginePath; $engineLang = 'powershell'
+    } elseif ($enginePath -like '*.exe') {
+        # У собранного файла исходник рядом, в самом продукте: cmd\loop.go.
+        $candidate = Join-Path $productRoot 'cmd\loop.go'
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { $engineSrcPath = $candidate; $engineLang = 'go' }
+    }
+}
+
+if (-not $engineSrcPath) {
+    Write-Output '  ИСХОДНИК ДВИГАТЕЛЯ НЕ НАЙДЕН — свойства цикла не проверены. Это «нечем проверить», и оно названо, а не пропущено молча.'
+} else {
+    $engineSrc = [System.IO.File]::ReadAllText($engineSrcPath, [System.Text.Encoding]::UTF8)
+    Assert-That "сам двигатель не заводит задачу планировщика ОС ($engineLang)" {
         $engineSrc -notmatch '(?i)Register-ScheduledTask|schtasks\.exe|schtasks '
     }.GetNewClosure()
-    # Положительное доказательство, а не только отсутствие отрицательного: цикл крутится
-    # ВНУТРИ одного процесса (собственный while) и зовёт судью больше одного раза за
-    # запуск — иначе «без задачи планировщика» было бы верно и для скрипта, который просто
-    # ничего не повторяет.
-    Assert-That 'двигатель крутится в собственном цикле (while) внутри одного процесса' {
-        $engineSrc -match '(?m)^\s*while\s*\('
+    # Положительное доказательство, а не только отсутствие отрицательного: без него
+    # «без задачи планировщика» было бы верно и для программы, которая просто ничего
+    # не повторяет.
+    $loopPattern = if ($engineLang -eq 'go') { '(?m)^\s*for\s*\{' } else { '(?m)^\s*while\s*\(' }
+    Assert-That "двигатель крутится в собственном цикле внутри одного процесса ($engineLang)" {
+        $engineSrc -match $loopPattern
     }.GetNewClosure()
-    $judgeCalls = @([regex]::Matches($engineSrc, 'Invoke-Judge\b'))
+    $judgePattern = if ($engineLang -eq 'go') { '\bc\.judge\(\)' } else { 'Invoke-Judge\b' }
+    $judgeCalls = @([regex]::Matches($engineSrc, $judgePattern))
     Assert-That 'двигатель зовёт судью больше одного раза за один запуск (петля, а не разовый вызов)' {
         $judgeCalls.Count -ge 2
     }.GetNewClosure()
