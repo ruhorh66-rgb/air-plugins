@@ -15,6 +15,12 @@ import (
 
 var reNonWord = regexp.MustCompile(`[^\p{L}\p{Nd}]+`)
 
+// Ответ исполнителя, которому не дали прав. Образец широкий намеренно: формулировка
+// клиента меняется от версии к версии и от языка, а последствие всегда одно — работы не
+// было. Узкий образец промолчал бы на новой формулировке, и мы вернулись бы к тому, что
+// платим за пустые прогоны.
+var reNeedsPermission = regexp.MustCompile(`(?i)(разреш|подтверд|permission|approve|allow this)`)
+
 // runModelStep — шаг, исполняемый моделью.
 //
 // ЗАДАНИЕ ПЕРЕДАЁТСЯ ПУТЁМ К ФАЙЛУ, А НЕ ТЕКСТОМ. Требование 3 нормы AUTO-080, купленное
@@ -116,6 +122,11 @@ type claudeResult struct {
 func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec) stepResult {
 	args := []string{"-p", prompt, "--model", runner.Model, "--output-format", "json",
 		"--max-turns", fmt.Sprintf("%d", c.MaxTurns)}
+	// Без этого отцеплённый исполнитель не может писать файлы вовсе: он спрашивает
+	// подтверждение, которого некому дать, и возвращает «успех», ничего не сделав.
+	if c.Permission != "" {
+		args = append(args, "--permission-mode", c.Permission)
+	}
 	// Уровни усилия: low, medium, high, xhigh, max. Неизвестное значение CLI не отвергает,
 	// а МОЛЧА берёт умолчание — печатает предупреждение и идёт дальше. Поэтому опечатка в
 	// лестнице обошлась бы дороже ошибки: прогон состоялся бы не на том усилии, и замер
@@ -174,10 +185,27 @@ func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec) stepRe
 	if res.IsError {
 		sub = "runner_error"
 	}
+	// ИСПОЛНИТЕЛЬ ПРОСИТ РАЗРЕШЕНИЯ — ЭТО НЕ ОТКАЗ МОДЕЛИ И НЕ РАБОТА.
+	//
+	// Найдено первым настоящим прогоном 13.09.2026 ценой $7.33 за две итерации и НОЛЬ
+	// изменённых файлов. Отцеплённый claude -p не может писать: он просит подтверждение,
+	// которого в отцепленном прогоне дать некому, — и возвращает is_error=false. То есть
+	// для петли это выглядело как удавшийся прогон, просто ничего не сделавший, и она
+	// честно поднимала ступень, оплачивая дороже то, что не могло исполниться в принципе.
+	//
+	// Ни --permission-mode acceptEdits, ни --allowedTools Write Edit этого не снимают:
+	// проверено прогоном, оба раза ответ тот же. Снимает только полное отключение
+	// проверок, а это решение ЛПР, а не механизма.
+	//
+	// Различать обязательно: «нечем исполнить» ведёт к человеку, «модель не справилась» —
+	// к подъёму ступени. Спутать их значит платить дороже за то, что не исполнится.
+	if !res.IsError && reNeedsPermission.MatchString(res.Result) {
+		sub = "needs_permission"
+	}
 	return stepResult{
 		Ok: !res.IsError, Cost: res.TotalCostUSD, Turns: res.NumTurns,
 		Session: res.SessionID, Subtype: sub, ApiMs: res.DurationAPI,
-		Detail: strings.TrimSpace(res.Result),
+		Detail:  strings.TrimSpace(res.Result),
 	}
 }
 

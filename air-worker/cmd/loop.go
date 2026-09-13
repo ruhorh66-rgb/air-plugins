@@ -44,6 +44,7 @@ type loopCtx struct {
 	WhatIf      bool
 	JudgePath   string
 	JudgeArgs   []string
+	Permission  string
 
 	spent       float64
 	iter        int
@@ -121,6 +122,10 @@ func cmdLoop(argv []string) int {
 		Orchestrate: cfg.Orchestration.Enabled,
 		Subagents:   orInt(cfg.Orchestration.Subagents, 2),
 		StepsPath:   filepath.Join(root, "steps.jsonl"),
+		Permission:  cfg.Runner.PermissionMode,
+	}
+	if c.Permission == "" {
+		c.Permission = "acceptEdits"
 	}
 	if len(c.Ladder) == 0 {
 		c.Ladder = []string{"script", "haiku", "sonnet", "opus"}
@@ -187,6 +192,12 @@ func cmdLoop(argv []string) int {
 		}
 	}
 	line(fmt.Sprintf("бюджет      : %d итераций, $%.0f, %d ходов на итерацию", c.MaxIter, c.MaxUSD, c.MaxTurns))
+	// ПРАВА ИСПОЛНИТЕЛЯ НАЗЫВАЮТСЯ ВСЛУХ, до первой итерации. Отцеплённая модель сейчас
+	// получит право править этот продукт, и человек обязан увидеть это заранее, а не по
+	// следам в git.
+	// Права называются вслух ДО первой итерации, и называются честно: объявленный режим
+	// сам по себе НЕ даёт отцеплённому исполнителю писать файлы — это проверено прогоном.
+	line("права исполн: " + c.Permission + " (полного отключения проверок нет — исполнитель писать не сможет, см. шаг плана)")
 	if c.Orchestrate {
 		line(fmt.Sprintf("оркестрация : включена, субагентов %d", c.Subagents))
 	} else {
@@ -292,6 +303,10 @@ func cmdLoop(argv []string) int {
 				"total_cost_usd": r.Cost, "num_turns": r.Turns,
 				"duration_api_ms": r.ApiMs, "session_id": nullIfEmpty(r.Session),
 				"subtype": nullIfEmpty(r.Subtype), "spent_usd": round4(c.spent),
+				// ОТВЕТ ИСПОЛНИТЕЛЯ ЛОЖИТСЯ В ЖУРНАЛ. Без него прогон, потративший
+				// $7.33 и не изменивший ни одного файла, не оставлял следа о причине:
+				// цена и ходы были, а что сказал исполнитель — нигде.
+				"runner_said": nullIfEmpty(r.Detail),
 				"orchestration": c.Orchestrate, "subagents": c.subagentsInLog(),
 			})
 
@@ -345,6 +360,13 @@ func cmdLoop(argv []string) int {
 			// подтипы ошибок и пропускала общий случай: вызов не состоялся, судья
 			// естественно не сдвинулся, и петля лезла вверх по лестнице, оплачивая
 			// дороже то, что не исполнилось ни разу.
+			if r.Subtype == "needs_permission" {
+				closeWoody("ничего: исполнителю не дали прав, работы не было",
+					"РЕШЕНИЕ ЛПР: отцеплённый исполнитель не может писать файлы без полного отключения "+
+						"проверок прав. Ни permission-mode acceptEdits, ни перечень allowedTools этого не "+
+						"снимают — проверено прогоном. Пока права не даны, петля тратит деньги и не может "+
+						"сделать НИЧЕГО. Ответ исполнителя: "+r.Detail, 2)
+			}
 			if r.Subtype == "runner_error" {
 				closeWoody("ничего: исполнитель отказал, работы не было",
 					"разобрать отказ исполнителя — это «нечем исполнить», а не «модель не справилась»: "+
