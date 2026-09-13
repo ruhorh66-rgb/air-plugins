@@ -309,7 +309,7 @@ func cmdDrift(argv []string) int {
 		UnverifiableStreak: unverifiable,
 		Verdict:            v,
 		Note:               *note,
-		By:                 "woody " + version,
+		By:                 appName + " " + version,
 	}
 
 	if *record {

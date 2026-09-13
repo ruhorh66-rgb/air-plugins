@@ -415,7 +415,7 @@ func publishVerdict(root string, code int, text string, r judgeResult) {
 		FactsGated:    r.FactsGated,
 		FactsRequired: r.FactsRequired,
 		VerdictText:   text,
-		By:            "woody " + version,
+		By:            appName + " " + version,
 	}
 	if b, err := json.MarshalIndent(mv, "", "  "); err == nil {
 		_ = os.WriteFile(filepath.Join(root, ".goal-verdict.json"), b, 0o644)

@@ -30,10 +30,10 @@ try { [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) } catch { }
 
 $fail = @(); $unknown = @(); $ok = @()
 
-$exe = Join-Path $ProductRoot 'bin\woody.exe'
+$exe = Join-Path $ProductRoot 'bin\air-worker.exe'
 if (-not (Test-Path -LiteralPath $exe)) {
     Write-Output "[FAIL] нечем проверить: нет $exe — бинарник не собран"
-    Write-Output '[FAIL] собрать: go build -trimpath -ldflags "-s -w" -o bin\woody.exe .\woody-bin'
+    Write-Output '[FAIL] собрать: go build -trimpath -ldflags "-s -w" -o bin\air-worker.exe .\cmd'
     exit 2
 }
 $ok += 'бинарник на месте'
