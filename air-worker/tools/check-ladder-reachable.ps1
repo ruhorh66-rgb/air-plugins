@@ -48,11 +48,16 @@ function Assert-That([string]$title, [scriptblock]$check) {
 $ladderText = [System.IO.File]::ReadAllText($ladder, [System.Text.Encoding]::UTF8)
 $judgeText  = [System.IO.File]::ReadAllText($judgeRun, [System.Text.Encoding]::UTF8)
 
-$py = $null
-foreach ($n in @('python', 'python3')) {
-    $c = Get-Command $n -ErrorAction SilentlyContinue
-    if ($c) { $py = $c.Source; break }
-}
+# ИНТЕРПРЕТАТОР ИЩЕТСЯ ПО ОТВЕТУ, И ИЩЕТ ЕГО ОБЩАЯ ФУНКЦИЯ. Здесь стоял резолв по имени
+# через Get-Command без пробы — последний уцелевший экземпляр дефекта, чинившегося в
+# продукте трижды по месту находки. Найдено AIR-ENV-002 13.09.2026: у неё Get-Command
+# python отдавал алиас-заглушку магазина, та отвечала «Python was not found» с кодом 9009,
+# и рушились ТРИ утверждения сразу — причём первое звучало пустым отказом без причины.
+# Полчаса ушло на поиск того, чего не хватает её машине. Не хватало не ей.
+. (Join-Path $PSScriptRoot 'lib\resolve-tool.ps1')
+$pyInfo = Resolve-ProductPython
+$py = if ($pyInfo.Ok) { $pyInfo.Path } else { $null }
+if (-not $pyInfo.Ok) { Write-Output ("  интерпретатор не найден: " + $pyInfo.Reason) }
 
 # 1. Ступени 2-3: отсутствие команды даёт ПРОПУСК, а не исключение.
 Assert-That 'ступень 2 при отсутствии команды пропускает, а не бросает исключение' {

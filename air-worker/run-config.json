@@ -55,7 +55,7 @@
 
     "_checklist": "Реестр живёт с продуктом и под git.",
     "checklist": "goal/checklist.json",
-    "min_facts": 12
+    "min_facts": 13
   },
 
   "plan": "PLAN.md",

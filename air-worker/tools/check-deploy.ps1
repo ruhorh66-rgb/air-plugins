@@ -25,17 +25,13 @@ try { [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) } catch { }
 
 $fail = @(); $unknown = @(); $ok = @()
 
+# Своя копия поиска УБРАНА: она была верной, но вторая верная копия того же правила — это
+# и есть «две реализации расходятся молча», только про инструмент. Общая функция одна.
+. (Join-Path $PSScriptRoot 'lib\resolve-tool.ps1')
 function Get-Python {
-    foreach ($c in @($env:AIR_PYTHON, 'python', 'python3', 'py')) {
-        if (-not $c) { continue }
-        $r = Get-Command $c -ErrorAction SilentlyContinue
-        if (-not $r) { continue }
-        # Резолв не доказывает наличия, доказывает только ОТВЕТ: в WindowsApps лежат
-        # алиасы-заглушки магазина, которые находятся и не исполняются.
-        $v = & $c -c "import sys;print(sys.version.split()[0])" 2>$null
-        if ($LASTEXITCODE -eq 0 -and $v) { return [pscustomobject]@{ Exe = $r.Source; Version = ([string]$v).Trim() } }
-    }
-    return $null
+    $r = Resolve-ProductPython
+    if (-not $r.Ok) { return $null }
+    return [pscustomobject]@{ Exe = $r.Path; Version = $r.Version }
 }
 
 # --- 1. интерпретатор отвечает ----------------------------------------------
