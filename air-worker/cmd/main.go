@@ -54,6 +54,10 @@ func usage() {
         Петля: следующий незакрытый шаг плана на назначенной ступени, до вердикта
         либо до объявленного потолка. Ступень поднимается только когда судья не сдвинулся.
 
+  air-worker plan   -product <корень> [-apply] [-model M] [-dry-run] [-use-answer <файл>]
+        Планировщик: разбивка цели на шаги ОДНИМ дорогим вызовом. Предлагает в
+        PLAN.proposed.md; существующий PLAN.md не трогается никогда.
+
   air-worker version
 `)
 }
@@ -71,6 +75,8 @@ func main() {
 		os.Exit(cmdDrift(os.Args[2:]))
 	case "loop":
 		os.Exit(cmdLoop(os.Args[2:]))
+	case "plan":
+		os.Exit(cmdPlan(os.Args[2:]))
 	case "version", "-v", "--version":
 		fmt.Printf("%s %s\n", appName, version)
 		os.Exit(0)

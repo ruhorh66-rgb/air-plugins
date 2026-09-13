@@ -41,16 +41,25 @@ $ladder = if ($cfg) { @($cfg.ladder) } else { @() }
 if (-not $ladder.Count) { $unknown += 'лестница продукта не прочитана: ступени сверять не с чем' }
 
 # --- механизм на месте -------------------------------------------------------
+# ПЛАНИРОВЩИК ИЩЕТСЯ ТАМ, ГДЕ ОН ЖИВЁТ СЕЙЧАС, А НЕ ГДЕ ЖИЛ.
+# С 13.09.2026 он в бинарнике продукта; скрипт остаётся рядом, пока равенство не
+# доказано и на нём. Проверка обязана знать обе формы — иначе она проверяет форму, а не
+# предмет, и это уже стоило нам шести ложных отказов за сутки.
 $plannerPath = $null
-foreach ($c in @(
-    $env:WOODY_PLANNER,
-    $(if ($env:CLAUDE_CONFIG_DIR) { Join-Path $env:CLAUDE_CONFIG_DIR 'skills\air-woody\scripts\planner.ps1' } else { $null }),
-    'F:\-7-\air-worker\skills\woody\scripts\planner.ps1'
-)) { if ($c -and (Test-Path -LiteralPath $c -PathType Leaf)) { $plannerPath = $c; break } }
+$plannerKind = $null
+$binPlanner = Join-Path $ProductRoot 'bin\air-worker.exe'
+if (Test-Path -LiteralPath $binPlanner -PathType Leaf) { $plannerPath = $binPlanner; $plannerKind = 'бинарник' }
+if (-not $plannerPath) {
+    foreach ($c in @(
+        $env:WOODY_PLANNER,
+        (Join-Path $ProductRoot 'skills\woody\scripts\planner.ps1'),
+        $(if ($env:CLAUDE_CONFIG_DIR) { Join-Path $env:CLAUDE_CONFIG_DIR 'skills\air-woody\scripts\planner.ps1' } else { $null })
+    )) { if ($c -and (Test-Path -LiteralPath $c -PathType Leaf)) { $plannerPath = $c; $plannerKind = 'скрипт'; break } }
+}
 if (-not $plannerPath) {
     $unknown += 'планировщик не найден: ни WOODY_PLANNER, ни скил air-woody, ни известное расположение'
 } else {
-    $ok += 'планировщик резолвится'
+    $ok += "планировщик резолвится ($plannerKind)"
 }
 
 # --- один вызов, и это видно из замера ---------------------------------------
@@ -110,15 +119,20 @@ if (-not (Test-Path -LiteralPath $prop)) {
 }
 
 # --- план остался у человека: проверяется веткой отказа, а не обещанием -------
-if ($plannerPath) {
-    $src = Get-Content -LiteralPath $plannerPath -Raw -Encoding UTF8
+# Ветка отказа ищется в ИСХОДНИКЕ: у скрипта это он сам, у бинарника — cmd\planner.go
+# рядом в продукте. Читать байты исполняемого файла в поисках русских слов бессмысленно.
+$plannerSrcPath = $plannerPath
+if ($plannerKind -eq 'бинарник') { $plannerSrcPath = Join-Path $ProductRoot 'cmd\planner.go' }
+if ($plannerSrcPath -and (Test-Path -LiteralPath $plannerSrcPath -PathType Leaf)) {
+    $src = Get-Content -LiteralPath $plannerSrcPath -Raw -Encoding UTF8
     if ($src -notmatch 'PLAN\.proposed\.md') {
         $fail += 'планировщик не кладёт предложение отдельным файлом: значит пишет прямо в план'
     }
     # Ветка обязана существовать: «PLAN.md есть -> не трогаю». Ищется рядом с проверкой
     # существования плана, а не по всему файлу: упоминание без ветки — это обещание.
     $hasRefuse = $false
-    foreach ($m in [regex]::Matches($src, '(?s)Test-Path[^\r\n]{0,80}\$planPath')) {
+    $refusePattern = if ($plannerKind -eq 'бинарник') { '(?s)os\.Stat\(planPath\)' } else { '(?s)Test-Path[^\r\n]{0,80}\$planPath' }
+    foreach ($m in [regex]::Matches($src, $refusePattern)) {
         $tail = $src.Substring($m.Index, [Math]::Min(600, $src.Length - $m.Index))
         if ($tail -match 'НЕ ТРОГАЮ|не трогаю') { $hasRefuse = $true; break }
     }
