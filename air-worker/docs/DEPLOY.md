@@ -92,7 +92,7 @@ AIR-ENV-002 13.09.2026 на живой установке: `install` стави�
 ### 4a. Проверить канон плагина — до установки и после
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File <клон>ir-worker	ools\check-plugin.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File <клон>\air-worker\tools\check-plugin.ps1
 ```
 
 Проверяет ПЕРЕНОСИМОСТЬ ОБЪЯВЛЕНИЙ, а не наличие файлов: абсолютный путь с буквой диска в
