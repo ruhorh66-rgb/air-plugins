@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -33,6 +34,17 @@ import (
 // справилась» — разные исходы, и путать их дорого: на втором петля поднимает ступень и
 // платит за ту же ошибку дороже.
 func resolveRunnerTool(tool string) (string, error) {
+	p, _, err := resolveRunnerToolWhy(tool)
+	return p, err
+}
+
+// resolveRunnerToolWhy — то же, но называет ПРАВИЛО, которым найдено.
+//
+// Заведено по разбору AIR-ENV-002 13.09.2026: единственным способом узнать, каким
+// исполнителем пойдёт петля, был запуск петли — то есть узнать цену можно было, только
+// заплатив её. А для второй машины, которой у автора нет, это был вообще единственный
+// способ подтвердить починку резолвера.
+func resolveRunnerToolWhy(tool string) (string, string, error) {
 	var tried []string
 
 	// Явное перекрытие. Имя переменной историческое — её объявляют на машинах, где
@@ -40,14 +52,14 @@ func resolveRunnerTool(tool string) (string, error) {
 	if tool == "claude" {
 		if v := strings.TrimSpace(os.Getenv("CLAUDE_JUDGE_EXE")); v != "" {
 			if _, err := os.Stat(v); err == nil {
-				return v, nil
+				return v, "перекрытие CLAUDE_JUDGE_EXE", nil
 			}
 			tried = append(tried, "CLAUDE_JUDGE_EXE="+v+" — файла нет")
 		}
 	}
 	if v := strings.TrimSpace(os.Getenv("AIR_" + strings.ToUpper(tool) + "_EXE")); v != "" {
 		if _, err := os.Stat(v); err == nil {
-			return v, nil
+			return v, "перекрытие AIR_" + strings.ToUpper(tool) + "_EXE", nil
 		}
 		tried = append(tried, "AIR_"+strings.ToUpper(tool)+"_EXE="+v+" — файла нет")
 	}
@@ -58,7 +70,7 @@ func resolveRunnerTool(tool string) (string, error) {
 		// «пробный» противоречил бы смыслу продукта. Поэтому ловим известную обманку по
 		// признаку, а не по ответу: алиасы магазина в WindowsApps имеют нулевой размер.
 		if !isStoreStub(p) {
-			return p, nil
+			return p, "PATH", nil
 		}
 		tried = append(tried, p+" — алиас-заглушка магазина")
 	} else {
@@ -67,12 +79,12 @@ func resolveRunnerTool(tool string) (string, error) {
 
 	for _, cand := range knownToolLocations(tool) {
 		if _, err := os.Stat(cand); err == nil {
-			return cand, nil
+			return cand, "известное расположение", nil
 		}
 		tried = append(tried, cand+" — нет")
 	}
 
-	return "", fmt.Errorf("'%s' не найден: %s", tool, strings.Join(tried, "; "))
+	return "", "", fmt.Errorf("'%s' не найден: %s", tool, strings.Join(tried, "; "))
 }
 
 func isStoreStub(p string) bool {
@@ -117,4 +129,39 @@ func knownToolLocations(tool string) []string {
 		return []string{filepath.Join(home, ".local", "bin", "codex"+ext)}
 	}
 	return nil
+}
+
+// cmdTool — сухой вывод выбора исполнителя. НИЧЕГО НЕ ЗАПУСКАЕТ И НЕ СТОИТ НИ КОПЕЙКИ.
+//
+// Заведено по разбору AIR-ENV-002 13.09.2026, и её формулировка — основание: «единственный
+// способ узнать, каким исполнителем пойдёт петля, это запустить петлю; то есть узнать цену
+// можно, только заплатив её».
+//
+// Второе основание тяжелее первого. Починку резолвера, сделанную под её машину, на её
+// машине нечем было подтвердить: -whatif останавливается раньше выбора исполнителя,
+// -dry-run тоже, а всё остальное зовёт модель. Подтверждение оставалось чтением кода — то
+// есть ровно той валютой, которую мы весь день отказывались принимать.
+func cmdTool(argv []string) int {
+	fs := flag.NewFlagSet("tool", flag.ContinueOnError)
+	which := fs.String("which", "", "какой исполнитель: claude, codex")
+	if err := fs.Parse(argv); err != nil {
+		return 2
+	}
+	names := []string{*which}
+	if *which == "" {
+		names = []string{"claude", "codex"}
+	}
+	worst := 0
+	for _, n := range names {
+		path, why, err := resolveRunnerToolWhy(n)
+		if err != nil {
+			// «Нечем исполнить» — это код 2, а не 1: работой оно не лечится, нужен человек.
+			fmt.Printf("%-7s НЕ НАЙДЕН%s  %v"+lineEnding, n, lineEnding, err)
+			worst = 2
+			continue
+		}
+		fmt.Printf("%-7s %s"+lineEnding, n, path)
+		fmt.Printf("        найден правилом: %s"+lineEnding, why)
+	}
+	return worst
 }

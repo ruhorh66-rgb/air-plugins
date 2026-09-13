@@ -58,6 +58,10 @@ func usage() {
         Планировщик: разбивка цели на шаги ОДНИМ дорогим вызовом. Предлагает в
         PLAN.proposed.md; существующий PLAN.md не трогается никогда.
 
+  air-worker tool   [-which claude|codex]
+        Каким исполнителем пойдёт петля и каким правилом он найден. Ничего не
+        запускает и не стоит ни копейки.
+
   air-worker version
 `)
 }
@@ -77,6 +81,8 @@ func main() {
 		os.Exit(cmdLoop(os.Args[2:]))
 	case "plan":
 		os.Exit(cmdPlan(os.Args[2:]))
+	case "tool":
+		os.Exit(cmdTool(os.Args[2:]))
 	case "version", "-v", "--version":
 		fmt.Printf("%s %s\n", appName, version)
 		os.Exit(0)

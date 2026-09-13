@@ -1,0 +1,62 @@
+{
+  "_": "Хуки объявлены ПЛАГИНОМ, а не скилом, и путь в них переносимый. Прежде они жили во frontmatter skills/woody/SKILL.md абсолютным путём машины разработчика: на второй машине плагин зарегистрировал бы хуки в пустоту — молча, потому что отсутствующий обработчик ничем не отличается от несработавшего. Тот же класс, что нашла AIR-ENV-002 в goal.json 13.09.2026, только опаснее: там отказ был виден судьёй, а здесь не виден ничем.",
+  "_ловушка": "${CLAUDE_PLUGIN_ROOT} определён ТОЛЬКО в контексте плагина — записано в контуре разбором air-ruflo-bridge. Значит страж хода приходит вместе с установленным плагином, а не с каталогом скила. Это и есть канонический вид: механизм, который держит режим, поставляется тем же способом, что и продукт.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/skills/woody/hooks/turn-guard.cmd\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/skills/woody/hooks/prompt-guard.cmd\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/skills/woody/hooks/subagent-track.cmd\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/skills/woody/hooks/subagent-track.cmd\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/skills/woody/hooks/mode-guard.cmd\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

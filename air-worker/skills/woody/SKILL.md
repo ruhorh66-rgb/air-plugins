@@ -1,33 +1,18 @@
----
+﻿---
 name: air-woody
 description: 'Дятел Вуди — дешёвая петля разработки под судью цели. Долбит в одну точку множеством дешёвых ударов. Планирует работу по ступеням, выполняет скриптом всё, что можно выполнить скриптом, и поднимает модель только когда судья не сдвинулся. Режим оркестрации держится хуками, а не памятью.'
-hooks:
-  Stop:
-    - hooks:
-        - type: command
-          command: '"F:\-7-\air-worker\skills\woody\hooks\turn-guard.cmd"'
-          timeout: 20
-  UserPromptSubmit:
-    - hooks:
-        - type: command
-          command: '"F:\-7-\air-worker\skills\woody\hooks\prompt-guard.cmd"'
-          timeout: 20
-  SubagentStart:
-    - hooks:
-        - type: command
-          command: '"F:\-7-\air-worker\skills\woody\hooks\subagent-track.cmd"'
-          timeout: 20
-  SubagentStop:
-    - hooks:
-        - type: command
-          command: '"F:\-7-\air-worker\skills\woody\hooks\subagent-track.cmd"'
-          timeout: 20
-  PreToolUse:
-    - matcher: 'Bash|PowerShell|Edit|Write'
-      hooks:
-        - type: command
-          command: '"F:\-7-\air-worker\skills\woody\hooks\mode-guard.cmd"'
-          timeout: 20
+# ХУКИ ОБЪЯВЛЕНЫ ПЛАГИНОМ, А НЕ ЗДЕСЬ. Приведение к каноническому виду 13.09.2026 по
+# указанию ЛПР. Прежде они стояли тут абсолютным путём МАШИНЫ РАЗРАБОТЧИКА — на второй
+# машине плагин зарегистрировал бы их в пустоту, и это молчаливый отказ: несработавший
+# обработчик ничем не отличается от отсутствующего. Тот же класс, что AIR-ENV-002 нашла
+# в goal.json тем же днём, только опаснее — там отказ был виден судьёй, здесь не виден
+# ничем.
+#
+# Канонический адрес — hooks/hooks.json в корне плагина, путь через ${CLAUDE_PLUGIN_ROOT}.
+# Ловушка записана в контуре разбором air-ruflo-bridge: эта переменная определена ТОЛЬКО
+# в контексте плагина. Значит страж хода приходит вместе с УСТАНОВЛЕННЫМ плагином, а не
+# с каталогом скила, — и это верно по сути: механизм, который держит режим, обязан
+# поставляться тем же способом, что и продукт.
 ---
 
 # Дятел Вуди
