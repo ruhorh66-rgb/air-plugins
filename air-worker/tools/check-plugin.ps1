@@ -79,6 +79,27 @@ foreach ($s in $skills) {
     $declared.Add([pscustomobject]@{ Name = "skills/$($s.Name)/SKILL.md (frontmatter)"; Path = (Join-Path $s.FullName 'SKILL.md'); FrontOnly = $true })
 }
 
+# BOM ПЕРЕД FRONTMATTER ДЕЛАЕТ ЕГО НЕВИДИМЫМ. Найдено штатным валидатором
+# (claude plugin validate) 13.09.2026: SKILL.md начинался с BOM, харнесс не распознавал
+# открывающий «---» и сообщал «No frontmatter block found» — то есть имя и описание скила
+# до него не доходили вовсе.
+#
+# Моя собственная проверка это ПРОПУСКАЛА: её образец принимал «^﻿?---», то есть был
+# снисходительнее настоящего потребителя. Проверка, более терпимая, чем тот, ради кого
+# она пишется, даёт зелёный вердикт на сломанном.
+#
+# И тонкость, стоившая лишнего захода: у .ps1 BOM ОБЯЗАТЕЛЕН (без него Windows PowerShell
+# 5.1 читает кириллицу как ANSI), а у .md он запрещён. Одно правило на оба типа файлов
+# здесь неверно.
+foreach ($s in $skills) {
+    $sp = Join-Path $s.FullName 'SKILL.md'
+    $b = [IO.File]::ReadAllBytes($sp)
+    if ($b.Length -ge 3 -and $b[0] -eq 239 -and $b[1] -eq 187 -and $b[2] -eq 191) {
+        $fail += "skills/$($s.Name)/SKILL.md начинается с BOM: харнесс не увидит frontmatter и не прочитает ни имени, ни описания"
+    } else {
+        $ok += "skills/$($s.Name)/SKILL.md без BOM — frontmatter виден харнессу"
+    }
+}
 $reAbs = '[A-Za-z]:\\'
 foreach ($d in $declared) {
     $text = ''
