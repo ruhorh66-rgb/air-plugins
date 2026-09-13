@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"regexp"
-	"strings"
 )
 
 // Грамматика плана — РОВНО ЧЕТЫРЕ КОЛОНКИ, закрытый шаг зачёркнутым номером:
@@ -57,22 +56,24 @@ func (p planInfo) Gates() int {
 	return n
 }
 
+// parsePlan — ОДИН разборщик плана на весь механизм.
+//
+// Прежде их было два: этот, для расстояния до цели, и readPlanSteps, для петли. Они
+// расходились молча — и разошлись на первом же чужом продукте 13.09.2026: на плане ASW
+// двигатель насчитал 15 открытых шагов, а петля 24. Причина в грамматике: этот образец
+// принимал только чисто числовой номер, а в живом плане есть шаг «10а», и строки формы
+// «- [ ] tier заголовок» он не знал вовсе.
+//
+// Две реализации одного правила расходятся молча — это мы вычищали весь день у других, а
+// сами держали внутри одного бинарника. Теперь расстояние и петля читают план ОДНИМ
+// кодом, и расхождение между ними стало невозможным, а не маловероятным.
 func parsePlan(path string) planInfo {
-	raw, err := os.ReadFile(path)
-	if err != nil {
+	if _, err := os.Stat(path); err != nil {
 		return planInfo{Found: false}
 	}
 	info := planInfo{Found: true}
-	for _, line := range strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n") {
-		m := reStep.FindStringSubmatch(line)
-		if m == nil {
-			continue
-		}
-		info.Steps = append(info.Steps, planStep{
-			Num:    m[2],
-			Closed: m[1] != "",
-			Gate:   strings.Contains(line, "гейт"),
-		})
+	for _, s := range readPlanSteps(path) {
+		info.Steps = append(info.Steps, planStep{Num: s.Num, Closed: s.Done, Gate: s.Gate})
 	}
 	return info
 }

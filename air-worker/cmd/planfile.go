@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -36,6 +37,7 @@ var (
 
 type workStep struct {
 	Index int
+	Num   string
 	Done  bool
 	Tier  string
 	Title string
@@ -63,14 +65,14 @@ func readPlanSteps(path string) []workStep {
 			i++
 			title, cmd := splitCmd(m[4])
 			steps = append(steps, workStep{
-				Index: i, Done: m[1] != " ", Tier: m[2] + m[3], Title: title, Cmd: cmd,
+				Index: i, Num: fmt.Sprintf("%d", i), Done: m[1] != " ", Tier: m[2] + m[3], Title: title, Cmd: cmd,
 			})
 			continue
 		}
 		if m := rePlanGate.FindStringSubmatch(line); m != nil {
 			i++
 			steps = append(steps, workStep{
-				Index: i, Done: m[1] != "", Tier: "gate", Gate: true,
+				Index: i, Num: m[2], Done: m[1] != "", Tier: "gate", Gate: true,
 				Title: m[2] + ". " + strings.TrimSpace(m[3]), Judge: strings.TrimSpace(m[4]),
 			})
 			continue
@@ -84,7 +86,7 @@ func readPlanSteps(path string) []workStep {
 		i++
 		title, cmd := splitCmd(strings.TrimSpace(m[3]))
 		steps = append(steps, workStep{
-			Index: i, Done: m[1] != "", Tier: m[4] + m[5],
+			Index: i, Num: m[2], Done: m[1] != "", Tier: m[4] + m[5],
 			Title: m[2] + ". " + title, Cmd: cmd, Judge: strings.TrimSpace(m[6]),
 		})
 	}
