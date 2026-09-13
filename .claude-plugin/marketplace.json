@@ -1,6 +1,8 @@
 {
   "name": "air-plugins",
-  "owner": { "name": "ruhorh66-rgb" },
+  "owner": {
+    "name": "ruhorh66-rgb"
+  },
   "metadata": {
     "description": "AIR OS plugin/skill catalog (E:\\-7-) — shareable Claude Code plugins and skills, kept separate from the private runtime/models on E:\\-4-."
   },
@@ -28,7 +30,7 @@
     {
       "name": "air-worker",
       "source": "./air-worker",
-      "description": "Detached executor for heavy NON-swarm work (file processing, OCR, long LLM passes) behind an LPR approval button in Telegram. Signed, TTL-limited requests in SQLite; the listener runs one task type fixed at request creation, never text from the chat. Shares air-ruflo-bridge's bot, so the lock covers the shared channel too: three states, unknown never equals free. First task type — OpenRouter over the local air_llm_router; the socket for a second (local Qwen, privacy level 1) exists and is empty."
+      "description": "Исполнитель, доводящий задачу до гарантированного результата по проверяемой логике и с понятным бюджетом. Цель объявлена файлом, судья считает вердикт кодом возврата (достигнуто / не достигнуто / нечем проверить), двигатель крутит один запуск до вердикта либо до объявленного потолка, планировщик режет цель на шаги одним дорогим вызовом. Ход, не уменьшивший расстояние до цели, продвижением не считается: уход в сторону и простой видны одним числом, а шесть таких ходов подряд останавливают работу. Лестница ступеней исполняет скриптом всё, что можно исполнить скриптом, и поднимает модель только когда судья не сдвинулся. Отцеплённое исполнение тяжёлых нероевых задач и подписанные заявки сохранены."
     },
     {
       "name": "air-coder",
