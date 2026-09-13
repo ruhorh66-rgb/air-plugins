@@ -47,9 +47,34 @@ type loopCtx struct {
 	Permission  string
 	Tools       string
 
+	treeBefore  string
 	spent       float64
 	iter        int
 	stalledRuns int
+}
+
+// treeChanged — изменилось ли рабочее дерево продукта с начала шага.
+//
+// Замер, а не догадка: подпись состояния дерева снимается перед вызовом исполнителя и
+// сравнивается после. Читается git status --porcelain; если git недоступен, функция
+// отвечает true — «считать, что работа была». Осторожность здесь несимметрична: принять
+// сделанную работу за несделанную дороже, чем наоборот, потому что первое ОСТАНАВЛИВАЕТ
+// петлю ложным вердиктом.
+func (c *loopCtx) treeSignature() string {
+	cmd := exec.Command("git", "status", "--porcelain")
+	cmd.Dir = c.Root
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return string(out)
+}
+
+func (c *loopCtx) treeChanged() bool {
+	if c.treeBefore == "" {
+		return true
+	}
+	return c.treeSignature() != c.treeBefore
 }
 
 func line(text string) { fmt.Print(time.Now().Format("15:04:05") + "  " + text + lineEnding) }
@@ -292,6 +317,9 @@ func cmdLoop(argv []string) int {
 			}
 			status(step.Index, step.Title, tier, who, "прогон идёт")
 
+			// Подпись дерева снимается ДО работы: по ней потом видно, была работа или нет,
+			// и это факт, а не пересказ исполнителя о себе.
+			c.treeBefore = c.treeSignature()
 			var r stepResult
 			if runner.Kind == "script" {
 				r = c.runScriptStep(step)

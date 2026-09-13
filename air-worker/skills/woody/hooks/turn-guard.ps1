@@ -77,6 +77,9 @@ function Invoke-WoodyVerdict {
     }
 
     $verdictPath = Join-Path $StateDir "woody-verdict-$SessionKey.json"
+    # Имя временного файла несёт идентификатор процесса: две копии стража, пишущие
+    # одновременно, не должны мешать друг другу даже на промежуточном файле.
+    $tmpVerdict = "$verdictPath.$PID.tmp"
     if (Test-Path -LiteralPath $verdictPath) {
         try {
             $prev = Get-Content -LiteralPath $verdictPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -149,7 +152,18 @@ function Invoke-WoodyVerdict {
         reason       = $reasonOut
         product_root = $Cwd
         first_line   = $firstLine
-    } | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $verdictPath -Encoding UTF8
+    } | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $tmpVerdict -Encoding UTF8
+    # ЗАПИСЬ АТОМАРНА И НЕ РОНЯЕТ ХОД. Найдено живым отказом 13.09.2026: в сессии, где
+    # зарегистрированы ДВЕ копии стража (старая по каталогу скила и новая из плагина),
+    # обе пишут один и тот же файл вердикта одновременно, и вторая получает «Stream was
+    # not readable». Само дублирование временное — со следующего старта останется одна
+    # копия, — но запись обязана быть устойчивой независимо от этого: диагностика, роняющая
+    # проверяемый ход, хуже отсутствующей.
+    #
+    # Пишем во временный файл и переносим: перенос в пределах одного тома неделим, и
+    # читатель никогда не увидит полузаписанного вердикта.
+    try { Move-Item -LiteralPath $tmpVerdict -Destination $verdictPath -Force -ErrorAction Stop }
+    catch { Remove-Item -LiteralPath $tmpVerdict -Force -ErrorAction SilentlyContinue }
 
     $judgeDetail = if ($timedOut) { 'таймаут 12с, code=null' } else { "код $codeOut" }
     Write-JudgeTrace $SessionKey 'записал' $judgeDetail -Extra @{ product_root = $Cwd }
