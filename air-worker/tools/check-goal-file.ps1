@@ -65,7 +65,14 @@ function Assert-That([string]$title, [scriptblock]$check) {
 $props = @($goal.PSObject.Properties.Name)
 
 # --- 1. обязательные поля контракта присутствуют и того типа, что нужен --------------
-$required = @('enabled', 'workdir', 'taskFile', 'judge', 'engine', 'maxIterations', 'maxMinutes', 'maxRunsPerDay')
+# goal и objective добавлены 13.09.2026 шагом 5 (Планировщик), и добавлены ЯВНО, как
+# прежде engine: своя же проверка «нет полей вне договора» иначе отказала бы на них.
+#
+# Найдено постройкой планировщика: договор описывал, КАК до цели добраться — workdir,
+# судья, двигатель, потолки, — и ни строки о том, ЧТО она есть. Признак 1 постановки
+# требует файл, который исполнитель читает ПЕРВЫМ ДЕЙСТВИЕМ и понимает, куда двигать
+# продукт; такой файл этого не давал, и разбивщик получал пустую цель.
+$required = @('goal', 'objective', 'enabled', 'workdir', 'taskFile', 'judge', 'engine', 'maxIterations', 'maxMinutes', 'maxRunsPerDay')
 foreach ($f in $required) {
     Assert-That "поле объявлено: $f" { $props -contains $f }.GetNewClosure()
 }
