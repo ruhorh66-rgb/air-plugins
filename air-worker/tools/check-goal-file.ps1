@@ -65,7 +65,7 @@ function Assert-That([string]$title, [scriptblock]$check) {
 $props = @($goal.PSObject.Properties.Name)
 
 # --- 1. обязательные поля контракта присутствуют и того типа, что нужен --------------
-$required = @('enabled', 'workdir', 'taskFile', 'judge', 'maxIterations', 'maxMinutes', 'maxRunsPerDay')
+$required = @('enabled', 'workdir', 'taskFile', 'judge', 'engine', 'maxIterations', 'maxMinutes', 'maxRunsPerDay')
 foreach ($f in $required) {
     Assert-That "поле объявлено: $f" { $props -contains $f }.GetNewClosure()
 }
@@ -79,7 +79,7 @@ foreach ($n in @('maxIterations', 'maxMinutes', 'maxRunsPerDay')) {
     }.GetNewClosure()
 }
 
-foreach ($n in @('workdir', 'taskFile', 'judge')) {
+foreach ($n in @('workdir', 'taskFile', 'judge', 'engine')) {
     Assert-That "$n — непустая строка" { -not [string]::IsNullOrWhiteSpace([string]$goal.$n) }.GetNewClosure()
 }
 
@@ -119,6 +119,14 @@ if ($goal.judge) {
     $m = [regex]::Match($judgeText, '-File\s+"([^"]+)"')
     if (-not $m.Success) { $m = [regex]::Match($judgeText, "-File\s+'([^']+)'") }
     if ($m.Success) { $toCheck.Add([pscustomobject]@{ Name = 'судья (-File)'; Path = $m.Groups[1].Value }) }
+}
+# Поле engine (шаг 6 плана) — той же формы, что judge: команда, а не описание. Извлекается
+# тем же способом, тем же требованием: объявленный путь обязан существовать на машине.
+if ($goal.engine) {
+    $engineText = [string]$goal.engine
+    $m = [regex]::Match($engineText, '-File\s+"([^"]+)"')
+    if (-not $m.Success) { $m = [regex]::Match($engineText, "-File\s+'([^']+)'") }
+    if ($m.Success) { $toCheck.Add([pscustomobject]@{ Name = 'двигатель (-File)'; Path = $m.Groups[1].Value }) }
 }
 if ($toCheck.Count -eq 0) {
     Write-Output 'НЕЧЕМ ПРОВЕРИТЬ: из goal.json не собрано ни одного пути — договор пуст либо не разобран.'
