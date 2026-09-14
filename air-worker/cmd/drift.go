@@ -140,11 +140,40 @@ func (l driftLimits) withConfig(c driftThresholds) driftLimits {
 //
 // Считаются именно закрытые, а не открытые шаги: число открытых растёт и от уточнения
 // плана, а закрыть шаг можно только работой.
+//
+// ДВИЖЕНИЕ НЕ БЫВАЕТ ОДНОВРЕМЕННО РЕГРЕССОМ. До 0.9.5 замер, где шаг закрылся, а остаток
+// по судье вырос, судился дважды и противоположно: движением (застой в ноль) и регрессом
+// (WORKER-DRIFT-03). Найдено чтением 14.09.2026, при разборе живого дефекта петли на ASW:
+// исполнитель внёс пакет в список проверки и сломал сборку. Зачеркни он тем же ходом номер
+// шага — сломанная сборка сбросила бы застой. Теперь движение — улучшение одного признака
+// при том, что второй не хуже.
 func moved(prev, cur driftPoint) bool {
+	if regression(prev, cur) != "" {
+		return false
+	}
 	if *cur.Judge < *prev.Judge {
 		return true
 	}
 	return prev.Closed != nil && cur.Closed != nil && *cur.Closed > *prev.Closed
+}
+
+// regression — чем cur хуже prev, словами; пустая строка — не хуже. Регресс — рост
+// остатка по судье либо меньшее число закрытых шагов плана. Новые строки плана регрессом
+// не являются: уточнение пути откатом не является. Определение одно — для двигателя по
+// истории и для петли по итерации.
+func regression(prev, cur driftPoint) string {
+	if prev.Judge == nil || cur.Judge == nil {
+		return ""
+	}
+	switch {
+	case *cur.Judge > *prev.Judge:
+		return fmt.Sprintf("остаток по судье вырос с %d до %d: закрытое ранее перестало быть закрытым",
+			*prev.Judge, *cur.Judge)
+	case cur.Closed != nil && prev.Closed != nil && *cur.Closed < *prev.Closed:
+		return fmt.Sprintf("закрытых шагов плана стало меньше — было %d, стало %d: закрытый шаг снова открыт",
+			*prev.Closed, *cur.Closed)
+	}
+	return ""
 }
 
 // refinedPlan — план уточнён, а не откачен: открытых шагов стало больше, закрытых не
@@ -289,18 +318,9 @@ func evaluate(cur driftPoint, judgeCode *int, planOpen *int, history []driftPoin
 	// Регресс — рост остатка по судье либо меньшее число закрытых шагов плана. НЕ регресс —
 	// появление новых строк плана: уточнение пути откатом не является. Прежде этим правилом
 	// наказывалось разбиение шага, потому что оно увеличивало сумму.
-	if cur.Judge != nil {
-		if last := lastKnown(history); last != nil {
-			switch {
-			case *cur.Judge > *last.Judge:
-				fire("WORKER-DRIFT-03", verdictThrottle, fmt.Sprintf(
-					"остаток по судье вырос с %d до %d: закрытое ранее перестало быть закрытым",
-					*last.Judge, *cur.Judge))
-			case cur.Closed != nil && last.Closed != nil && *cur.Closed < *last.Closed:
-				fire("WORKER-DRIFT-03", verdictThrottle, fmt.Sprintf(
-					"закрытых шагов плана стало меньше — было %d, стало %d: закрытый шаг снова открыт",
-					*last.Closed, *cur.Closed))
-			}
+	if last := lastKnown(history); last != nil {
+		if why := regression(*last, cur); why != "" {
+			fire("WORKER-DRIFT-03", verdictThrottle, why)
 		}
 	}
 
@@ -346,13 +366,19 @@ func readHistory(path string) []driftPoint {
 // процессом на каждой итерации. Подпроцесс здесь был бы платой за то, что уже лежит под
 // рукой, — а ходы и есть цена.
 //
-// Возвращает код: 0 ALLOW, 1 THROTTLE, 2 ESCALATE, 3 ЖДЁТ ЛПР.
-func driftOnce(root string, record bool, note string) int {
+// Возвращает замер и код: 0 ALLOW, 1 THROTTLE, 2 ESCALATE, 3 ЖДЁТ ЛПР. Замер нужен петле:
+// по нему, а не по тексту вердикта, она судит, сдвинула ли итерация цель.
+func driftOnce(root string, record bool, note string) (driftMeasure, int) {
 	m, _, _ := measureDrift(root, note)
 	if record {
 		recordMeasure(root, m)
 	}
-	return verdictExitCode(m.Verdict)
+	return m, verdictExitCode(m.Verdict)
+}
+
+// pointOf — точка для сравнения замеров: те же три числа, что двигатель пишет в историю.
+func pointOf(m driftMeasure) driftPoint {
+	return driftPoint{Judge: m.JudgeDistance, Closed: m.PlanClosedSteps, Open: m.PlanOpenSteps}
 }
 
 // verdictExitCode — код 3 у «ждёт ЛПР» отдельный от торможения намеренно. Механизм,
@@ -505,14 +531,19 @@ func cmdDrift(argv []string) int {
 	if *record {
 		recordMeasure(root, m)
 	}
+	// ИДЁТ ЛИ ПЕТЛЯ ПО ПРОДУКТУ — только в выводе, не в истории: это состояние машины в
+	// миг замера, а не свойство продукта. Страж хода узнаёт по нему, что дерево и вердикт
+	// меняются под работой петли и сверять ход не с чем.
+	loopRunning := lockHeld(lockName("loop", root))
 
 	switch {
 	case *asJSON:
 		out := struct {
 			driftMeasure
-			Reasons []driftReason `json:"reasons"`
-			Limits  []string      `json:"limits"`
-		}{m, reasons, limits}
+			LoopRunning bool          `json:"loop_running"`
+			Reasons     []driftReason `json:"reasons"`
+			Limits      []string      `json:"limits"`
+		}{m, loopRunning, reasons, limits}
 		b, _ := json.MarshalIndent(out, "", "  ")
 		fmt.Println(string(b))
 	case !*quiet:
@@ -529,6 +560,9 @@ func cmdDrift(argv []string) int {
 		fmt.Printf("  расстояние до цели (остаток по судье): %s\n", dText)
 		fmt.Printf("  план: %s\n", pText)
 		fmt.Printf("  замеров подряд без движения: %d; неизмеримо подряд: %d\n", m.StallMoves, m.UnverifiableStreak)
+		if loopRunning {
+			fmt.Println("  петля по продукту идёт в другом процессе: дерево и вердикт меняются под её работой")
+		}
 		for _, r := range reasons {
 			fmt.Printf("  [%s] %s: %s\n", r.Rule, r.Verdict, r.Why)
 		}

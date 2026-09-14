@@ -51,6 +51,13 @@ type loopCtx struct {
 	spent       float64
 	iter        int
 	stalledRuns int
+	// regressStreak — регрессов подряд. Первый чинится на той же ступени, второй — нет.
+	regressStreak int
+	// verdictFresh — последний прогон судьи оставил машинный вердикт, по которому
+	// двигатель меряет расстояние. Встроенный судья пишет его всегда. Свой судья продукта —
+	// не обязательно, и файл от прошлого прогона дал бы расстояние, которое не двигается
+	// ни от какой работы.
+	verdictFresh bool
 }
 
 // treeChanged — изменилось ли рабочее дерево продукта с начала шага.
@@ -311,9 +318,30 @@ func cmdLoop(argv []string) int {
 	lastCode := code
 	lastSig := verdictSignature(code, text)
 
-	for _, step := range steps {
-		if step.Done || step.Gate {
-			continue
+	// ТОЧКА ПОСЛЕДНЕГО ДВИЖЕНИЯ — с ней сравнивается каждая итерация. До первой итерации
+	// это состояние до работы. Замер без записи в историю: хода ещё не было.
+	m0, _, _ := measureDrift(root, "")
+	ref := pointOf(m0)
+	if !c.verdictFresh {
+		ref.Judge = nil
+	}
+	refinedInCycle := false
+
+	// ШАГ БЕРЁТСЯ ИЗ ПЛАНА НА ДИСКЕ, А НЕ ИЗ СПИСКА, РАЗОБРАННОГО ПРИ СТАРТЕ.
+	//
+	// До 0.9.5 петля разбирала план один раз и шла по этому списку, а внутри шага крутилась
+	// до вердикта или потолка. Шаг, закрытый исполнителем, петля не замечала: следующая
+	// итерация получала задание уже закрытого шага. Живой случай 14.09.2026, ASW: шаг 8а
+	// закрыт на седьмой итерации ступенью opus:medium, и восьмая пошла на opus:medium по
+	// тому же заданию. Исполнителю делать нечего — «не сдвинулась» — подъём до opus:max:
+	// самые дорогие ступени лестницы оплачивали бы работу, которой нет.
+	//
+	// Теперь перед каждой итерацией план перечитывается, и работа идёт над ПЕРВЫМ ОТКРЫТЫМ
+	// исполняемым шагом. Сменился он — новый шаг начинает со своей ступени из плана.
+	for {
+		step, found := firstOpenWorkStep(steps)
+		if !found {
+			break
 		}
 		m := resolveLadderTier(c.Ladder, step.Tier)
 		if !m.Found {
@@ -323,8 +351,24 @@ func cmdLoop(argv []string) int {
 					step.Index, step.Title, step.Tier, strings.Join(c.Ladder, ", ")), 1)
 		}
 		tierIndex := m.Index
+		c.regressStreak = 0
 
-		for {
+		for pass := 0; ; pass++ {
+			if pass > 0 {
+				steps = readPlanSteps(planPath)
+				if len(steps) == 0 {
+					closeWoody("ничего: план перестал разбираться",
+						fmt.Sprintf("посмотреть %s — после итерации %d в нём не разбирается ни одного шага; "+
+							"скорее всего исполнитель повредил таблицу", planPath, c.iter), 2)
+				}
+				if next, ok := firstOpenWorkStep(steps); !ok || !sameStep(next, step) {
+					if ok {
+						line("  шаг «" + step.Title + "» закрыт в плане — дальше «" + next.Title +
+							"» со своей ступени " + next.Tier + ".")
+					}
+					break
+				}
+			}
 			if c.iter >= c.MaxIter {
 				closeWoody("ничего: потолок итераций исчерпан",
 					fmt.Sprintf("решить, поднимать ли потолок (%d) или переписать план", c.MaxIter), 1)
@@ -356,7 +400,11 @@ func cmdLoop(argv []string) int {
 			if r.Cost != nil {
 				c.spent += *r.Cost
 			}
-			code, text = c.judge()
+			// СУХОЙ ПРОГОН СУДЬЮ НЕ ПЕРЕСПРАШИВАЕТ: работы не было, вердикт тот же, что до
+			// неё. У ASW один прогон судьи — полминуты с лишним.
+			if !c.WhatIf {
+				code, text = c.judge()
+			}
 
 			c.addStep(map[string]any{
 				"step": step.Index, "title": step.Title, "tier": tier,
@@ -384,7 +432,8 @@ func cmdLoop(argv []string) int {
 			// ДВИГАТЕЛЬ ЦЕЛИ. Замер идёт ПОСЛЕ итерации: пара «до/после» и отвечает на
 			// вопрос, двинул ли ход расстояние. Зовётся ВНУТРИ процесса — отдельный
 			// подпроцесс здесь был бы платой за то, что уже есть под рукой.
-			switch c.recordDrift(fmt.Sprintf("итерация %d · шаг %d", c.iter, step.Index)) {
+			dm, driftCode := c.recordDrift(fmt.Sprintf("итерация %d · шаг %d", c.iter, step.Index))
+			switch driftCode {
 			case 3:
 				closeWoody("ничего: работой закрывать нечего, расстояние до цели ноль",
 					"закрыть остаток — он держится гейтами ЛПР либо реестр не покрывает того, что требует судья", 0)
@@ -450,36 +499,106 @@ func cmdLoop(argv []string) int {
 						step.Index, step.Title), 2)
 			}
 
-			// ДВИЖЕНИЕ СУДЬИ ЛОВИТСЯ ПОДПИСЬЮ, А НЕ КОДОМ. Кодов три, а состояний работы
-			// сколько угодно: «закрыто 13 из 16» и «14 из 16» оба дают код 1, значит
-			// прогресс был НЕВИДИМ, и петля лезла вверх по лестнице независимо от него —
-			// прямо обратно замыслу. Наблюдалось вживую: шаг прошёл всю лестницу за шесть
-			// подъёмов, ни один из которых не был вызван отсутствием прогресса.
-			sig := verdictSignature(code, text)
-			if sig != lastSig {
-				lastSig = sig
-				lastCode = code
-				c.stalledRuns = 0
-				line("  судья сдвинулся — остаюсь на той же ступени. Вердикт: " + text)
-				continue
+			// СУХОЙ ПРОГОН ЛЕСТНИЦУ НЕ ИМИТИРУЕТ. Модель не звалась, значит сдвинуть цель было
+			// нечем, и любое суждение о движении здесь заранее ложно. Прежде петля шла дальше:
+			// «не сдвинулся» — подъём ступени — ещё подъём — «снять цель с вращения». Человек,
+			// посмотревший план, получал совет бросить работающую цель. Найдено 14.09.2026
+			// сухим прогоном перед петлёй на ASW.
+			if c.WhatIf {
+				line("  сухой прогон: модель не звалась, судить движение нечем — лестницу дальше не имитирую.")
+				closeWoody(fmt.Sprintf("боевой прогон начнёт с шага «%s» на ступени %s; следующую ступень "+
+					"выберет замер после итерации, а не сухой прогон", step.Title, tier), "не жду ничего", 0)
 			}
 
-			// ЗАСТОЙ ПО ЦЕЛИ, А НЕ ПО ШАГУ. Счётчик общий и сбрасывается любым сдвигом
-			// вердикта, в том числе на другом шаге: цель одна, и двигают её сообща.
-			c.stalledRuns++
-			if c.stalledRuns >= c.StallLimit {
-				closeWoody(fmt.Sprintf("ничего: цель не сдвинулась %d прогонов подряд", c.stalledRuns),
-					fmt.Sprintf("снять цель с вращения либо изменить постановку — вердикт судьи не меняется "+
-						"с %d прогонов: «%s». Подъём ступени это не лечит, он оплачивает ту же неподвижность дороже",
-						c.stalledRuns, text), 1)
+			// ДВИЖЕНИЕ СУДИТСЯ РАССТОЯНИЕМ ДВИГАТЕЛЯ, А НЕ ТЕКСТОМ ВЕРДИКТА.
+			//
+			// Прежде здесь сравнивалась подпись: код плюс текст вердикта. Подпись заводилась
+			// против невидимого прогресса — «закрыто 13 из 16» и «14 из 16» дают один код, и
+			// петля лезла вверх по лестнице, не видя сдвига. Но подпись меняется от ЛЮБОГО
+			// нового текста, в том числе от поломки. Живой случай 14.09.2026, ASW, шаг 8а:
+			// исполнитель haiku сломал сборку internal/mcpupdate, в вердикте появилась строка
+			// компилятора — и петля напечатала «судья сдвинулся», сбросила застой и пошла на
+			// ту же ступень как за успехом. Это второй источник правды о движении рядом с
+			// двигателем цели — ровно то, что выпуск 0.9.4 убирал из drift.
+			//
+			// Теперь итерация сравнивается с ТОЧКОЙ ПОСЛЕДНЕГО ДВИЖЕНИЯ теми же определениями,
+			// что у двигателя (moved, regression, refinedPlan). Не с предыдущим замером: иначе
+			// «сломал — починил — сломал» засчитывался бы движением на каждой починке, и
+			// колебание пряталось бы от застоя навсегда. Двигатель по истории сравнивает с
+			// предыдущим замером и прав по-своему: между сессиями судью расширяют, и остаток
+			// законно растёт. Внутри одного прогона мерка неизменна.
+			cur := pointOf(dm)
+			if !c.verdictFresh {
+				cur.Judge = nil
+			}
+			move, why := judgeIteration(ref, cur, refinedInCycle)
+			sig := verdictSignature(code, text)
+			lastCode = code
+			if move == moveUnmeasured {
+				// Свой судья продукта не оставил машинного вердикта — расстояние мерить нечем.
+				// Остаётся прежнее средство, и оно называется вслух: текст вердикта.
+				if sig != lastSig {
+					move, why = moveForward, why+": сужу по тексту вердикта, а он изменился"
+				} else {
+					move, why = moveNone, why+", и текст вердикта не изменился"
+				}
+			}
+			lastSig = sig
+			if ref.Judge == nil && cur.Judge != nil {
+				ref = cur
+			}
+
+			switch move {
+			case moveForward:
+				if cur.Judge != nil {
+					ref = cur
+				}
+				refinedInCycle = false
+				c.stalledRuns, c.regressStreak = 0, 0
+				line("  цель сдвинулась (" + why + ") — остаюсь на той же ступени.")
+				continue
+			case moveRefined:
+				refinedInCycle = true
+				c.regressStreak = 0
+				line("  план уточнён (" + why + ") — один раз за цикл застоем не считается; ступень та же.")
+				continue
+			case moveRegress:
+				// РЕГРЕСС — НЕ ДВИЖЕНИЕ И НЕ ЗАСТОЙ. Застой — это итерация без действия,
+				// регресс — действие не туда. Считать его застоем значило бы останавливать
+				// петлю на поломке: на ASW 14.09.2026 при пороге 3 петля встала бы на третьей
+				// итерации со сломанной сборкой, а починила её ступень sonnet на четвёртой.
+				//
+				// ПЕРВЫЙ РЕГРЕСС ЧИНИТСЯ НА ТОЙ ЖЕ СТУПЕНИ. Исполнитель не запускает сборку и
+				// свою поломку видит только в вердикте следующей итерации; поднимать модель за
+				// опечатку, которую дешёвая ступень починит сама, — платить дороже за то же.
+				// Второй регресс подряд уже не опечатка: ступень поднимается. Бесконечно это не
+				// длится — лестница конечна, и верхняя ступень закрывает петлю.
+				c.regressStreak++
+				if c.regressStreak == 1 {
+					line("  РЕГРЕСС (" + why + ") — движением не считается. Ступень не поднимаю: " +
+						"следующая итерация получит вердикт и чинит сломанное.")
+					continue
+				}
+				why = fmt.Sprintf("регресс %d раза подряд: %s", c.regressStreak, why)
+			default:
+				c.regressStreak = 0
+				// ЗАСТОЙ ПО ЦЕЛИ, А НЕ ПО ШАГУ. Счётчик общий и сбрасывается только движением,
+				// в том числе на другом шаге: цель одна, и двигают её сообща.
+				c.stalledRuns++
+				if c.stalledRuns >= c.StallLimit {
+					closeWoody(fmt.Sprintf("ничего: цель не сдвинулась %d прогонов подряд", c.stalledRuns),
+						fmt.Sprintf("снять цель с вращения либо изменить постановку — с точки последнего движения "+
+							"цель не приблизилась за %d прогонов (последний: %s). Подъём ступени это не лечит, "+
+							"он оплачивает ту же неподвижность дороже", c.stalledRuns, why), 1)
+				}
 			}
 			if tierIndex >= len(c.Ladder)-1 {
 				closeWoody("ничего: лестница пройдена до верха",
-					fmt.Sprintf("решение по шагу %d «%s» — судья не сдвинулся и на верхней ступени",
-						step.Index, step.Title), 1)
+					fmt.Sprintf("решение по шагу «%s» — цель не сдвинулась и на верхней ступени (%s)",
+						step.Title, why), 1)
 			}
 			tierIndex++
-			line("  судья не сдвинулся — поднимаю ступень до " + c.Ladder[tierIndex] + ".")
+			line("  цель не сдвинулась (" + why + ") — поднимаю ступень до " + c.Ladder[tierIndex] + ".")
 		}
 	}
 
@@ -501,11 +620,50 @@ func cmdLoop(argv []string) int {
 
 var reSpaces = regexp.MustCompile(`\s+`)
 
-// verdictSignature — код ПЛЮС текст вердикта. Судья печатает «фактов закрыто N из M»;
-// смена N меняет подпись, и петля остаётся на дешёвой ступени, пока работа сдвигается
-// хоть на один факт.
+// verdictSignature — код ПЛЮС текст вердикта. С 0.9.5 это ЗАПАСНОЕ средство: движение
+// судится расстоянием двигателя, а подпись берётся, только когда свой судья продукта не
+// оставил машинного вердикта. Главным средством подпись быть не может: она меняется от
+// любого нового текста, в том числе от строки компилятора о поломке.
 func verdictSignature(code int, text string) string {
 	return fmt.Sprintf("%d|%s", code, strings.TrimSpace(reSpaces.ReplaceAllString(text, " ")))
+}
+
+// iterationMove — что итерация сделала с целью по замеру двигателя.
+type iterationMove int
+
+const (
+	moveNone       iterationMove = iota // с точки последнего движения ничего не улучшилось
+	moveForward                         // остаток по судье меньше либо закрыт шаг плана, и ничего не хуже
+	moveRegress                         // остаток вырос либо закрытый шаг снова открыт
+	moveRefined                         // план уточнён: открытых шагов больше, остальное не хуже
+	moveUnmeasured                      // расстояние по судье не измерилось
+)
+
+// judgeIteration — суждение об итерации: замер после неё против точки последнего
+// движения. Чистая функция: правило проверяется тестом, а не прогоном на живом продукте.
+// Определения движения, регресса и уточнения — двигателя цели; своих здесь не заводится.
+func judgeIteration(ref, cur driftPoint, refinedInCycle bool) (iterationMove, string) {
+	if ref.Judge == nil || cur.Judge == nil {
+		return moveUnmeasured, "расстояние по судье не измерилось"
+	}
+	if why := regression(ref, cur); why != "" {
+		return moveRegress, why
+	}
+	if moved(ref, cur) {
+		if *cur.Judge < *ref.Judge {
+			return moveForward, fmt.Sprintf("остаток по судье %d → %d", *ref.Judge, *cur.Judge)
+		}
+		return moveForward, fmt.Sprintf("закрытых шагов плана %d → %d", *ref.Closed, *cur.Closed)
+	}
+	if refinedPlan(ref, cur) && !refinedInCycle {
+		return moveRefined, fmt.Sprintf("открытых шагов плана %d → %d, остаток и закрытые не хуже",
+			*ref.Open, *cur.Open)
+	}
+	closed := ""
+	if cur.Closed != nil {
+		closed = fmt.Sprintf(", закрытых шагов %d", *cur.Closed)
+	}
+	return moveNone, fmt.Sprintf("остаток по судье %d%s — как в точке последнего движения", *cur.Judge, closed)
 }
 
 func (c *loopCtx) subagentsInLog() int {
@@ -521,17 +679,45 @@ func (c *loopCtx) judge() (int, string) {
 		res := runJudge(c.Root, c.Cfg, -1)
 		code, text := verdict(res)
 		publishVerdict(c.Root, code, text, res)
+		c.verdictFresh = true
 		return code, text
 	}
+	started := time.Now()
 	args := append([]string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", c.JudgePath}, c.JudgeArgs...)
 	cmd := exec.Command("powershell.exe", args...)
 	cmd.Dir = c.Root
 	out, err := cmd.CombinedOutput()
+	c.verdictFresh = verdictWrittenSince(c.Root, started)
 	return exitCode(cmd, err), strings.TrimSpace(decodeOutput(out))
 }
 
-// recordDrift — двигатель цели внутри процесса. Возвращает его код: 0 ALLOW, 1 THROTTLE,
-// 2 ESCALATE, 3 ЖДЁТ ЛПР.
+// firstOpenWorkStep — первый незакрытый шаг, исполняемый работой. Гейт шагом работы не
+// считается: его закрывает решение ЛПР.
+func firstOpenWorkStep(steps []workStep) (workStep, bool) {
+	for _, s := range steps {
+		if !s.Done && !s.Gate {
+			return s, true
+		}
+	}
+	return workStep{}, false
+}
+
+// sameStep — тот же ли это шаг плана. Заголовок переживает вставку строк выше; номер
+// вместе с позицией переживают правку текста шага. Иначе исполнитель, уточнивший
+// формулировку открытого шага, отправил бы петлю на его первую ступень заново.
+func sameStep(a, b workStep) bool {
+	return a.Title == b.Title || (a.Num == b.Num && a.Index == b.Index)
+}
+
+// verdictWrittenSince — машинный вердикт записан не раньше t. Допуск в две секунды — на
+// файловые системы, где время изменения хранится с таким шагом.
+func verdictWrittenSince(root string, t time.Time) bool {
+	fi, err := os.Stat(filepath.Join(root, ".goal-verdict.json"))
+	return err == nil && !fi.ModTime().Before(t.Add(-2*time.Second))
+}
+
+// recordDrift — двигатель цели внутри процесса. Возвращает замер и код: 0 ALLOW,
+// 1 THROTTLE, 2 ESCALATE, 3 ЖДЁТ ЛПР.
 //
 // СУХОЙ ПРОГОН В ИСТОРИЮ НЕ ПИШЕТ, и это не осторожность, а починка дефекта.
 //
@@ -547,7 +733,7 @@ func (c *loopCtx) judge() (int, string) {
 // пометки не было вовсе — там они неотличимы от боевых. Пометка и не помогла бы:
 // застой считается по ИСТОРИИ, и запись, которую нельзя было сдвинуть, не должна в
 // неё попадать вовсе.
-func (c *loopCtx) recordDrift(note string) int {
+func (c *loopCtx) recordDrift(note string) (driftMeasure, int) {
 	if c.WhatIf {
 		// Замер делается, чтобы показать человеку текущее состояние, но НЕ ЗАПИСЫВАЕТСЯ:
 		// запись — это утверждение «был ход», а хода не было.

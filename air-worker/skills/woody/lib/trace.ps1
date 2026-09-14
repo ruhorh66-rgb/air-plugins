@@ -25,7 +25,7 @@ function Write-WoodyTrace {
         [Parameter(Mandatory)][string]$SessionId,
         [Parameter(Mandatory)][string]$Role,      # страж | второй рубеж | судья | учёт | режим | петля
         [Parameter(Mandatory)][string]$Event,     # Stop | UserPromptSubmit | SubagentStart | -On | ...
-        [Parameter(Mandatory)][string]$Decision,  # пропустил | отклонил | записал | пропущено-нечем
+        [Parameter(Mandatory)][string]$Decision,  # пропустил | отклонил | записал | пропущено-нечем | пропущено-петля
         [string]$Detail = '',
         [hashtable]$Extra
     )

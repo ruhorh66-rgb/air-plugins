@@ -274,6 +274,34 @@ try {
         Assert-That 'turn-guard: продукт не объявлен -- код 0, страж не вмешивается' {
             $rG5.Code -eq 0
         }
+
+        # -- случай 6: по продукту идёт петля -- страж ход не сверяет ----------------
+        # Найдено 14.09.2026: петля в фоне правит дерево и переписывает вердикт, и отчёт,
+        # снятый минуту назад, расходится с диском не потому, что ход врёт. Замок петли
+        # берётся тем же именем, что у бинарника: sha1 нормализованного пути продукта.
+        $norm = [IO.Path]::GetFullPath($guardProd).TrimEnd('\').ToLowerInvariant()
+        $sha = [Security.Cryptography.SHA1]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($norm))
+        $loopMutexName = 'Local\air-worker-loop-' + (-join ($sha[0..7] | ForEach-Object { $_.ToString('x2') }))
+        $loopMutex = [Threading.Mutex]::new($true, $loopMutexName)
+        $savedExe = $env:AIR_WORKER_EXE
+        try {
+            $env:AIR_WORKER_EXE = $exe
+            $loopSeen = $false
+            try { $loopSeen = [bool]((& $exe drift -product $guardProd -json 2>$null | Out-String | ConvertFrom-Json).loop_running) } catch { }
+            $sidG6 = New-TestSessionId
+            Set-GuardProductBinding $sidG6 $guardProd
+            $rG6 = Invoke-HookStdin $turnGuardPath (New-EventJson @{
+                session_id = $sidG6; hook_event_name = 'Stop'; last_assistant_message = 'Петля идёт, отчёта в ходе нет.'
+            })
+            Assert-That 'turn-guard: по продукту идёт петля -- drift видит замок, ход без отчёта проходит кодом 0' {
+                $loopSeen -and ($rG6.Code -eq 0)
+            }
+        }
+        finally {
+            $env:AIR_WORKER_EXE = $savedExe
+            try { $loopMutex.ReleaseMutex() } catch { }
+            $loopMutex.Dispose()
+        }
     }
 }
 finally {

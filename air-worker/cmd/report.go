@@ -56,7 +56,12 @@ type reportSpend struct {
 	LastTurns  *int     `json:"last_turns"`
 	Iterations int      `json:"iterations"`
 	Total      float64  `json:"total"`
-	Budget     float64  `json:"budget"`
+	// RunSpent — расход последнего прогона: `spent_usd` его последней строки. Потолок
+	// бюджета действует на прогон, и сравнивать с ним сумму всего журнала неверно.
+	RunSpent *float64 `json:"run_spent"`
+	// DryRuns — строк сухого прогона. Итерациями они не считаются: работы не было.
+	DryRuns int     `json:"dry_runs"`
+	Budget  float64 `json:"budget"`
 }
 
 type reportStep struct {
@@ -76,6 +81,9 @@ type productReport struct {
 	Tree      reportTree    `json:"tree"`
 	Spend     reportSpend   `json:"spend"`
 	Next      reportStep    `json:"next"`
+	// LoopRunning — по продукту идёт петля в другом процессе: дерево и вердикт меняются
+	// под её работой, и судья отчётом не прогоняется (см. buildReport).
+	LoopRunning bool `json:"loop_running"`
 }
 
 // measureTree считает изменённые и новые файлы объявленного продукта.
@@ -132,10 +140,26 @@ func readSpend(root string, budget float64) reportSpend {
 			continue
 		}
 		var row struct {
-			Cost  *float64 `json:"total_cost_usd"`
-			Turns *int     `json:"num_turns"`
+			Cost      *float64 `json:"total_cost_usd"`
+			Turns     *int     `json:"num_turns"`
+			Iteration *int     `json:"iteration"`
+			Spent     *float64 `json:"spent_usd"`
+			WhatIf    bool     `json:"whatif"`
 		}
-		if json.Unmarshal([]byte(ln), &row) != nil {
+		if json.Unmarshal([]byte(strings.TrimPrefix(ln, string(utf8BOM))), &row) != nil {
+			continue
+		}
+		// СУХОЙ ПРОГОН — НЕ ИТЕРАЦИЯ. Его строки помечены, и до 0.9.5 отчёт всё равно
+		// считал их: журнал из строк сухого прогона давал «итераций N» и «расход последней
+		// итерации НЕ ПРИШЁЛ» — как будто работа шла, а замер потерялся.
+		if row.WhatIf {
+			s.DryRuns++
+			continue
+		}
+		s.RunSpent = row.Spent
+		// Нулевая строка — запись «план пройден, делать нечего», а не работа. Расход
+		// прогона она несёт, итерацией не считается.
+		if row.Iteration != nil && *row.Iteration == 0 {
 			continue
 		}
 		s.Iterations++
@@ -174,11 +198,31 @@ func buildReport(root string) productReport {
 	var cfg runConfig
 	cfgErr := readJSON(filepath.Join(root, "run-config.json"), &cfg)
 
-	// Судья — прогоном. См. шапку о том, почему не из файла.
-	if cfgErr != nil {
+	// ПЕТЛЯ ИДЁТ — СУДЬЯ ОТЧЁТОМ НЕ ПРОГОНЯЕТСЯ. Единственное исключение из правила шапки,
+	// и причина в устройстве петли: после каждой итерации она прогоняет судью, пишет
+	// вердикт и тут же меряет по нему расстояние. Второй судья, запущенный отчётом рядом,
+	// гонял бы тесты по дереву, которое исполнитель правит прямо сейчас, и мог бы записать
+	// свой вердикт между её записью и её замером — петля судила бы итерацию чужими числами.
+	// Поэтому при идущей петле отчёт берёт ЕЁ последний вердикт и прямо говорит, чей он и
+	// когда записан.
+	r.LoopRunning = lockHeld(lockName("loop", root))
+
+	switch {
+	case cfgErr != nil:
 		r.JudgeCode = 2
 		r.JudgeText = "НЕ ПРОВЕРЕНО: нет конфигурации run-config.json"
-	} else {
+	case r.LoopRunning:
+		var mv machineVerdict
+		if err := readJSON(filepath.Join(root, ".goal-verdict.json"), &mv); err != nil {
+			r.JudgeCode = 2
+			r.JudgeText = "НЕ ПРОВЕРЕНО: петля идёт, а машинного вердикта ещё нет"
+		} else {
+			r.JudgeCode = mv.Code
+			r.JudgeText = fmt.Sprintf("%s [вердикт петли от %s; отчёт судью не прогонял — петля идёт]",
+				firstLine(mv.VerdictText), mv.At)
+		}
+	default:
+		// Судья — прогоном. См. шапку о том, почему не из файла.
 		res := runJudge(root, cfg, -1)
 		r.JudgeCode, r.JudgeText = verdict(res)
 		// Запись вердикта нужна следующему замеру расстояния: без неё drift скажет
@@ -188,7 +232,11 @@ func buildReport(root string) productReport {
 
 	r.Measure, r.Reasons, r.Limits = measureDrift(root, "")
 	r.Tree = measureTree(root)
-	r.Spend = readSpend(root, cfg.Budget.USD)
+	budget := 0.0
+	if cfgErr == nil {
+		budget = orFloat(cfg.Budget.USD, 20) // тот же потолок, что возьмёт петля
+	}
+	r.Spend = readSpend(root, budget)
 	r.Next = nextOpenStep(root, cfg.Plan)
 	return r
 }
@@ -205,6 +253,9 @@ func (r productReport) text() string {
 	w := func(f string, a ...any) { fmt.Fprintf(&b, f+lineEnding, a...) }
 
 	w("Продукт    : %s", r.Product)
+	if r.LoopRunning {
+		w("Петля      : идёт в другом процессе — дерево и вердикт меняются под её работой")
+	}
 	w("Судья      : %s (код %d)", firstLine(r.JudgeText), r.JudgeCode)
 	w("Расстояние : %s · застой %d · вердикт %s",
 		intOrDash(r.Measure.Distance), r.Measure.StallMoves, r.Measure.Verdict)
@@ -224,16 +275,29 @@ func (r productReport) text() string {
 	switch {
 	case r.Spend.Iterations == 0:
 		spend += "петля не заводилась"
+		if r.Spend.DryRuns > 0 {
+			spend += fmt.Sprintf(" (сухих итераций %d — работы в них не было)", r.Spend.DryRuns)
+		}
 	case r.Spend.LastCost == nil:
-		spend += fmt.Sprintf("расход последней итерации НЕ ПРИШЁЛ · всего по журналу $%.2f", r.Spend.Total)
+		spend += "расход последней итерации НЕ ПРИШЁЛ"
 	default:
-		spend += fmt.Sprintf("$%.4f за последнюю итерацию · всего по журналу $%.2f", *r.Spend.LastCost, r.Spend.Total)
+		spend += fmt.Sprintf("$%.4f за последнюю итерацию", *r.Spend.LastCost)
 	}
-	if r.Spend.Budget > 0 {
-		spend += fmt.Sprintf(" из бюджета $%.0f", r.Spend.Budget)
-	}
+	// ПОТОЛОК БЮДЖЕТА — НА ПРОГОН, И СРАВНИВАЕТСЯ С РАСХОДОМ ПРОГОНА. До 0.9.5 здесь стояло
+	// «всего по журналу $X из бюджета $20»: сумма всех прогонов против потолка одного.
+	// Журнал в $40 читался бы перерасходом вдвое, хотя ни один прогон своего потолка не
+	// достиг, а «$9 из $20» не говорило, сколько осталось у идущего прогона. Найдено
+	// 14.09.2026 при разборе петли на ASW.
 	if r.Spend.Iterations > 0 {
-		spend += fmt.Sprintf(" · итераций %d", r.Spend.Iterations)
+		if r.Spend.RunSpent != nil {
+			spend += fmt.Sprintf(" · последний прогон $%.2f", *r.Spend.RunSpent)
+			if r.Spend.Budget > 0 {
+				spend += fmt.Sprintf(" из потолка $%.0f на прогон", r.Spend.Budget)
+			}
+		} else if r.Spend.Budget > 0 {
+			spend += fmt.Sprintf(" · потолок $%.0f на прогон", r.Spend.Budget)
+		}
+		spend += fmt.Sprintf(" · всего по журналу $%.2f · итераций %d", r.Spend.Total, r.Spend.Iterations)
 	}
 	w("%s", spend)
 
