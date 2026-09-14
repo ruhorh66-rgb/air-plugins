@@ -415,6 +415,12 @@ func cmdInstall(argv []string) int {
 		fmt.Print("Значок     : не запускался (по флагу -no-start)" + lineEnding)
 		return 0
 	}
+	// Отказ владельца машины действует и здесь: установка ставит файлы, но не решает,
+	// чему на машине работать.
+	if trayDisabled() {
+		fmt.Print("Значок     : не запускался — выключен переменной AIR_WORKER_NO_TRAY" + lineEnding)
+		return 0
+	}
 	// ЗНАЧОК ОТЦЕПЛЯЕТСЯ ОТ РОДИТЕЛЯ, и это не украшение.
 	//
 	// Замер AIR-ENV-002 от 14.09.2026: `Start-Process ... install -Wait` не возвращался
