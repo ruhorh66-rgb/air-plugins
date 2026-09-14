@@ -45,7 +45,15 @@ const (
 // Пустая строка и отсутствие ключа здесь неразличимы намеренно: и то и другое означает
 // «нечем подставить», а разница ни на что не влияет.
 func userEnvVar(name string) string {
-	sub, err := syscall.UTF16PtrFromString(`Environment`)
+	return userEnvVarIn(`Environment`, name)
+}
+
+// userEnvVarIn — то же чтение, но из ЛЮБОЙ ветви пользователя. Разведено, когда
+// установка (install_windows.go) стала читать ветвь автозапуска: вторая копия этих
+// тридцати строк с другим путём разошлась бы с первой молча — единственный урок,
+// который за 13.09.2026 подтвердился семь раз.
+func userEnvVarIn(subkey, name string) string {
+	sub, err := syscall.UTF16PtrFromString(subkey)
 	if err != nil {
 		return ""
 	}

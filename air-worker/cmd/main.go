@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.7.1"
+	version = "0.8.0"
 )
 
 func usage() {
@@ -73,6 +73,12 @@ func usage() {
         сверяет страж. Поля, которые прежде требовались от модели словами, здесь
         нельзя ни забыть, ни сочинить.
 
+  air-worker install [-dir <куда>] [-no-autostart] [-no-start] [-status] [-uninstall]
+        Ставит продукт в пользовательскую область и вешает значок в трее. ПОВЫШЕНИЕ ПРАВ
+        НЕ ТРЕБУЕТСЯ ни на одном шаге: файлы идут в %LOCALAPPDATA%\air-worker, автозапуск
+        объявляется в ветви текущего пользователя. -status отвечает тремя разными
+        фактами — файлы, автозапуск, живой значок, — а не одним «установлено».
+
   air-worker version
 `)
 }
@@ -98,6 +104,8 @@ func main() {
 		os.Exit(cmdEncoding(os.Args[2:]))
 	case "report":
 		os.Exit(cmdReport(os.Args[2:]))
+	case "install":
+		os.Exit(cmdInstall(os.Args[2:]))
 	case "version", "-v", "--version":
 		fmt.Printf("%s %s\n", appName, version)
 		os.Exit(0)
