@@ -97,9 +97,27 @@ if (-not (Test-Path -LiteralPath $hist)) {
 # механизм и восстанавливается.
 if ($driftPath) {
     $skillRoot = Split-Path -Parent (Split-Path -Parent $driftPath)
+    # У ПЕТЛИ И У СТРАЖА ДВИГАТЕЛЬ СПРАШИВАЕТСЯ ПО-РАЗНОМУ, и проверка обязана это знать.
+    #
+    # Петля зовёт СКРИПТ goal-drift.ps1 отдельным процессом и смотрит код возврата: код 2
+    # означает эскалацию, и она останавливает прогон.
+    #
+    # Страж с 0.7.0 зовёт БИНАРНИК — `air-worker drift -json` — и смотрит не код, а числа:
+    # он сверяет расстояние, застой и вердикт из отчёта хода с замером на диске. Действие
+    # у него тоже другое: не «остановить прогон», а «не дать закончить ход» (Deny).
+    #
+    # Прежняя редакция этой проверки искала в страже строку 'goal-drift.ps1' и дала
+    # [FAIL] на исправном механизме 14.09.2026: страж перестал звать скрипт не потому,
+    # что перестал спрашивать двигатель, а потому что стал спрашивать его иначе.
+    # Это ровно тот класс, который механизм ловит у чужих продуктов: ПРОВЕРКА СТЕРЕЖЁТ
+    # ФОРМУ ПРЕЖНЕГО УСТРОЙСТВА, А НЕ СУЩЕСТВО НЫНЕШНЕГО. У себя он прожил сутки.
+    #
+    # Поэтому у каждого вызывающего своя пара: чем он спрашивает и чем отвечает на ответ.
     $callers = @(
-        @{ Path = (Join-Path $skillRoot 'scripts\woody.ps1');     What = 'петля'; Stop = 'Close-Woody' },
-        @{ Path = (Join-Path $skillRoot 'hooks\turn-guard.ps1');  What = 'страж'; Stop = '\$missing \+=' }
+        @{ Path = (Join-Path $skillRoot 'scripts\woody.ps1');    What = 'петля'
+           Ask  = 'goal-drift\.ps1';                             Stop = 'Close-Woody' },
+        @{ Path = (Join-Path $skillRoot 'hooks\turn-guard.ps1'); What = 'страж'
+           Ask  = '(goal-drift\.ps1|drift\s+-product)';          Stop = 'Deny\s' }
     )
     foreach ($c in $callers) {
         if (-not (Test-Path -LiteralPath $c.Path -PathType Leaf)) {
@@ -107,7 +125,7 @@ if ($driftPath) {
             continue
         }
         $text = Get-Content -LiteralPath $c.Path -Raw -Encoding UTF8
-        if ($text -notmatch 'goal-drift\.ps1') {
+        if ($text -notmatch $c.Ask) {
             $fail += "$($c.What) не зовёт двигатель цели вовсе: механизм есть, а спрашивать его никто не спрашивает"
             continue
         }
@@ -124,13 +142,29 @@ if ($driftPath) {
         # петля резолвит путь один раз наверху и запускает процесс сотнями строк ниже.
         # Проверять надо структуру — «двигатель запущен, и рядом ветка на код 2, которая
         # останавливает», — потому что именно она и есть предмет проверки.
+        # ВЕРДИКТ БЕЗ ДЕЙСТВИЯ — не вердикт. Ищется структура «двигатель спрошен, и рядом
+        # ветка, которая ОСТАНАВЛИВАЕТ», а не точное написание сравнения: код возврата
+        # кладут то в $proc.ExitCode, то в промежуточную переменную, и проверка, зелёная
+        # лишь при одном написании, ловит опечатку вместо дефекта.
         $hasStop = $false
-        foreach ($m in [regex]::Matches($text, '(?s)Start-Process(?:(?!Start-Process).){0,800}?drift')) {
-            $tail = $text.Substring($m.Index, [Math]::Min(2500, $text.Length - $m.Index))
-            if (($tail -match '-eq\s+2') -and ($tail -match $c.Stop)) { $hasStop = $true; break }
+        if ($c.What -eq 'страж') {
+            # У стража ответ двигателя — ЧИСЛА, а не код процесса. Существо здесь в том,
+            # что расхождение чисел ведёт к отказу: спрошенный и выброшенный замер хуже
+            # неспрошенного, потому что выглядит работой.
+            $askedJson = $text -match 'drift[^\r\n]*-json'
+            $comparedDistance = $text -match '\$drift\.distance'
+            $comparedVerdict = $text -match '\$drift\.verdict'
+            $refuses = $text -match $c.Stop
+            if ($askedJson -and $comparedDistance -and $comparedVerdict -and $refuses) { $hasStop = $true }
         }
-        if ($hasStop) { $checked += "$($c.What) останавливается по эскалации двигателя" }
-        else { $fail += "$($c.What) зовёт двигатель, но эскалацию не исполняет: вердикт без действия" }
+        else {
+            foreach ($m in [regex]::Matches($text, '(?s)Start-Process(?:(?!Start-Process).){0,800}?drift')) {
+                $tail = $text.Substring($m.Index, [Math]::Min(2500, $text.Length - $m.Index))
+                if (($tail -match '-eq\s+2') -and ($tail -match $c.Stop)) { $hasStop = $true; break }
+            }
+        }
+        if ($hasStop) { $checked += "$($c.What) исполняет ответ двигателя, а не только спрашивает" }
+        else { $fail += "$($c.What) зовёт двигатель, но ответ не исполняет: вердикт без действия" }
     }
 }
 

@@ -60,8 +60,11 @@ type loopCtx struct {
 // отвечает true — «считать, что работа была». Осторожность здесь несимметрична: принять
 // сделанную работу за несделанную дороже, чем наоборот, потому что первое ОСТАНАВЛИВАЕТ
 // петлю ложным вердиктом.
+// Подпись дерева берётся ТОЛЬКО по каталогу продукта — см. measureTree в report.go:
+// без ограничения `-- .` в моно-репозитории считаются чужие изменения, и петля примет
+// работу соседнего продукта за работу своего исполнителя.
 func (c *loopCtx) treeSignature() string {
-	cmd := exec.Command("git", "status", "--porcelain")
+	cmd := exec.Command("git", "status", "--porcelain", "--", ".")
 	cmd.Dir = c.Root
 	out, err := cmd.Output()
 	if err != nil {
@@ -340,7 +343,7 @@ func cmdLoop(argv []string) int {
 				// ОТВЕТ ИСПОЛНИТЕЛЯ ЛОЖИТСЯ В ЖУРНАЛ. Без него прогон, потративший
 				// $7.33 и не изменивший ни одного файла, не оставлял следа о причине:
 				// цена и ходы были, а что сказал исполнитель — нигде.
-				"runner_said": nullIfEmpty(r.Detail),
+				"runner_said":   nullIfEmpty(r.Detail),
 				"orchestration": c.Orchestrate, "subagents": c.subagentsInLog(),
 			})
 
