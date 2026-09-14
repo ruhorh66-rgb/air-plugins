@@ -107,6 +107,24 @@ function Write-StateJson([string]$Path, $Body) {
 
 function Get-ProductPath($key) { Join-Path $stateDir ("woody-product-$key.json") }
 
+# Бинарник ищется по ответу, а не по прибитому пути: перекрытие, каталог плагина, затем
+# известное расположение рядом со скилом. От hooks до корня продукта ТРИ уровня —
+# hooks -> woody -> skills -> корень. Тот же порядок и та же функция, что у
+# turn-guard.ps1 (hooks/turn-guard.ps1, Get-WoodyExe) — здесь не переиспользована
+# dot-source'ом намеренно: каждый хук самодостаточен, как заведено в этом файле уже для
+# Write-ModeTrace рядом с Write-GuardTrace.
+function Get-WoodyExe {
+    if ($env:AIR_WORKER_EXE -and (Test-Path -LiteralPath $env:AIR_WORKER_EXE)) { return $env:AIR_WORKER_EXE }
+    if ($env:CLAUDE_PLUGIN_ROOT) {
+        $p = Join-Path $env:CLAUDE_PLUGIN_ROOT 'bin\air-worker.exe'
+        if (Test-Path -LiteralPath $p) { return $p }
+    }
+    $root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+    $p = Join-Path $root 'bin\air-worker.exe'
+    if (Test-Path -LiteralPath $p) { return $p }
+    return $null
+}
+
 # ПРОДУКТ СЕССИИ ОБЪЯВЛЯЕТСЯ, А НЕ УГАДЫВАЕТСЯ.
 #
 # История в две ступени, и вторая — моя собственная ошибка.
@@ -167,6 +185,24 @@ function Set-Product($key, [string]$path) {
             Write-Output 'Продуктом это станет, когда план опишет настоящую работу.'
             return
         }
+    }
+    # ПЛАН КАК ФАЙЛ ОБЯЗАТЕЛЕН И ЗДЕСЬ (этап 0.10, К32, шаг 63). Маркер заготовки выше
+    # ловит только НЕЗАПОЛНЕННЫЙ образец; план без маркера, но без блока целей — или вовсе
+    # без файла плана, если PLAN.md переименован полем `plan` в run-config.json, — до этой
+    # правки продуктом становился беспрепятственно. Проверка ОДНА на весь механизм и
+    # зовётся, а не пересказывается: `air-worker goals` — тот же код, что решает судьбу
+    # плана для судьи, двигателя и отчёта (cmd/planrequire.go).
+    $exe = Get-WoodyExe
+    if (-not $exe) {
+        Write-Output 'ОТКАЗ: не найден air-worker.exe — ни AIR_WORKER_EXE, ни bin рядом с плагином. Годность плана проверить нечем, продукт не объявлен.'
+        return
+    }
+    $goalsOut = (& $exe goals -product $full 2>&1 | Out-String).TrimEnd()
+    $goalsCode = $LASTEXITCODE
+    if ($goalsCode -ne 0) {
+        Write-Output "ОТКАЗ: план не годен к работе — air-worker goals вернул код $goalsCode на продукте $full"
+        if ($goalsOut) { Write-Output $goalsOut }
+        return
     }
     $body = [ordered]@{
         path        = $full

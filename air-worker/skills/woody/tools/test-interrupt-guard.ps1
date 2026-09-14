@@ -186,10 +186,35 @@ $turnGuardPath = Join-Path $skillRoot 'hooks\turn-guard.ps1'
 function New-GuardProduct {
     # Настоящий каталог с настоящим git: страж считает изменённые файлы через
     # `git status --porcelain`, и подставить их файлом-заглушкой нельзя — в этом и смысл.
+    #
+    # ПЛАН И run-config.json ОБЯЗАТЕЛЬНЫ И ЗДЕСЬ (этап 0.10, К32, шаг 63). С правки,
+    # делающей план обязательным на каждом входе бинарника, судья/двигатель/отчёт без
+    # годного плана отказывают кодом 2 вместо измерения. Голый репозиторий без плана,
+    # который эта фабрика собирала прежде, обрывал бы `air-worker drift -json` раньше,
+    # чем страж успевает дойти до правил, которые случаи 1, 3, 4 и 6 ниже проверяют
+    # (turn-guard.ps1 сам получил бы $drift = $null и молча пропустил ход — «нечем
+    # сверять» и «сверил и числа сошлись» неотличимы по коду 0, а случаи 1/3/4 ждут
+    # именно отказа). Фикстура — тот же годный минимум, что и в сквозном прогоне этапа
+    # 0.10 ниже ($cfg010/$plan010): один check «тесты», один критерий К1, один шаг.
     $dir = Join-Path ([System.IO.Path]::GetTempPath()) ("woody-guard-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
     & git -C $dir init -q 2>&1 | Out-Null
     Set-Content -LiteralPath (Join-Path $dir 'README.md') -Value 'проба' -Encoding UTF8
+    # БЕЗ BOM, ЧЕРЕЗ .NET: Set-Content -Encoding UTF8 в Windows PowerShell 5.1 пишет BOM, а
+    # readPlanGoals (cmd/goals.go) читает PLAN.md построчно без его снятия — блок целей
+    # первой строкой файла с BOM молча не находится (та же ловушка, что и в
+    # tools/check-binary.ps1, найдена и исправлена той же правкой).
+    $utf8NoBomGuard = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText((Join-Path $dir 'run-config.json'),
+        '{"judge":{"checks":[{"name":"тесты","command":"cmd","args":["/c","exit","0"]}]},"ladder":["script","sonnet"]}',
+        $utf8NoBomGuard)
+    [System.IO.File]::WriteAllText((Join-Path $dir 'PLAN.md'),
+        ("**Ц1.** страж хода сверяет числа с замером на годном продукте`n`n" +
+         "| Критерий | Цель | Признак достижения | Чем меряется |`n|---|---|---|---|`n" +
+         "| К1 | Ц1 | замер снимается | проверка ``тесты`` |`n`n" +
+         "| № | Шаг | Ступень | Судья |`n|---|---|---|---|`n" +
+         "| 1 | работа | ``sonnet`` | К1: тест |`n| 2 | решение ЛПР | — | гейт: ЛПР |`n"),
+        $utf8NoBomGuard)
     return $dir
 }
 
@@ -451,6 +476,31 @@ else {
         $rW8c = Invoke-HookStdin $turnGuardPath (New-EventJson @{ session_id = $sidW8; hook_event_name = 'Stop'; last_assistant_message = ($base8 + 'От тебя жду: не жду ничего') })
         Assert-That 'turn-guard: ожидание ЛПР без ссылки на открытый гейт плана -- отказ; «гейт 2» и «не жду ничего» -- пропуск' {
             ($rW8a.Code -eq 2) -and ($rW8a.Stderr -match 'ГЕЙТ') -and ($rW8b.Code -eq 0) -and ($rW8c.Code -eq 0)
+        }
+
+        # -- К32 (шаг 63): объявление продукта без плана отказывает --------------------------
+        # mode.ps1 -Product зовёт `air-worker goals -product <корень>` (cmd/goals.go — та же
+        # проверка, что теперь стережёт judge/drift/report, cmd/planrequire.go). Код не 0 --
+        # объявление отказывает и называет код и путь. Продукт ниже: run-config.json есть,
+        # PLAN.md нет вовсе.
+        $prod010NoPlan = Join-Path $env:LOCALAPPDATA ('woody-test-010-noplan-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        try {
+            New-Item -ItemType Directory -Force -Path $prod010NoPlan | Out-Null
+            [System.IO.File]::WriteAllText((Join-Path $prod010NoPlan 'run-config.json'), $cfg010, $utf8NoBom010)
+            $sidW9 = New-TestSessionId
+            $rW9 = Invoke-Mode $sidW9 @('-Product', $prod010NoPlan)
+            $prodFileW9 = Join-Path $stateDir "woody-product-$sidW9.json"
+            # Совпадение проверяется ЛАТИНСКОЙ подстрокой ('air-worker goals') и путём, не
+            # кириллицей текста отказа: захват stdout вложенного powershell.exe конвейером
+            # (Invoke-Mode) в Windows PowerShell 5.1 перекодирует нелатинские символы кодовой
+            # страницей хоста -- тот же класс потерь, что и в случае 6 woody.ps1 выше ('luna').
+            Assert-That 'mode.ps1 -Product: продукт без PLAN.md -- отказ (air-worker goals, код не 0), продукт не объявлен' {
+                ($rW9.Code -ne 0) -and ($rW9.Text -match 'air-worker goals') -and
+                ($rW9.Text -match [regex]::Escape($prod010NoPlan)) -and (-not (Test-Path -LiteralPath $prodFileW9))
+            }
+        }
+        finally {
+            Remove-Item -LiteralPath $prod010NoPlan -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
     finally {

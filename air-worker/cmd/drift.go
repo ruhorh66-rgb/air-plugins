@@ -444,7 +444,11 @@ func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 		}
 	}
 
-	planPath := filepath.Join(root, "PLAN.md")
+	// ПУТЬ ПЛАНА — ИЗ run-config.json, А НЕ ПРИБИТ (этап 0.10, К32). Было
+	// filepath.Join(root, "PLAN.md") мимо cfg.Plan: на продукте с именем плана, отличным
+	// от умолчания, двигатель мерил не тот файл, что судья и петля. planFilePath —
+	// planrequire.go, та же функция, что берёт путь плана cmdJudge, cmdDrift и cmdReport.
+	planPath := planFilePath(root, cfg)
 	plan := parsePlan(planPath)
 	var planOpen, planClosed *int
 	if !plan.Found {
@@ -527,6 +531,17 @@ func cmdDrift(argv []string) int {
 	if fi, err := os.Stat(root); err != nil || !fi.IsDir() {
 		fmt.Printf("НЕЧЕМ МЕРИТЬ: нет каталога продукта %s\n", root)
 		return 2
+	}
+
+	// ПЛАН КАК ФАЙЛ ОБЯЗАТЕЛЕН И ЗДЕСЬ (этап 0.10, К32). До этой правки двигатель без
+	// плана всё равно считал расстояние и называл отсутствие плана лишь в «ограничениях»
+	// замера — как будто это меньше, чем отсутствие пары строк вывода. Конфигурация
+	// читается здесь, а не молча внутри measureDrift: путь плана нужен ДО замера, нет
+	// смысла мерить то, что сам механизм не считает годным к работе.
+	var cfg runConfig
+	_ = readJSON(filepath.Join(root, "run-config.json"), &cfg)
+	if _, code, ok := requirePlan(root, cfg, "двигатель цели"); !ok {
+		return code
 	}
 
 	// ЗАМЕР — ТОТ ЖЕ, ЧТО У ПЕТЛИ И ОТЧЁТА. Здесь была построчная копия measureDrift, и

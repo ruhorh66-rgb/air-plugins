@@ -1,6 +1,6 @@
 {
   "name": "air-worker",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Signed local work execution through the shared llm-queue core.",
   "author": {
     "name": "AIR OS"

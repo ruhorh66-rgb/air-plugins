@@ -33,6 +33,10 @@ var (
 	// Первый прогон 12.09.2026 дал «шагов в плане: 30» при 31 строке: разница пропадала
 	// молча. Пропуск был верным, молчание — нет.
 	rePlanGate = regexp.MustCompile(`^\s*\|\s*(~~)?\s*([0-9]+[A-Za-zА-Яа-я]?)\s*(?:~~)?\s*\|\s*([^|]+?)\s*\|\s*(?:—|-{1,2}|гейт[^|]*)\s*\|\s*([^|]*?)\s*\|\s*$`)
+	// rePlanRowNum — ТОЛЬКО номер табличной строки, той же формой, что головы rePlanTable и
+	// rePlanGate. Нужен closeStepInPlan: строку закрывает петля сама (К31), а не исполнитель,
+	// и трогать при этом можно ровно номер — ни отступы, ни остальные колонки.
+	rePlanRowNum = regexp.MustCompile(`^\s*\|\s*(~~)?\s*([0-9]+[A-Za-zА-Яа-я]?)\s*(~~)?\s*\|`)
 )
 
 type workStep struct {
@@ -91,4 +95,88 @@ func readPlanSteps(path string) []workStep {
 		})
 	}
 	return steps
+}
+
+// closeStepInPlan — закрывает В ФАЙЛЕ ПЛАНА ровно ту строку, что readPlanSteps отдала под
+// step.Index: зачёркивает номер в табличной форме («| N |» -> «| ~~N~~ |») либо ставит «x»
+// в строке-галочке («- [ ]» -> «- [x]»). Остальной текст строки и все прочие строки файла
+// копируются побайтово — правится только отметка закрытия.
+//
+// К31: шаг СО СВОЕЙ КОМАНДОЙ (ступень script) закрывается кодом ЭТОЙ команды, а не работой
+// исполнителя — у script исполнителя нет вовсе, править план в её ходе некому, кроме петли
+// самой. Нашла AIR-ENV-002 14.09.2026: команда шага отработала кодом 0, план не тронулся
+// (ей и нечем было его трогать — то была только проверка), и петля читала неподвижность
+// плана как «цель не сдвинулась» — поднимала ступень до haiku на первом же прогоне.
+//
+// Строка ищется ТЕМ ЖЕ СЧЁТОМ, что и readPlanSteps: те же образцы, в том же порядке, номер
+// по счёту совпадений, а не по тексту заголовка. Две реализации счёта, расходящиеся молча, —
+// ровно тот класс дефекта, что уже чинили в этом продукте (см. parsePlan): поэтому счёт не
+// заводится заново, а зеркалится буквально.
+func closeStepInPlan(path string, step workStep) error {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	hadCR := strings.Contains(string(raw), "\r\n")
+	lines := strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
+
+	i := 0
+	found := false
+	for li, ln := range lines {
+		switch {
+		case reCheckLine.MatchString(ln):
+			i++
+			if i == step.Index {
+				lines[li] = closeCheckLine(ln)
+				found = true
+			}
+		case rePlanGate.MatchString(ln):
+			// Гейты петля не закрывает, но счёт обязан идти той же строкой, что у
+			// readPlanSteps, — иначе номер по счёту у всех шагов ПОСЛЕ гейта разойдётся.
+			i++
+		case rePlanTable.MatchString(ln):
+			i++
+			if i == step.Index {
+				lines[li] = closeTableRow(ln)
+				found = true
+			}
+		default:
+			continue
+		}
+		if found {
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("шаг %d («%s») не нашёлся построчно в %s", step.Index, step.Title, path)
+	}
+
+	out := strings.Join(lines, "\n")
+	if hadCR {
+		out = strings.ReplaceAll(out, "\n", "\r\n")
+	}
+	// PLAN.md — BOM ЗАПРЕЩЁН (правило в encoding.go): харнесс не распознаёт frontmatter под
+	// BOM. Файл читается уже без BOM (живые планы его не несут) и пишется таким же.
+	return os.WriteFile(path, []byte(out), 0o644)
+}
+
+// closeTableRow — оборачивает номер табличной строки ~~страйком~~, не трогая ни отступы,
+// ни остальные колонки: правится только диапазон байт самого номера.
+func closeTableRow(ln string) string {
+	loc := rePlanRowNum.FindStringSubmatchIndex(ln)
+	if loc == nil {
+		return ln
+	}
+	numStart, numEnd := loc[4], loc[5] // группа 2 — сам номер
+	return ln[:numStart] + "~~" + ln[numStart:numEnd] + "~~" + ln[numEnd:]
+}
+
+// closeCheckLine — ставит «x» между квадратных скобок строки-галочки, не трогая остальное.
+func closeCheckLine(ln string) string {
+	loc := reCheckLine.FindStringSubmatchIndex(ln)
+	if loc == nil {
+		return ln
+	}
+	markStart, markEnd := loc[2], loc[3] // группа 1 — символ внутри [ ]
+	return ln[:markStart] + "x" + ln[markEnd:]
 }

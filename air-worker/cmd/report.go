@@ -346,6 +346,16 @@ func cmdReport(argv []string) int {
 		return 2
 	}
 
+	// ПЛАН КАК ФАЙЛ ОБЯЗАТЕЛЕН И ЗДЕСЬ (этап 0.10, К32). До этой правки отчёт на продукте
+	// без плана всё равно печатал числа — расстояние по одному судье, план как «плана
+	// нет» строкой в ограничениях, — а страж хода вставлял их в ход как замер, которым
+	// нечего доказывать: план не годен, а отчёт выглядел полным.
+	var cfg runConfig
+	_ = readJSON(filepath.Join(root, "run-config.json"), &cfg)
+	if _, code, ok := requirePlan(root, cfg, "отчёт"); !ok {
+		return code
+	}
+
 	r := buildReport(root)
 	if *asJSON {
 		enc := json.NewEncoder(os.Stdout)

@@ -15,6 +15,13 @@ import (
 
 var reNonWord = regexp.MustCompile(`[^\p{L}\p{Nd}]+`)
 
+func runnerCapabilityLines(kind string) []string {
+	if kind == "codex" {
+		return []string{"- files may be read, created and edited;", "- Codex runs with workspace-write inside the product root and may run local tests allowed by the sandbox;", "- do not request broader permissions, commit/push, or rewrite the judge;", "- the external judge independently verifies the result after the turn."}
+	}
+	return []string{"- files may be read, created and edited;", "- local commands are not available to this detached runner;", "- the external loop runs build, tests and judge after the turn."}
+}
+
 // Ответ исполнителя, которому не дали прав. Образец широкий намеренно: формулировка
 // клиента меняется от версии к версии и от языка, а последствие всегда одно — работы не
 // было. Узкий образец промолчал бы на новой формулировке, и мы вернулись бы к тому, что
@@ -79,28 +86,13 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 		w("Последний вердикт судьи:")
 		w(judgeText)
 	}
-	// ГРАНИЦА ВОЗМОЖНОСТЕЙ НАЗЫВАЕТСЯ ИСПОЛНИТЕЛЮ ПРЯМО. Проверено прогонами 13.09.2026:
-	// отцеплённый исполнитель ПИШЕТ файлы, но НЕ ЗАПУСКАЕТ команды — ни go, ни git, ни
-	// судью, — и это не снимается ни permission-mode, ни узкими правами вида Bash(go test:*).
-	//
-	// Без этой строки дешёвая модель тратит ход и сдаётся: haiku на шаге 8 сделал три хода
-	// и ответил «мне нужно запустить судью, разрешишь?», не написав ни строки кода. Модель
-	// подороже обходила молча, но тоже теряла ходы на попытках.
-	//
-	// Архитектурно запрет безвреден: проверку прогоном делает СУДЬЯ ПЕТЛИ после каждой
-	// итерации, и он же решает, сдвинулась ли цель. Исполнителю остаётся писать код —
-	// ровно его роль. Сказать ему это дешевле, чем дать ему права.
 	w("")
-	w("ГРАНИЦА ТВОИХ ВОЗМОЖНОСТЕЙ, чтобы ты не тратил ходы впустую:")
-	w("- файлы читать, создавать и править ты МОЖЕШЬ, это твоя работа;")
-	w("- команды запускать НЕ МОЖЕШЬ: ни go build, ни go test, ни git, ни судью. Прав на")
-	w("  это нет и не будет — не проси их и не пытайся обойти;")
-	w("- сборку, тесты и вердикт судьи прогонит петля СРАЗУ после твоего хода. Если ты")
-	w("  написал код и не смог его проверить — это нормально и ожидаемо, так и задумано.")
-	w("Пиши код и объясняй сделанное. Проверка не твоя обязанность.")
+	w("EXECUTOR CAPABILITIES:")
+	for _, msg := range runnerCapabilityLines(runner.Kind) {
+		w(msg)
+	}
+	w("Write code and explain the change. Final acceptance belongs to the external judge.")
 	w("")
-	w(fmt.Sprintf("Потолок ходов на эту итерацию: %d. Упор в потолок означает, что шаг", c.MaxTurns))
-	w("слишком широк: сузь его, а не проси модель подороже.")
 	if c.Orchestrate {
 		w("")
 		w(fmt.Sprintf("Режим оркестрации: раздай работу %d субагентам и сведи результат.", c.Subagents))
@@ -280,65 +272,16 @@ func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec) stepRe
 type codexEvent struct {
 	Type     string `json:"type"`
 	ThreadID string `json:"thread_id"`
-	Usage    *struct {
+	Message  string `json:"message"`
+	Item     *struct {
+		Type    string `json:"type"`
+		Message string `json:"message"`
+		Text    string `json:"text"`
+	} `json:"item"`
+	Error *struct {
+		Message string `json:"message"`
+	} `json:"error"`
+	Usage *struct {
 		CostUSD *float64 `json:"cost_usd"`
 	} `json:"usage"`
-}
-
-func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec) stepResult {
-	// Поток у codex — JSONL событиями, а не одним объектом.
-	//
-	// stdin ОБЯЗАТЕЛЬНО закрывается. Без этого codex печатает «Reading additional input
-	// from stdin...» и ждёт — тот же класс вечного подвисания, что интерактивный запрос
-	// пароля у psql и restic.
-	args := []string{"exec", "--json", "--skip-git-repo-check", "-s", "read-only", "-C", c.Root}
-	if runner.Model != "" {
-		args = append(args, "-m", runner.Model)
-	}
-	// У codex усилие идёт конфигом вызова, а не флагом, и ставится ПОД ЗАДАЧУ.
-	if runner.Effort != "" {
-		args = append(args, "-c", "model_reasoning_effort="+runner.Effort)
-	}
-	args = append(args, prompt)
-	cmd := exec.Command(exePath, args...)
-	cmd.Dir = c.Root
-	if env, took := runnerEnv(); took {
-		cmd.Env = env
-		line("  токен взят из окружения пользователя (в процессе его не было)")
-	}
-	cmd.Stdin = nil
-	out, _ := cmd.CombinedOutput()
-
-	turns := 0
-	ok := false
-	subtype := "unknown"
-	var cost *float64
-	session := ""
-	for _, l := range strings.Split(strings.ReplaceAll(decodeOutput(out), "\r\n", "\n"), "\n") {
-		t := strings.TrimSpace(l)
-		if !strings.HasPrefix(t, "{") {
-			continue
-		}
-		var e codexEvent
-		if json.Unmarshal([]byte(t), &e) != nil {
-			continue
-		}
-		switch e.Type {
-		case "thread.started":
-			session = e.ThreadID
-		case "turn.started":
-			turns++
-		case "turn.completed":
-			ok, subtype = true, "success"
-			if e.Usage != nil {
-				cost = e.Usage.CostUSD
-			}
-		case "turn.failed":
-			ok, subtype = false, "turn_failed"
-		case "error":
-			subtype = "error"
-		}
-	}
-	// Расход, которого поток не принёс, пишется как nil, а не как ноль.
-	return stepResult{Ok: ok, Cost: cost, Turns: &turns, Session: session, Subtype: subtype}
 }

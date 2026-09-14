@@ -195,6 +195,12 @@ func cmdJudge(argv []string) int {
 		fmt.Printf("НЕ ПРОВЕРЕНО: нет конфигурации %s\n", cfgPath)
 		return 2
 	}
+	// ПЛАН КАК ФАЙЛ ОБЯЗАТЕЛЕН И ЗДЕСЬ (этап 0.10, К32). До этой правки судья без плана
+	// выносил «цель достигнута»: criteriaBinding молчит, когда критериев ноль, а
+	// критериев ноль, когда план читать нечем, — отсутствие плана читалось как согласие.
+	if _, code, ok := requirePlan(root, cfg, "судья"); !ok {
+		return code
+	}
 	res := runJudge(root, cfg, *minFacts)
 	code, text := verdict(res)
 	publishVerdict(root, code, text, res)

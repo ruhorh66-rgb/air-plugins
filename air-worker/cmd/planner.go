@@ -132,7 +132,12 @@ func cmdPlan(argv []string) int {
 		_ = os.WriteFile(answerPath, b, 0o644)
 		line("разбор сохранённого ответа, вызова нет")
 	} else {
-		if code := callPlanner(root, prompt, tierName(tier), answerPath); code != 0 {
+		planner, err := plannerRunner(cfg, tier)
+		if err != nil {
+			line("ОТКАЗ: " + err.Error())
+			return 2
+		}
+		if code := callPlannerRunner(root, prompt, planner, answerPath); code != 0 {
 			return code
 		}
 	}
@@ -256,7 +261,7 @@ func uniq(in []string) []string {
 
 // callPlanner — ОДИН вызов. Не «немного», не «сколько понадобится»: разбивка, требующая
 // пяти заходов, — это разведка боем, от которой шаг и защищает.
-func callPlanner(root, prompt, model, answerPath string) int {
+func callClaudePlanner(root, prompt, model, answerPath string) int {
 	// Своя копия поиска УБРАНА: она была верной, но вторая верная копия того же правила —
 	// это и есть будущее расхождение. Ровно так петля и осталась без запасного пути.
 	exe, err := resolveRunnerTool("claude")
