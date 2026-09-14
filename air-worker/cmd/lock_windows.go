@@ -42,7 +42,15 @@ import (
 // рабочем столе сеанса, и две разные сессии Windows — это два разных рабочих стола.
 
 var (
-	procCreateMutexWLock = advapi32Install.NewProc("CreateMutexW")
+	// CreateMutexW живёт в kernel32, а не в advapi32. Первая редакция брала её из
+	// advapi32 (рядом лежат функции реестра), и продукт ПАДАЛ на первом же вызове:
+	// ленивая загрузка проверяет наличие процедуры только в момент обращения, поэтому
+	// сборка и vet молчали, а установка рухнула панике на живой машине.
+	//
+	// Урок ровно тот же, что механизм ловит у продуктов: резолв не доказывает наличия,
+	// доказывает только ОТВЕТ. Здесь его доказал прогон, и никакая проверка формы
+	// доказать не могла.
+	procCreateMutexWLock = kernel32Lock.NewProc("CreateMutexW")
 	procOpenMutexW       = kernel32Lock.NewProc("OpenMutexW")
 	procReleaseMutex     = kernel32Lock.NewProc("ReleaseMutex")
 	procCloseHandleLock  = kernel32Lock.NewProc("CloseHandle")
