@@ -155,6 +155,55 @@ func TestПетляБерётПервыйОткрытыйШагИзПланаН�
 	}
 }
 
+func TestЗакрытиеПриРегрессеНеСменяетШаг(t *testing.T) {
+	// Живой случай 14.09.2026, ASW, прогон на 0.9.5: haiku ломал гейт и зачёркивал свой шаг,
+	// петля шла к следующему — за пять итераций ложно закрылись 8в–8ж.
+	dir := t.TempDir()
+	plan := filepath.Join(dir, "PLAN.md")
+	write := func(s string) {
+		if err := os.WriteFile(plan, []byte(s), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	head := "| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n"
+	write(head + "| 8в | Литералы goalnotice | haiku | тест |\n| 8г | Литералы authnotice | haiku | тест |\n")
+	cur, _ := firstOpenWorkStep(readPlanSteps(plan))
+	write(head + "| ~~8в~~ | Литералы goalnotice | haiku | тест |\n| 8г | Литералы authnotice | haiku | тест |\n")
+	_, _, changed := stepChange(readPlanSteps(plan), cur)
+	if !changed {
+		t.Fatal("зачёркнутый шаг не распознан как сменившийся")
+	}
+	if shouldAdvance(changed, moveRegress) {
+		t.Error("шаг, зачёркнутый итерацией с регрессом, сменён — закрытие при красном судье засчитано")
+	}
+	if !shouldAdvance(changed, moveForward) {
+		t.Error("шаг, закрытый итерацией с движением, не сменён")
+	}
+	if shouldAdvance(false, moveForward) {
+		t.Error("несменившийся шаг сменён")
+	}
+}
+
+func TestЗаданиеПослеРегрессаВелитЧинить(t *testing.T) {
+	dir := t.TempDir()
+	c := &loopCtx{Root: dir, WhatIf: true, MaxTurns: 60, repairNote: "остаток по судье вырос с 1 до 2"}
+	step := workStep{Index: 3, Num: "8в", Title: "8в. Литералы goalnotice", Tier: "haiku"}
+	c.runModelStep(step, "haiku:medium", "", runnerSpec{Kind: "claude", Model: "haiku"})
+	tasks, _ := filepath.Glob(filepath.Join(dir, ".woody", "TASK-3-*.md"))
+	if len(tasks) != 1 {
+		t.Fatalf("файл задания не найден: %v", tasks)
+	}
+	raw, err := os.ReadFile(tasks[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"ПРОШЛАЯ ИТЕРАЦИЯ СДЕЛАЛА ХУЖЕ: остаток по судье вырос с 1 до 2", "сними зачёркивание"} {
+		if !strings.Contains(string(raw), want) {
+			t.Errorf("в задании после регресса нет «%s»:\n%s", want, raw)
+		}
+	}
+}
+
 func TestЗаданиеНазываетКритерийИПравилоЗакрытия(t *testing.T) {
 	// Итерации 5–6 на ASW не сдвинули вердикт: код был, номер в плане не зачёркнут.
 	// Сухой прогон пишет файл задания и выходит до вызова модели — его и читаем.

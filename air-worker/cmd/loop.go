@@ -58,6 +58,10 @@ type loopCtx struct {
 	// не обязательно, и файл от прошлого прогона дал бы расстояние, которое не двигается
 	// ни от какой работы.
 	verdictFresh bool
+	// repairNote — чем прошлая итерация сделала хуже; пусто, если не сделала. Уходит в
+	// задание следующей итерации: без него исполнитель видит зачёркнутый шаг и не знает,
+	// что закрытие не засчитано.
+	repairNote string
 }
 
 // treeChanged — изменилось ли рабочее дерево продукта с начала шага.
@@ -326,6 +330,7 @@ func cmdLoop(argv []string) int {
 		ref.Judge = nil
 	}
 	refinedInCycle := false
+	lastMove := moveNone
 
 	// ШАГ БЕРЁТСЯ ИЗ ПЛАНА НА ДИСКЕ, А НЕ ИЗ СПИСКА, РАЗОБРАННОГО ПРИ СТАРТЕ.
 	//
@@ -361,12 +366,17 @@ func cmdLoop(argv []string) int {
 						fmt.Sprintf("посмотреть %s — после итерации %d в нём не разбирается ни одного шага; "+
 							"скорее всего исполнитель повредил таблицу", planPath, c.iter), 2)
 				}
-				if next, ok := firstOpenWorkStep(steps); !ok || !sameStep(next, step) {
-					if ok {
-						line("  шаг «" + step.Title + "» закрыт в плане — дальше «" + next.Title +
-							"» со своей ступени " + next.Tier + ".")
+				if next, ok, changed := stepChange(steps, step); changed {
+					if !shouldAdvance(changed, lastMove) {
+						line("  шаг «" + step.Title + "» зачёркнут, но итерация сделала хуже — закрытием не считаю, " +
+							"остаюсь на шаге: следующая итерация чинит сломанное.")
+					} else {
+						if ok {
+							line("  шаг «" + step.Title + "» закрыт в плане — дальше «" + next.Title +
+								"» со своей ступени " + next.Tier + ".")
+						}
+						break
 					}
-					break
 				}
 			}
 			if c.iter >= c.MaxIter {
@@ -544,6 +554,12 @@ func cmdLoop(argv []string) int {
 				}
 			}
 			lastSig = sig
+			lastMove = move
+			if move == moveRegress {
+				c.repairNote = why
+			} else {
+				c.repairNote = ""
+			}
 			if ref.Judge == nil && cur.Judge != nil {
 				ref = cur
 			}
@@ -700,6 +716,27 @@ func firstOpenWorkStep(steps []workStep) (workStep, bool) {
 		}
 	}
 	return workStep{}, false
+}
+
+// stepChange — сменился ли первый открытый шаг плана относительно текущего. ok — есть ли
+// открытый шаг вообще.
+func stepChange(steps []workStep, cur workStep) (next workStep, ok, changed bool) {
+	next, ok = firstOpenWorkStep(steps)
+	return next, ok, !ok || !sameStep(next, cur)
+}
+
+// shouldAdvance — переходить ли к следующему шагу плана.
+//
+// ЗАКРЫТИЕ ПРИ РЕГРЕССЕ — НЕ ЗАКРЫТИЕ. Живой случай 14.09.2026, ASW, второй прогон, уже на
+// 0.9.5: пять итераций haiku подряд ломали гейт релиза и каждая зачёркивала свой шаг, а
+// петля, видя шаг закрытым, шла к следующему — хотя сама судила ту же итерацию регрессом.
+// За $2.13 ложно закрылись 8в–8ж, шестая итерация зачеркнула 8з, дерево осталось красным.
+// «Первый регресс чинится на той же ступени» чинился на СЛЕДУЮЩЕМ шаге, то есть никем.
+//
+// Дефект внесён самим 0.9.5: переход к следующему шагу чинил другой дефект того же дня, и
+// тест проверял, что закрытый шаг сменяется, но не проверял — при каком вердикте.
+func shouldAdvance(changed bool, lastMove iterationMove) bool {
+	return changed && lastMove != moveRegress
 }
 
 // sameStep — тот же ли это шаг плана. Заголовок переживает вставку строк выше; номер
