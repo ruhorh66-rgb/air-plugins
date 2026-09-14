@@ -82,6 +82,11 @@ try {
         exit 2
     }
 
+    # Сессия вышла из работы с air-worker по слову ЛПР (этап 0.10, шаг 34): режима для неё
+    # больше нет, и сторожить его выход нечего. Запрет на файл согласования выше остаётся
+    # безусловным — он не про режим, а про подлог решения ЛПР.
+    if (Test-Path -LiteralPath (Join-Path $stateDir "woody-off-$sessionKey.json")) { exit 0 }
+
     $modeFile = Join-Path $stateDir "woody-mode-$sessionKey.json"
     if (-not (Test-Path -LiteralPath $modeFile)) { exit 0 }
     $mode = Get-Content -LiteralPath $modeFile -Raw -Encoding UTF8 | ConvertFrom-Json

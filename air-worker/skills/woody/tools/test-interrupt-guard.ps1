@@ -45,7 +45,9 @@ function Register-Cleanup([string]$path) { $cleanupPaths.Add($path) }
 function New-TestSessionId {
     $id = 'woody-test-' + [guid]::NewGuid().ToString('N').Substring(0, 12)
     foreach ($pattern in @('woody-mode-{0}.json', 'woody-agents-{0}.json', 'woody-session-probe-{0}.json',
-                            'woody-prompt-probe-{0}.json', 'woody-verdict-{0}.json', 'woody-mode-off-approved-{0}.json')) {
+                            'woody-prompt-probe-{0}.json', 'woody-verdict-{0}.json', 'woody-mode-off-approved-{0}.json',
+                            'woody-gate-{0}.json', 'woody-gate-judge-{0}.json', 'woody-off-{0}.json',
+                            'woody-product-{0}.json', 'woody-turn-{0}.json')) {
         Register-Cleanup (Join-Path $stateDir ($pattern -f $id))
     }
     return $id
@@ -238,6 +240,20 @@ try {
             ($rG2.Code -eq 0) -and (-not ($rG2.Stderr -match 'НЕ СОВПАЛИ'))
         }
 
+        # -- случай 2б: в ходе процитирован отчёт другого продукта, свой -- последним -------
+        # Нашла claude-bd 14.09.2026: страж брал ПЕРВОЕ совпадение и сверял с диском своего
+        # продукта числа, процитированные из отчёта по ASW.
+        $quoted = "Сверяю отчёт соседа:`nРасстояние : 99 · застой 7 · вердикт THROTTLE`n" +
+                  "Дерево     : изменено файлов 42, из них новых 0`n`nСвой замер:`n" + $good
+        $sidG2b = New-TestSessionId
+        Set-GuardProductBinding $sidG2b $guardProd
+        $rG2b = Invoke-HookStdin $turnGuardPath (New-EventJson @{
+            session_id = $sidG2b; hook_event_name = 'Stop'; last_assistant_message = $quoted
+        })
+        Assert-That 'turn-guard: чужой отчёт процитирован выше своего -- сверяется последний, код 0' {
+            $rG2b.Code -eq 0
+        }
+
         # -- случай 3: расстояние подменено ----------------------------------------
         $fakeDist = if ($realDist -eq '1') { '2' } else { '1' }
         $badDist = "Расстояние : $fakeDist · застой $($real.stall_moves) · вердикт $($real.verdict)`n" +
@@ -382,6 +398,67 @@ try {
     Remove-Item -LiteralPath (Join-Path $stateDir "woody-mode-$sidM.json") -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath (Join-Path $stateDir "woody-agents-$sidM.json") -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath (Join-Path $stateDir "woody-session-probe-$sidM.json") -Force -ErrorAction SilentlyContinue
+}
+
+# ======================================================================================
+# ЭТАП 0.10: выход из работы по слову ЛПР (К8) и ожидание ЛПР только по гейту плана (К9).
+# Живые прогоны хуков на подставленном состоянии. Страж работы и гейты ЛПР здесь не
+# проверяются: по архитектуре, согласованной ЛПР 14.09.2026, их решение принимает бинарник,
+# и проверяют их тесты Go (план, шаги 38–43).
+# ======================================================================================
+$exe010 = Join-Path (Split-Path -Parent (Split-Path -Parent $skillRoot)) 'bin\air-worker.exe'
+if (-not (Test-Path -LiteralPath $exe010)) {
+    Write-Host '[SKIP] нет bin\air-worker.exe: этап 0.10 не проверялся' -ForegroundColor Yellow
+}
+else {
+    $utf8NoBom010 = New-Object System.Text.UTF8Encoding($false)
+    $prod010 = Join-Path $env:LOCALAPPDATA ('woody-test-010-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+    $savedExe010 = $env:AIR_WORKER_EXE
+    try {
+        $env:AIR_WORKER_EXE = $exe010
+        New-Item -ItemType Directory -Force -Path $prod010 | Out-Null
+        & git -C $prod010 init -q 2>&1 | Out-Null
+        $cfg010 = '{"judge":{"checks":[{"name":"тесты","command":"cmd","args":["/c","exit","0"]}]},"ladder":["script","sonnet"]}'
+        [System.IO.File]::WriteAllText((Join-Path $prod010 'run-config.json'), $cfg010, $utf8NoBom010)
+        $plan010 = "**Ц1.** страж работы пропускает правку по плану с целями`n`n" +
+                   "| Критерий | Цель | Признак достижения | Чем меряется |`n|---|---|---|---|`n" +
+                   "| К1 | Ц1 | правка идёт по плану | проверка ``тесты`` |`n`n" +
+                   "| № | Шаг | Ступень | Судья |`n|---|---|---|---|`n" +
+                   "| 1 | работа | ``sonnet`` | К1: тест |`n| 2 | решение ЛПР | — | гейт: ЛПР |`n"
+        [System.IO.File]::WriteAllText((Join-Path $prod010 'PLAN.md'), $plan010, $utf8NoBom010)
+
+        # -- К8: выход по слову ЛПР -- страж хода молчит; возврат -- снова сверяет -------------
+        $sidW7 = New-TestSessionId
+        $offW7 = Invoke-Mode $sidW7 @('-WorkerOff', 'не используем air-worker в этой сессии')
+        Set-GuardProductBinding $sidW7 $prod010
+        $rT7 = Invoke-HookStdin $turnGuardPath (New-EventJson @{ session_id = $sidW7; hook_event_name = 'Stop'; last_assistant_message = 'Ход без отчёта.' })
+        $onW7 = Invoke-Mode $sidW7 @('-WorkerOn', 'возвращаем air-worker в эту сессию')
+        $rT7b = Invoke-HookStdin $turnGuardPath (New-EventJson @{ session_id = $sidW7; hook_event_name = 'Stop'; last_assistant_message = 'Ход без отчёта.' })
+        Assert-That 'выход по слову ЛПР: после -WorkerOff страж хода молчит, после -WorkerOn снова требует отчёт' {
+            ($offW7.Code -eq 0) -and ($rT7.Code -eq 0) -and ($onW7.Code -eq 0) -and ($rT7b.Code -eq 2)
+        }
+
+        # -- К9: ожидание ЛПР -- только со ссылкой на открытый гейт плана ----------------------
+        $sidW8 = New-TestSessionId
+        Set-GuardProductBinding $sidW8 $prod010
+        $real8 = (& $exe010 drift -product $prod010 -json 2>$null | Out-String | ConvertFrom-Json)
+        $dist8 = 'нечем измерить'
+        if ($null -ne $real8.distance) { $dist8 = [string]$real8.distance }
+        $tree8 = @((& git -C $prod010 status --porcelain -- . 2>$null) | Where-Object { $_.Trim() -ne '' }).Count
+        $base8 = "Расстояние : $dist8 · застой $($real8.stall_moves) · вердикт $($real8.verdict)`nДерево     : изменено файлов $tree8, из них новых 0`n"
+        $rW8a = Invoke-HookStdin $turnGuardPath (New-EventJson @{ session_id = $sidW8; hook_event_name = 'Stop'; last_assistant_message = ($base8 + 'От тебя жду: выбери имя бинарника') })
+        $rW8b = Invoke-HookStdin $turnGuardPath (New-EventJson @{ session_id = $sidW8; hook_event_name = 'Stop'; last_assistant_message = ($base8 + 'От тебя жду: гейт 2 — решение ЛПР') })
+        $rW8c = Invoke-HookStdin $turnGuardPath (New-EventJson @{ session_id = $sidW8; hook_event_name = 'Stop'; last_assistant_message = ($base8 + 'От тебя жду: не жду ничего') })
+        Assert-That 'turn-guard: ожидание ЛПР без ссылки на открытый гейт плана -- отказ; «гейт 2» и «не жду ничего» -- пропуск' {
+            ($rW8a.Code -eq 2) -and ($rW8a.Stderr -match 'ГЕЙТ') -and ($rW8b.Code -eq 0) -and ($rW8c.Code -eq 0)
+        }
+    }
+    finally {
+        $env:AIR_WORKER_EXE = $savedExe010
+        foreach ($d in @($prod010)) {
+            if ($d) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }
+        }
+    }
 }
 
 } finally {

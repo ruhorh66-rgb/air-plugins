@@ -54,6 +54,9 @@ try {
     if (-not $raw) { exit 0 }
     $ev = $raw | ConvertFrom-Json
 
+    # Сессия вышла из работы с air-worker по слову ЛПР (этап 0.10, шаг 34) — хук молчит.
+    if ($ev.session_id -and (Test-Path -LiteralPath (Join-Path (Join-Path $env:ProgramData 'AIR OS\State') ("woody-off-" + $ev.session_id + ".json")))) { exit 0 }
+
     # Путь берётся из входа инструмента. Имена полей разнятся между инструментами записи,
     # поэтому берутся все известные, а не одно: неизвестное имя даст молчание, а молчание
     # здесь неотличимо от исправности.

@@ -46,6 +46,13 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 	if step.Judge != "" {
 		w("Критерий шага: " + step.Judge)
 	}
+	// Метка критерия исполнителю ничего не говорит: «К2» без текста — шифр. Поэтому
+	// критерий уходит в задание целиком — что должно стать правдой и чем это меряется.
+	for _, id := range stepCriteria(step) {
+		if cr, ok := c.goals.criterion(id); ok {
+			w(fmt.Sprintf("%s — %s; меряется: %s", cr.ID, cr.Sign, cr.Measure))
+		}
+	}
 	if strings.HasPrefix(step.Title, step.Num+". ") {
 		w(fmt.Sprintf("Шаг закрывается зачёркнутым номером в %s: «| ~~%s~~ |». Зачеркни номер в том же ходе, что и работу,",
 			planName, step.Num))

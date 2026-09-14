@@ -254,22 +254,47 @@ type trayProofRead struct {
 	Tooltip  string `json:"tooltip"`
 }
 
-// readTrayProof — что трей записал о себе сам. nil означает «он ничего не говорил»,
-// и это НЕ то же самое, что «сказал, что не смог».
-func readTrayProof() *trayProofRead {
+// trayProofPath — где значок пишет доказательство приёма. Расчёт тот же, что stateDir()
+// у самого значка: писатель и читатель обязаны смотреть в одно место.
+func trayProofPath() string {
 	pd := os.Getenv("ProgramData")
 	if pd == "" {
 		pd = `C:` + string(os.PathSeparator) + `ProgramData`
 	}
-	raw, err := os.ReadFile(filepath.Join(pd, "AIR OS", "State", "air-worker-tray.json"))
+	return filepath.Join(pd, "AIR OS", "State", "air-worker-tray.json")
+}
+
+// readTrayProof — что трей записал о себе сам. nil означает «он ничего не говорил»,
+// и это НЕ то же самое, что «сказал, что не смог».
+func readTrayProof() *trayProofRead {
+	p, _ := trayProofFrom(trayProofPath())
+	return p
+}
+
+// trayProofFrom — доказательство значка и, если прочесть не вышло, ПОЧЕМУ.
+//
+// До 0.10 любая неудача давала nil, и статус печатал догадку «старая версия трея?».
+// AIR-ENV-002 14.09.2026: файл на месте, без BOM, права в порядке, приём подтверждён, а
+// подсказка всё равно про старую версию. Догадка вместо причины стоила двух кругов
+// переписки между машинами, и причина так и осталась неизвестной. Теперь печатаются путь и
+// то, что с ним на деле; BOM отрезается, как у остальных читателей состояния.
+func trayProofFrom(path string) (*trayProofRead, string) {
+	raw, err := os.ReadFile(path)
 	if err != nil {
-		return nil
+		if os.IsNotExist(err) {
+			return nil, "файла нет: " + path
+		}
+		return nil, fmt.Sprintf("файл не прочитан: %s — %v", path, err)
+	}
+	text := strings.TrimPrefix(string(raw), string(utf8BOM))
+	if strings.TrimSpace(text) == "" {
+		return nil, "файл пуст: " + path
 	}
 	var p trayProofRead
-	if json.Unmarshal(raw, &p) != nil {
-		return nil
+	if err := json.Unmarshal([]byte(text), &p); err != nil {
+		return nil, fmt.Sprintf("файл не разобран: %s — %v", path, err)
 	}
-	return &p
+	return &p, ""
 }
 
 func cmdInstall(argv []string) int {
@@ -316,7 +341,7 @@ func cmdInstall(argv []string) int {
 		// оболочке; файл доказательства можно оставить от умершего процесса. Каждое
 		// утверждение печатается отдельно, и расхождение между ними видно сразу.
 		win := trayWindow() != 0
-		proof := readTrayProof()
+		proof, proofWhy := trayProofFrom(trayProofPath())
 		// НЕСКОЛЬКО ЗНАЧКОВ — ДЕФЕКТ, И ОН НАЗЫВАЕТСЯ ЧИСЛОМ. Три значка после
 		// перезагрузки 14.09.2026 выглядели в трее «рабочими», и ни одна строка
 		// состояния об этом не говорила: она проверяла «есть ли окно», а не «сколько».
@@ -330,7 +355,7 @@ func cmdInstall(argv []string) int {
 		case win && proof != nil && !proof.Accepted:
 			fmt.Print("Значок     : окно есть, но ОБОЛОЧКА ОТКАЗАЛА принять значок" + lineEnding)
 		case win:
-			fmt.Print("Значок     : окно есть, доказательства приёма нет (старая версия трея?)" + lineEnding)
+			fmt.Print("Значок     : окно есть, доказательства приёма нет — " + proofWhy + lineEnding)
 		case proof != nil:
 			fmt.Print("Значок     : окна нет, а файл доказательства остался — процесс умер, не убрав за собой" + lineEnding)
 		default:

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -188,6 +189,13 @@ func TestСудьяДоволенАПланГоворитИное(t *testing.T) 
 	v, reasons := evaluate(pp(0, 3, 2), d(0), d(2), nil, defaultLimits())
 	if v != verdictBlocked || !hasRule(reasons, "WORKER-DRIFT-04") {
 		t.Fatalf("судья доволен при открытых шагах: ожидался %q с WORKER-DRIFT-04, получено %q", verdictBlocked, v)
+	}
+	// Совет адресован ЛПР, а не сессии (этап 0.10, К10). 14.09.2026 прежний текст «Расширить
+	// судью на эти шаги» читался как задание, и сессия сама дописала проверку в судью.
+	for _, r := range reasons {
+		if r.Rule == "WORKER-DRIFT-04" && (!strings.Contains(r.Why, "решение ЛПР") || strings.Contains(r.Why, "Расширить судью на эти шаги")) {
+			t.Errorf("совет WORKER-DRIFT-04 посылает сессию в судью: %q", r.Why)
+		}
 	}
 	if v2, _ := evaluate(pp(0, 5, 0), d(0), d(0), nil, defaultLimits()); v2 != verdictAllow {
 		t.Fatalf("судья доволен и план закрыт: ожидался %q, получено %q", verdictAllow, v2)

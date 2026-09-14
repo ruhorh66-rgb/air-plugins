@@ -228,6 +228,19 @@ func runJudge(root string, cfg runConfig, minFactsOverride int) judgeResult {
 	if want > 0 {
 		countFacts(root, cfg.Judge.Checklist, want, &r)
 	}
+
+	// КРИТЕРИЙ ПЛАНА БЕЗ МЕРЫ — «НЕЧЕМ ПРОВЕРИТЬ» (этап 0.10, К3). Судья отвечает не только
+	// за проверки из конфигурации, но и за то, что каждому критерию цели в плане есть чем
+	// меряться: критерий, на который никто не смотрит, закрывается словами, а слова механизм
+	// не принимает. План без блока целей здесь не судится — его не возьмёт петля, и отказ
+	// назван там.
+	planName := cfg.Plan
+	if planName == "" {
+		planName = "PLAN.md"
+	}
+	if g := readPlanGoals(filepath.Join(root, planName)); len(g.Criteria) > 0 {
+		r.Unknown = append(r.Unknown, criteriaBinding(root, cfg, g)...)
+	}
 	return r
 }
 

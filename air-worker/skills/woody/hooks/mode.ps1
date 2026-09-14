@@ -55,7 +55,10 @@ param(
     [int]$TraceLast = 20,
     # ПРОДУКТ ЭТОЙ СЕССИИ. Объявляется, а не угадывается — см. Set-Product ниже.
     [string]$Product,
-    [switch]$ForgetProduct
+    [switch]$ForgetProduct,
+    # ВЫХОД СЕССИИ ИЗ РАБОТЫ С AIR-WORKER И ВОЗВРАТ — тоже по слову ЛПР, дословно.
+    [string]$WorkerOff,
+    [string]$WorkerOn
 )
 
 try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false) } catch { }
@@ -287,6 +290,39 @@ if (Test-Path -LiteralPath $legacyFile) {
 }
 
 # --- перечень всех сессий -----------------------------------------------------------
+# ВЫХОД СЕССИИ ИЗ РАБОТЫ С AIR-WORKER — СЛОВАМИ ЛПР, ДОСЛОВНО (этап 0.10, шаг 34).
+#
+# Слова не сочиняются: сессия записывает то, что ЛПР надиктовал, а не пересказ и не своё
+# понимание. Выход, выписанный сессией от себя, — подлог, который ЛПР подсветит.
+# Гейт ЛПР и гейт на судью здесь не заводятся: по архитектуре, согласованной ЛПР 14.09.2026,
+# их пишет и читает бинарник (план, шаги 39 и 43). Выход переедет туда же.
+function Get-OffPath($key) { Join-Path $stateDir ("woody-off-$key.json") }
+
+if ($PSBoundParameters.ContainsKey('WorkerOff') -or $PSBoundParameters.ContainsKey('WorkerOn')) {
+    $key = Get-SessionKey
+    if (-not $key) { Write-Output 'ОТКАЗ: нет CLAUDE_CODE_SESSION_ID — не к чему привязать слова ЛПР'; exit 1 }
+    $words = ([string](@($WorkerOff, $WorkerOn) | Where-Object { $_ } | Select-Object -First 1)).Trim()
+    if ($words.Length -lt 6) {
+        Write-Output 'ОТКАЗ: слов ЛПР нет или в них меньше шести знаков. Выход без слов ЛПР — не выход.'
+        exit 1
+    }
+    $now = Get-Date
+    if ($PSBoundParameters.ContainsKey('WorkerOff')) {
+        Write-StateJson (Get-OffPath $key) ([ordered]@{ words = $words; at = $now.ToString('s'); session = $key })
+        $pp = Get-ProductPath $key
+        if (Test-Path -LiteralPath $pp) { Remove-Item -LiteralPath $pp -Force }
+        Write-ModeTrace $key '-WorkerOff' 'записал' $words
+        Write-Output "air-worker для этой сессии выключен словом ЛПР: «$words». Хуки молчат, продукт сессии снят."
+        Write-Output 'Вернуть: mode.ps1 -WorkerOn "<слова ЛПР>"'
+        exit 0
+    }
+    $op = Get-OffPath $key
+    if (Test-Path -LiteralPath $op) { Remove-Item -LiteralPath $op -Force }
+    Write-ModeTrace $key '-WorkerOn' 'записал' $words
+    Write-Output "air-worker для этой сессии снова включён словом ЛПР: «$words». Продукт объявляется заново: mode.ps1 -Product <корень>"
+    exit 0
+}
+
 if ($Product -or $ForgetProduct) {
     $key = Get-SessionKey
     if ($ForgetProduct) {

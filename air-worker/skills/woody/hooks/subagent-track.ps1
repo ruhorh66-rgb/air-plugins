@@ -34,6 +34,8 @@ try {
     $ev = $raw | ConvertFrom-Json
 
     $stateDir = Join-Path $env:ProgramData 'AIR OS\State'
+    # Сессия вышла из работы с air-worker по слову ЛПР (этап 0.10, шаг 34) — учёт не ведётся.
+    if ($ev.session_id -and (Test-Path -LiteralPath (Join-Path $stateDir ("woody-off-" + $ev.session_id + ".json")))) { exit 0 }
     if (-not (Test-Path -LiteralPath $stateDir)) {
         New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
     }

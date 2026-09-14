@@ -58,6 +58,27 @@ if (-not (Test-Path -LiteralPath $exe)) {
     }
 }
 
+# Dual-host ????? ?????? ????????? ???? ? ?? ?? ?????? Claude ? Codex.
+$codexManifest = Join-Path $ProductRoot '.codex-plugin\plugin.json'
+if (-not (Test-Path -LiteralPath $codexManifest)) {
+    $fail += "??? Codex-?????????: $codexManifest"
+} else {
+    try { $codexPl = Get-Content -LiteralPath $codexManifest -Raw -Encoding UTF8 | ConvertFrom-Json } catch {
+        $codexPl = $null
+        $fail += "Codex-???????? ?? ????????: $($_.Exception.Message)"
+    }
+    if ($null -ne $codexPl) {
+        if ([string]$codexPl.name -ne [string]$pl.name) {
+            $fail += "????? Claude/Codex ?????????? ??????????: $($pl.name) / $($codexPl.name)"
+        }
+        if ([string]$codexPl.version -ne [string]$pl.version) {
+            $fail += "?????? Claude/Codex ?????????? ??????????: $($pl.version) / $($codexPl.version)"
+        } else {
+            $ok += "Claude/Codex ????????? ???????????: $($pl.version)"
+        }
+    }
+}
+
 # --- 2. скилы объявлены каталогом, как требует канон -------------------------
 $skillsDir = Join-Path $ProductRoot 'skills'
 $skills = @(Get-ChildItem -LiteralPath $skillsDir -Directory -ErrorAction SilentlyContinue |
@@ -73,6 +94,7 @@ if ($skills.Count -eq 0) {
 # frontmatter скилов. Тело скила — документация, там абсолютный путь может быть примером.
 $declared = New-Object System.Collections.Generic.List[object]
 $declared.Add([pscustomobject]@{ Name = '.claude-plugin/plugin.json'; Path = $manifest })
+if (Test-Path -LiteralPath $codexManifest) { $declared.Add([pscustomobject]@{ Name = '.codex-plugin/plugin.json'; Path = $codexManifest }) }
 $hooksJson = Join-Path $ProductRoot 'hooks\hooks.json'
 if (Test-Path -LiteralPath $hooksJson) { $declared.Add([pscustomobject]@{ Name = 'hooks/hooks.json'; Path = $hooksJson }) }
 foreach ($s in $skills) {
