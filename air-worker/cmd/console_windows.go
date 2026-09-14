@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	kernel32             = syscall.NewLazyDLL("kernel32.dll")
-	procSetConsoleOutCP  = kernel32.NewProc("SetConsoleOutputCP")
-	procMultiByteToWide  = kernel32.NewProc("MultiByteToWideChar")
-	procGetConsoleOutCP  = kernel32.NewProc("GetConsoleOutputCP")
+	kernel32            = syscall.NewLazyDLL("kernel32.dll")
+	procSetConsoleOutCP = kernel32.NewProc("SetConsoleOutputCP")
+	procMultiByteToWide = kernel32.NewProc("MultiByteToWideChar")
+	procGetConsoleOutCP = kernel32.NewProc("GetConsoleOutputCP")
 )
 
 const cpUTF8 = 65001

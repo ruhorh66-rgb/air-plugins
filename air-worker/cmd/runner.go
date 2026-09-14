@@ -241,7 +241,7 @@ func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec) stepRe
 	return stepResult{
 		Ok: !res.IsError, Cost: res.TotalCostUSD, Turns: res.NumTurns,
 		Session: res.SessionID, Subtype: sub, ApiMs: res.DurationAPI,
-		Detail:  strings.TrimSpace(res.Result),
+		Detail: strings.TrimSpace(res.Result),
 	}
 }
 

@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.8.4"
+	version = "0.9.0"
 )
 
 func usage() {
@@ -81,6 +81,12 @@ func usage() {
         и берётся флагом -autostart. -status отвечает разными фактами — файлы, PATH,
         автозапуск, живой значок, — а не одним «установлено».
 
+  air-worker tray -ensure | -stop | -status [-quiet]
+        Поднимает значок, если он ещё не поднят. ИДЕМПОТЕНТНО: на машине работают
+        несколько сессий, каждая зовёт это при загрузке плагина, значок остаётся ОДИН —
+        гонку разрешает именованный мьютекс внутри самого значка. Зовётся хуком
+        SessionStart, поэтому при -ensure молчит, когда делать нечего.
+
   air-worker version
 `)
 }
@@ -108,6 +114,8 @@ func main() {
 		os.Exit(cmdReport(os.Args[2:]))
 	case "install":
 		os.Exit(cmdInstall(os.Args[2:]))
+	case "tray":
+		os.Exit(cmdTray(os.Args[2:]))
 	case "version", "-v", "--version":
 		fmt.Printf("%s %s\n", appName, version)
 		os.Exit(0)

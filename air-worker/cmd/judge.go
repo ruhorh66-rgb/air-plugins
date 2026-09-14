@@ -140,7 +140,6 @@ type machineVerdict struct {
 	By            string `json:"by"` // чем посчитано: две реализации живут рядом
 }
 
-
 var reFailLine = regexp.MustCompile(`\[FAIL\]|ОТКАЗ|НЕЧЕМ|FAIL|Exception|ошибка`)
 var reCmdFailLine = regexp.MustCompile(`^(FAIL|---\s+FAIL|# |panic:|Error|ОШИБКА|.*:\d+:)`)
 
@@ -450,7 +449,11 @@ func publishVerdict(root string, code int, text string, r judgeResult) {
 	// чередовании двух реализаций увидело бы изменение на каждом прогоне, хотя не
 	// изменилось ничего. Ложное движение вместо ложного застоя, зеркало той беды, что
 	// лечит двигатель цели.
-	_ = os.WriteFile(filepath.Join(root, ".goal-verdict"), []byte(text+lineEnding), 0o644)
+	// АТОМАРНО, потому что читателей у вердикта много и они в разных процессах: страж
+	// хода, двигатель цели, значок в трее, соседняя сессия. os.WriteFile НЕ атомарен —
+	// читатель может застать файл усечённым, и «вердикта нет» станет неотличимо от
+	// «вердикт пуст». Замок здесь не нужен: атомарная запись дешевле и надёжнее.
+	_ = writeFileAtomic(filepath.Join(root, ".goal-verdict"), []byte(text+lineEnding))
 	passed := len(r.Passed)
 	failed := len(r.Failed)
 	if r.FactsLine != "" {
@@ -481,6 +484,6 @@ func publishVerdict(root string, code int, text string, r judgeResult) {
 		By:            appName + " " + version,
 	}
 	if b, err := json.MarshalIndent(mv, "", "  "); err == nil {
-		_ = os.WriteFile(filepath.Join(root, ".goal-verdict.json"), b, 0o644)
+		_ = writeFileAtomic(filepath.Join(root, ".goal-verdict.json"), b)
 	}
 }

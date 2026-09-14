@@ -323,6 +323,18 @@ func cmdInstall(argv []string) int {
 		return 0
 	}
 
+	// УСТАНОВКА ИСКЛЮЧИТЕЛЬНА. Две одновременные останавливают значок, копируют файлы
+	// и запускают его вперемешку, и итогом бывает половина: новый CLI со старым значком.
+	// Отказ «Access is denied» приходит не всегда — иногда копирование успевает, и
+	// расхождение остаётся незамеченным, что хуже честной ошибки.
+	lock, ok := acquireLock(`Local\air-worker-install`)
+	if !ok {
+		fmt.Print("УСТАНОВКА УЖЕ ИДЁТ в другом процессе — эта остановлена, чтобы не оставить половину" + lineEnding)
+		fmt.Print("дождись её окончания и проверь: air-worker install -status" + lineEnding)
+		return 1
+	}
+	defer lock.release()
+
 	self, err := os.Executable()
 	if err != nil {
 		fmt.Printf("не найден собственный путь: %v"+lineEnding, err)

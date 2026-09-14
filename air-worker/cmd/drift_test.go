@@ -26,12 +26,12 @@ func TestЛестницаЗастоя(t *testing.T) {
 		history []*int
 		want    string
 	}{
-		{histOf(), verdictAllow},                       // первый замер: сравнивать не с чем
-		{histOf(4), verdictAllow},                      // застой 1
-		{histOf(4, 4), verdictAllow},                   // застой 2
-		{histOf(4, 4, 4), verdictThrottle},             // застой 3 — порог торможения
-		{histOf(4, 4, 4, 4, 4), verdictThrottle},       // застой 5
-		{histOf(4, 4, 4, 4, 4, 4), verdictEscalate},    // застой 6 — порог эскалации
+		{histOf(), verdictAllow},                    // первый замер: сравнивать не с чем
+		{histOf(4), verdictAllow},                   // застой 1
+		{histOf(4, 4), verdictAllow},                // застой 2
+		{histOf(4, 4, 4), verdictThrottle},          // застой 3 — порог торможения
+		{histOf(4, 4, 4, 4, 4), verdictThrottle},    // застой 5
+		{histOf(4, 4, 4, 4, 4, 4), verdictEscalate}, // застой 6 — порог эскалации
 	}
 	for i, c := range cases {
 		got, _ := evaluate(d(4), d(1), c.history, lim)
