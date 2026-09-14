@@ -50,6 +50,7 @@ var (
 
 	user32Install     = syscall.NewLazyDLL("user32.dll")
 	procFindWindowW   = user32Install.NewProc("FindWindowW")
+	procFindWindowExW = user32Install.NewProc("FindWindowExW")
 	procPostMessageWI = user32Install.NewProc("PostMessageW")
 )
 
@@ -160,19 +161,55 @@ func trayWindow() syscall.Handle {
 // Второе возвращаемое значение отличает «вышел» от «не дождались»: ждать вечно нельзя
 // (зависший значок остановил бы установку навсегда), а молча продолжить — значит
 // вернуться к тому же отказу с другой стороны.
+// trayWindows — ВСЕ окна значка, а не первое найденное.
+//
+// Добавлено после перезагрузки 14.09.2026, когда в трее встало три значка разом.
+// FindWindowW возвращает одно окно, и остановка, закрывшая его, ждала исчезновения
+// «окна значка» — а оставшиеся два отвечали «есть», и ожидание кончалось таймаутом.
+// Инструмент снятия обязан справляться именно с тем состоянием, ради которого его зовут.
+func trayWindows() []syscall.Handle {
+	cls, err := syscall.UTF16PtrFromString(trayClass)
+	if err != nil {
+		return nil
+	}
+	var out []syscall.Handle
+	var prev uintptr
+	for i := 0; i < 64; i++ { // потолок: зацикленный перебор хуже неполного
+		h, _, _ := procFindWindowExW.Call(0, prev, uintptr(unsafe.Pointer(cls)), 0)
+		if h == 0 {
+			break
+		}
+		out = append(out, syscall.Handle(h))
+		prev = h
+	}
+	return out
+}
+
+// stopTray просит ВСЕ значки выйти И ДОЖИДАЕТСЯ, что вышли.
+//
+// Ожидание добавлено по отказу: первая редакция посылала WM_CLOSE и сразу шла
+// копировать файлы, а процесс ещё жил — замена .exe падала с «Access is denied».
+// Просьба принята не значит действие совершено: PostMessage возвращает «сообщение
+// поставлено в очередь», а не «окно закрылось».
+//
+// Трогаются ТОЛЬКО окна класса AirWorkerTrayWnd. Имя класса уникально для этого
+// продукта; значок AIR Kill Switch живёт в классе SystrayClass и сюда не попадает
+// ни при каком раскладе — снятие не должно задевать чужие продукты даже случайно.
 func stopTray() (asked bool, gone bool) {
-	h := trayWindow()
-	if h == 0 {
+	wins := trayWindows()
+	if len(wins) == 0 {
 		return false, true
 	}
-	// Закрываем сообщением, а не убийством процесса: по WM_CLOSE трей снимает свой
-	// значок сам. Убитый процесс оставляет в трее «призрак», который исчезает только
-	// когда мышь пройдёт над ним.
-	procPostMessageWI.Call(uintptr(h), wmCloseMsg, 0, 0)
+	// Закрываем сообщением, а не убийством процесса: по WM_CLOSE значок снимает себя
+	// из трея сам. Убитый процесс оставляет «призрак», который исчезает только когда
+	// мышь пройдёт над ним.
+	for _, h := range wins {
+		procPostMessageWI.Call(uintptr(h), wmCloseMsg, 0, 0)
+	}
 	for i := 0; i < 50; i++ { // до пяти секунд
 		time.Sleep(100 * time.Millisecond)
-		if trayWindow() == 0 {
-			// Окно исчезло. Процессу нужен ещё момент, чтобы отпустить свой .exe:
+		if len(trayWindows()) == 0 {
+			// Окна исчезли. Процессам нужен ещё момент, чтобы отпустить свои .exe:
 			// дескриптор образа закрывает ОС уже после выхода из main.
 			time.Sleep(300 * time.Millisecond)
 			return true, true
@@ -280,6 +317,12 @@ func cmdInstall(argv []string) int {
 		// утверждение печатается отдельно, и расхождение между ними видно сразу.
 		win := trayWindow() != 0
 		proof := readTrayProof()
+		// НЕСКОЛЬКО ЗНАЧКОВ — ДЕФЕКТ, И ОН НАЗЫВАЕТСЯ ЧИСЛОМ. Три значка после
+		// перезагрузки 14.09.2026 выглядели в трее «рабочими», и ни одна строка
+		// состояния об этом не говорила: она проверяла «есть ли окно», а не «сколько».
+		if n := len(trayWindows()); n > 1 {
+			fmt.Printf("Значков    : %d — ДОЛЖЕН БЫТЬ ОДИН, это дефект единственности; снять: air-worker tray -stop"+lineEnding, n)
+		}
 		switch {
 		case win && proof != nil && proof.Accepted:
 			fmt.Printf("Значок     : ВИСИТ — оболочка приняла его %s, процесс %d"+lineEnding, proof.At, proof.PID)
