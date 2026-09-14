@@ -358,7 +358,13 @@ $null = Invoke-HookStdin $turnGuardPath (New-EventJson @{
     session_id = $sidT1; hook_event_name = 'Stop'; last_assistant_message = 'ход без отчёта'
 })
 Remove-Item -LiteralPath $prodT1 -Recurse -Force -ErrorAction SilentlyContinue
-$recordsT1 = Get-Trace $sidT1
+# МАССИВ — ПРИ ПРИСВАИВАНИИ, А НЕ ВНУТРИ ФУНКЦИИ. Get-Trace возвращает @(...), но PowerShell
+# РАЗВОРАЧИВАЕТ массив на выходе функции: при одной записи сюда приходит одиночный объект,
+# а у одиночного PSCustomObject в Windows PowerShell 5.1 свойства .Count нет — оно даёт
+# пусто, и проверка «$recordsT1.Count -gt 0» ложна при исправном следе. Найдено 14.09.2026:
+# страж писал ровно одну верную запись со всеми полями, а проверка падала — одинаково и со
+# старым бинарником, то есть дефект был в проверке, а не в продукте.
+$recordsT1 = @(Get-Trace $sidT1)
 Assert-That 'mode.ps1 -Trace: след стража вообще появился (пустой список доказал бы форму, а не существо)' {
     @($recordsT1).Count -gt 0
 }

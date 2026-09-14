@@ -131,25 +131,42 @@ try {
     Set-Facts -closed 4 -gated 3 -GateWithoutReason; Compare-Judge 'гейт без названной причины'
 
     # --- двигатель: вся лестница застоя -------------------------------------
+    # С 0.9.4 У ДВИГАТЕЛЯ ОДНА РЕАЛИЗАЦИЯ — бинарник; goal-drift.ps1 только доставляет вызов.
+    # Сравнивать скрипт с бинарником здесь стало бы сравнением бинарника с самим собой: такая
+    # проверка зеленеет всегда и не доказывает ничего. Поэтому равенство заменено ОЖИДАНИЕМ:
+    # на каждой точке лестницы код обязан быть тем, что объявлено правилом, — и отдельно
+    # проверяется, что скрипт-доставка возвращает ровно код бинарника.
+    #
+    # История макета пишется С МЕТКОЙ ТЕКУЩЕГО ПРАВИЛА. Строки без метки двигатель с 0.9.4 не
+    # читает — смена правила есть граница истории, — и прежние строки {"distance":4} дали бы
+    # ALLOW на всех восьми точках: проверка объявляла бы «согласен на всей лестнице застоя»,
+    # ни разу не дойдя до торможения. Найдено при переводе двигателя на одну реализацию.
     Set-Facts -closed 4 -gated 0
     & powershell -NoProfile -ExecutionPolicy Bypass -File $judgePs -ProductRoot $fx *> $null
     New-Item -ItemType Directory -Path (Join-Path $fx '.woody') -Force | Out-Null
     $hist = Join-Path $fx '.woody\goal-drift.jsonl'
-    # Расстояние макета: судья 3 непокрытых факта + 1 открытый шаг плана = 4.
-    $mismatch = 0
+    # Остаток по судье в макете: 3 непокрытых факта. План: закрыт 1, открыт 1, гейт 1.
+    # Строка истории повторяет ровно это состояние, то есть «ничего не сдвинулось».
+    $row = '{"distance_rule":"judge+closed","judge_distance":3,"plan_open_steps":1,"plan_closed_steps":1}'
+    $expect = @{ 0 = 0; 1 = 0; 2 = 0; 3 = 1; 4 = 1; 5 = 1; 6 = 2; 7 = 2 }
+    $wrong = 0
     foreach ($n in 0..7) {
         Remove-Item -LiteralPath $hist -Force -ErrorAction SilentlyContinue
-        if ($n -gt 0) { 1..$n | ForEach-Object { Add-Content -LiteralPath $hist -Value '{"distance":4}' -Encoding UTF8 } }
-        & powershell -NoProfile -ExecutionPolicy Bypass -File $driftPs -ProductRoot $fx -Quiet *> $null
-        $psCode = $LASTEXITCODE
+        if ($n -gt 0) { 1..$n | ForEach-Object { Add-Content -LiteralPath $hist -Value $row -Encoding UTF8 } }
         & $exe drift -product $fx -quiet *> $null
         $goCode = $LASTEXITCODE
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $driftPs -ProductRoot $fx -Quiet *> $null
+        $psCode = $LASTEXITCODE
+        if ($goCode -ne $expect[$n]) {
+            $fail += "двигатель, история $n замеров без движения: код $goCode, по правилу $($expect[$n])"
+            $wrong++
+        }
         if ($psCode -ne $goCode) {
-            $fail += "двигатель, история $n замеров: скрипт $psCode, бинарник $goCode"
-            $mismatch++
+            $fail += "двигатель, история $n замеров: скрипт-доставка вернул $psCode, бинарник $goCode"
+            $wrong++
         }
     }
-    if ($mismatch -eq 0) { $ok += 'двигатель согласен на всей лестнице застоя (8 точек: ALLOW, торможение, эскалация)' }
+    if ($wrong -eq 0) { $ok += 'двигатель проходит лестницу застоя по правилу (8 точек: ALLOW, торможение, эскалация), скрипт-доставка возвращает код бинарника' }
 }
 finally {
     Remove-Item -LiteralPath $fx -Recurse -Force -ErrorAction SilentlyContinue
@@ -159,5 +176,5 @@ if ($ok.Count -eq 0 -and $fail.Count -eq 0) { Write-Output '[FAIL] нечем п
 if ($unknown.Count) { foreach ($u in $unknown) { Write-Output "[FAIL] нечем проверить: $u" }; exit 2 }
 if ($fail.Count) { foreach ($f in $fail) { Write-Output "[FAIL] $f" }; exit 1 }
 foreach ($o in $ok) { Write-Output "[PASS] $o" }
-Write-Output '[PASS] бинарник собран, отвечает и согласен со скриптом на всех проверенных случаях'
+Write-Output '[PASS] бинарник собран и отвечает; судья согласен со скриптом, двигатель — с объявленным правилом'
 exit 0

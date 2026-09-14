@@ -208,6 +208,17 @@ func (r productReport) text() string {
 	w("Судья      : %s (код %d)", firstLine(r.JudgeText), r.JudgeCode)
 	w("Расстояние : %s · застой %d · вердикт %s",
 		intOrDash(r.Measure.Distance), r.Measure.StallMoves, r.Measure.Verdict)
+	// ПЛАН — СВОЕЙ СТРОКОЙ, А НЕ СЛАГАЕМЫМ. Расстояние выше — остаток по судье; план
+	// показывает, сколько работы объявлено и сколько закрыто. Подробный план не дальше
+	// от цели, чем крупноблочный, — почему перестали складывать, см. measureDrift.
+	if r.Measure.PlanOpenSteps != nil && r.Measure.PlanClosedSteps != nil {
+		planLine := fmt.Sprintf("План       : открытых исполняемых шагов %d, закрытых %d",
+			*r.Measure.PlanOpenSteps, *r.Measure.PlanClosedSteps)
+		if r.Measure.PlanGates > 0 {
+			planLine += fmt.Sprintf(", гейтов ЛПР %d", r.Measure.PlanGates)
+		}
+		w("%s", planLine)
+	}
 
 	spend := "Потрачено  : "
 	switch {
