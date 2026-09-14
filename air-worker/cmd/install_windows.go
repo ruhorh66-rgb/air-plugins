@@ -268,6 +268,13 @@ func cmdInstall(argv []string) int {
 		} else {
 			fmt.Print("Автозапуск : НЕ объявлен" + lineEnding)
 		}
+		if cur, _, _, err := readUserPath(); err != nil {
+			fmt.Printf("PATH       : прочитать не удалось — %v"+lineEnding, err)
+		} else if pathHas(cur, binDir) {
+			fmt.Print("PATH       : каталог в PATH пользователя — продукт зовётся по имени" + lineEnding)
+		} else {
+			fmt.Print("PATH       : каталога НЕТ в PATH — по имени продукт не найдётся" + lineEnding)
+		}
 		// ТРИ РАЗНЫХ ФАКТА, а не один. Окно можно завести и не отдать значок
 		// оболочке; файл доказательства можно оставить от умершего процесса. Каждое
 		// утверждение печатается отдельно, и расхождение между ними видно сразу.
@@ -302,6 +309,13 @@ func cmdInstall(argv []string) int {
 			fmt.Print("значок остановлен" + lineEnding)
 		default:
 			fmt.Print("значок НЕ ОТВЕТИЛ на запрос выхода за пять секунд — сними его вручную" + lineEnding)
+		}
+		if changed, err := removeFromUserPath(binDir); err != nil {
+			fmt.Printf("PATH       : не тронут — %v"+lineEnding, err)
+		} else if changed {
+			fmt.Print("PATH       : каталог убран из PATH пользователя" + lineEnding)
+		} else {
+			fmt.Print("PATH       : каталога в PATH и не было" + lineEnding)
 		}
 		// ФАЙЛЫ НЕ УДАЛЯЮТСЯ. Снять автозапуск — обратимо; стереть каталог — нет, и
 		// решение о безвозвратном принимает человек.
@@ -356,6 +370,19 @@ func cmdInstall(argv []string) int {
 		return 1
 	} else {
 		fmt.Print("Автозапуск : объявлен в ветви пользователя, повышение не потребовалось" + lineEnding)
+	}
+
+	// PATH — чтобы ЧУЖИЕ продукты могли сослаться на судью и двигатель по имени, а не
+	// абсолютным путём в чей-то клон и не версионным адресом плагина. Это ответ на
+	// вопрос AIR-ENV-002 от 14.09.2026: у продукта, который не везёт бинарник внутри,
+	// стабильный адрес появляется установкой, а не псевдонимом, заведённым руками.
+	if changed, err := addToUserPath(binDir); err != nil {
+		fmt.Printf("PATH       : НЕ дописан — %v (продукт придётся звать полным путём)"+lineEnding, err)
+	} else if changed {
+		fmt.Print("PATH       : каталог дописан в PATH пользователя (повышение не потребовалось)" + lineEnding)
+		fmt.Print("             новые процессы увидят его сразу, уже запущенные — нет: своё окружение они держат копией" + lineEnding)
+	} else {
+		fmt.Print("PATH       : каталог уже в PATH, второй копии не заведено" + lineEnding)
 	}
 
 	if *noStart {
