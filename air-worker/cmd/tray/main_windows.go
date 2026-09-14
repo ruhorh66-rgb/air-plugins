@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -117,7 +118,12 @@ func declaredProducts() []productState {
 		var body struct {
 			Path string `json:"path"`
 		}
-		if json.Unmarshal(raw, &body) != nil || body.Path == "" {
+		// BOM ОТРЕЗАЕТСЯ ПЕРЕД РАЗБОРОМ. Правило продукта запрещает BOM у .json, и
+		// mode.ps1 с 0.8.4 его не пишет — но файлы, записанные прежними версиями, уже
+		// лежат на дисках обеих машин, и терпеть их обязан читатель. Без этого значок
+		// печатал «продуктов не объявлено» на машине, где продукт объявлен и судья его
+		// видит: отсутствие неотличимо от непрочитанного.
+		if json.Unmarshal(bytes.TrimPrefix(raw, utf8BOM), &body) != nil || body.Path == "" {
 			continue
 		}
 		if st, err := os.Stat(body.Path); err != nil || !st.IsDir() {
@@ -228,6 +234,9 @@ func refreshAsync() {
 		procPostMessageW.Call(uintptr(hwnd), uintptr(wmRefreshDone), 0, 0)
 	}()
 }
+
+// utf8BOM — три байта, которыми Windows PowerShell 5.1 помечает UTF-8.
+var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 
 const wmRefreshDone = 0x0400 + 2
 

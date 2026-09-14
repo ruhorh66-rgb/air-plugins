@@ -87,6 +87,21 @@ function Get-SessionKey {
 function Get-ModePath($key) { Join-Path $stateDir ("woody-mode-$key.json") }
 function Get-ApprovalPath($key) { Join-Path $stateDir ("woody-mode-off-approved-$key.json") }
 function Get-ProbePath($key) { Join-Path $stateDir ("woody-session-probe-$key.json") }
+# СОСТОЯНИЕ ПИШЕТСЯ БЕЗ BOM. `Set-Content -Encoding UTF8` в Windows PowerShell 5.1 пишет
+# UTF-8 С BOM — и это нарушение собственного правила продукта: у .json BOM запрещён
+# (см. `air-worker encoding`).
+#
+# Цена измерена 14.09.2026 на второй машине: AIR-ENV-002 объявила продукт через
+# `mode.ps1 -Product`, судья его видел, а значок в трее печатал «продуктов не
+# объявлено». Разбор JSON в Go спотыкается о BOM молча — файл есть, читатель его не
+# понимает, и отсутствие продукта неотличимо от неудачного чтения.
+#
+# PowerShell 5.1 не умеет UTF8 без BOM ни одним ключом, поэтому пишем через .NET.
+function Write-StateJson([string]$Path, $Body) {
+    $text = ($Body | ConvertTo-Json -Depth 5)
+    [System.IO.File]::WriteAllText($Path, $text, (New-Object System.Text.UTF8Encoding($false)))
+}
+
 function Get-ProductPath($key) { Join-Path $stateDir ("woody-product-$key.json") }
 
 # ПРОДУКТ СЕССИИ ОБЪЯВЛЯЕТСЯ, А НЕ УГАДЫВАЕТСЯ.
@@ -155,7 +170,7 @@ function Set-Product($key, [string]$path) {
         declared_at = (Get-Date).ToString('s')
         session     = $key
     }
-    $body | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Get-ProductPath $key) -Encoding UTF8
+    Write-StateJson (Get-ProductPath $key) $body
     Write-Output "продукт сессии: $full"
     Write-ModeTrace $key 'вручную' 'объявлен-продукт' $full
     $script:productSet = $true

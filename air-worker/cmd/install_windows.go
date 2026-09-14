@@ -238,7 +238,7 @@ func readTrayProof() *trayProofRead {
 func cmdInstall(argv []string) int {
 	fs := flag.NewFlagSet("install", flag.ContinueOnError)
 	dir := fs.String("dir", "", "куда ставить (умолчание — %LOCALAPPDATA%\\air-worker)")
-	noAuto := fs.Bool("no-autostart", false, "не объявлять автозапуск")
+	auto := fs.Bool("autostart", false, "дополнительно объявить автозапуск при входе пользователя")
 	noStart := fs.Bool("no-start", false, "не запускать значок сейчас")
 	status := fs.Bool("status", false, "только показать состояние установки")
 	remove := fs.Bool("uninstall", false, "снять автозапуск и остановить значок")
@@ -301,7 +301,7 @@ func cmdInstall(argv []string) int {
 			fmt.Printf("автозапуск не снят: %v"+lineEnding, err)
 			return 1
 		}
-		fmt.Print("автозапуск снят" + lineEnding)
+		fmt.Print("автозапуск снят (если он был объявлен)" + lineEnding)
 		switch asked, gone := stopTray(); {
 		case !asked:
 			fmt.Print("значок и так не запущен" + lineEnding)
@@ -363,13 +363,27 @@ func cmdInstall(argv []string) int {
 		fmt.Print("Файлы      : CLI и значок скопированы" + lineEnding)
 	}
 
-	if *noAuto {
-		fmt.Print("Автозапуск : не объявлен (по флагу -no-autostart)" + lineEnding)
+	// АВТОЗАПУСК ПО УМОЛЧАНИЮ НЕ ОБЪЯВЛЯЕТСЯ, и это исправление моей ошибки.
+	//
+	// 14.09.2026 я добавила запись в ветвь автозапуска, не получив такого указания. ЛПР
+	// сказал прямо: «я такую задачу не ставил, чтобы при входе в систему уже появился;
+	// там должен быть ручной запуск либо по команде». Он просил УСТАНОВКУ без повышения
+	// и значок, поднятый по его команде, — а не решение о том, когда продукт работает.
+	//
+	// Разница не формальная. «Куда положить файлы» — вопрос установки, и его закрывает
+	// установщик. «Когда продукту запускаться» — вопрос владельца машины, и брать его на
+	// себя нельзя: автозапуск переживает выход из сессии и меняет поведение машины
+	// навсегда, а спросить об этом дешевле, чем отменить.
+	if !*auto {
+		fmt.Print("Автозапуск : НЕ объявлен — значок поднимается командой" + lineEnding)
+		fmt.Print("             нужен при входе в систему — поставь с флагом -autostart" + lineEnding)
 	} else if err := setRunValue("\"" + dstTray + "\""); err != nil {
 		fmt.Printf("Автозапуск : НЕ объявлен — %v"+lineEnding, err)
 		return 1
 	} else {
 		fmt.Print("Автозапуск : объявлен в ветви пользователя, повышение не потребовалось" + lineEnding)
+		fmt.Print("             сработает ПРИ ВХОДЕ пользователя, не при загрузке машины:" + lineEnding)
+		fmt.Print("             значок живёт на рабочем столе, а стола до входа не существует" + lineEnding)
 	}
 
 	// PATH — чтобы ЧУЖИЕ продукты могли сослаться на судью и двигатель по имени, а не
@@ -389,8 +403,39 @@ func cmdInstall(argv []string) int {
 		fmt.Print("Значок     : не запускался (по флагу -no-start)" + lineEnding)
 		return 0
 	}
+	// ЗНАЧОК ОТЦЕПЛЯЕТСЯ ОТ РОДИТЕЛЯ, и это не украшение.
+	//
+	// Замер AIR-ENV-002 от 14.09.2026: `Start-Process ... install -Wait` не возвращался
+	// НИКОГДА — висел десять минут, при том что вся работа была сделана за секунды.
+	// PowerShell ждёт не процесс, а дерево процессов, а значок живёт вечно по своей
+	// природе. Снаружи это неотличимо от зависшей установки — тот же класс, что
+	// зависшие установщики winget: успех выглядит как отказ.
+	//
+	// DETACHED_PROCESS уводит значок из консоли родителя, CREATE_BREAKAWAY_FROM_JOB
+	// выводит его из объекта задания, которым PowerShell держит дерево. Второй флаг
+	// разрешён не всегда, и отказ по нему — не повод не запустить значок: пробуем с
+	// ним, при отказе повторяем без. Молча ронять установку из-за флага нельзя.
+	const (
+		createNewProcessGroup  = 0x00000200
+		detachedProcess        = 0x00000008
+		createBreakawayFromJob = 0x01000000
+	)
+	start := func(flags uint32) error {
+		c := exec.Command(dstTray)
+		c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: flags}
+		if err := c.Start(); err != nil {
+			return err
+		}
+		_ = c.Process.Release()
+		return nil
+	}
+	if err := start(createNewProcessGroup | detachedProcess | createBreakawayFromJob); err == nil {
+		fmt.Print("Значок     : запущен (отцеплён от вызвавшего процесса)" + lineEnding)
+		fmt.Print("Проверь замером: air-worker install -status" + lineEnding)
+		return 0
+	}
 	cmd := exec.Command(dstTray)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNewProcessGroup | detachedProcess}
 	if err := cmd.Start(); err != nil {
 		fmt.Printf("Значок     : не запустился — %v"+lineEnding, err)
 		return 1
