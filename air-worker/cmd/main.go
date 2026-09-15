@@ -58,6 +58,10 @@ func usage() {
         Штатный chat orchestration entrypoint: эквивалент loop -orchestrate. AirWorker сам
         разрешает Agent tool и принимает успех только при доказанных Agent start/result.
 
+  air-worker semantic -product <корень> -step <N> [-executor claude|codex|chatgpt] [-claim "..."]
+        Независимый read-only Semantic Judge текущего шага без запуска executor loop.
+        Factual scope ограничен критериями шага; общий verdict продукта показывается отдельно.
+
   air-worker plan   -product <корень> [-apply] [-model M] [-dry-run] [-use-answer <файл>]
         Планировщик: разбивка цели на шаги ОДНИМ дорогим вызовом. Предлагает в
         PLAN.proposed.md; существующий PLAN.md не трогается никогда.
@@ -141,6 +145,8 @@ func run(argv []string) int {
 		return cmdLoop(argv[1:])
 	case "orchestrate":
 		return cmdOrchestrate(argv[1:])
+	case "semantic", "review":
+		return cmdSemantic(argv[1:])
 	case "plan":
 		return cmdPlan(argv[1:])
 	case "tool":

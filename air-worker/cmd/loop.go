@@ -472,8 +472,9 @@ func cmdLoop(argv []string) int {
 			}
 			// СУХОЙ ПРОГОН СУДЬЮ НЕ ПЕРЕСПРАШИВАЕТ: работы не было, вердикт тот же, что до
 			// неё. У ASW один прогон судьи — полминуты с лишним.
+			var detailed *judgeResult
 			if !c.WhatIf {
-				code, text = c.judge()
+				code, text, detailed = c.judgeDetailed()
 			}
 
 			// The semantic judge is a second, read-only model lane of the opposite vendor.
@@ -481,7 +482,9 @@ func cmdLoop(argv []string) int {
 			var sem *semanticRun
 			iterCost := r.Cost
 			if !c.WhatIf && r.Ok && r.Subtype != "needs_permission" && (runner.Kind == "claude" || runner.Kind == "codex") {
-				sr := c.semanticJudge(step, runner, code, text, r.Detail)
+				sf := stepFactualVerdict(step, detailed)
+				factual := semanticFactualPacket{Scope: "step", Code: sf.Code, Text: sf.Text, Passed: sf.Passed, Failed: sf.Failed, Unknown: sf.Unknown}
+				sr := c.semanticJudge(step, runner, factual, r.Detail)
 				sem = &sr
 				if sr.Cost != nil {
 					c.spent += *sr.Cost
@@ -832,12 +835,17 @@ func (c *loopCtx) subagentsInLog() int {
 
 // judge — свой судья продукта, если назван; иначе встроенный, БЕЗ подпроцесса.
 func (c *loopCtx) judge() (int, string) {
+	code, text, _ := c.judgeDetailed()
+	return code, text
+}
+
+func (c *loopCtx) judgeDetailed() (int, string, *judgeResult) {
 	if c.JudgePath == "" {
 		res := runJudge(c.Root, c.Cfg, -1)
 		code, text := verdict(res)
 		publishVerdict(c.Root, code, text, res)
 		c.verdictFresh = true
-		return code, text
+		return code, text, &res
 	}
 	started := time.Now()
 	args := append([]string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", c.JudgePath}, c.JudgeArgs...)
@@ -845,7 +853,7 @@ func (c *loopCtx) judge() (int, string) {
 	cmd.Dir = c.Root
 	out, err := cmd.CombinedOutput()
 	c.verdictFresh = verdictWrittenSince(c.Root, started)
-	return exitCode(cmd, err), strings.TrimSpace(decodeOutput(out))
+	return exitCode(cmd, err), strings.TrimSpace(decodeOutput(out)), nil
 }
 
 // firstOpenWorkStep — первый незакрытый шаг, исполняемый работой. Гейт шагом работы не

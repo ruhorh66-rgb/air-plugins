@@ -52,8 +52,12 @@ type semanticStepPacket struct {
 }
 
 type semanticFactualPacket struct {
-	Code int    `json:"code"`
-	Text string `json:"text"`
+	Scope   string   `json:"scope"`
+	Code    int      `json:"code"`
+	Text    string   `json:"text"`
+	Passed  []string `json:"criteria_passed,omitempty"`
+	Failed  []string `json:"criteria_failed,omitempty"`
+	Unknown []string `json:"criteria_unknown,omitempty"`
 }
 
 type semanticPacket struct {
@@ -141,8 +145,11 @@ func parseSemanticVerdict(raw string) (semanticVerdict, error) {
 }
 
 func combinedAcceptance(factualCode int, semantic semanticVerdict) string {
-	if factualCode != 0 {
+	if factualCode == 1 {
 		return "FAIL"
+	}
+	if factualCode != 0 {
+		return "NOT_PROVEN"
 	}
 	switch semantic.Verdict {
 	case "PASS":
@@ -158,6 +165,8 @@ func oppositeSemanticReviewer(executor runnerSpec) (runnerSpec, error) {
 	case "claude":
 		return runnerSpec{Kind: "codex", Effort: "high"}, nil
 	case "codex":
+		return runnerSpec{Kind: "claude", Model: "sonnet", Effort: "medium"}, nil
+	case "chatgpt":
 		return runnerSpec{Kind: "claude", Model: "sonnet", Effort: "medium"}, nil
 	default:
 		return runnerSpec{}, fmt.Errorf("semantic judge requires model executor; got %q", executor.Kind)
@@ -322,7 +331,7 @@ func semanticWorkspace(root string) (string, string) {
 	return status, diff
 }
 
-func buildSemanticPacket(c *loopCtx, step workStep, factualCode int, factualText, executorClaim string) semanticPacket {
+func buildSemanticPacket(c *loopCtx, step workStep, factual semanticFactualPacket, executorClaim string) semanticPacket {
 	criteriaIDs := stepCriteria(step)
 	var criteria []planCriterion
 	for _, id := range criteriaIDs {
@@ -338,7 +347,7 @@ func buildSemanticPacket(c *loopCtx, step workStep, factualCode int, factualText
 		Step: semanticStepPacket{
 			Num: step.Num, Title: step.Title, Tier: step.Tier, Criteria: criteriaIDs,
 		},
-		Factual:       semanticFactualPacket{Code: factualCode, Text: factualText},
+		Factual:       factual,
 		GitStatus:     status,
 		Diff:          diff,
 		ExecutorClaim: strings.TrimSpace(executorClaim),
@@ -380,7 +389,7 @@ func publishSemantic(root string, rec semanticRecord) {
 	}
 }
 
-func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factualCode int, factualText, executorClaim string) semanticRun {
+func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factual semanticFactualPacket, executorClaim string) semanticRun {
 	reviewer, err := oppositeSemanticReviewer(executor)
 	run := semanticRun{Reviewer: reviewer}
 	rec := semanticRecord{
@@ -390,7 +399,7 @@ func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factualCode 
 		ExecutorVendor: executor.Kind,
 		ReviewerVendor: reviewer.Kind,
 		ReviewerModel:  reviewer.Model,
-		FactualCode:    factualCode,
+		FactualCode:    factual.Code,
 	}
 	if err != nil {
 		run.Error = err.Error()
@@ -405,7 +414,7 @@ func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factualCode 
 		publishSemantic(c.Root, rec)
 		return run
 	}
-	packet := buildSemanticPacket(c, step, factualCode, factualText, executorClaim)
+	packet := buildSemanticPacket(c, step, factual, executorClaim)
 	prompt := semanticPrompt(packet)
 	var raw string
 	switch reviewer.Kind {

@@ -82,6 +82,9 @@ func TestCombinedAcceptanceMatrix(t *testing.T) {
 	if got := combinedAcceptance(1, pass); got != "FAIL" {
 		t.Fatalf("factual fail overridden: %s", got)
 	}
+	if got := combinedAcceptance(2, pass); got != "NOT_PROVEN" {
+		t.Fatalf("factual unknown became failure/pass: %s", got)
+	}
 	if got := combinedAcceptance(0, pass); got != "PASS" {
 		t.Fatalf("pass matrix: %s", got)
 	}
