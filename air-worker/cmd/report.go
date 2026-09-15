@@ -270,6 +270,22 @@ func (r productReport) text() string {
 		}
 		w("%s", planLine)
 	}
+	// К40 — executable work, LPR gates и technical unknowns печатаются РАЗДЕЛЬНО: одно число
+	// на все три смысла раньше заставляло гадать, чем именно закрывается остаток — работой,
+	// решением ЛПР или тем, что измерить нечем. LPRGates здесь — ВСЕ гейты ЛПР (план +
+	// gated-критерии), а не только план, — то же PlanState, что видел судья.
+	if r.Measure.LPRGates > 0 || len(r.Measure.CriteriaUnknown) > 0 {
+		w("Гейты ЛПР  : %d (работой не закрывается)", r.Measure.LPRGates)
+		if len(r.Measure.CriteriaUnknown) > 0 {
+			w("Неизвестно : критериев без измерения %d — %s", len(r.Measure.CriteriaUnknown), strings.Join(r.Measure.CriteriaUnknown, "; "))
+		}
+	}
+	// К59 — предупреждение о legacy overlap: факт легко читается как «не хватает дважды»,
+	// если не сказать явно, что distance его уже не дублирует.
+	if len(r.Measure.FactsOverlap) > 0 {
+		w("Внимание   : legacy min_facts и критерий считают %d факт(ов) одной обязанностью, не дублируются в остатке: %s",
+			len(r.Measure.FactsOverlap), strings.Join(r.Measure.FactsOverlap, ", "))
+	}
 
 	spend := "Потрачено  : "
 	switch {

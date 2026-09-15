@@ -77,6 +77,12 @@ type measureState int
 const (
 	measurePass measureState = iota
 	measureFail
+	// measureGated — критерий ждёт РЕШЕНИЯ ЛПР, а не работы и не измерения. Отдельно от
+	// measureUnknown (К40): unknown значит «нечем измерить», gated значит «измерено, ждёт
+	// человека». Смешение этих двух состояний в одно раньше читалось как «непонятно, чего
+	// не хватает» там, где на деле не хватало только решения ЛПР — и наоборот, объявленный
+	// гейт маскировал реальное «нечем измерить» у соседней меры того же критерия.
+	measureGated
 	measureUnknown
 )
 
@@ -172,7 +178,7 @@ func factMeasureState(root string, cfg runConfig, id string) measureResult {
 		case "completed":
 			return measureResult{State: measurePass, Detail: id}
 		case "gated":
-			return measureResult{State: measureUnknown, Detail: fmt.Sprintf("факт %s ждёт ЛПР: %s", id, it.Awaits)}
+			return measureResult{State: measureGated, Detail: fmt.Sprintf("факт %s ждёт ЛПР: %s", id, it.Awaits)}
 		default:
 			return measureResult{State: measureFail, Detail: fmt.Sprintf("факт %s имеет статус %q", id, it.Status)}
 		}
@@ -184,6 +190,23 @@ type criterionState struct {
 	ID     string
 	State  measureState
 	Detail string
+}
+
+// measureRank — приоритет состояния при объединении нескольких мер одного критерия.
+// Выше ранг — то состояние и побеждает: «нечем измерить» перевешивает объявленный гейт
+// (недоказанный гейт недоказан), гейт перевешивает провал (ждём ЛПР, а не считаем работой),
+// провал перевешивает успех.
+func measureRank(s measureState) int {
+	switch s {
+	case measureUnknown:
+		return 3
+	case measureGated:
+		return 2
+	case measureFail:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func evaluateCriterion(root string, cfg runConfig, c planCriterion, base judgeResult) criterionState {
@@ -211,16 +234,18 @@ func evaluateCriterion(root string, cfg runConfig, c planCriterion, base judgeRe
 			mr = measureResult{State: measureUnknown, Detail: "неизвестный вид меры"}
 		}
 		details = append(details, mr.Detail)
-		if mr.State == measureUnknown {
-			state = measureUnknown
-		} else if mr.State == measureFail && state != measureUnknown {
-			state = measureFail
+		if measureRank(mr.State) > measureRank(state) {
+			state = mr.State
 		}
 	}
 	return criterionState{ID: c.ID, State: state, Detail: strings.Join(details, "; ")}
 }
 
-func evaluatePlanCriteria(root string, cfg runConfig, g planGoals, base judgeResult) (passed, failed, unknown []string) {
+// evaluatePlanCriteria — К40: GATED отделён от UNKNOWN. Критерий, чья мера объявлена
+// решением ЛПР (факт со статусом gated), попадает в gated, а не в unknown — иначе двум
+// разным причинам «не считать работой» — «нечем измерить» и «ждём человека» — отвечало бы
+// одно и то же число, и отчёт не смог бы сказать, что именно чинить.
+func evaluatePlanCriteria(root string, cfg runConfig, g planGoals, base judgeResult) (passed, failed, gated, unknown []string) {
 	for _, c := range g.Criteria {
 		cr := evaluateCriterion(root, cfg, c, base)
 		switch cr.State {
@@ -228,6 +253,8 @@ func evaluatePlanCriteria(root string, cfg runConfig, g planGoals, base judgeRes
 			passed = append(passed, c.ID)
 		case measureFail:
 			failed = append(failed, fmt.Sprintf("%s — %s", c.ID, cr.Detail))
+		case measureGated:
+			gated = append(gated, fmt.Sprintf("%s — %s", c.ID, cr.Detail))
 		default:
 			unknown = append(unknown, fmt.Sprintf("%s — %s", c.ID, cr.Detail))
 		}

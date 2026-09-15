@@ -73,7 +73,7 @@ func TestГейтБезПричиныЭтоНечемПроверить(t *testi
 		t.Fatal(err)
 	}
 	var r judgeResult
-	countFacts(dir, "checklist.json", 3, &r)
+	countFacts(dir, "checklist.json", 3, nil, &r)
 	if len(r.Unknown) == 0 {
 		t.Fatal("gated без awaits обязан давать «нечем проверить»: иначе метка станет местом, куда складывают неудобное")
 	}
@@ -84,7 +84,7 @@ func TestГейтБезПричиныЭтоНечемПроверить(t *testi
 
 func TestПропажаРеестраЭтоНеЗакрытоНоль(t *testing.T) {
 	var r judgeResult
-	countFacts(t.TempDir(), "нет-такого.json", 9, &r)
+	countFacts(t.TempDir(), "нет-такого.json", 9, nil, &r)
 	if len(r.Unknown) != 1 {
 		t.Fatalf("пропажа реестра обязана давать «нечем», получено unknown=%d failed=%d", len(r.Unknown), len(r.Failed))
 	}

@@ -137,13 +137,23 @@ type machineVerdict struct {
 	ChecksUnknown   int      `json:"checks_unknown"`
 	CriteriaPassed  []string `json:"criteria_passed,omitempty"`
 	CriteriaFailed  []string `json:"criteria_failed,omitempty"`
+	// CriteriaGated — К40: критерии, ждущие решения ЛПР, отдельно от CriteriaUnknown
+	// («нечем измерить»). Закрытые gate-факты сюда не попадают: они уже в CriteriaPassed.
+	CriteriaGated   []string `json:"criteria_gated,omitempty"`
 	CriteriaUnknown []string `json:"criteria_unknown,omitempty"`
 	CriteriaTotal   int      `json:"criteria_total"`
-	FactsClosed     *int     `json:"facts_closed"`
-	FactsGated      int      `json:"facts_gated"`
-	FactsRequired   int      `json:"facts_required"`
-	VerdictText     string   `json:"verdict_text"`
-	By              string   `json:"by"` // чем посчитано: две реализации живут рядом
+	// LPRGates — К40: ВСЕ гейты ЛПР (гейты плана + CriteriaGated), одним числом, отдельно
+	// от executable-остатка. Закрытые gate-шаги плана в это число не входят.
+	LPRGates      int      `json:"lpr_gates"`
+	FactsClosed   *int     `json:"facts_closed"`
+	FactsGated    int      `json:"facts_gated"`
+	FactsRequired int      `json:"facts_required"`
+	// FactsOverlap — К59: факты, которые legacy `min_facts` считал бы «не хватает», хотя они
+	// уже являются мерой критерия и учтены в CriteriaFailed/CriteriaGated. Названы здесь,
+	// чтобы отчёт мог предупредить о дублирующем подсчёте, а не просто занизить число молча.
+	FactsOverlap []string `json:"facts_overlap,omitempty"`
+	VerdictText  string   `json:"verdict_text"`
+	By           string   `json:"by"` // чем посчитано: две реализации живут рядом
 }
 
 var reFailLine = regexp.MustCompile(`\[FAIL\]|ОТКАЗ|НЕЧЕМ|FAIL|Exception|ошибка`)
@@ -175,12 +185,19 @@ type judgeResult struct {
 
 	CriteriaPassed  []string
 	CriteriaFailed  []string
+	CriteriaGated   []string
 	CriteriaUnknown []string
+	// PlanGates — открытые гейты самого плана (см. PlanState); заполняется runJudge через
+	// buildPlanState, тем же кодом, что и остальные потребители PlanState.
+	PlanGates int
 
 	FactsClosed   *int
 	FactsGated    int
 	FactsRequired int
 	FactsLine     string
+	// FactsOverlap — К59: id фактов, которые legacy min_facts посчитал бы «недостающими», но
+	// которые уже являются мерой критерия и не считаются дважды в distanceOf.
+	FactsOverlap []string
 }
 
 func cmdJudge(argv []string) int {
@@ -236,31 +253,51 @@ func runJudge(root string, cfg runConfig, minFactsOverride int, scope sessionSco
 		}
 	}
 
+	// КРИТЕРИЙ ПЛАНА БЕЗ МЕРЫ — «НЕЧЕМ ПРОВЕРИТЬ» (этап 0.10, К3). Судья отвечает не только
+	// за проверки из конфигурации, но и за то, что каждому критерию цели в плане есть чем
+	// меряться: критерий, на который никто не смотрит, закрывается словами, а слова механизм
+	// не принимает. План без блока целей здесь не судится — его не возьмёт петля, и отказ
+	// назван там.
+	//
+	// К40 — план читается ОДИН РАЗ здесь, через buildPlanState (run-config.json -> plan —
+	// единственный активный PLAN): goals/report/drift читают тот же путь той же функцией.
+	planName := cfg.Plan
+	if planName == "" {
+		planName = "PLAN.md"
+	}
+	planPath := filepath.Join(root, planName)
+	g := readPlanGoals(planPath)
+
+	// К59 — факты, уже являющиеся мерой критерия, размечаются ДО подсчёта legacy min_facts,
+	// чтобы недостача по ним не вошла в distance дважды: один раз через CriteriaFailed/Gated,
+	// второй раз через устаревший короткий подсчёт «фактов не хватает».
+	criterionFacts := map[string]bool{}
+	for _, c := range g.Criteria {
+		for _, id := range c.Facts {
+			criterionFacts[id] = true
+		}
+	}
+
 	want := cfg.Judge.MinFacts
 	if minFactsOverride >= 0 {
 		want = minFactsOverride
 	}
 	r.FactsRequired = want
 	if want > 0 {
-		countFacts(root, cfg.Judge.Checklist, want, &r)
+		countFacts(root, cfg.Judge.Checklist, want, criterionFacts, &r)
 	}
 
-	// КРИТЕРИЙ ПЛАНА БЕЗ МЕРЫ — «НЕЧЕМ ПРОВЕРИТЬ» (этап 0.10, К3). Судья отвечает не только
-	// за проверки из конфигурации, но и за то, что каждому критерию цели в плане есть чем
-	// меряться: критерий, на который никто не смотрит, закрывается словами, а слова механизм
-	// не принимает. План без блока целей здесь не судится — его не возьмёт петля, и отказ
-	// назван там.
-	planName := cfg.Plan
-	if planName == "" {
-		planName = "PLAN.md"
-	}
-	if g := readPlanGoals(filepath.Join(root, planName)); len(g.Criteria) > 0 {
+	if len(g.Criteria) > 0 {
 		bindings := criteriaBinding(root, cfg, g)
 		if len(bindings) > 0 {
 			r.CriteriaUnknown = append(r.CriteriaUnknown, bindings...)
 		} else {
-			r.CriteriaPassed, r.CriteriaFailed, r.CriteriaUnknown = evaluatePlanCriteria(root, cfg, g, r)
+			ps := buildPlanState(root, cfg, planPath, r)
+			r.CriteriaPassed, r.CriteriaFailed, r.CriteriaGated, r.CriteriaUnknown = ps.CriteriaPassed, ps.CriteriaFailed, ps.CriteriaGated, ps.CriteriaUnknown
+			r.PlanGates = ps.PlanGates
 		}
+	} else {
+		r.PlanGates = parsePlan(planPath).Gates()
 	}
 	return r
 }
@@ -384,7 +421,7 @@ func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope
 // названным действием. Без этого требования метка стала бы местом, куда складывают
 // неудобное. Гейты видны в тексте вердикта и вычтены из расстояния — прятать за меткой
 // работу нельзя, а обвинять сессию в дрейфе за чужое бездействие нечестно.
-func countFacts(root, checklistRel string, want int, r *judgeResult) {
+func countFacts(root, checklistRel string, want int, criterionFacts map[string]bool, r *judgeResult) {
 	if checklistRel == "" {
 		r.Unknown = append(r.Unknown, fmt.Sprintf(
 			"реестр фактов — нечем: judge.checklist не назван, а требуется %d фактов", want))
@@ -402,6 +439,7 @@ func countFacts(root, checklistRel string, want int, r *judgeResult) {
 	}
 	closed, gated := 0, 0
 	var noReason []string
+	var overlap []string
 	for _, it := range cl.Items {
 		switch it.Status {
 		case "completed":
@@ -410,6 +448,12 @@ func countFacts(root, checklistRel string, want int, r *judgeResult) {
 			gated++
 			if strings.TrimSpace(it.Awaits) == "" {
 				noReason = append(noReason, it.ID)
+			}
+		default:
+			// К59 — факт не закрыт и уже является мерой критерия: недостача по нему считана
+			// критерием (CriteriaFailed/CriteriaGated), а не legacy-счётом ниже.
+			if criterionFacts[it.ID] {
+				overlap = append(overlap, it.ID)
 			}
 		}
 	}
@@ -420,9 +464,13 @@ func countFacts(root, checklistRel string, want int, r *judgeResult) {
 	}
 	r.FactsClosed = &closed
 	r.FactsGated = gated
+	r.FactsOverlap = overlap
 	line := fmt.Sprintf("фактов закрыто %d из %d", closed, want)
 	if gated > 0 {
 		line += fmt.Sprintf(", из них %d ждут ЛПР", gated)
+	}
+	if len(overlap) > 0 {
+		line += fmt.Sprintf("; из недостающих %d уже считаны критерием (не дублируются): %s", len(overlap), strings.Join(overlap, ", "))
 	}
 	r.FactsLine = line
 	if closed < want {
@@ -432,6 +480,10 @@ func countFacts(root, checklistRel string, want int, r *judgeResult) {
 	}
 }
 
+// verdict — К40: GATED критериев НЕ хватает в unknown (это не «нечем измерить», а «измерено,
+// ждёт ЛПР») и не превращают код 2 в код «непонятно, что чинить». Пока не осталось ни
+// unknown, ни failed, а gated-критерии ещё висят, цель честно НЕ ДОСТИГНУТА кодом 1, с
+// текстом, отдельным от provalившихся проверок — работой это не закрыть, надо звать ЛПР.
 func verdict(r judgeResult) (int, string) {
 	unknown := append(append([]string{}, r.Unknown...), r.CriteriaUnknown...)
 	failed := append(append([]string{}, r.Failed...), r.CriteriaFailed...)
@@ -445,6 +497,9 @@ func verdict(r judgeResult) (int, string) {
 	if len(failed) > 0 {
 		return 1, "ЦЕЛЬ НЕ ДОСТИГНУТА: " + strings.Join(failed, "; ")
 	}
+	if len(r.CriteriaGated) > 0 {
+		return 1, "ЦЕЛЬ НЕ ДОСТИГНУТА: ждёт ЛПР (гейт, не работа): " + strings.Join(r.CriteriaGated, "; ")
+	}
 	summary := fmt.Sprintf("пройдено проверок %d", len(r.Passed))
 	if len(r.CriteriaPassed) > 0 {
 		summary += fmt.Sprintf(", критериев %d", len(r.CriteriaPassed))
@@ -457,8 +512,12 @@ func verdict(r judgeResult) (int, string) {
 
 // distanceOf — расстояние до цели по судье: сколько ещё закрывается РАБОТОЙ.
 //
-// Гейты вычитаются: работой они не лечатся. При коде 2 расстояние неизвестно, а не ноль —
-// «ноль здесь читался бы как всё в порядке».
+// Гейты вычитаются: работой они не лечатся — ни гейты плана, ни CriteriaGated. При коде 2
+// расстояние неизвестно, а не ноль — «ноль здесь читался бы как всё в порядке».
+//
+// К59 — len(r.FactsOverlap) вычитается из legacy-недостачи: факт, уже считанный как мера
+// критерия (через CriteriaFailed/CriteriaGated), не добавляет вторую единицу расстояния
+// только потому, что тот же факт входит и в устаревший min_facts.
 func distanceOf(code int, r judgeResult) *int {
 	if code == 2 {
 		return nil
@@ -474,7 +533,7 @@ func distanceOf(code int, r judgeResult) *int {
 	}
 	short := 0
 	if r.FactsRequired > 0 && r.FactsClosed != nil {
-		short = r.FactsRequired - *r.FactsClosed - r.FactsGated
+		short = r.FactsRequired - *r.FactsClosed - r.FactsGated - len(r.FactsOverlap)
 		if short < 0 {
 			short = 0
 		}
@@ -521,11 +580,14 @@ func publishVerdict(root string, code int, text string, r judgeResult) {
 		ChecksUnknown:   len(r.Unknown),
 		CriteriaPassed:  r.CriteriaPassed,
 		CriteriaFailed:  r.CriteriaFailed,
+		CriteriaGated:   r.CriteriaGated,
 		CriteriaUnknown: r.CriteriaUnknown,
-		CriteriaTotal:   len(r.CriteriaPassed) + len(r.CriteriaFailed) + len(r.CriteriaUnknown),
+		CriteriaTotal:   len(r.CriteriaPassed) + len(r.CriteriaFailed) + len(r.CriteriaGated) + len(r.CriteriaUnknown),
+		LPRGates:        r.PlanGates + len(r.CriteriaGated),
 		FactsClosed:     r.FactsClosed,
 		FactsGated:      r.FactsGated,
 		FactsRequired:   r.FactsRequired,
+		FactsOverlap:    r.FactsOverlap,
 		VerdictText:     text,
 		By:              appName + " " + version,
 	}

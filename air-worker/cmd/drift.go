@@ -77,6 +77,15 @@ type driftMeasure struct {
 	PlanOpenSteps      *int   `json:"plan_open_steps"`
 	PlanClosedSteps    *int   `json:"plan_closed_steps"`
 	PlanGates          int    `json:"plan_gates"`
+	// LPRGates/CriteriaGated — К40: то же PlanState, что и у судьи, взятое из ОДНОГО и того
+	// же machineVerdict (.goal-verdict.json), а не пересчитанное здесь заново. GATED здесь
+	// не входит ни в JudgeDistance (судья уже исключил гейты из distance), ни в PlanOpenSteps.
+	LPRGates           int      `json:"lpr_gates"`
+	CriteriaGated      []string `json:"criteria_gated,omitempty"`
+	// CriteriaUnknown/FactsOverlap — К59: technical unknowns и предупреждение о legacy
+	// overlap, тем же machineVerdict, что и LPRGates выше.
+	CriteriaUnknown    []string `json:"criteria_unknown,omitempty"`
+	FactsOverlap       []string `json:"facts_overlap,omitempty"`
 	StallMoves         int    `json:"stall_moves"`
 	UnverifiableStreak int    `json:"unverifiable_streak"`
 	Verdict            string `json:"verdict"`
@@ -509,6 +518,10 @@ func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 		PlanOpenSteps:      planOpen,
 		PlanClosedSteps:    planClosed,
 		PlanGates:          plan.Gates(),
+		LPRGates:           mv.LPRGates,
+		CriteriaGated:      mv.CriteriaGated,
+		CriteriaUnknown:    mv.CriteriaUnknown,
+		FactsOverlap:       mv.FactsOverlap,
 		StallMoves:         stall,
 		UnverifiableStreak: unverifiable,
 		Verdict:            v,
