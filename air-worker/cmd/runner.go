@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -144,9 +145,9 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 		return stepResult{Subtype: "no_runner"}
 	}
 	if runner.Kind == "codex" {
-		return c.invokeCodex(exePath, prompt, runner)
+		return c.invokeCodex(exePath, prompt, runner, step.Num)
 	}
-	return c.invokeClaude(exePath, prompt, runner)
+	return c.invokeClaude(exePath, prompt, runner, step.Num)
 }
 
 // Detail несёт текст отказа исполнителя. Без него петля могла бы только сказать «не
@@ -162,9 +163,9 @@ type claudeResult struct {
 	Result       string   `json:"result"`
 }
 
-func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec) stepResult {
+func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
 	if c.Orchestrate {
-		return c.invokeClaudeOrchestrated(exePath, prompt, runner)
+		return c.invokeClaudeOrchestrated(exePath, prompt, runner, stepID)
 	}
 	args := []string{"-p", prompt, "--model", runner.Model, "--output-format", "json",
 		"--max-turns", fmt.Sprintf("%d", c.MaxTurns)}
@@ -198,7 +199,10 @@ func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec) stepRe
 		cmd.Env = env
 		line("  токен взят из окружения пользователя (в процессе его не было)")
 	}
-	out, _ := cmd.CombinedOutput()
+	// К42 — durable job receipt пишется RUNNING ДО запуска исполнителя; ctx без дедлайна,
+	// поэтому вызов, как и раньше, ждёт завершения синхронно, но теперь ещё и оставляет
+	// receipt/output_path на диске под owned scope этой петли/сессии.
+	out, _ := runReceipted(context.Background(), c.scope(), stepID, "executor-claude", cmd)
 	raw := decodeOutput(out)
 
 	// JSON вынимается ПОСТРОЧНО, а не разбором всего вывода: claude печатает

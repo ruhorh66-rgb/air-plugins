@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -35,12 +36,13 @@ func codexArgs(root, prompt string, runner runnerSpec) []string {
 	return append(args, prompt)
 }
 
-func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec) stepResult {
+func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
 	cmd := runnerCommand(exePath, codexArgs(c.Root, prompt, runner)...)
 	cmd.Dir = c.Root
 	cmd.Env = codexEnv(nil)
 	cmd.Stdin = nil
-	out, runErr := cmd.CombinedOutput()
+	// К42 — durable job receipt пишется RUNNING ДО запуска исполнителя Codex.
+	out, runErr := runReceipted(context.Background(), c.scope(), stepID, "executor-codex", cmd)
 	return parseCodexResult(decodeOutput(out), runErr)
 }
 

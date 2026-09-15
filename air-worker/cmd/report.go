@@ -223,7 +223,7 @@ func buildReport(root string) productReport {
 		}
 	default:
 		// Судья — прогоном. См. шапку о том, почему не из файла.
-		res := runJudge(root, cfg, -1)
+		res := runJudge(root, cfg, -1, legacyScope(root))
 		r.JudgeCode, r.JudgeText = verdict(res)
 		// Запись вердикта нужна следующему замеру расстояния: без неё drift скажет
 		// «машинного вердикта нет» на продукте, судью которого только что прогнали.

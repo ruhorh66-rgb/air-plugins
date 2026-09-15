@@ -107,7 +107,7 @@ func TestКритерийБезПроверкиНечемПроверить(t *t
 
 	// И судья выносит «нечем проверить»: у К2 из плана ссылка на факт, которого нет в реестре.
 	writePlanFile(t, dir, planWithGoals)
-	code, text := verdict(runJudge(dir, cfg, -1))
+	code, text := verdict(runJudge(dir, cfg, -1, legacyScope(dir)))
 	if code != 2 || !strings.Contains(text, "К2") {
 		t.Errorf("судья на критерии без меры: код %d, «%s»; ожидался код 2 с названным К2", code, text)
 	}

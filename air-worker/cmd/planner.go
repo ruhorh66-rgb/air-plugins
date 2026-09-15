@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -137,7 +138,7 @@ func cmdPlan(argv []string) int {
 			line("ОТКАЗ: " + err.Error())
 			return 2
 		}
-		if code := callPlannerRunner(root, prompt, planner, answerPath); code != 0 {
+		if code := callPlannerRunner(root, prompt, planner, answerPath, legacyScope(root)); code != 0 {
 			return code
 		}
 	}
@@ -261,7 +262,7 @@ func uniq(in []string) []string {
 
 // callPlanner — ОДИН вызов. Не «немного», не «сколько понадобится»: разбивка, требующая
 // пяти заходов, — это разведка боем, от которой шаг и защищает.
-func callClaudePlanner(root, prompt, model, answerPath string) int {
+func callClaudePlanner(root, prompt, model, answerPath string, scope sessionScope) int {
 	// Своя копия поиска УБРАНА: она была верной, но вторая верная копия того же правила —
 	// это и есть будущее расхождение. Ровно так петля и осталась без запасного пути.
 	exe, err := resolveRunnerTool("claude")
@@ -281,7 +282,8 @@ func callClaudePlanner(root, prompt, model, answerPath string) int {
 		cmd.Env = env
 		line("  токен взят из окружения пользователя (в процессе его не было)")
 	}
-	out, err := cmd.CombinedOutput()
+	// К42 — durable job receipt пишется RUNNING ДО запуска разбивщика (один дорогой вызов).
+	out, err := runReceipted(context.Background(), scope, "plan", "planner-claude", cmd)
 	if code := exitCode(cmd, err); code != 0 {
 		line(fmt.Sprintf("ОТКАЗ: разбивщик вернул код %d", code))
 		line(strings.TrimSpace(decodeOutput(out)))

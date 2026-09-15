@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -142,7 +143,7 @@ func orchestrationProblem(stats agentLifecycle) string {
 	return strings.Join(stats.Problems, "; ")
 }
 
-func (c *loopCtx) invokeClaudeOrchestrated(exePath, prompt string, runner runnerSpec) stepResult {
+func (c *loopCtx) invokeClaudeOrchestrated(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
 	args := []string{"-p", prompt, "--model", runner.Model, "--output-format", "stream-json",
 		"--forward-subagent-text", "--verbose", "--max-turns", fmt.Sprintf("%d", c.MaxTurns)}
 	if c.Permission != "" {
@@ -163,7 +164,8 @@ func (c *loopCtx) invokeClaudeOrchestrated(exePath, prompt string, runner runner
 		cmd.Env = env
 		line("  токен взят из окружения пользователя (в процессе его не было)")
 	}
-	out, _ := cmd.CombinedOutput()
+	// К42 — durable job receipt пишется RUNNING ДО запуска оркестрованного исполнителя.
+	out, _ := runReceipted(context.Background(), c.scope(), stepID, "executor-claude-orchestrated", cmd)
 	raw := decodeOutput(out)
 	res, agents := parseClaudeStream(raw, c.Subagents)
 	if res == nil {

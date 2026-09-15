@@ -77,7 +77,7 @@ func cmdSemantic(argv []string) int {
 		line("ОТКАЗ: " + err.Error())
 		return 2
 	}
-	result := runJudge(root, cfg, -1)
+	result := runJudge(root, cfg, -1, legacyScope(root))
 	globalCode, globalText := verdict(result)
 	stepState := stepFactualVerdict(step, &result)
 	factual := semanticFactualPacket{

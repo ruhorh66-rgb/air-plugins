@@ -20,7 +20,7 @@ func TestInvokeCodexWritesProductRoot(t *testing.T) {
 	}
 	root := t.TempDir()
 	ctx := loopCtx{Root: root}
-	res := ctx.invokeCodex("codex", "task", runnerSpec{Kind: "codex", Model: "gpt-test", Effort: "medium"})
+	res := ctx.invokeCodex("codex", "task", runnerSpec{Kind: "codex", Model: "gpt-test", Effort: "medium"}, "73")
 	if !res.Ok || res.Subtype != "success" {
 		t.Fatalf("Codex invocation failed: %+v", res)
 	}

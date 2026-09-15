@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -210,14 +211,14 @@ func cmdJudge(argv []string) int {
 	if _, code, ok := requirePlan(root, cfg, "судья"); !ok {
 		return code
 	}
-	res := runJudge(root, cfg, *minFacts)
+	res := runJudge(root, cfg, *minFacts, legacyScope(root))
 	code, text := verdict(res)
 	publishVerdict(root, code, text, res)
 	fmt.Print(text + lineEnding)
 	return code
 }
 
-func runJudge(root string, cfg runConfig, minFactsOverride int) judgeResult {
+func runJudge(root string, cfg runConfig, minFactsOverride int, scope sessionScope) judgeResult {
 	var r judgeResult
 
 	for _, chk := range cfg.Judge.Checks {
@@ -227,9 +228,9 @@ func runJudge(root string, cfg runConfig, minFactsOverride int) judgeResult {
 		}
 		switch {
 		case chk.Script != "":
-			runScriptCheck(root, chk, name, &r)
+			runScriptCheck(root, chk, name, scope, &r)
 		case chk.Command != "":
-			runCommandCheck(root, chk, name, &r)
+			runCommandCheck(root, chk, name, scope, &r)
 		default:
 			r.Unknown = append(r.Unknown, name+" — нечем: в проверке не задан ни script, ни command")
 		}
@@ -272,7 +273,7 @@ func runJudge(root string, cfg runConfig, minFactsOverride int) judgeResult {
 //
 // С рабочим каталогом — потому что ветви были несимметричны, и это порождало дефект в
 // каждом продукте: проверка запускалась ниоткуда и должна была угадать, где продукт.
-func runScriptCheck(root string, chk checkSpec, name string, r *judgeResult) {
+func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope, r *judgeResult) {
 	scriptPath := filepath.Join(root, chk.Script)
 	if _, err := os.Stat(scriptPath); err != nil {
 		r.Unknown = append(r.Unknown, fmt.Sprintf("%s — нечем: нет %s", name, scriptPath))
@@ -295,7 +296,10 @@ func runScriptCheck(root string, chk checkSpec, name string, r *judgeResult) {
 	cmd := exec.Command(shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
 		preamble+"& "+quoted+tail+"; exit $LASTEXITCODE")
 	cmd.Dir = root
-	out, err := cmd.CombinedOutput()
+	// К42 — durable job receipt пишется RUNNING ДО запуска этой проверки; transport/RDC
+	// timeout здесь не наступает (ctx без дедлайна), поэтому вызов, как и раньше, ждёт
+	// завершения синхронно — только теперь ещё и оставляет receipt/output_path на диске.
+	out, err := runReceipted(context.Background(), scope, "judge", name, cmd)
 	code := exitCode(cmd, err)
 	text := decodeOutput(out)
 	if chk.Log != "" {
@@ -323,7 +327,7 @@ func runScriptCheck(root string, chk checkSpec, name string, r *judgeResult) {
 // алиасы-заглушки магазина: поиск их находит, вызов отвечает «не найдено» с кодом 9009 —
 // и отсутствующий инструмент превращался в претензию к продукту, то есть третий код
 // обходился любой заглушкой на PATH.
-func runCommandCheck(root string, chk checkSpec, name string, r *judgeResult) {
+func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope, r *judgeResult) {
 	resolved, err := exec.LookPath(chk.Command)
 	if err != nil {
 		r.Unknown = append(r.Unknown, fmt.Sprintf("%s — нечем: команда '%s' не резолвится", name, chk.Command))
@@ -347,7 +351,7 @@ func runCommandCheck(root string, chk checkSpec, name string, r *judgeResult) {
 			cmd.Env = append(cmd.Env, k+"="+v)
 		}
 	}
-	out, err := cmd.CombinedOutput()
+	out, err := runReceipted(context.Background(), scope, "judge", name, cmd)
 	code := exitCode(cmd, err)
 	text := decodeOutput(out)
 	if chk.Log != "" {

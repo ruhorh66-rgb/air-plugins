@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -29,9 +30,9 @@ func plannerCodexArgs(root, prompt string, runner runnerSpec) []string {
 	return append(args, prompt)
 }
 
-func callPlannerRunner(root, prompt string, runner runnerSpec, answerPath string) int {
+func callPlannerRunner(root, prompt string, runner runnerSpec, answerPath string, scope sessionScope) int {
 	if runner.Kind == "claude" {
-		return callClaudePlanner(root, prompt, runner.Model, answerPath)
+		return callClaudePlanner(root, prompt, runner.Model, answerPath, scope)
 	}
 	if runner.Kind != "codex" {
 		line("ОТКАЗ: неизвестный вендор планировщика: " + runner.Kind)
@@ -48,7 +49,8 @@ func callPlannerRunner(root, prompt string, runner runnerSpec, answerPath string
 	cmd.Dir = root
 	cmd.Env = codexEnv(nil)
 	cmd.Stdin = nil
-	out, runErr := cmd.CombinedOutput()
+	// К42 — durable job receipt пишется RUNNING ДО запуска разбивщика Codex.
+	out, runErr := runReceipted(context.Background(), scope, "plan", "planner-codex", cmd)
 	res := parseCodexResult(decodeOutput(out), runErr)
 	if !res.Ok {
 		line("ОТКАЗ: планировщик Codex не завершил turn: " + res.Subtype)

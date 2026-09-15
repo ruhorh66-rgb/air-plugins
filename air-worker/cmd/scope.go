@@ -26,6 +26,16 @@ type sessionScope struct {
 	ID   sessionIdentity
 }
 
+// legacyScope — owned scope для вызовов без явной identity (судья и планировщик пока не
+// принимают -principal/-session-key на командной строке). Фиксированная identity "legacy"
+// даёт этим вызовам собственный, стабильный owned scope: duplicate-start guard действует
+// (тот же продукт не запустит два судейских прогона одной и той же проверки одновременно),
+// а разные продукты/сессии с объявленной identity получают свои независимые scope и не
+// блокируются легаси-вызовами (см. scopedLockName/newScope — ключ включает root).
+func legacyScope(root string) sessionScope {
+	return newScope(root, sessionIdentity{Principal: "legacy", SessionKey: "default"})
+}
+
 func newScope(root string, id sessionIdentity) sessionScope {
 	abs, err := filepath.Abs(root)
 	if err != nil {

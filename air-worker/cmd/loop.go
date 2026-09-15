@@ -51,6 +51,8 @@ type loopCtx struct {
 	JudgeArgs   []string
 	Permission  string
 	Tools       string
+	Principal   string
+	SessionKey  string
 
 	treeBefore  string
 	spent       float64
@@ -97,6 +99,21 @@ func (c *loopCtx) treeChanged() bool {
 		return true
 	}
 	return c.treeSignature() != c.treeBefore
+}
+
+// scope — owned scope этой петли (К42/шаг 73): та же identity, что уже именует замок петли
+// выше (-principal/-session-key), теперь именует ещё и durable job receipt исполнителя и
+// судьи, вызванных этой петлёй. Без identity — legacyScope, тот же fallback, что у судьи и
+// планировщика без явной сессии.
+func (c *loopCtx) scope() sessionScope {
+	if strings.TrimSpace(c.Principal) == "" && strings.TrimSpace(c.SessionKey) == "" {
+		return legacyScope(c.Root)
+	}
+	id, err := parseIdentity(c.Principal, c.SessionKey)
+	if err != nil {
+		return legacyScope(c.Root)
+	}
+	return newScope(c.Root, id)
 }
 
 func line(text string) { fmt.Print(time.Now().Format("15:04:05") + "  " + text + lineEnding) }
@@ -205,6 +222,8 @@ func cmdLoop(argv []string) int {
 
 	c := &loopCtx{
 		Root: root, Cfg: cfg, CfgPath: cfgPath, WhatIf: *whatIf,
+		Principal:   *principal,
+		SessionKey:  *sessionKey,
 		Ladder:      cfg.Ladder,
 		MaxIter:     orInt(cfg.Budget.Iterations, 12),
 		MaxUSD:      orFloat(cfg.Budget.USD, 20),
@@ -858,7 +877,7 @@ func (c *loopCtx) judge() (int, string) {
 
 func (c *loopCtx) judgeDetailed() (int, string, *judgeResult) {
 	if c.JudgePath == "" {
-		res := runJudge(c.Root, c.Cfg, -1)
+		res := runJudge(c.Root, c.Cfg, -1, c.scope())
 		code, text := verdict(res)
 		publishVerdict(c.Root, code, text, res)
 		c.verdictFresh = true

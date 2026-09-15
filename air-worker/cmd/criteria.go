@@ -147,9 +147,9 @@ func runSelectedCheck(root string, chk checkSpec, selector string) measureResult
 	clone.Args = append(append([]string{}, chk.Args...), extra...)
 	var r judgeResult
 	if clone.Script != "" {
-		runScriptCheck(root, clone, chk.Name, &r)
+		runScriptCheck(root, clone, chk.Name, legacyScope(root), &r)
 	} else if clone.Command != "" {
-		runCommandCheck(root, clone, chk.Name, &r)
+		runCommandCheck(root, clone, chk.Name, legacyScope(root), &r)
 	} else {
 		return measureResult{State: measureUnknown, Detail: fmt.Sprintf("проверка %q не имеет script/command", chk.Name)}
 	}
