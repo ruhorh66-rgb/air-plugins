@@ -112,6 +112,18 @@ func usage() {
   порядка байт продукт НЕ СТАВИТ намеренно — она сломала бы разбор -json у стража и
   у значка.
 
+  air-worker session declare -product <корень> -principal <p> -session-key <k>
+        Host-neutral identity сессии: режим, продукт и гейт ЛПР пишутся и читаются ТОЛЬКО
+        в namespace principal+session-key, объявленном этой командой — не угадываются из
+        переменных окружения конкретного харнесса (например CLAUDE_CODE_SESSION_ID).
+        Адаптеры (Claude/Codex/GPT) передают сюда свою identity, а не создают её сами.
+  air-worker session status -principal <p> -session-key <k>
+        Режим, продукт и (если выключена) слова ЛПР дословно — той же сессии.
+  air-worker session off  -principal <p> -session-key <k> -words "<слова ЛПР>"
+        Выход сессии из работы словом ЛПР, дословно (≥6 знаков). Снимает продукт сессии.
+  air-worker session on   -principal <p> -session-key <k> -words "<слова ЛПР>"
+        Возврат сессии в работу тем же правилом; продукт объявляется заново.
+
   air-worker version
 `)
 }
@@ -161,6 +173,8 @@ func run(argv []string) int {
 		return cmdInstall(argv[1:])
 	case "tray":
 		return cmdTray(argv[1:])
+	case "session":
+		return cmdSession(argv[1:])
 	case "version", "-v", "--version":
 		fmt.Printf("%s %s\n", appName, version)
 		return 0
