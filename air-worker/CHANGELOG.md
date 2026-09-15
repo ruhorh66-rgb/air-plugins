@@ -1,5 +1,19 @@
 # CHANGELOG — air-worker
 
+## 0.10.2 — 15.09.2026
+
+### Factual-plan judge + Semantic Judge v0
+
+- Фактический судья теперь меряет критерии плана напрямую: `проверка <имя> · тест <селектор>` или `факт <id>`; ненаписанный/упавший тест остаётся в расстоянии и не даёт ранний ложный PASS.
+- Планировщик и `PLAN.example.md` используют ту же строгую грамматику мер; пояснительная проза остаётся в признаке достижения, а не в машинной мере.
+- Semantic Judge v0 включён после модельного исполнения и перед эскалацией; строгий JSON-контракт: `PASS | DRIFT | NOT_PROVEN`, latest verdict + append-only history.
+- Промежуточный боевой профиль релиза: оркестратор — ChatGPT chat session; исполнитель — лестница Anthropic; независимый semantic judge — Codex `read-only` с `--output-schema`.
+- Обратный Codex→Claude маршрут сохранён как заготовка будущей кросс-вендорности, но не активен в текущем release profile и это закреплено тестом.
+- `tools/check-plugin.ps1` очищен от повреждённых `???` и снова выдаёт читаемые UTF-8 сообщения.
+- Живой smoke: factual FAIL → Anthropic sonnet → factual PASS → Codex Semantic Judge PASS → итоговый factual PASS, exit 0.
+
+Контроль выпуска: `go test ./...`, `go vet ./...`, `git diff --check`, `tools/check-plugin.ps1`, `air-worker goals`, живой `air-worker version` и end-to-end smoke.
+
 ## 0.10.1 — 14.09.2026
 
 ### Operational hotfix для параллельного тестирования рабочих сессий
