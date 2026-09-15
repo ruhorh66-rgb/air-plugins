@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,7 +46,7 @@ func TestSemanticReviewerOppositeVendor(t *testing.T) {
 }
 
 func TestSemanticCodexIsReadOnly(t *testing.T) {
-	args := semanticCodexArgs(`C:\product`, "prompt", runnerSpec{Kind: "codex", Effort: "high"}, `C:\tmp\schema.json`)
+	args := semanticCodexArgs(`C:\product`, runnerSpec{Kind: "codex", Effort: "high"}, `C:\tmp\schema.json`)
 	joined := strings.Join(args, " ")
 	if !strings.Contains(joined, "-s read-only") {
 		t.Fatalf("codex semantic sandbox is not read-only: %v", args)
@@ -55,6 +56,22 @@ func TestSemanticCodexIsReadOnly(t *testing.T) {
 	}
 	if !strings.Contains(joined, `--output-schema C:\tmp\schema.json`) {
 		t.Fatalf("codex semantic output schema missing: %v", args)
+	}
+}
+
+func TestCriterion56SemanticCodexUsesStdin(t *testing.T) {
+	prompt := strings.Repeat("semantic-packet-", 4096)
+	cmd := semanticCodexCommand("codex.cmd", `C:\product`, prompt, runnerSpec{Kind: "codex", Effort: "high"}, `C:\tmp\schema.json`)
+	joined := strings.Join(cmd.Args, " ")
+	if strings.Contains(joined, "semantic-packet-") {
+		t.Fatalf("semantic packet leaked into argv: %d chars", len(joined))
+	}
+	if !strings.HasSuffix(joined, " -") {
+		t.Fatalf("codex stdin sentinel missing: %v", cmd.Args)
+	}
+	raw, err := io.ReadAll(cmd.Stdin)
+	if err != nil || string(raw) != prompt {
+		t.Fatalf("semantic stdin mismatch: len=%d err=%v", len(raw), err)
 	}
 }
 

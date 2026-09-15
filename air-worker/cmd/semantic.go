@@ -164,7 +164,7 @@ func oppositeSemanticReviewer(executor runnerSpec) (runnerSpec, error) {
 	}
 }
 
-func semanticCodexArgs(root, prompt string, reviewer runnerSpec, schemaPath string) []string {
+func semanticCodexArgs(root string, reviewer runnerSpec, schemaPath string) []string {
 	args := []string{"exec", "--json", "--skip-git-repo-check", "-s", "read-only", "-C", root,
 		"--output-schema", schemaPath}
 	if reviewer.Model != "" {
@@ -173,7 +173,7 @@ func semanticCodexArgs(root, prompt string, reviewer runnerSpec, schemaPath stri
 	if reviewer.Effort != "" {
 		args = append(args, "-c", "model_reasoning_effort="+reviewer.Effort)
 	}
-	return append(args, prompt)
+	return append(args, "-")
 }
 
 func semanticClaudeArgs(prompt string, reviewer runnerSpec) []string {
@@ -187,6 +187,14 @@ func semanticClaudeArgs(prompt string, reviewer runnerSpec) []string {
 	}
 	return args
 }
+func semanticCodexCommand(exePath, root, prompt string, reviewer runnerSpec, schemaPath string) *exec.Cmd {
+	cmd := semanticCommand(exePath, semanticCodexArgs(root, reviewer, schemaPath)...)
+	cmd.Dir = root
+	cmd.Env = codexEnv(nil)
+	cmd.Stdin = strings.NewReader(prompt)
+	return cmd
+}
+
 func invokeSemanticCodex(root, exePath, prompt string, reviewer runnerSpec) (string, string, *float64, *int, error) {
 	schema, err := os.CreateTemp("", "air-worker-semantic-schema-*.json")
 	if err != nil {
@@ -201,10 +209,7 @@ func invokeSemanticCodex(root, exePath, prompt string, reviewer runnerSpec) (str
 	if err := schema.Close(); err != nil {
 		return "", "", nil, nil, fmt.Errorf("close semantic output schema: %w", err)
 	}
-	cmd := semanticCommand(exePath, semanticCodexArgs(root, prompt, reviewer, schemaPath)...)
-	cmd.Dir = root
-	cmd.Env = codexEnv(nil)
-	cmd.Stdin = nil
+	cmd := semanticCodexCommand(exePath, root, prompt, reviewer, schemaPath)
 	out, runErr := cmd.CombinedOutput()
 
 	completed, failed := false, false
