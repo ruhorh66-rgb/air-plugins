@@ -124,6 +124,15 @@ func usage() {
   air-worker session on   -principal <p> -session-key <k> -words "<слова ЛПР>"
         Возврат сессии в работу тем же правилом; продукт объявляется заново.
 
+  air-worker hook <событие>
+        Вход хуков Claude Code: событие (JSON, protocol харнесса) читается со stdin,
+        решение целиком принимает бинарник. До включения Air Worker для сессии — no-op;
+        telemetry/lifecycle (Stop, SubagentStart/Stop, SessionStart, PostToolUse,
+        UserPromptSubmit) при активной сессии — fail-open с записью в след; control
+        (PreToolUse) при активной сессии — fail-closed с причиной в stderr, код 2;
+        неизвестное событие — fail-open с записью в след. Паника обработчика отвечает
+        по классу события, а не кодом 2 голой паники.
+
   air-worker version
 `)
 }
@@ -175,6 +184,8 @@ func run(argv []string) int {
 		return cmdTray(argv[1:])
 	case "session":
 		return cmdSession(argv[1:])
+	case "hook":
+		return cmdHook(argv[1:])
 	case "version", "-v", "--version":
 		fmt.Printf("%s %s\n", appName, version)
 		return 0
