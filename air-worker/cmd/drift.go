@@ -456,7 +456,11 @@ func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 			"плана нет (%s): шаги плана не измеряются, движение судится только остатком по судье", planPath))
 	} else {
 		planOpen = intPtr(plan.OpenWork())
-		planClosed = intPtr(plan.ClosedSteps())
+		if mv.CriteriaTotal > 0 {
+			planClosed = intPtr(confirmedClosedSteps(planPath, mv.CriteriaPassed))
+		} else {
+			planClosed = intPtr(plan.ClosedSteps())
+		}
 	}
 
 	// РАССТОЯНИЕ — ОСТАТОК ПО СУДЬЕ. ШАГИ ПЛАНА — ОТДЕЛЬНЫЙ ПОКАЗАТЕЛЬ И ВТОРОЙ ПРИЗНАК

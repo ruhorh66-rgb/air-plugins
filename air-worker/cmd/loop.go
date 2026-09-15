@@ -803,7 +803,7 @@ func stepChange(steps []workStep, cur workStep) (next workStep, ok, changed bool
 // Дефект внесён самим 0.9.5: переход к следующему шагу чинил другой дефект того же дня, и
 // тест проверял, что закрытый шаг сменяется, но не проверял — при каком вердикте.
 func shouldAdvance(changed bool, lastMove iterationMove) bool {
-	return changed && lastMove != moveRegress
+	return changed && lastMove == moveForward
 }
 
 // scriptStepCloses — К31: решение о шаге СО СВОЕЙ КОМАНДОЙ (ступень script) принимается

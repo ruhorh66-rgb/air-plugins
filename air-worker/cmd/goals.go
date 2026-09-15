@@ -147,6 +147,8 @@ func goalProblems(g planGoals, steps []workStep) []string {
 		}
 		if c.Sign == "" || c.Measure == "" {
 			p = append(p, fmt.Sprintf("у критерия %s пуст признак достижения или «чем меряется»", c.ID))
+		} else if _, err := parseCriterionMeasures(c.Measure); err != nil {
+			p = append(p, fmt.Sprintf("критерий %s: %v", c.ID, err))
 		}
 	}
 	var bare []string

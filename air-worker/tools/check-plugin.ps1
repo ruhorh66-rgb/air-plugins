@@ -58,23 +58,23 @@ if (-not (Test-Path -LiteralPath $exe)) {
     }
 }
 
-# Dual-host ????? ?????? ????????? ???? ? ?? ?? ?????? Claude ? Codex.
+# Dual-host должен нести один продукт с одним именем и версией в Claude и Codex.
 $codexManifest = Join-Path $ProductRoot '.codex-plugin\plugin.json'
 if (-not (Test-Path -LiteralPath $codexManifest)) {
-    $fail += "??? Codex-?????????: $codexManifest"
+    $fail += "нет Codex-манифеста: $codexManifest"
 } else {
     try { $codexPl = Get-Content -LiteralPath $codexManifest -Raw -Encoding UTF8 | ConvertFrom-Json } catch {
         $codexPl = $null
-        $fail += "Codex-???????? ?? ????????: $($_.Exception.Message)"
+        $fail += "Codex-манифест не разобран: $($_.Exception.Message)"
     }
     if ($null -ne $codexPl) {
         if ([string]$codexPl.name -ne [string]$pl.name) {
-            $fail += "????? Claude/Codex ?????????? ??????????: $($pl.name) / $($codexPl.name)"
+            $fail += "имена Claude/Codex манифестов различаются: $($pl.name) / $($codexPl.name)"
         }
         if ([string]$codexPl.version -ne [string]$pl.version) {
-            $fail += "?????? Claude/Codex ?????????? ??????????: $($pl.version) / $($codexPl.version)"
+            $fail += "версии Claude/Codex манифестов различаются: $($pl.version) / $($codexPl.version)"
         } else {
-            $ok += "Claude/Codex ????????? ???????????: $($pl.version)"
+            $ok += "Claude/Codex манифесты согласованы: $($pl.version)"
         }
     }
 }

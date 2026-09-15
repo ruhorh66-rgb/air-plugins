@@ -33,6 +33,7 @@ type checkSpec struct {
 	Script  string            `json:"script"`
 	Command string            `json:"command"`
 	Args    []string          `json:"args"`
+	Select  string            `json:"select"`
 	Log     string            `json:"log"`
 	Env     map[string]string `json:"env"`
 }
@@ -127,17 +128,21 @@ type checklistFile struct {
 // перестаёт расти, когда причину переписывают: этот отказ был найден у Goal/Drift Loop
 // ВЕРЫ и описан там дословно. Текст остаётся человеку, числа — машине.
 type machineVerdict struct {
-	At            string `json:"at"`
-	Code          int    `json:"code"`
-	Distance      *int   `json:"distance"`
-	ChecksPassed  int    `json:"checks_passed"`
-	ChecksFailed  int    `json:"checks_failed"`
-	ChecksUnknown int    `json:"checks_unknown"`
-	FactsClosed   *int   `json:"facts_closed"`
-	FactsGated    int    `json:"facts_gated"`
-	FactsRequired int    `json:"facts_required"`
-	VerdictText   string `json:"verdict_text"`
-	By            string `json:"by"` // чем посчитано: две реализации живут рядом
+	At              string   `json:"at"`
+	Code            int      `json:"code"`
+	Distance        *int     `json:"distance"`
+	ChecksPassed    int      `json:"checks_passed"`
+	ChecksFailed    int      `json:"checks_failed"`
+	ChecksUnknown   int      `json:"checks_unknown"`
+	CriteriaPassed  []string `json:"criteria_passed,omitempty"`
+	CriteriaFailed  []string `json:"criteria_failed,omitempty"`
+	CriteriaUnknown []string `json:"criteria_unknown,omitempty"`
+	CriteriaTotal   int      `json:"criteria_total"`
+	FactsClosed     *int     `json:"facts_closed"`
+	FactsGated      int      `json:"facts_gated"`
+	FactsRequired   int      `json:"facts_required"`
+	VerdictText     string   `json:"verdict_text"`
+	By              string   `json:"by"` // чем посчитано: две реализации живут рядом
 }
 
 var reFailLine = regexp.MustCompile(`\[FAIL\]|ОТКАЗ|НЕЧЕМ|FAIL|Exception|ошибка`)
@@ -166,6 +171,10 @@ type judgeResult struct {
 	Passed  []string
 	Failed  []string
 	Unknown []string
+
+	CriteriaPassed  []string
+	CriteriaFailed  []string
+	CriteriaUnknown []string
 
 	FactsClosed   *int
 	FactsGated    int
@@ -245,7 +254,12 @@ func runJudge(root string, cfg runConfig, minFactsOverride int) judgeResult {
 		planName = "PLAN.md"
 	}
 	if g := readPlanGoals(filepath.Join(root, planName)); len(g.Criteria) > 0 {
-		r.Unknown = append(r.Unknown, criteriaBinding(root, cfg, g)...)
+		bindings := criteriaBinding(root, cfg, g)
+		if len(bindings) > 0 {
+			r.CriteriaUnknown = append(r.CriteriaUnknown, bindings...)
+		} else {
+			r.CriteriaPassed, r.CriteriaFailed, r.CriteriaUnknown = evaluatePlanCriteria(root, cfg, g, r)
+		}
 	}
 	return r
 }
@@ -415,17 +429,22 @@ func countFacts(root, checklistRel string, want int, r *judgeResult) {
 }
 
 func verdict(r judgeResult) (int, string) {
-	if len(r.Unknown) > 0 {
-		text := "НЕ ПРОВЕРЕНО: " + strings.Join(r.Unknown, "; ")
-		if len(r.Failed) > 0 {
-			text += "; отдельно не пройдено: " + strings.Join(r.Failed, "; ")
+	unknown := append(append([]string{}, r.Unknown...), r.CriteriaUnknown...)
+	failed := append(append([]string{}, r.Failed...), r.CriteriaFailed...)
+	if len(unknown) > 0 {
+		text := "НЕ ПРОВЕРЕНО: " + strings.Join(unknown, "; ")
+		if len(failed) > 0 {
+			text += "; отдельно не пройдено: " + strings.Join(failed, "; ")
 		}
 		return 2, text
 	}
-	if len(r.Failed) > 0 {
-		return 1, "ЦЕЛЬ НЕ ДОСТИГНУТА: " + strings.Join(r.Failed, "; ")
+	if len(failed) > 0 {
+		return 1, "ЦЕЛЬ НЕ ДОСТИГНУТА: " + strings.Join(failed, "; ")
 	}
 	summary := fmt.Sprintf("пройдено проверок %d", len(r.Passed))
+	if len(r.CriteriaPassed) > 0 {
+		summary += fmt.Sprintf(", критериев %d", len(r.CriteriaPassed))
+	}
 	if r.FactsLine != "" {
 		summary += ", " + r.FactsLine
 	}
@@ -456,7 +475,7 @@ func distanceOf(code int, r judgeResult) *int {
 			short = 0
 		}
 	}
-	d := checksFailed + short
+	d := checksFailed + len(r.CriteriaFailed) + short
 	return &d
 }
 
@@ -490,17 +509,21 @@ func publishVerdict(root string, code int, text string, r judgeResult) {
 		}
 	}
 	mv := machineVerdict{
-		At:            time.Now().Format("2006-01-02T15:04:05"),
-		Code:          code,
-		Distance:      distanceOf(code, r),
-		ChecksPassed:  passed,
-		ChecksFailed:  failed,
-		ChecksUnknown: len(r.Unknown),
-		FactsClosed:   r.FactsClosed,
-		FactsGated:    r.FactsGated,
-		FactsRequired: r.FactsRequired,
-		VerdictText:   text,
-		By:            appName + " " + version,
+		At:              time.Now().Format("2006-01-02T15:04:05"),
+		Code:            code,
+		Distance:        distanceOf(code, r),
+		ChecksPassed:    passed,
+		ChecksFailed:    failed,
+		ChecksUnknown:   len(r.Unknown),
+		CriteriaPassed:  r.CriteriaPassed,
+		CriteriaFailed:  r.CriteriaFailed,
+		CriteriaUnknown: r.CriteriaUnknown,
+		CriteriaTotal:   len(r.CriteriaPassed) + len(r.CriteriaFailed) + len(r.CriteriaUnknown),
+		FactsClosed:     r.FactsClosed,
+		FactsGated:      r.FactsGated,
+		FactsRequired:   r.FactsRequired,
+		VerdictText:     text,
+		By:              appName + " " + version,
 	}
 	if b, err := json.MarshalIndent(mv, "", "  "); err == nil {
 		_ = writeFileAtomic(filepath.Join(root, ".goal-verdict.json"), b)
