@@ -59,7 +59,7 @@
 
 По стандарту `AIR_PRODUCT_DEVELOPMENT_PLAN`: этот план — единственное место для хвостов, дефектов и решений. В переписке они не остаются.
 
-- **Готовится к выпуску:** 0.10.2 — factual-plan + semantic step judge; целевой тег `air-worker--v0.10.2`. Боевой smoke 15.09.2026: factual FAIL → Anthropic sonnet → factual PASS → Codex read-only Semantic Judge PASS → итоговый factual PASS, exit 0. Предыдущий выпуск 0.10.1 — `2222f83`, `air-worker--v0.10.1`.
+- **Выпущено:** 0.10.2 — release commit `15d7bbf`, тег `air-worker--v0.10.2`, origin/main и тег запушены 15.09.2026. Release gate: `go test`, `go vet`, `git diff --check`, plugin-check, goals, version — код 0. Боевой smoke: factual FAIL → Anthropic sonnet → factual PASS → Codex read-only Semantic Judge PASS → итоговый factual PASS, exit 0. SRVLM01 штатно обновлён до 0.10.2 в Claude/Codex и live runtime из plugin cache; SHA cache/live совпадает.
 - **Anthropic временно недоступна по session limit; по решению ЛПР все открытые исполняемые шаги до её возврата ведёт ChatGPT.** При возврате Anthropic сначала читает этот план и берёт только оставшиеся открытые шаги.
 - **15.09.2026 Anthropic вернулась** и по этому правилу берёт только шаги, не начатые ChatGPT:
   - шаг 64 ведёт ChatGPT — в работе, `cmd/criteria.go` в основном дереве;
@@ -77,8 +77,8 @@
     - `air-worker version` — 0.10.0, SHA-256 совпал с эталоном тега, клон `F:\-8-\air-plugins` не тронут;
     - команд понадобилось четыре, а не две: `marketplace remove` снял и регистрацию плагина, поэтому нужен `plugin install`; плагин встал выключенным, поэтому нужен `plugin enable`;
     - пользовательская копия скила `~/.claude/skills/air-woody` версии 0.9.4 заслоняла плагинный скил — снята с резервной копией (шаг 66);
-  - SRVLM01 — Claude: штатно обновлён 14.09.2026 до air-worker 0.10.1 из GitHub marketplace/cache; live runtime и tray переустановлены из `~/.claude/plugins/cache/air-plugins/air-worker/0.10.1`, `air-worker version` = 0.10.1;
-  - SRVLM01 — Codex: marketplace `air-plugins` обновлён штатной командой `codex plugin marketplace upgrade`; `air-worker@air-plugins` установлен и enabled, версия 0.10.1.
+  - SRVLM01 — Claude: штатно обновлён 15.09.2026 до air-worker 0.10.2 из GitHub marketplace/cache; live runtime и tray переустановлены из `~/.claude/plugins/cache/air-plugins/air-worker/0.10.2`, `air-worker version` = 0.10.2;
+  - SRVLM01 — Codex: marketplace `air-plugins` обновлён штатной командой `codex plugin marketplace upgrade`; `air-worker@air-plugins` установлен и enabled, версия 0.10.2.
 - **Временное владение по решению ЛПР 14.09.2026:** пока Anthropic недоступна по session limit, все открытые исполняемые шаги плана временно выполняет ChatGPT по порядку плана. При закрытии каждого шага в его строке фиксируется `исполнитель: ChatGPT`; при возврате Anthropic она сначала читает этот план и берёт только оставшиеся открытые шаги.
 - **Координация:** перед переносом из старого worktree сверяется `git diff`; незавершённый код следующего шага не попадает в промежуточный релиз.
 - **Заблокировано:** нет.
