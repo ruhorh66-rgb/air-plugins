@@ -109,7 +109,7 @@ func readInstalledPlugin(configDir, key string) (installedRec, bool) {
 // откуда без прав разрешена установка: туда бинарник кладёт установка плагина из
 // GitHub-маркетплейса, и только туда.
 func binaryInCanonicalCache(self, configDir string) bool {
-	if strings.TrimSpace(self) == "" {
+	if strings.TrimSpace(self) == "" || strings.TrimSpace(configDir) == "" {
 		return false
 	}
 	binDir := filepath.Dir(self) // .../<версия>/bin
@@ -376,6 +376,7 @@ type installGuard struct {
 	Elevated   bool   // повышены ли права процесса (это ЛПР)
 	Self       string // путь запущенного бинарника
 	ConfigDir  string // каталог конфигурации Claude
+	CodexDir   string // каталог конфигурации Codex; пустой — host не учитывается
 	SrcVersion string // версия ставящегося (собственная версия self)
 	DstVersion string // версия уже установленного файла назначения, "" если его нет
 }
@@ -392,13 +393,35 @@ type guardResult struct {
 // репозиторием; и только когда это не понижение версии. С правами (ЛПР) разрешено любое,
 // но источник и обе версии печатаются, чтобы прямая переустановка не была молчаливой.
 func decideInstallGuard(g installGuard) guardResult {
-	inCache := binaryInCanonicalCache(g.Self, g.ConfigDir)
-	mp, mpOK := readMarketplace(g.ConfigDir, canonicalMarketplace)
-	mpGitHub := mpOK && marketplaceIsGitHub(mp)
+	claudeCache := binaryInCanonicalCache(g.Self, g.ConfigDir)
+	var claudeMP mpEntry
+	claudeMPOK := false
+	if strings.TrimSpace(g.ConfigDir) != "" {
+		claudeMP, claudeMPOK = readMarketplace(g.ConfigDir, canonicalMarketplace)
+	}
+	claudeGitHub := claudeMPOK && marketplaceIsGitHub(claudeMP)
+
+	codexCache := binaryInCanonicalCodexCache(g.Self, g.CodexDir)
+	codexMP, codexMPOK, _ := readCodexConfig(g.CodexDir)
+	codexGitHub := codexMPOK && codexMarketplaceIsGitHub(codexMP)
+
+	inCache := claudeCache || codexCache
+	canonicalSource := (claudeCache && claudeGitHub) || (codexCache && codexGitHub)
 
 	var res guardResult
 	res.Info = append(res.Info, "Источник   : "+describeSource(inCache, g.Self))
-	res.Info = append(res.Info, "Маркетплейс: "+describeMarketplace(mpOK, mp))
+	switch {
+	case codexCache:
+		res.Info = append(res.Info, "Маркетплейс: Codex "+describeCodexMarketplace(codexMPOK, codexMP))
+	case claudeCache:
+		res.Info = append(res.Info, "Маркетплейс: Claude "+describeMarketplace(claudeMPOK, claudeMP))
+	case claudeMPOK:
+		res.Info = append(res.Info, "Маркетплейс: Claude "+describeMarketplace(true, claudeMP))
+	case codexMPOK:
+		res.Info = append(res.Info, "Маркетплейс: Codex "+describeCodexMarketplace(true, codexMP))
+	default:
+		res.Info = append(res.Info, "Маркетплейс: air-plugins не зарегистрирован")
+	}
 
 	if g.Elevated {
 		res.Allow = true
@@ -408,8 +431,7 @@ func decideInstallGuard(g installGuard) guardResult {
 		return res
 	}
 
-	// Источник обязан быть кэшем GitHub-маркетплейса.
-	if !(inCache && mpGitHub) {
+	if !canonicalSource {
 		res.Code = 2
 		switch {
 		case !inCache && !underPluginCache(g.Self):
@@ -418,15 +440,21 @@ func decideInstallGuard(g installGuard) guardResult {
 		case !inCache:
 			res.Reasons = append(res.Reasons,
 				"ОТКАЗ: бинарник из кэша другого маркетплейса, не air-plugins/GitHub.")
-		default: // в кэше air-plugins, но маркетплейс не GitHub
+		case codexCache:
 			res.Reasons = append(res.Reasons,
-				"ОТКАЗ: маркетплейс air-plugins не GitHub ("+mpSourceShort(mp)+") — бинарник из кэша каталога-маркетплейса; правка settings.json источник не меняет.")
+				"ОТКАЗ: Codex marketplace air-plugins не GitHub ("+codexSourceShort(codexMP)+").")
+		default:
+			res.Reasons = append(res.Reasons,
+				"ОТКАЗ: Claude marketplace air-plugins не GitHub ("+mpSourceShort(claudeMP)+") — правка settings.json источник не меняет.")
 		}
-		res.Reasons = append(res.Reasons, "Штатно перевести машину на GitHub: "+migrateHint())
+		if codexCache {
+			res.Reasons = append(res.Reasons, "Штатно перевести Codex на GitHub: "+codexMigrateHint())
+		} else {
+			res.Reasons = append(res.Reasons, "Штатно перевести Claude на GitHub: "+migrateHint())
+		}
 		return res
 	}
 
-	// Понижение версии без прав запрещено, и в сообщении обе версии.
 	if g.DstVersion != "" && compareVersions(g.DstVersion, g.SrcVersion) > 0 {
 		res.Code = 2
 		res.Reasons = append(res.Reasons, fmt.Sprintf(
@@ -471,46 +499,99 @@ func installedBinarySource(installedPath string, rec installedRec) (line, reason
 // GitHub-маркетплейса» всегда, даже когда установка совершенно штатна: self и есть
 // installedPath, а не кэш плагина, и в кэше ему взяться неоткуда.
 func installSourceStatusLines(configDir, installedPath, self string) (lines, violations []string) {
-	mp, mpOK := readMarketplace(configDir, canonicalMarketplace)
-	lines = append(lines, "Маркетплейс: "+describeMarketplace(mpOK, mp))
+	return installSourceStatusLinesForHosts(configDir, "", installedPath, self)
+}
 
-	rec, regOK := readInstalledPlugin(configDir, canonicalPluginKey)
-	if regOK {
-		lines = append(lines, "Плагин     : зарегистрирован "+canonicalPluginKey+" версии "+rec.Version)
-	} else {
+func installSourceStatusLinesForHosts(claudeDir, codexDir, installedPath, self string) (lines, violations []string) {
+	var claudeMP mpEntry
+	claudeMPOK := false
+	if strings.TrimSpace(claudeDir) != "" {
+		claudeMP, claudeMPOK = readMarketplace(claudeDir, canonicalMarketplace)
+	}
+	claudeGitHub := claudeMPOK && marketplaceIsGitHub(claudeMP)
+	codexMP, codexMPOK, _ := readCodexConfig(codexDir)
+	codexGitHub := codexMPOK && codexMarketplaceIsGitHub(codexMP)
+
+	if claudeMPOK {
+		lines = append(lines, "Маркетплейс Claude: "+describeMarketplace(true, claudeMP))
+	}
+	if codexMPOK {
+		lines = append(lines, "Маркетплейс Codex: "+describeCodexMarketplace(true, codexMP))
+	}
+	if !claudeMPOK && !codexMPOK {
+		lines = append(lines, "Маркетплейс: air-plugins не зарегистрирован")
+	}
+
+	var claudeRec installedRec
+	claudeReg := false
+	if strings.TrimSpace(claudeDir) != "" {
+		claudeRec, claudeReg = readInstalledPlugin(claudeDir, canonicalPluginKey)
+	}
+	codexRec, codexReg := readCodexInstalledPlugin(codexDir)
+	if claudeReg {
+		lines = append(lines, "Плагин Claude: зарегистрирован "+canonicalPluginKey+" версии "+claudeRec.Version)
+	}
+	if codexReg {
+		lines = append(lines, "Плагин Codex : зарегистрирован "+canonicalPluginKey+" версии "+codexRec.Version)
+	}
+	if !claudeReg && !codexReg {
 		lines = append(lines, "Плагин     : НЕ зарегистрирован "+canonicalPluginKey)
 	}
 
-	// Записи нет — сверять не с чем; нарушение регистрации ниже уже называет причину,
-	// вторая строка о том же самом ничего не добавит.
-	if regOK {
-		if line, why := installedBinarySource(installedPath, rec); why == "" {
-			lines = append(lines, "Источник   : "+line)
+	sourceMatched := false
+	var sourceReasons []string
+	if claudeReg && claudeGitHub {
+		if line, why := installedBinarySource(installedPath, claudeRec); why == "" {
+			lines = append(lines, "Источник   : Claude "+line)
+			sourceMatched = true
 		} else {
+			sourceReasons = append(sourceReasons, why)
+		}
+	}
+	if !sourceMatched && codexReg && codexGitHub {
+		if line, why := installedBinarySource(installedPath, codexRec); why == "" {
+			lines = append(lines, "Источник   : Codex "+line)
+			sourceMatched = true
+		} else {
+			sourceReasons = append(sourceReasons, why)
+		}
+	}
+	if !sourceMatched && len(sourceReasons) > 0 {
+		for _, why := range sourceReasons {
 			violations = append(violations, "НАРУШЕНИЕ: "+why)
 		}
 	}
 
-	// Источник ЗАПУЩЕННОГО бинарника — информационная строка, НЕ нарушение: -status
-	// обычно запускается из установленной копии через PATH, а не из кэша плагина.
-	inCacheRunning := binaryInCanonicalCache(self, configDir)
+	inCacheRunning := binaryInCanonicalCache(self, claudeDir) || binaryInCanonicalCodexCache(self, codexDir)
 	lines = append(lines, "Запущен    : "+describeSource(inCacheRunning, self))
 
-	if p, shadow := userSkillShadow(configDir); shadow {
-		lines = append(lines, "Скил       : пользовательская копия "+p+" заслоняет плагинный")
-		violations = append(violations,
-			"НАРУШЕНИЕ: пользовательская копия скила заслоняет плагинный — снять с резервной копией: "+p)
+	if claudeDir != "" {
+		if p, shadow := userSkillShadow(claudeDir); shadow {
+			lines = append(lines, "Скил       : пользовательская копия "+p+" заслоняет плагинный")
+			violations = append(violations,
+				"НАРУШЕНИЕ: пользовательская копия скила заслоняет плагинный — снять с резервной копией: "+p)
+		}
 	}
 
-	if !mpOK {
-		violations = append(violations, "НАРУШЕНИЕ: маркетплейс air-plugins не зарегистрирован. Штатно: "+migrateHint())
-	} else if !marketplaceIsGitHub(mp) {
+	if claudeMPOK && !claudeGitHub {
 		violations = append(violations,
-			"НАРУШЕНИЕ: маркетплейс air-plugins не GitHub ("+mpSourceShort(mp)+"). Перевести четырьмя командами: "+migrateHint())
+			"НАРУШЕНИЕ: Claude marketplace air-plugins не GitHub ("+mpSourceShort(claudeMP)+"). Перевести штатно: "+migrateHint())
 	}
-	if !regOK {
+	if codexMPOK && !codexGitHub {
 		violations = append(violations,
-			"НАРУШЕНИЕ: плагин не зарегистрирован. Штатно: claude plugin install air-worker@air-plugins ; claude plugin enable air-worker@air-plugins")
+			"НАРУШЕНИЕ: Codex marketplace air-plugins не GitHub ("+codexSourceShort(codexMP)+"). Перевести штатно: "+codexMigrateHint())
+	}
+	if !claudeMPOK && !codexMPOK {
+		violations = append(violations,
+			"НАРУШЕНИЕ: marketplace air-plugins не зарегистрирован ни в Claude, ни в Codex. Claude: "+migrateHint()+"; Codex: "+codexMigrateHint())
+	}
+	if !claudeReg && !codexReg {
+		violations = append(violations,
+			"НАРУШЕНИЕ: плагин не зарегистрирован ни в Claude, ни в Codex. Штатно установить через GitHub marketplace.")
+	}
+	if (claudeReg || codexReg) && !sourceMatched && len(sourceReasons) == 0 {
+		violations = append(violations,
+			"НАРУШЕНИЕ: зарегистрированный плагин не имеет подтверждённого GitHub source/cache для сверки установленного бинарника.")
 	}
 	return lines, violations
 }

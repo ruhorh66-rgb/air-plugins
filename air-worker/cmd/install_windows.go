@@ -389,7 +389,7 @@ func cmdInstall(argv []string) int {
 		// какой версии, и пользовательскую копию скила, заслоняющую плагинный. Каждое
 		// нарушение печатается отдельной строкой вместе с недостающей штатной командой.
 		self, _ := os.Executable()
-		lines, violations := installSourceStatusLines(claudeConfigDir(), dstCLI, self)
+		lines, violations := installSourceStatusLinesForHosts(claudeConfigDir(), codexConfigDir(), dstCLI, self)
 		for _, ln := range lines {
 			fmt.Print(ln + lineEnding)
 		}
@@ -461,6 +461,7 @@ func cmdInstall(argv []string) int {
 		Elevated:   isElevatedProcess(),
 		Self:       self,
 		ConfigDir:  claudeConfigDir(),
+		CodexDir:   codexConfigDir(),
 		SrcVersion: version,
 		DstVersion: binaryVersion(dstCLI),
 	})
