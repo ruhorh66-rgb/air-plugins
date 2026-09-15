@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -247,6 +248,28 @@ func copyFile(src, dst string) error {
 	return nil
 }
 
+// binaryVersion — версия установленного файла ПО ИМЕНИ: запускает его `version` и читает
+// последнее слово. Пустая строка — файла нет, он не ответил за 10 секунд, или ответил
+// ошибкой (нечем понижать, нечем сверять). Значение подставляется в решение об установке
+// и в сверку, но само по себе вердикта не выносит.
+//
+// ПРЕДЕЛ ВРЕМЕНИ — 10 секунд через exec.CommandContext. Без него зависший файл (не тот
+// формат, битая копия, чужой процесс с тем же именем) повесил бы установку навсегда:
+// вызов ничем не ограничен и ждёт ответа сколько понадобится. Не ответил вовремя —
+// пустая версия, тот же исход, что и «не ответил» без таймаута.
+func binaryVersion(path string) string {
+	if _, err := os.Stat(path); err != nil {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, path, "version").Output()
+	if err != nil {
+		return ""
+	}
+	return parseVersionToken(decodeOutput(out))
+}
+
 type trayProofRead struct {
 	PID      int    `json:"pid"`
 	At       string `json:"at"`
@@ -361,6 +384,22 @@ func cmdInstall(argv []string) int {
 		default:
 			fmt.Print("Значок     : не запущен" + lineEnding)
 		}
+		// ИСТОЧНИК И ШТАТНОСТЬ — отдельными строками. `install -status` называет источник
+		// установленного бинарника и источник маркетплейса, зарегистрирован ли плагин и
+		// какой версии, и пользовательскую копию скила, заслоняющую плагинный. Каждое
+		// нарушение печатается отдельной строкой вместе с недостающей штатной командой.
+		self, _ := os.Executable()
+		lines, violations := installSourceStatusLines(claudeConfigDir(), dstCLI, self)
+		for _, ln := range lines {
+			fmt.Print(ln + lineEnding)
+		}
+		if len(violations) == 0 {
+			fmt.Print("Штатность  : нарушений источника нет" + lineEnding)
+		} else {
+			for _, v := range violations {
+				fmt.Print(v + lineEnding)
+			}
+		}
 		return 0
 	}
 
@@ -411,6 +450,30 @@ func cmdInstall(argv []string) int {
 	srcDir := filepath.Dir(self)
 	srcCLI := filepath.Join(srcDir, "air-worker.exe")
 	srcTray := filepath.Join(srcDir, "air-worker-tray.exe")
+
+	// ИСТОЧНИК И ПОНИЖЕНИЕ ВЕРСИИ — до любого действия над машиной. Без повышенных прав
+	// установка проходит только из кэша GitHub-маркетплейса air-plugins и только не вниз
+	// по версии; с повышенными правами (это ЛПР) разрешена прямая переустановка из любого
+	// источника и с понижением, но источник и обе версии при этом печатаются. Само
+	// решение — в decideInstallGuard (чистая функция с тестами, installsource.go); здесь
+	// подставлены реальные права процесса, версия self и версия уже установленного файла.
+	guard := decideInstallGuard(installGuard{
+		Elevated:   isElevatedProcess(),
+		Self:       self,
+		ConfigDir:  claudeConfigDir(),
+		SrcVersion: version,
+		DstVersion: binaryVersion(dstCLI),
+	})
+	for _, ln := range guard.Info {
+		fmt.Print(ln + lineEnding)
+	}
+	if !guard.Allow {
+		for _, ln := range guard.Reasons {
+			fmt.Print(ln + lineEnding)
+		}
+		return guard.Code
+	}
+
 	if _, err := os.Stat(srcTray); err != nil {
 		fmt.Printf("рядом нет air-worker-tray.exe (%s): собери его командой"+lineEnding, srcTray)
 		fmt.Print("  go build -ldflags \"-H windowsgui\" -o bin/air-worker-tray.exe ./tray" + lineEnding)
@@ -441,6 +504,25 @@ func cmdInstall(argv []string) int {
 		}
 		fmt.Printf("Каталог    : %s"+lineEnding, home)
 		fmt.Print("Файлы      : CLI и значок скопированы" + lineEnding)
+	}
+
+	// СВЕРКА ПОСЛЕ УСТАНОВКИ — не «скопировано, значит установлено». Версия по имени
+	// (`air-worker version` установленного файла) и его SHA-256 сверяются с исходным
+	// файлом; расхождение — код 2, а не строка при коде 0: недокопированный или
+	// подменённый файл выглядит установленным. При установке на месте сверять нечего —
+	// источник и назначение это один файл.
+	if !sameDir {
+		if got := binaryVersion(dstCLI); got != version {
+			fmt.Printf("Сверка     : установленный отвечает версией %q, ожидалась %q — установка не подтверждена"+lineEnding, got, version)
+			return 2
+		}
+		hs, e1 := sha256File(srcCLI)
+		hd, e2 := sha256File(dstCLI)
+		if e1 != nil || e2 != nil || !strings.EqualFold(hs, hd) {
+			fmt.Print("Сверка     : SHA-256 установленного не совпал с исходным — установка не подтверждена" + lineEnding)
+			return 2
+		}
+		fmt.Print("Сверка     : версия по имени и SHA-256 совпали с исходным файлом" + lineEnding)
 	}
 
 	// АВТОЗАПУСК ПО УМОЛЧАНИЮ НЕ ОБЪЯВЛЯЕТСЯ, и это исправление моей ошибки.

@@ -109,38 +109,52 @@ func usage() {
 `)
 }
 
+// main — ОДНА точка выхода: os.Exit(run(...)). Раньше os.Exit стоял в каждой ветви
+// switch, и код подкоманды доходил до процесса только пока никто этого не трогал.
+// AIR-ENV-002 14.09.2026: отказ установки (`return 2` в ветке «рядом нет
+// air-worker-tray.exe») дошёл до процесса нулём — код терялся в обёртке снаружи Go.
+// Здесь код возврата собран в один шов run() int, который проверяется тестом
+// прогоном самого процесса: подкоманда возвращает число, main его отдаёт, и никакая
+// ветвь больше не может завершить процесс молча нулём.
 func main() {
 	setConsoleUTF8()
-	if len(os.Args) < 2 {
+	os.Exit(run(os.Args[1:]))
+}
+
+// run — разбор подкоманды в код возврата, БЕЗ os.Exit. Отделён от main ровно ради кода
+// возврата: так его можно проверить и вызовом функции, и прогоном процесса, не убивая
+// тестовый процесс через os.Exit.
+func run(argv []string) int {
+	if len(argv) < 1 {
 		usage()
-		os.Exit(2)
+		return 2
 	}
-	switch os.Args[1] {
+	switch argv[0] {
 	case "judge":
-		os.Exit(cmdJudge(os.Args[2:]))
+		return cmdJudge(argv[1:])
 	case "drift":
-		os.Exit(cmdDrift(os.Args[2:]))
+		return cmdDrift(argv[1:])
 	case "loop":
-		os.Exit(cmdLoop(os.Args[2:]))
+		return cmdLoop(argv[1:])
 	case "plan":
-		os.Exit(cmdPlan(os.Args[2:]))
+		return cmdPlan(argv[1:])
 	case "tool":
-		os.Exit(cmdTool(os.Args[2:]))
+		return cmdTool(argv[1:])
 	case "encoding":
-		os.Exit(cmdEncoding(os.Args[2:]))
+		return cmdEncoding(argv[1:])
 	case "report":
-		os.Exit(cmdReport(os.Args[2:]))
+		return cmdReport(argv[1:])
 	case "goals":
-		os.Exit(cmdGoals(os.Args[2:]))
+		return cmdGoals(argv[1:])
 	case "install":
-		os.Exit(cmdInstall(os.Args[2:]))
+		return cmdInstall(argv[1:])
 	case "tray":
-		os.Exit(cmdTray(os.Args[2:]))
+		return cmdTray(argv[1:])
 	case "version", "-v", "--version":
 		fmt.Printf("%s %s\n", appName, version)
-		os.Exit(0)
+		return 0
 	default:
 		usage()
-		os.Exit(2)
+		return 2
 	}
 }
