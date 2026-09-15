@@ -1,5 +1,25 @@
 # CHANGELOG — air-worker
 
+## 0.10.4 — 15.09.2026
+
+### Semantic reliability hotfix
+
+- Codex Semantic Judge on Windows receives long packets through stdin, not argv/`codex.cmd`; live acceptance passed with a 50,188-character tracked diff.
+- Step semantic review uses the factual verdict only for the current step criteria; open future product criteria no longer contaminate the current step.
+- Added standalone `air-worker semantic -product ... -step ... -executor ...`, reusing the same read-only packet/schema/history without starting an executor loop.
+- Live acceptance: step factual 0 while product factual 1; Codex reviewer `PASS`, `step_done=yes`, `drift=none`.
+- The next architecture target is explicitly multi-session/multi-user: AirVera is a consumer workload/evidence source, not a singleton constraint.
+
+Release control: `go test ./...`, `go vet ./...`, `git diff --check`, plugin-check, goals, version and the live long-packet semantic smoke. Rollback target: `air-worker--v0.10.3`.
+
+## 0.10.3 — 15.09.2026
+
+### Safe distribution + factual chat orchestration
+
+- Claude and Codex use the canonical GitHub marketplace/cache path; downgrade and non-GitHub source are rejected.
+- Added `air-worker orchestrate`; orchestration counts only proven native Agent start/result events.
+- Live SRVLM01 acceptance: requested/started/completed = 2/2/2, factual PASS, Codex semantic PASS.
+
 ## 0.10.2 — 15.09.2026
 
 ### Factual-plan judge + Semantic Judge v0
