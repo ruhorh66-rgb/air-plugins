@@ -95,9 +95,9 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 	w("")
 	if c.Orchestrate {
 		w("")
-		w(fmt.Sprintf("Режим оркестрации: раздай работу %d субагентам и сведи результат.", c.Subagents))
-		w("Оркестрация оправдана только на независимых шагах: на связанных она")
-		w("умножает ходы, а ходы и есть цена.")
+		for _, instruction := range orchestrationInstructions(c.Subagents) {
+			w(instruction)
+		}
 	}
 
 	taskDir := filepath.Join(c.Root, ".woody")
@@ -163,6 +163,9 @@ type claudeResult struct {
 }
 
 func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec) stepResult {
+	if c.Orchestrate {
+		return c.invokeClaudeOrchestrated(exePath, prompt, runner)
+	}
 	args := []string{"-p", prompt, "--model", runner.Model, "--output-format", "json",
 		"--max-turns", fmt.Sprintf("%d", c.MaxTurns)}
 	// Без этого отцеплённый исполнитель не может писать файлы вовсе: он спрашивает

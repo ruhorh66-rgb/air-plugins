@@ -50,10 +50,13 @@ func usage() {
   air-worker drift  -product <корень> [-record] [-note "..."] [-json] [-quiet]
         Двигатель цели. Коды: 0 ALLOW, 1 THROTTLE, 2 ESCALATE, 3 ЖДЁТ ЛПР.
 
-  air-worker loop   -product <корень> [-config <путь>] [-plan-only] [-whatif]
+  air-worker loop   -product <корень> [-config <путь>] [-plan-only] [-whatif] [-orchestrate] [-subagents N]
         Петля: следующий незакрытый шаг плана на назначенной ступени, до вердикта
-        либо до объявленного потолка. Ступень поднимается только когда цель не сдвинулась
-        по замеру двигателя — не по тексту вердикта.
+        либо до объявленного потолка. -orchestrate включает проверяемый native Agent mode.
+
+  air-worker orchestrate -product <корень> [-config <путь>] [-subagents N]
+        Штатный chat orchestration entrypoint: эквивалент loop -orchestrate. AirWorker сам
+        разрешает Agent tool и принимает успех только при доказанных Agent start/result.
 
   air-worker plan   -product <корень> [-apply] [-model M] [-dry-run] [-use-answer <файл>]
         Планировщик: разбивка цели на шаги ОДНИМ дорогим вызовом. Предлагает в
@@ -136,6 +139,8 @@ func run(argv []string) int {
 		return cmdDrift(argv[1:])
 	case "loop":
 		return cmdLoop(argv[1:])
+	case "orchestrate":
+		return cmdOrchestrate(argv[1:])
 	case "plan":
 		return cmdPlan(argv[1:])
 	case "tool":

@@ -20,13 +20,18 @@ import (
 // выбором модели, 23 137 токенов перечитывания кэша на каждый токен выхода.
 
 type stepResult struct {
-	Ok      bool
-	Cost    *float64 // nil — «не измерено». Ноль означал бы «бесплатно», и бюджет считался бы в сторону «можно ещё»
-	Turns   *int
-	Session string
-	Subtype string
-	ApiMs   *int
-	Detail  string // текст отказа исполнителя, если он был
+	Ok             bool
+	Cost           *float64 // nil — «не измерено». Ноль означал бы «бесплатно», и бюджет считался бы в сторону «можно ещё»
+	Turns          *int
+	Session        string
+	Subtype        string
+	ApiMs          *int
+	Detail         string // текст отказа исполнителя, если он был
+	AgentRequested int
+	AgentStarted   int
+	AgentCompleted int
+	AgentIDs       []string
+	AgentIssue     string
 }
 
 type loopCtx struct {
@@ -133,6 +138,8 @@ func cmdLoop(argv []string) int {
 	configPath := fs.String("config", "", "путь к run-config.json")
 	planOnly := fs.Bool("plan-only", false, "разобрать план и судью, дальше не идти")
 	whatIf := fs.Bool("whatif", false, "сухой прогон: модель не зовётся, расход не считается")
+	orchestrateOverride := fs.Bool("orchestrate", false, "включить native Agent orchestration для этого прогона")
+	subagentsOverride := fs.Int("subagents", 0, "число обязательных Agent результатов; >0 также включает orchestration")
 	if err := fs.Parse(argv); err != nil {
 		return 2
 	}
@@ -198,6 +205,19 @@ func cmdLoop(argv []string) int {
 	if c.Tools == "" {
 		// Список проверенной ветви 13.09.2026 — той, что реально писала файлы.
 		c.Tools = "Read,Write,Edit,Glob,Grep,Bash"
+	}
+	if *subagentsOverride < 0 {
+		line("ОТКАЗ: -subagents не может быть отрицательным")
+		return 2
+	}
+	if *orchestrateOverride || *subagentsOverride > 0 {
+		c.Orchestrate = true
+	}
+	if *subagentsOverride > 0 {
+		c.Subagents = *subagentsOverride
+	}
+	if c.Orchestrate {
+		c.Tools = ensureCSVItem(c.Tools, "Agent")
 	}
 	if len(c.Ladder) == 0 {
 		c.Ladder = []string{"script", "haiku", "sonnet", "opus"}
@@ -504,6 +524,9 @@ func cmdLoop(argv []string) int {
 				// цена и ходы были, а что сказал исполнитель — нигде.
 				"runner_said":   nullIfEmpty(r.Detail),
 				"orchestration": c.Orchestrate, "subagents": c.subagentsInLog(),
+				"agents_requested": r.AgentRequested, "agents_started": r.AgentStarted,
+				"agents_completed": r.AgentCompleted, "agent_ids": r.AgentIDs,
+				"agent_issue": nullIfEmpty(r.AgentIssue),
 			})
 
 			state := "судья не пропустил"
