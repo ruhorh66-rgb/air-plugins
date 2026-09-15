@@ -456,12 +456,49 @@ func cmdLoop(argv []string) int {
 				code, text = c.judge()
 			}
 
+			// The semantic judge is a second, read-only model lane of the opposite vendor.
+			// It runs only after a model executor actually completed a turn.
+			var sem *semanticRun
+			iterCost := r.Cost
+			if !c.WhatIf && r.Ok && r.Subtype != "needs_permission" && (runner.Kind == "claude" || runner.Kind == "codex") {
+				sr := c.semanticJudge(step, runner, code, text, r.Detail)
+				sem = &sr
+				if sr.Cost != nil {
+					c.spent += *sr.Cost
+					v := *sr.Cost
+					if iterCost != nil {
+						v += *iterCost
+					}
+					iterCost = &v
+				}
+				if sr.Error != "" {
+					line("  semantic judge: NOT_PROVEN — " + sr.Error)
+				} else {
+					line(fmt.Sprintf("  semantic judge: %s · step %s · drift %s · reviewer %s",
+						sr.Verdict.Verdict, sr.Verdict.StepDone, sr.Verdict.Drift, sr.Reviewer.Kind))
+				}
+			}
+
+			semVerdict, semDrift, semReviewer, semError := any(nil), any(nil), any(nil), any(nil)
+			var semCost, semTurns any
+			if sem != nil {
+				semReviewer, semCost, semTurns = sem.Reviewer.Kind, sem.Cost, sem.Turns
+				if sem.Error != "" {
+					semError = sem.Error
+				} else {
+					semVerdict, semDrift = sem.Verdict.Verdict, sem.Verdict.Drift
+				}
+			}
+
 			c.addStep(map[string]any{
 				"step": step.Index, "title": step.Title, "tier": tier,
 				"iteration": c.iter, "code": code,
-				"total_cost_usd": r.Cost, "num_turns": r.Turns,
+				"total_cost_usd": iterCost, "executor_cost_usd": r.Cost, "num_turns": r.Turns,
 				"duration_api_ms": r.ApiMs, "session_id": nullIfEmpty(r.Session),
 				"subtype": nullIfEmpty(r.Subtype), "spent_usd": round4(c.spent),
+				"semantic_verdict": semVerdict, "semantic_drift": semDrift,
+				"semantic_reviewer": semReviewer, "semantic_error": semError,
+				"semantic_cost_usd": semCost, "semantic_turns": semTurns,
 				// ОТВЕТ ИСПОЛНИТЕЛЯ ЛОЖИТСЯ В ЖУРНАЛ. Без него прогон, потративший
 				// $7.33 и не изменивший ни одного файла, не оставлял следа о причине:
 				// цена и ходы были, а что сказал исполнитель — нигде.
@@ -477,7 +514,21 @@ func cmdLoop(argv []string) int {
 				state = "не проверено"
 			}
 			status(step.Index, step.Title, tier, who, state)
-			measure(c.iter, r.Cost, r.Turns, c.spent, c.MaxUSD)
+			measure(c.iter, iterCost, r.Turns, c.spent, c.MaxUSD)
+
+			// Semantic control is applied before factual PASS can close the work and before
+			// the drift engine can justify a more expensive tier.
+			if sem != nil {
+				if sem.Error != "" {
+					closeWoody("semantic judge did not produce a valid verdict", sem.Error, 2)
+				}
+				switch sem.Verdict.Verdict {
+				case "DRIFT":
+					closeWoody("semantic judge detected drift; tier escalation is blocked", semanticEvidenceText(sem.Verdict), 1)
+				case "NOT_PROVEN":
+					closeWoody("semantic judge could not prove the step", semanticEvidenceText(sem.Verdict), 2)
+				}
+			}
 
 			// ДВИГАТЕЛЬ ЦЕЛИ. Замер идёт ПОСЛЕ итерации: пара «до/после» и отвечает на
 			// вопрос, двинул ли ход расстояние. Зовётся ВНУТРИ процесса — отдельный
