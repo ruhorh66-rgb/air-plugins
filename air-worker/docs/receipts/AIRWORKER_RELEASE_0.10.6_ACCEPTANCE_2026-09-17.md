@@ -29,3 +29,15 @@ Scope: closed steps 85, 85а, 86 only. Multi-session kernel remains deferred to 
 
 `script -> haiku:medium -> haiku:max -> sonnet:medium -> sonnet:max -> opus:medium -> opus:max`.
 Haiku uses AirLLMRouter. Sonnet/Opus remain direct. Codex remains independent semantic reviewer.
+
+## Published and installed
+
+- Release commit: `ea481abfe208ab52cfae70e5341cc354c57538ec`.
+- Tag: `air-worker--v0.10.6`; origin/main and tag push PASS.
+- Registry standards write-through commit: `5aa6eb2` (`DEV-030/040/080` only; foreign `DEV-055` untouched).
+- Claude marketplace/plugin updated to 0.10.6.
+- Codex marketplace/plugin updated to 0.10.6.
+- Source / Claude cache / Codex cache / live SHA-256: `129B78DAE29EB6BB2245ABD953DF1F0F303F24675468D92D82E5CF84495F92C6`.
+- Live `install -status`: source-policy clean, Start Menu registered, autostart not declared, tray accepted by shell.
+- Post-install tray PID: 8456; shortcut idempotence smoke: 1 process before -> 1 after.
+- Release gate 86а closed; next release path is 0.10.7 multi-session protection kernel.
