@@ -24,7 +24,9 @@ from __future__ import annotations
 import argparse
 import base64
 import ftplib
+import hashlib
 import ipaddress
+import json
 import os
 import pathlib
 import re
@@ -164,26 +166,75 @@ def ensure_dir(ftp: ftplib.FTP, path: str, known: set[str]) -> None:
         known.add(current)
 
 
+def digest(path: pathlib.Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def state_path(local: pathlib.Path) -> pathlib.Path:
+    return local.parent / ".deploy-state.json"
+
+
+def load_state(local: pathlib.Path, remote_root: str) -> dict[str, str]:
+    """Отпечатки того, что уже залито этой машиной.
+
+    Без них каждая выкладка гонит по FTP всю разметку заново: сверять
+    содержимое на сервере нечем — FTP умеет только размер, а размеру верить
+    нельзя. Опись — подсказка, а не истина: если её нет или она врёт, худшее,
+    что случится, — лишняя заливка, которую поймает сверка живого сайта.
+    """
+    try:
+        data = json.loads(state_path(local).read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — нет файла, битый json, что угодно
+        return {}
+    return data.get(remote_root, {}) if isinstance(data, dict) else {}
+
+
+def save_state(local: pathlib.Path, remote_root: str, files: dict[str, str]) -> None:
+    text = json.dumps({remote_root: files}, ensure_ascii=False, indent=1)
+    state_path(local).write_text(text + chr(10), encoding="utf-8")
+
+
+def may_skip(rel: str) -> bool:
+    """Можно ли доверять совпадению размера.
+
+    Только для файлов из `_next/static`: там имя задаётся содержимым, и файл с
+    тем же именем и размером — тот же файл. Для разметки это неверно и уже
+    подвело 16.09.2026: в `index.html` поменялось только имя файла стилей, длина
+    имени та же, размер совпал — файл не залился, и живая страница осталась
+    ссылаться на стили прошлой сборки.
+    """
+    return rel.startswith("_next/static/")
+
+
 def upload(ftp: ftplib.FTP, local: pathlib.Path, remote_root: str, reconnect) -> tuple[ftplib.FTP, int, int, int]:
     """Заливает всю сборку.
 
-    Файл того же размера не перезаливается: FTP медленный, а несколько сотен
+    Неизменяемый файл сборки того же размера не перезаливается: FTP медленный, а несколько сотен
     файлов не всегда укладываются в одну сессию. Обрыв не роняет выкладку — файл
     перекладывается заново после переподключения.
     """
     files = sorted(p for p in local.rglob("*") if p.is_file())
     known_dirs: set[str] = set()
+    known_state = load_state(local, remote_root)
+    fresh_state: dict[str, str] = {}
     sent = skipped = total = 0
     for index, path in enumerate(files, start=1):
         rel = path.relative_to(local).as_posix()
         remote = f"{remote_root}/{rel}"
         size = path.stat().st_size
+        sha = digest(path)
         for attempt in (1, 2, 3):
             try:
                 ensure_dir(ftp, remote.rsplit("/", 1)[0], known_dirs)
                 try:
-                    if ftp.size(remote) == size:
+                    same = known_state.get(rel) == sha or (may_skip(rel) and known_state.get(rel) is None)
+                    if same and ftp.size(remote) == size:
                         skipped += 1
+                        fresh_state[rel] = sha
                         break
                 except Exception:  # noqa: BLE001 — файла нет или сервер не умеет SIZE
                     pass
@@ -191,6 +242,7 @@ def upload(ftp: ftplib.FTP, local: pathlib.Path, remote_root: str, reconnect) ->
                     ftp.storbinary(f"STOR {remote}", handle)
                 sent += 1
                 total += size
+                fresh_state[rel] = sha
                 break
             except (ftplib.error_temp, ftplib.error_proto, OSError, EOFError) as exc:
                 if attempt == 3:
@@ -204,6 +256,7 @@ def upload(ftp: ftplib.FTP, local: pathlib.Path, remote_root: str, reconnect) ->
                 known_dirs.clear()
         if index % 50 == 0:
             print(f"  обработано {index} из {len(files)}", flush=True)
+    save_state(local, remote_root, fresh_state)
     return ftp, sent, skipped, total
 
 
