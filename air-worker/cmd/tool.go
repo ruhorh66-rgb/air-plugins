@@ -141,6 +141,28 @@ func knownToolLocations(tool string) []string {
 	return nil
 }
 
+func routerToolDiagnosticLines() []string {
+	return []string{
+		"runner=router",
+		"shell=opencode",
+		"AirLLMRouter",
+	}
+}
+
+func toolNamesForProduct(root string) []string {
+	names := []string{"claude", "codex"}
+	var cfg runConfig
+	if err := readJSON(filepath.Join(root, "run-config.json"), &cfg); err != nil {
+		return names
+	}
+	for _, rung := range cfg.Ladder {
+		if resolveRunner(cfg, rung).Kind == "router" {
+			return append([]string{"router"}, names...)
+		}
+	}
+	return names
+}
+
 // cmdTool — сухой вывод выбора исполнителя. НИЧЕГО НЕ ЗАПУСКАЕТ И НЕ СТОИТ НИ КОПЕЙКИ.
 //
 // Заведено по разбору AIR-ENV-002 13.09.2026, и её формулировка — основание: «единственный
@@ -153,16 +175,29 @@ func knownToolLocations(tool string) []string {
 // есть ровно той валютой, которую мы весь день отказывались принимать.
 func cmdTool(argv []string) int {
 	fs := flag.NewFlagSet("tool", flag.ContinueOnError)
-	which := fs.String("which", "", "какой исполнитель: claude, codex, opencode")
+	which := fs.String("which", "", "какой исполнитель: claude, codex, opencode, router")
+	product := fs.String("product", ".", "корень продукта для активной ladder")
 	if err := fs.Parse(argv); err != nil {
 		return 2
 	}
+	if *which == "router" {
+		for _, line := range routerToolDiagnosticLines() {
+			fmt.Print(line + lineEnding)
+		}
+		return 0
+	}
 	names := []string{*which}
 	if *which == "" {
-		names = []string{"claude", "codex"}
+		names = toolNamesForProduct(*product)
 	}
 	worst := 0
 	for _, n := range names {
+		if n == "router" {
+			for _, line := range routerToolDiagnosticLines() {
+				fmt.Print(line + lineEnding)
+			}
+			continue
+		}
 		path, why, err := resolveRunnerToolWhy(n)
 		if err != nil {
 			// «Нечем исполнить» — это код 2, а не 1: работой оно не лечится, нужен человек.

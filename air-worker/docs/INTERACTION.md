@@ -112,3 +112,9 @@ air-worker report -product E:\-8-\asw
 
 Первый шаг не трогает ничего существующего и проверяется сразу. Удаление идёт только
 после того, как сверка чисел заработает.
+
+## Operational feedback
+
+Для эксплуатационной сессии штатный вход один: `air-worker feedback`. Сессия передаёт наблюдение и evidence; проектировать реализацию от неё не требуется. Команда создаёт один `feedback_id`, immutable evidence record и связанный `candidate` в canonical PLAN.
+
+Candidate не является work-step, не меняет distance и не получает scope/priority/release без решения ЛПР. Dual-write считается успехом только когда записаны обе стороны; иначе команда возвращает `PARTIAL`/ненулевой код и называет непроставленную сторону. В handoff передаются `feedback_id` и evidence path, а не второй свободный backlog.

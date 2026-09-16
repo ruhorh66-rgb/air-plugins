@@ -122,8 +122,12 @@ func TestRouterFirstReleaseProfileKeepsCodexJudge(t *testing.T) {
 	if err := readJSON(filepath.Join("..", "run-config.json"), &cfg); err != nil {
 		t.Fatalf("read release run-config: %v", err)
 	}
-	if len(cfg.Ladder) < 2 || cfg.Ladder[0] != "script" || cfg.Ladder[1] != "router" {
-		t.Fatalf("release ladder must start script -> router: %v", cfg.Ladder)
+	if len(cfg.Ladder) < 2 || cfg.Ladder[0] != "script" || cfg.Ladder[1] != "haiku:medium" {
+		t.Fatalf("release ladder must start script -> haiku:medium: %v", cfg.Ladder)
+	}
+	haiku := resolveRunner(cfg, cfg.Ladder[1])
+	if haiku.Kind != "router" {
+		t.Fatalf("haiku tier must route through AirLLMRouter: %+v", haiku)
 	}
 	for _, tier := range cfg.Ladder {
 		r := resolveRunner(cfg, tier)

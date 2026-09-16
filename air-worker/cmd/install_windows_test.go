@@ -41,3 +41,35 @@ func TestДоказательствоЗначкаНазываетПричину(
 		t.Errorf("файл с BOM не прочитан: %v, «%s»", proof, why)
 	}
 }
+
+func TestCriterion71ManualLaunchAndPluginLoad(t *testing.T) {
+	appData := t.TempDir()
+	t.Setenv("APPDATA", appData)
+	target := filepath.Join(t.TempDir(), "air-worker-tray.exe")
+	if err := os.WriteFile(target, []byte("fake"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	shortcut, err := createStartMenuShortcut(target)
+	if err != nil {
+		t.Fatalf("create Start Menu shortcut: %v", err)
+	}
+	if !strings.HasPrefix(strings.ToLower(shortcut), strings.ToLower(appData)) {
+		t.Fatalf("shortcut escaped user Start Menu: %s", shortcut)
+	}
+	if st, err := os.Stat(shortcut); err != nil || st.IsDir() || st.Size() == 0 {
+		t.Fatalf("shortcut not materialized: stat=%v err=%v", st, err)
+	}
+	if err := removeStartMenuShortcut(); err != nil {
+		t.Fatal(err)
+	}
+	skill, err := os.ReadFile(filepath.Join("..", "skills", "woody", "SKILL.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(skill)
+	for _, want := range []string{"air-worker tray -ensure", "air-worker tray -status", "загрузи плагин AirWorker"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("plugin-load contract missing %q", want)
+		}
+	}
+}

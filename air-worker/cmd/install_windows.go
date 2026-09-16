@@ -137,6 +137,47 @@ func runValue() string {
 	return userEnvVarIn(runKeyPath, runValueName)
 }
 
+func startMenuShortcutPath() string {
+	base := strings.TrimSpace(os.Getenv("APPDATA"))
+	if base == "" {
+		base = filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Roaming")
+	}
+	return filepath.Join(base, "Microsoft", "Windows", "Start Menu", "Programs", "AIR Worker.lnk")
+}
+
+func psSingleQuoted(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+}
+
+func createStartMenuShortcut(target string) (string, error) {
+	shortcut := startMenuShortcutPath()
+	if err := os.MkdirAll(filepath.Dir(shortcut), 0o755); err != nil {
+		return shortcut, err
+	}
+	script := "$w=New-Object -ComObject WScript.Shell;" +
+		"$s=$w.CreateShortcut(" + psSingleQuoted(shortcut) + ");" +
+		"$s.TargetPath=" + psSingleQuoted(target) + ";" +
+		"$s.WorkingDirectory=" + psSingleQuoted(filepath.Dir(target)) + ";" +
+		"$s.Description='AIR Worker';" +
+		"$s.IconLocation=" + psSingleQuoted(target+",0") + ";$s.Save()"
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return shortcut, fmt.Errorf("Start Menu shortcut: %v: %s", err, strings.TrimSpace(decodeOutput(out)))
+	}
+	if st, err := os.Stat(shortcut); err != nil || st.IsDir() || st.Size() == 0 {
+		return shortcut, fmt.Errorf("Start Menu shortcut not confirmed: %v", err)
+	}
+	return shortcut, nil
+}
+
+func removeStartMenuShortcut() error {
+	path := startMenuShortcutPath()
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
 // trayWindow — дескриптор окна значка либо 0. Это ЕДИНСТВЕННОЕ доказательство, что
 // значок живёт: наличие процесса доказывает лишь, что что-то запустилось.
 func trayWindow() syscall.Handle {
@@ -360,6 +401,11 @@ func cmdInstall(argv []string) int {
 		} else {
 			fmt.Printf("Router bridge: НЕТ (%s)"+lineEnding, bridge)
 		}
+		if st, err := os.Stat(startMenuShortcutPath()); err == nil && !st.IsDir() && st.Size() > 0 {
+			fmt.Printf("Start Menu : зарегистрирован — %s"+lineEnding, startMenuShortcutPath())
+		} else {
+			fmt.Printf("Start Menu : НЕТ — %s"+lineEnding, startMenuShortcutPath())
+		}
 		if v := runValue(); v != "" {
 			fmt.Printf("Автозапуск : объявлен — %s"+lineEnding, v)
 		} else {
@@ -421,6 +467,11 @@ func cmdInstall(argv []string) int {
 			return 1
 		}
 		fmt.Print("автозапуск снят (если он был объявлен)" + lineEnding)
+		if err := removeStartMenuShortcut(); err != nil {
+			fmt.Printf("Start Menu : не снят — %v"+lineEnding, err)
+			return 1
+		}
+		fmt.Print("Start Menu : регистрация снята (если была)" + lineEnding)
 		switch asked, gone := stopTray(); {
 		case !asked:
 			fmt.Print("значок и так не запущен" + lineEnding)
@@ -587,6 +638,13 @@ func cmdInstall(argv []string) int {
 	} else {
 		fmt.Print("PATH       : каталог уже в PATH, второй копии не заведено" + lineEnding)
 	}
+
+	shortcut, err := createStartMenuShortcut(dstTray)
+	if err != nil {
+		fmt.Printf("Start Menu : НЕ зарегистрирован — %v"+lineEnding, err)
+		return 1
+	}
+	fmt.Printf("Start Menu : зарегистрирован — %s"+lineEnding, shortcut)
 
 	if *noStart {
 		fmt.Print("Значок     : не запускался (по флагу -no-start)" + lineEnding)

@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.10.5"
+	version = "0.10.6"
 )
 
 func usage() {
@@ -66,7 +66,7 @@ func usage() {
         Планировщик: разбивка цели на шаги ОДНИМ дорогим вызовом. Предлагает в
         PLAN.proposed.md; существующий PLAN.md не трогается никогда.
 
-  air-worker tool   [-which claude|codex|opencode]
+  air-worker tool   [-which claude|codex|opencode|router]
         Каким исполнителем пойдёт петля и каким правилом он найден. Ничего не
         запускает и не стоит ни копейки.
 
@@ -86,6 +86,10 @@ func usage() {
         критерии меряются проверкой судьи или фактом реестра. Судью не гоняет — зовётся
         стражем работы на каждой правке файла. Коды: 0 годен, 1 не годен, 2 плана нет.
         Решение ЛПР 14.09.2026: без плана и без целей air-worker не работает.
+
+  air-worker feedback -product <root> -source-version <v> -type defect|friction|idea -severity P0|P1|P2|P3
+        Capture operational feedback as immutable product evidence plus a non-executable
+        candidate in the canonical PLAN. Full success or explicit PARTIAL with nonzero exit.
 
   air-worker install [-dir <куда>] [-autostart] [-no-start] [-status] [-uninstall]
         Ставит продукт в пользовательскую область и вешает значок в трее. ПОВЫШЕНИЕ ПРАВ
@@ -178,6 +182,8 @@ func run(argv []string) int {
 		return cmdReport(argv[1:])
 	case "goals":
 		return cmdGoals(argv[1:])
+	case "feedback":
+		return cmdFeedback(argv[1:])
 	case "install":
 		return cmdInstall(argv[1:])
 	case "tray":

@@ -1,5 +1,17 @@
 # CHANGELOG — air-worker
 
+## 0.10.6 — 17.09.2026
+
+### Operational feedback + manual launch + Router diagnostics
+
+- Added `air-worker feedback`: one immutable `feedback_id` evidence record plus a linked non-executable PLAN `candidate`; dual-write failure is explicit `PARTIAL` with nonzero exit.
+- Standardized the feedback handoff contract in AIR VIBE CODING and DEV-030/040/080; feedback does not change active scope, priority or release without an LPR decision.
+- Windows install now creates a user Start Menu `AIR Worker` shortcut without enabling autostart; install status reports registration separately from running state; uninstall removes the shortcut. Explicit plugin load uses idempotent `air-worker tray -ensure`.
+- `air-worker tool -which router` reports `runner=router -> shell=opencode -> AirLLMRouter` without looking for a fictitious `router.exe`; default `tool -product ...` shows Router when the active ladder maps Haiku to `kind=router`.
+- Release profile keeps `script` deterministic, routes `haiku:medium/max` through AirLLMRouter, and keeps Sonnet/Opus outside Router; Codex remains independent semantic reviewer.
+
+Release control: K67-K71 targeted acceptance, Codex semantic PASS for steps 85/85a/86, full `go test ./...`, `go vet ./...`, `git diff --check`, plugin portability/version checks, live Start Menu idempotence, Router diagnostics, install/update SHA verification. Rollback target: `air-worker--v0.10.5`.
+
 ## 0.10.5 — 16.09.2026
 
 ### Router resilience

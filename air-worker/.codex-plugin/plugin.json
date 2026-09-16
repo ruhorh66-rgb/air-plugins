@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.10.5",
-  "description": "AirWorker 0.10.5: Router-backed coding executor with factual gates and independent Codex semantic review.",
+  "version": "0.10.6",
+  "description": "AirWorker 0.10.6: operational feedback intake, manual Windows launch, Haiku via AirLLMRouter, and dry Router diagnostics with independent Codex semantic review.",
   "author": {
     "name": "AIR OS"
   },
