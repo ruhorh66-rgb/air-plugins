@@ -162,7 +162,9 @@ func combinedAcceptance(factualCode int, semantic semanticVerdict) string {
 }
 func oppositeSemanticReviewer(executor runnerSpec) (runnerSpec, error) {
 	switch executor.Kind {
-	case "claude":
+	case "claude", "router":
+		// Router is the development executor, not a semantic reviewer. Codex stays
+		// an independent read-only judge just as it does for the Anthropic path.
 		return runnerSpec{Kind: "codex", Effort: "high"}, nil
 	case "codex":
 		return runnerSpec{Kind: "claude", Model: "sonnet", Effort: "medium"}, nil

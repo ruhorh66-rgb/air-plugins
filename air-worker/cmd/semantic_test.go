@@ -117,25 +117,28 @@ func TestPublishSemanticWritesLatestAndHistory(t *testing.T) {
 	}
 }
 
-func TestIntermediateReleaseProfileAnthropicExecutorCodexJudge(t *testing.T) {
+func TestRouterFirstReleaseProfileKeepsCodexJudge(t *testing.T) {
 	var cfg runConfig
 	if err := readJSON(filepath.Join("..", "run-config.json"), &cfg); err != nil {
 		t.Fatalf("read release run-config: %v", err)
+	}
+	if len(cfg.Ladder) < 2 || cfg.Ladder[0] != "script" || cfg.Ladder[1] != "router" {
+		t.Fatalf("release ladder must start script -> router: %v", cfg.Ladder)
 	}
 	for _, tier := range cfg.Ladder {
 		r := resolveRunner(cfg, tier)
 		if r.Kind == "script" {
 			continue
 		}
-		if r.Kind != "claude" {
-			t.Fatalf("intermediate release has non-Anthropic executor at %s: %+v", tier, r)
+		if r.Kind != "router" && r.Kind != "claude" {
+			t.Fatalf("release has unsupported executor at %s: %+v", tier, r)
 		}
 		reviewer, err := oppositeSemanticReviewer(r)
 		if err != nil || reviewer.Kind != "codex" {
-			t.Fatalf("Anthropic executor at %s is not judged by Codex: %+v, %v", tier, reviewer, err)
+			t.Fatalf("executor at %s is not judged by independent Codex: %+v, %v", tier, reviewer, err)
 		}
 	}
 }
 
-// The inverse Codex->Claude path remains for the later cross-vendor release,
-// but the current release profile above proves it is not active.
+// The inverse Codex->Claude path remains available for a future executor profile,
+// but the 0.10.5 resilience release keeps Codex out of the executor ladder.

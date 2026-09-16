@@ -1,5 +1,18 @@
 # CHANGELOG — air-worker
 
+## 0.10.5 — 16.09.2026
+
+### Router resilience
+
+- Added `runner kind=router`: AirWorker delegates coding work to a ready OpenCode agent shell while AirLLMRouter v0.3.0 remains the sole provider/model/free-budget policy owner.
+- Added an ephemeral local streaming compatibility bridge. It converts OpenCode streaming transport to Router `--invoke` without storing OpenRouter keys or selecting providers/models in AirWorker.
+- Router executor receipts record factual route evidence (`runner/provider/model/cost`) without secrets; factual PASS is followed by independent read-only Codex semantic review.
+- Windows subprocesses inherit the active system proxy when `HTTP(S)_PROXY` is absent, fixing Router and Codex reviewer connectivity in long-lived sessions.
+- OpenCode v1.18.31 is shipped as a pinned official baseline archive. Install verifies archive SHA-256, extracted EXE SHA-256 and `opencode --version` before changing the installed runtime.
+- Live acceptance with Codex/Anthropic executor lanes unavailable: OpenRouter `inclusionai/ling-3.0-flash-vl:free`, cost `0`, real `read/edit/bash`, fixture `AFTER`, verifier `VERIFY_OK`; factual К64–К66 PASS; Codex semantic `PASS`, `step_done=yes`, `drift=none`.
+
+Release control: targeted К64–К66 + packaged OpenCode integrity/install test, full `go test ./...`, `go vet ./...`, `git diff --check`, plugin manifests, version, live free-route acceptance and standalone Codex semantic acceptance. Rollback target: `air-worker--v0.10.4`.
+
 ## 0.10.4 — 15.09.2026
 
 ### Semantic reliability hotfix

@@ -2,7 +2,7 @@
   "_": "Реестр фактов air-worker 0.10.0. Постановка — AIR-CHG-2026-000091, разбивка — PLAN.md.",
   "_правило": "Факт закрывается прогоном, а не отметкой. Ставить completed, не имея чем это показать, — подлог, который судья не поймает: он считает отметки, а доказывает их человек.",
   "goal": "Задача доводится до гарантированного результата по нашей логике, с понятным бюджетом",
-  "updated": "2026-09-13",
+  "updated": "2026-09-16",
   "items": [
     {
       "id": "f01",
@@ -122,6 +122,20 @@
       "fact": "Граница между механизмом (Go) и исполнением (Python) объявлена и проверяется: ни одна сторона не дублирует другую, обе точки входа названы и отвечают.",
       "proved_by": "docs/BOUNDARY.md; tools/check-boundary.ps1 — семь утверждений",
       "evidence": "13.09.2026. Вопрос ЛПР «как бинарник взаимодействует с ЛЛМ» вскрыл не дефект, а неназванное: механизм ходит к модели вендорским CLI из Go, исполнение задач — через llm-queue из Python. Самодостаточность означала бы переписать клиент СОСЕДНЕГО продукта, то есть завести вторую реализацию одного правила на уровне продуктов — ту же беду, что мы весь день чинили на уровне функций. Граница объявлена вместо переноса: перенос выглядел бы работой и создал бы расхождение, которое обнаружилось бы не там, где сделано."
+    },
+    {
+      "id": "router-free-live-smoke",
+      "status": "completed",
+      "fact": "Router-backed coding executor completed isolated read/edit/bash smoke through OpenRouter free route without Anthropic/Codex executor availability.",
+      "proved_by": ".woody\\K65_live_20260916.log; TestCriterion65RouterCodingAgentContract",
+      "evidence": "16.09.2026: provider=openrouter; model=inclusionai/ling-3.0-flash-vl:free; cost=0.0000; fixture=AFTER; verifier=VERIFY_OK; test PASS."
+    },
+    {
+      "id": "router-codex-semantic-live",
+      "status": "completed",
+      "fact": "Router executor result passed the existing standalone Codex semantic judge read-only after step factual PASS.",
+      "proved_by": ".woody\\semantic-verdict.json; air-worker semantic -step 84 -executor router",
+      "evidence": "16.09.2026: factual_code=0; verdict=PASS; step_done=yes; drift=none; executor_vendor=router; reviewer_vendor=codex; turns=1."
     }
   ]
 }

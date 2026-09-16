@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.10.4",
-  "description": "Signed local work execution through the shared llm-queue core.",
+  "version": "0.10.5",
+  "description": "AirWorker 0.10.5: Router-backed coding executor with factual gates and independent Codex semantic review.",
   "author": {
     "name": "AIR OS"
   },
@@ -12,7 +12,9 @@
     "longDescription": "Canonical dual-host AIR worker package for Claude and Codex. Direct execution is default; Telegram approval is an explicit legacy mode.",
     "developerName": "AIR OS",
     "category": "Productivity",
-    "capabilities": ["Interactive"],
+    "capabilities": [
+      "Interactive"
+    ],
     "defaultPrompt": "Run a signed air-worker task directly."
   }
 }

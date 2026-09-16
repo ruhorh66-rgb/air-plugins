@@ -39,6 +39,7 @@ const (
 	keyRead         = 0x20019
 	regSZ           = 1
 	regExpandSZ     = 2
+	regDWORD        = 4
 )
 
 // userEnvVar возвращает значение переменной из HKCU\Environment либо пустую строку.
@@ -83,4 +84,31 @@ func userEnvVarIn(subkey, name string) string {
 		return ""
 	}
 	return syscall.UTF16ToString(buf)
+}
+
+// userDWORDIn читает REG_DWORD из ветви текущего пользователя. Нужен для
+// системных переключателей вроде ProxyEnable; текстовый reader намеренно не
+// интерпретирует DWORD как строку.
+func userDWORDIn(subkey, name string) (uint32, bool) {
+	sub, err := syscall.UTF16PtrFromString(subkey)
+	if err != nil {
+		return 0, false
+	}
+	var h syscall.Handle
+	r, _, _ := procRegOpenKeyExW.Call(uintptr(hkeyCurrentUser), uintptr(unsafe.Pointer(sub)),
+		0, uintptr(keyRead), uintptr(unsafe.Pointer(&h)))
+	if r != 0 {
+		return 0, false
+	}
+	defer procRegCloseKey.Call(uintptr(h))
+	val, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		return 0, false
+	}
+	var typ uint32
+	var size uint32 = 4
+	var out uint32
+	r, _, _ = procRegQueryValue.Call(uintptr(h), uintptr(unsafe.Pointer(val)), 0,
+		uintptr(unsafe.Pointer(&typ)), uintptr(unsafe.Pointer(&out)), uintptr(unsafe.Pointer(&size)))
+	return out, r == 0 && typ == regDWORD && size == 4
 }

@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.10.4"
+	version = "0.10.5"
 )
 
 func usage() {
@@ -58,7 +58,7 @@ func usage() {
         Штатный chat orchestration entrypoint: эквивалент loop -orchestrate. AirWorker сам
         разрешает Agent tool и принимает успех только при доказанных Agent start/result.
 
-  air-worker semantic -product <корень> -step <N> [-executor claude|codex|chatgpt] [-claim "..."]
+  air-worker semantic -product <корень> -step <N> [-executor claude|codex|chatgpt|router] [-claim "..."]
         Независимый read-only Semantic Judge текущего шага без запуска executor loop.
         Factual scope ограничен критериями шага; общий verdict продукта показывается отдельно.
 
@@ -66,7 +66,7 @@ func usage() {
         Планировщик: разбивка цели на шаги ОДНИМ дорогим вызовом. Предлагает в
         PLAN.proposed.md; существующий PLAN.md не трогается никогда.
 
-  air-worker tool   [-which claude|codex]
+  air-worker tool   [-which claude|codex|opencode]
         Каким исполнителем пойдёт петля и каким правилом он найден. Ничего не
         запускает и не стоит ни копейки.
 

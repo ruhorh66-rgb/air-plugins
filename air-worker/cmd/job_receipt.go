@@ -35,6 +35,10 @@ type jobReceipt struct {
 	Session    string    `json:"session"`
 	Step       string    `json:"step"`
 	Operation  string    `json:"operation"`
+	Runner     string    `json:"runner,omitempty"`
+	Provider   string    `json:"provider,omitempty"`
+	Model      string    `json:"model,omitempty"`
+	Cost       *float64  `json:"cost,omitempty"`
 }
 
 // jobLockKind — duplicate-start guard именует замок по (step, operation) внутри scope: тот

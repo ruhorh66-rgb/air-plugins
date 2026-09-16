@@ -348,6 +348,18 @@ func cmdInstall(argv []string) int {
 				fmt.Printf("%-10s : НЕТ (%s)"+lineEnding, f.name, f.path)
 			}
 		}
+		routerExe := filepath.Join(home, "tools", "opencode", "opencode.exe")
+		if err := verifyOpenCodeBinary(routerExe); err != nil {
+			fmt.Printf("OpenCode   : НЕ ГОТОВ — %v"+lineEnding, err)
+		} else {
+			fmt.Printf("OpenCode   : %s, SHA-256 подтверждён"+lineEnding, openCodeBundleVersion)
+		}
+		bridge := filepath.Join(home, "tools", "router_stream_bridge.py")
+		if st, err := os.Stat(bridge); err == nil && !st.IsDir() {
+			fmt.Printf("Router bridge: на месте, %d байт"+lineEnding, st.Size())
+		} else {
+			fmt.Printf("Router bridge: НЕТ (%s)"+lineEnding, bridge)
+		}
 		if v := runValue(); v != "" {
 			fmt.Printf("Автозапуск : объявлен — %s"+lineEnding, v)
 		} else {
@@ -481,6 +493,14 @@ func cmdInstall(argv []string) int {
 		return 2
 	}
 
+	routerRuntime, err := stageRouterRuntimePayload(srcDir)
+	if err != nil {
+		fmt.Printf("Router runtime не прошёл preflight: %v"+lineEnding, err)
+		return 2
+	}
+	defer routerRuntime.cleanup()
+	fmt.Printf("Router runtime: OpenCode %s и compatibility bridge проверены до изменения установки"+lineEnding, openCodeBundleVersion)
+
 	// Значок останавливается ДО копирования: работающий .exe заменить нельзя.
 	// Не дождались — ОТКАЗ, а не «попробуем всё равно»: копирование поверх живого
 	// процесса и есть тот отказ, ради которого здесь появилось ожидание.
@@ -512,6 +532,12 @@ func cmdInstall(argv []string) int {
 	// файлом; расхождение — код 2, а не строка при коде 0: недокопированный или
 	// подменённый файл выглядит установленным. При установке на месте сверять нечего —
 	// источник и назначение это один файл.
+	if err := installRouterRuntimePayload(routerRuntime, home); err != nil {
+		fmt.Printf("Router runtime не установлен: %v"+lineEnding, err)
+		return 2
+	}
+	fmt.Printf("Router runtime: OpenCode %s + bridge установлены и повторно проверены"+lineEnding, openCodeBundleVersion)
+
 	if !sameDir {
 		if got := binaryVersion(dstCLI); got != version {
 			fmt.Printf("Сверка     : установленный отвечает версией %q, ожидалась %q — установка не подтверждена"+lineEnding, got, version)

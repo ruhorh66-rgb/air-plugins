@@ -35,6 +35,7 @@ func TestCriterion58StandaloneReviewerRouting(t *testing.T) {
 		reviewer string
 	}{
 		{"claude", "codex"},
+		{"router", "codex"},
 		{"codex", "claude"},
 		{"chatgpt", "claude"},
 	} {

@@ -11,16 +11,20 @@ import (
 var runnerCommand = exec.Command
 
 func codexEnv(base []string) []string {
+	inheritSystemProxy := base == nil
 	if base == nil {
 		base = os.Environ()
 	}
-	out := make([]string, 0, len(base))
+	out := make([]string, 0, len(base)+4)
 	for _, e := range base {
 		key := strings.ToUpper(strings.SplitN(e, "=", 2)[0])
 		if strings.HasPrefix(key, "CLAUDE_") || strings.HasPrefix(key, "ANTHROPIC_") {
 			continue
 		}
 		out = append(out, e)
+	}
+	if inheritSystemProxy {
+		out = append(out, systemProxyFallbackEnv()...)
 	}
 	return out
 }

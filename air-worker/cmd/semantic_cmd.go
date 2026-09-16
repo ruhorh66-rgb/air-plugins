@@ -15,8 +15,10 @@ func semanticExecutorSpec(name string) (runnerSpec, error) {
 		return runnerSpec{Kind: "codex"}, nil
 	case "chatgpt", "gpt":
 		return runnerSpec{Kind: "chatgpt"}, nil
+	case "router":
+		return runnerSpec{Kind: "router"}, nil
 	default:
-		return runnerSpec{}, fmt.Errorf("unknown executor %q; use claude, codex, or chatgpt", name)
+		return runnerSpec{}, fmt.Errorf("unknown executor %q; use claude, codex, chatgpt, or router", name)
 	}
 }
 

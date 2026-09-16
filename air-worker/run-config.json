@@ -96,6 +96,7 @@
   "_ladder": "Порядок ступенек — решение ЛПР под продукт. Подъём только при застое судьи; упор в потолок ходов подъёмом не является, это сигнал сузить шаг.",
   "ladder": [
     "script",
+    "router",
     "haiku:medium",
     "haiku:max",
     "sonnet:medium",
@@ -106,6 +107,10 @@
   "runners": {
     "script": {
       "kind": "script"
+    },
+    "router": {
+      "kind": "router",
+      "model": "air-auto"
     },
     "haiku": {
       "kind": "claude",

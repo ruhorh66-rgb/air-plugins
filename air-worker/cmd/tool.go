@@ -127,6 +127,16 @@ func knownToolLocations(tool string) []string {
 		return out
 	case "codex":
 		return []string{filepath.Join(home, ".local", "bin", "codex"+ext)}
+	case "opencode":
+		var out []string
+		out = append(out, filepath.Join(home, ".local", "bin", "opencode"+ext))
+		if self, err := os.Executable(); err == nil {
+			out = append(out, filepath.Join(filepath.Dir(filepath.Dir(self)), "tools", "opencode", "opencode"+ext))
+		}
+		if local := strings.TrimSpace(os.Getenv("LOCALAPPDATA")); local != "" {
+			out = append(out, filepath.Join(local, "air-worker", "tools", "opencode", "opencode"+ext))
+		}
+		return out
 	}
 	return nil
 }
@@ -143,7 +153,7 @@ func knownToolLocations(tool string) []string {
 // есть ровно той валютой, которую мы весь день отказывались принимать.
 func cmdTool(argv []string) int {
 	fs := flag.NewFlagSet("tool", flag.ContinueOnError)
-	which := fs.String("which", "", "какой исполнитель: claude, codex")
+	which := fs.String("which", "", "какой исполнитель: claude, codex, opencode")
 	if err := fs.Parse(argv); err != nil {
 		return 2
 	}

@@ -20,6 +20,9 @@ func runnerCapabilityLines(kind string) []string {
 	if kind == "codex" {
 		return []string{"- files may be read, created and edited;", "- Codex runs with workspace-write inside the product root and may run local tests allowed by the sandbox;", "- do not request broader permissions, commit/push, or rewrite the judge;", "- the external judge independently verifies the result after the turn."}
 	}
+	if kind == "router" {
+		return []string{"- files may be read, created and edited through the OpenCode coding-agent shell;", "- local commands and tests may be run inside the product root;", "- provider/model selection, keys and billing policy belong only to AirLLMRouter;", "- the external factual and semantic judges independently verify the result after the turn."}
+	}
 	return []string{"- files may be read, created and edited;", "- local commands are not available to this detached runner;", "- the external loop runs build, tests and judge after the turn."}
 }
 
@@ -133,6 +136,9 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 	if runner.Kind == "codex" {
 		tool = "codex"
 	}
+	if runner.Kind == "router" {
+		tool = "opencode"
+	}
 	// Исполнитель ищется ОБЩЕЙ функцией: явное перекрытие, PATH, известные расположения.
 	// Здесь стоял голый exec.LookPath — и на машине, где клиент лежит в профиле и на PATH
 	// его нет, петля объявила бы «исполнителя нет» при наличном исполнителе. Тот же
@@ -146,6 +152,9 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 	}
 	if runner.Kind == "codex" {
 		return c.invokeCodex(exePath, prompt, runner, step.Num)
+	}
+	if runner.Kind == "router" {
+		return c.invokeRouter(exePath, prompt, runner, step.Num)
 	}
 	return c.invokeClaude(exePath, prompt, runner, step.Num)
 }
