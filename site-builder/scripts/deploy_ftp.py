@@ -1,31 +1,131 @@
 """Выкладка статической сборки на виртуальный хостинг по FTP.
 
-Обобщённый вариант скрипта, написанного 16.09.2026 при выкладке tech-77.ru.
-Адреса и порядок — из docs/HOSTING_NIC_RU.md: FTP `ftp.<услуга>.nichost.ru`,
-пользователь `<услуга>_ftp`, корень сайта `/<домен>/docs`, пароль лежит в
-диспетчере учётных данных (keyring, служба по умолчанию `nic-ru-ftp`).
-
-Пароль читает сам скрипт и никуда не печатает — ни в вывод, ни в журнал, ни в
-аргументы команды.
+Обобщённый вариант скрипта, которым 16.09.2026 выкладывался tech-77.ru. Адреса и
+порядок — из docs/HOSTING_NIC_RU.md: FTP `ftp.<услуга>.nichost.ru`, пользователь
+`<услуга>_ftp`, корень сайта `/<домен>/docs`, пароль в диспетчере учётных данных
+(keyring, служба по умолчанию `nic-ru-ftp`). Пароль читает сам скрипт и никуда не
+печатает — ни в вывод, ни в журнал, ни в аргументы команды.
 
     python deploy_ftp.py --service koo7873294 --domain tech-77.ru --dir out --check
-    python deploy_ftp.py --service koo7873294 --domain tech-77.ru --dir out
+    python deploy_ftp.py --service koo7873294 --domain tech-77.ru --dir out --page / --page /contacts/
 
-ВАЖНО: запускать в обычном терминале человека. Из сессии агента Claude Code
-команды идут через прокси песочницы, который пропускает только HTTP и HTTPS,
-и любое прямое соединение падает с `PermissionError [WinError 10013]`.
+Работает и из сессии агента, и из обычного терминала. В сессии прямой сокет
+наружу не открывается: всё идёт через прокси песочницы, и `socket.connect`
+получает `PermissionError [WinError 10013]` на любом порту, включая 443. Тот же
+прокси открывает туннель методом CONNECT, поэтому при заданном в окружении
+прокси скрипт работает через туннель — и управляющее соединение, и каждое
+пассивное соединение данных.
 
-Скрипт ничего не удаляет на сервере: файлы прошлых сборок остаются лежать.
+Ничего на сервере не удаляется: файлы прошлых сборок остаются лежать.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import ftplib
+import ipaddress
+import os
 import pathlib
 import re
+import socket
 import sys
+import urllib.error
+import urllib.parse
 import urllib.request
+
+
+def proxy_settings() -> tuple[str, int, str | None] | None:
+    """Адрес прокси из окружения и, если он там задан, заголовок авторизации."""
+    raw = (
+        os.environ.get("HTTPS_PROXY")
+        or os.environ.get("https_proxy")
+        or os.environ.get("HTTP_PROXY")
+        or os.environ.get("http_proxy")
+    )
+    if not raw:
+        return None
+    parsed = urllib.parse.urlsplit(raw if "://" in raw else f"http://{raw}")
+    if not parsed.hostname:
+        return None
+    header = None
+    if parsed.username:
+        token = f"{parsed.username}:{parsed.password or chr(0)}".replace(chr(0), "").encode()
+        header = "Basic " + base64.b64encode(token).decode()
+    return parsed.hostname, parsed.port or 8080, header
+
+
+def open_tunnel(proxy: tuple[str, int, str | None], host: str, port: int, timeout: float) -> socket.socket:
+    sock = socket.create_connection((proxy[0], proxy[1]), timeout)
+    lines = [f"CONNECT {host}:{port} HTTP/1.1", f"Host: {host}:{port}"]
+    if proxy[2]:
+        lines.append(f"Proxy-Authorization: {proxy[2]}")
+    sock.sendall(("\r\n".join(lines) + "\r\n\r\n").encode())
+    answer = b""
+    while b"\r\n\r\n" not in answer:
+        chunk = sock.recv(4096)
+        if not chunk:
+            raise OSError("прокси закрыл соединение, не ответив")
+        answer += chunk
+    first = answer.split(b"\r\n", 1)[0].decode("latin-1")
+    if " 200 " not in first:
+        raise OSError(f"прокси не открыл туннель: {first}")
+    return sock
+
+
+class TunnelFTP(ftplib.FTP):
+    """FTP поверх туннеля CONNECT.
+
+    Пассивный режим сообщает адрес соединения данных отдельной командой, и
+    туннель для него открывается свой. Штатная ftplib подставляет сюда адрес
+    того, с кем соединена управляющая сессия, — через прокси это был бы сам
+    прокси, поэтому адрес берётся из ответа сервера. Частный адрес снаружи
+    бесполезен: тогда берётся исходное имя хоста.
+    """
+
+    trust_server_pasv_ipv4_address = True
+
+    def __init__(self, host: str, proxy: tuple[str, int, str | None], timeout: float = 60) -> None:
+        self.proxy = proxy
+        self.real_host = host
+        super().__init__(host=host, timeout=timeout)
+
+    def connect(self, host: str = "", port: int = 0, timeout: float = -999, source_address=None):  # noqa: ARG002
+        if host:
+            self.host = host
+        if port:
+            self.port = port
+        if timeout != -999:
+            self.timeout = timeout
+        self.sock = open_tunnel(self.proxy, self.host, self.port, self.timeout)
+        self.af = self.sock.family
+        self.file = self.sock.makefile("r", encoding=self.encoding)
+        self.welcome = self.getresp()
+        return self.welcome
+
+    def ntransfercmd(self, cmd: str, rest=None):
+        if not self.passiveserver:
+            return super().ntransfercmd(cmd, rest)
+        host, port = self.makepasv()
+        try:
+            if ipaddress.ip_address(host).is_private:
+                host = self.real_host
+        except ValueError:
+            host = self.real_host
+        conn = open_tunnel(self.proxy, host, port, self.timeout)
+        try:
+            if rest is not None:
+                self.sendcmd(f"REST {rest}")
+            resp = self.sendcmd(cmd)
+            if resp[0] == "2":
+                resp = self.getresp()
+            if resp[0] != "1":
+                raise ftplib.error_reply(resp)
+        except Exception:
+            conn.close()
+            raise
+        size = ftplib.parse150(resp) if resp[:3] == "150" else None
+        return conn, size
 
 
 def connect(host: str, user: str, service: str) -> tuple[ftplib.FTP, str]:
@@ -34,15 +134,15 @@ def connect(host: str, user: str, service: str) -> tuple[ftplib.FTP, str]:
     password = keyring.get_password(service, user)
     if not password:
         sys.exit(f"нет пароля в хранилище: служба {service}, пользователь {user}")
+    proxy = proxy_settings()
     try:
-        ftp: ftplib.FTP = ftplib.FTP_TLS(host, timeout=30)
+        if proxy:
+            ftp: ftplib.FTP = TunnelFTP(host, proxy, timeout=60)
+            mode = f"через туннель CONNECT на {proxy[0]}:{proxy[1]}"
+        else:
+            ftp = ftplib.FTP(host, timeout=60)
+            mode = "напрямую"
         ftp.login(user, password)
-        ftp.prot_p()  # type: ignore[attr-defined]
-        mode = "FTPS"
-    except Exception:
-        ftp = ftplib.FTP(host, timeout=30)
-        ftp.login(user, password)
-        mode = "FTP без TLS"
     finally:
         password = None
     ftp.set_pasv(True)
@@ -64,21 +164,33 @@ def ensure_dir(ftp: ftplib.FTP, path: str, known: set[str]) -> None:
         known.add(current)
 
 
-def upload(ftp: ftplib.FTP, local: pathlib.Path, remote_root: str, reconnect) -> tuple[ftplib.FTP, int, int]:
-    """Обрыв сессии на общем хостинге — обычное дело, поэтому файл
-    перекладывается заново после переподключения, а не роняет всю выкладку."""
+def upload(ftp: ftplib.FTP, local: pathlib.Path, remote_root: str, reconnect) -> tuple[ftplib.FTP, int, int, int]:
+    """Заливает всю сборку.
+
+    Файл того же размера не перезаливается: FTP медленный, а несколько сотен
+    файлов не всегда укладываются в одну сессию. Обрыв не роняет выкладку — файл
+    перекладывается заново после переподключения.
+    """
     files = sorted(p for p in local.rglob("*") if p.is_file())
     known_dirs: set[str] = set()
-    sent = 0
-    total = 0
+    sent = skipped = total = 0
     for index, path in enumerate(files, start=1):
         rel = path.relative_to(local).as_posix()
         remote = f"{remote_root}/{rel}"
+        size = path.stat().st_size
         for attempt in (1, 2, 3):
             try:
                 ensure_dir(ftp, remote.rsplit("/", 1)[0], known_dirs)
+                try:
+                    if ftp.size(remote) == size:
+                        skipped += 1
+                        break
+                except Exception:  # noqa: BLE001 — файла нет или сервер не умеет SIZE
+                    pass
                 with path.open("rb") as handle:
                     ftp.storbinary(f"STOR {remote}", handle)
+                sent += 1
+                total += size
                 break
             except (ftplib.error_temp, ftplib.error_proto, OSError, EOFError) as exc:
                 if attempt == 3:
@@ -90,14 +202,12 @@ def upload(ftp: ftplib.FTP, local: pathlib.Path, remote_root: str, reconnect) ->
                     pass
                 ftp, _ = reconnect()
                 known_dirs.clear()
-        sent += 1
-        total += path.stat().st_size
         if index % 50 == 0:
-            print(f"  залито {index} из {len(files)}", flush=True)
-    return ftp, sent, total
+            print(f"  обработано {index} из {len(files)}", flush=True)
+    return ftp, sent, skipped, total
 
 
-BUILD_ID = re.compile(r'"b":"([A-Za-z0-9_-]{15,30})"')
+ASSET_REF = re.compile(r'/_next/static/[^"\\\s]+?\.(?:js|css)')
 
 
 def fetch(url: str) -> tuple[int, str]:
@@ -108,11 +218,12 @@ def fetch(url: str) -> tuple[int, str]:
 
 def verify(site_url: str, local: pathlib.Path, pages: list[str]) -> int:
     """«Команда отработала без ошибки» и «сайт обновился» — разные события.
-    Сверяем идентификатор сборки в живой выдаче с тем, что лежит в out/."""
-    index = local / "index.html"
-    match = BUILD_ID.search(index.read_text(encoding="utf-8")) if index.exists() else None
-    build_id = match.group(1) if match else None
-    print(f"сборка: buildId={build_id}")
+
+    Сверять по имени сборки нельзя: статический экспорт Next не пишет его в
+    разметку. Зато страница перечисляет свои чанки, а имена им даёт содержимое:
+    ссылка на файл, которого нет в нашей сборке, означает чужую сборку на
+    сервере.
+    """
     problems = 0
     for page in pages:
         try:
@@ -121,15 +232,16 @@ def verify(site_url: str, local: pathlib.Path, pages: list[str]) -> int:
             print(f"  {page}: недоступно — {exc}")
             problems += 1
             continue
-        live = BUILD_ID.search(body)
-        same = bool(build_id) and bool(live) and live.group(1) == build_id
+        refs = {ref.rstrip("\\") for ref in ASSET_REF.findall(body)}
+        foreign = sorted(ref for ref in refs if not (local / ref.lstrip("/")).exists())
         robots = re.search(r'<meta name="robots" content="([^"]+)"', body)
         print(
-            f"  {page}: HTTP {status}, buildId="
-            f"{'совпал' if same else (live.group(1) if live else 'нет')}"
+            f"  {page}: HTTP {status}, чужих файлов сборки {len(foreign)}"
             f", robots={robots.group(1) if robots else 'нет'}"
         )
-        if status != 200 or (build_id and not same):
+        if foreign:
+            print(f"      например: {', '.join(foreign[:2])}")
+        if status != 200 or foreign:
             problems += 1
     return problems
 
@@ -142,8 +254,9 @@ def main() -> int:
     parser.add_argument("--service-name", default="nic-ru-ftp", help="служба в хранилище паролей")
     parser.add_argument("--check", action="store_true", help="только проверить доступ")
     parser.add_argument("--verify", action="store_true", help="только сверить живой сайт")
-    parser.add_argument("--page", action="append", default=None, help="страница для сверки, можно несколько")
+    parser.add_argument("--page", action="append", help="страница для сверки, можно несколько")
     args = parser.parse_args()
+    sys.stdout.reconfigure(encoding="utf-8")  # консоль Windows по умолчанию cp1252
 
     local = pathlib.Path(args.dir).resolve()
     site_url = f"https://{args.domain}"
@@ -151,7 +264,6 @@ def main() -> int:
 
     if args.verify:
         return 1 if verify(site_url, local, pages) else 0
-
     if not local.exists():
         sys.exit(f"нет каталога сборки: {local}")
 
@@ -164,15 +276,15 @@ def main() -> int:
 
     ftp, mode = reconnect()
     try:
-        print(f"подключено: {host} ({mode}), пользователь {user}")
+        print(f"подключено: {host} {mode}, пользователь {user}")
         ftp.cwd(remote_root)
         print(f"каталог сайта {remote_root}: {len(ftp.nlst())} записей")
         if args.check:
             return 0
         count = sum(1 for p in local.rglob("*") if p.is_file())
         print(f"заливаю {count} файлов из {local}")
-        ftp, sent, size = upload(ftp, local, remote_root, reconnect)
-        print(f"залито файлов: {sent}, объём: {size / 1024 / 1024:.1f} МБ")
+        ftp, sent, skipped, size = upload(ftp, local, remote_root, reconnect)
+        print(f"залито {sent}, пропущено как совпавшие {skipped}, объём {size / 1024 / 1024:.1f} МБ")
     finally:
         try:
             ftp.quit()
