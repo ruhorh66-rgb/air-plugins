@@ -2,7 +2,9 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -21,6 +23,29 @@ func TestCriterionK33MissingSelectorFails(t *testing.T) {
 	r := runSelectedCheck(".", chk, "TestDefinitelyNotWrittenForAirWorker")
 	if r.State != measureFail {
 		t.Fatalf("missing test must be factual fail: %+v", r)
+	}
+}
+
+func TestPowerShellSelectorParameterReachesScript(t *testing.T) {
+	shell := "powershell.exe"
+	if runtime.GOOS != "windows" {
+		shell = "pwsh"
+	}
+	if _, err := exec.LookPath(shell); err != nil {
+		t.Skip(shell + " is unavailable")
+	}
+
+	root := t.TempDir()
+	script := "param([string]$Select)\nif ($Select -eq 'RunnerWrites' -or $Select -eq '-RunnerWrites') { exit 0 }\nexit 9\n"
+	if err := os.WriteFile(filepath.Join(root, "selector.ps1"), append(utf8BOM, []byte(script)...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	chk := checkSpec{Name: "probe", Script: "selector.ps1", Select: "-Select {}"}
+	for _, selector := range []string{"RunnerWrites", "-RunnerWrites"} {
+		result := runSelectedCheck(root, chk, selector)
+		if result.State != measurePass {
+			t.Fatalf("PowerShell selector %q was corrupted: %+v", selector, result)
+		}
 	}
 }
 func TestCriterionK19ConfirmedClosure(t *testing.T) {

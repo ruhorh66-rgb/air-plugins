@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 )
@@ -316,7 +317,23 @@ func runJudge(root string, cfg runConfig, minFactsOverride int, scope sessionSco
 //
 // С рабочим каталогом — потому что ветви были несимметричны, и это порождало дефект в
 // каждом продукте: проверка запускалась ниоткуда и должна была угадать, где продукт.
-func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope, r *judgeResult) {
+var powerShellNamedArgument = regexp.MustCompile("^-[A-Za-z][A-Za-z0-9_-]*$")
+
+func powerShellScriptTail(args []string, namedIndices []int) string {
+	var tail strings.Builder
+	for i, arg := range args {
+		tail.WriteByte(32)
+		if slices.Contains(namedIndices, i) && powerShellNamedArgument.MatchString(arg) {
+			tail.WriteString(arg)
+			continue
+		}
+		tail.WriteByte(39)
+		tail.WriteString(strings.ReplaceAll(arg, "'", "''"))
+		tail.WriteByte(39)
+	}
+	return tail.String()
+}
+func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope, r *judgeResult, namedIndices ...int) {
 	scriptPath := filepath.Join(root, chk.Script)
 	if _, err := os.Stat(scriptPath); err != nil {
 		r.Unknown = append(r.Unknown, fmt.Sprintf("%s — нечем: нет %s", name, scriptPath))
@@ -328,10 +345,7 @@ func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope,
 	// вернуть.
 	preamble := `[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); $OutputEncoding=[System.Text.UTF8Encoding]::new($false); `
 	quoted := "'" + strings.ReplaceAll(scriptPath, "'", "''") + "'"
-	tail := ""
-	for _, a := range chk.Args {
-		tail += " '" + strings.ReplaceAll(a, "'", "''") + "'"
-	}
+	tail := powerShellScriptTail(chk.Args, namedIndices)
 	shell := "powershell.exe"
 	if runtime.GOOS != "windows" {
 		shell = "pwsh"

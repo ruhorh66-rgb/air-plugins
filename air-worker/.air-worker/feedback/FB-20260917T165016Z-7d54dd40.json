@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260917T165016Z-7d54dd40",
+  "created_at": "2026-09-17T16:50:16.3009427Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.8",
+  "type": "defect",
+  "severity": "P0",
+  "observed": "Эксплуатирующая сессия остановила DevSpace: приняла read-only планировщика/аудиторов за режим Codex executor, потому что console/receipt не показывали роль и effective sandbox.",
+  "expected": "Каждый запуск planner, semantic reviewer, orchestration subagent и leader/executor машинно называет роль и effective sandbox; release test доказывает, что установленный binary даёт leader workspace-write.",
+  "evidence": "DevSpace report 2026-09-18; installed 0.10.8 deterministic shim probe captured -s workspace-write and a DONE executor receipt.",
+  "reproduction": "Подставить AIR_CODEX_EXE локальным shim, запустить air-worker loop на одном Codex step и сравнить argv, console и receipt.",
+  "workaround": "Проверять фактический argv локальным shim; не запускать модель по предположению из planner/semantic read-only code.",
+  "proposed_outcome": "Receipt and console expose role plus sandbox; installed-binary release probe fails unless Codex executor/leader can write product root while planner/reviewers stay read-only."
+}

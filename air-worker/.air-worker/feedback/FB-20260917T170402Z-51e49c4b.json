@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260917T170402Z-51e49c4b",
+  "created_at": "2026-09-17T17:04:02.9399374Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.8",
+  "type": "defect",
+  "severity": "P0",
+  "observed": "PowerShell judge selector template -Select {} was quoted as a positional string; DevSpace checks received literal -Select and every selected criterion stayed red.",
+  "expected": "PowerShell parameter names remain named arguments and selected checks receive the requested selector value.",
+  "evidence": "DevSpace .woody/jobs receipts 2026-09-18 contained unknown selector: -Select; 0.10.9 source binary returns K1 PASS and real missing-evidence failures.",
+  "reproduction": "Run air-worker judge on F:\\-8-\\devspace-mcp-sandbox with a script check whose select template is -Select {}.",
+  "workaround": "Invoke the product check script directly with -Select \u003cname\u003e.",
+  "proposed_outcome": "AirWorker preserves safe PowerShell named parameters and a process-level regression test proves the selector reaches the script."
+}

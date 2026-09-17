@@ -283,7 +283,8 @@ func callClaudePlanner(root, prompt, model, answerPath string, scope sessionScop
 		line("  токен взят из окружения пользователя (в процессе его не было)")
 	}
 	// К42 — durable job receipt пишется RUNNING ДО запуска разбивщика (один дорогой вызов).
-	out, err := runReceipted(context.Background(), scope, "plan", "planner-claude", cmd)
+	out, err := runReceiptedWithMeta(context.Background(), scope, "plan", "planner-claude", cmd,
+		runnerReceiptMetaForRole(runnerSpec{Kind: "claude", Model: model}, "planner", "read-only"))
 	if code := exitCode(cmd, err); code != 0 {
 		line(fmt.Sprintf("ОТКАЗ: разбивщик вернул код %d", code))
 		line(strings.TrimSpace(decodeOutput(out)))

@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.10.8",
-  "description": "AirWorker 0.10.8: native OpenAI Luna/Terra/Sol fallback, per-attempt receipts, and optional text-only Responses API transport.",
+  "version": "0.10.9",
+  "description": "AirWorker 0.10.9: explicit process roles and effective sandbox evidence for Codex planning, review, orchestration, and execution.",
   "author": {
     "name": "AIR OS"
   },

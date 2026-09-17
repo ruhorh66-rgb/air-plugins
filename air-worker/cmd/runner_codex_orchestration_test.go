@@ -59,6 +59,13 @@ func TestCodexNativeOrchestrationUsesExactModelRoster(t *testing.T) {
 			receipt.Model != "gpt-5.6-luna" || receipt.Effort != "medium" {
 			t.Fatalf("receipt must prove exact AirWorker roster, got %+v", receipt)
 		}
+		wantRole, wantSandbox := "executor/leader", "workspace-write"
+		if strings.Contains(receipt.Operation, "subagent") {
+			wantRole, wantSandbox = "orchestration-subagent", "read-only"
+		}
+		if receipt.Role != wantRole || receipt.Sandbox != wantSandbox {
+			t.Fatalf("receipt does not distinguish reviewer from leader: %+v", receipt)
+		}
 	}
 }
 

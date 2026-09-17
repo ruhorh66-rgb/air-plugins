@@ -44,13 +44,14 @@ func callPlannerRunner(root, prompt string, runner runnerSpec, answerPath string
 		return 2
 	}
 	args := plannerCodexArgs(root, prompt, runner)
-	line("зову планировщика Codex (один вызов, read-only)...")
+	line(fmt.Sprintf("зову планировщика Codex: role planner · model %s · effort %s · sandbox read-only", runner.Model, runner.Effort))
 	cmd := runnerCommand(exe, args...)
 	cmd.Dir = root
 	cmd.Env = codexEnv(nil)
 	cmd.Stdin = nil
 	// К42 — durable job receipt пишется RUNNING ДО запуска разбивщика Codex.
-	out, runErr := runReceipted(context.Background(), scope, "plan", "planner-codex", cmd)
+	out, runErr := runReceiptedWithMeta(context.Background(), scope, "plan", "planner-codex", cmd,
+		codexReceiptMeta(runner, "planner", "read-only"))
 	res := parseCodexResult(decodeOutput(out), runErr)
 	if !res.Ok {
 		line("ОТКАЗ: планировщик Codex не завершил turn: " + res.Subtype)

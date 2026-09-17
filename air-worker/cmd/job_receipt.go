@@ -39,6 +39,8 @@ type jobReceipt struct {
 	Provider       string    `json:"provider,omitempty"`
 	Model          string    `json:"model,omitempty"`
 	Effort         string    `json:"effort,omitempty"`
+	Role           string    `json:"role,omitempty"`
+	Sandbox        string    `json:"sandbox,omitempty"`
 	ProcessStarted bool      `json:"process_started"`
 	RequestStarted bool      `json:"request_started,omitempty"`
 	Cost           *float64  `json:"cost,omitempty"`
@@ -151,6 +153,8 @@ type jobReceiptMeta struct {
 	Provider string
 	Model    string
 	Effort   string
+	Role     string
+	Sandbox  string
 }
 
 func runReceipted(ctx context.Context, scope sessionScope, step, operation string, cmd *exec.Cmd) ([]byte, error) {
@@ -170,6 +174,8 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 	r.Provider = meta.Provider
 	r.Model = meta.Model
 	r.Effort = meta.Effort
+	r.Role = meta.Role
+	r.Sandbox = meta.Sandbox
 	if err := writeJobReceipt(receiptPath, r); err != nil {
 		_ = finishJobReceipt(receiptPath, jobStatusFailed)
 		lock.release()

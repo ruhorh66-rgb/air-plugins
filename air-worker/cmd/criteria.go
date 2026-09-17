@@ -153,7 +153,13 @@ func runSelectedCheck(root string, chk checkSpec, selector string) measureResult
 	clone.Args = append(append([]string{}, chk.Args...), extra...)
 	var r judgeResult
 	if clone.Script != "" {
-		runScriptCheck(root, clone, chk.Name, legacyScope(root), &r)
+		var namedIndices []int
+		for i, part := range strings.Fields(chk.Select) {
+			if powerShellNamedArgument.MatchString(part) {
+				namedIndices = append(namedIndices, len(chk.Args)+i)
+			}
+		}
+		runScriptCheck(root, clone, chk.Name, legacyScope(root), &r, namedIndices...)
 	} else if clone.Command != "" {
 		runCommandCheck(root, clone, chk.Name, legacyScope(root), &r)
 	} else {

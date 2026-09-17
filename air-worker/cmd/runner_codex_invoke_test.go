@@ -20,12 +20,22 @@ func TestInvokeCodexWritesProductRoot(t *testing.T) {
 	}
 	root := t.TempDir()
 	ctx := loopCtx{Root: root}
-	res := ctx.invokeCodex("codex", "task", runnerSpec{Kind: "codex", Model: "gpt-test", Effort: "medium"}, "73")
+	runner := runnerSpec{Kind: "codex", Model: "gpt-test", Effort: "medium"}
+	res := ctx.invokeCodex("codex", "task", runner, "73")
 	if !res.Ok || res.Subtype != "success" {
 		t.Fatalf("Codex invocation failed: %+v", res)
 	}
 	if _, err := os.Stat(filepath.Join(root, "codex-write.txt")); err != nil {
 		t.Fatalf("Codex did not write product root: %v", err)
+	}
+	operation := runnerReceiptOperation("executor-codex", runner, ctx.iter)
+	receiptPath, _ := jobReceiptPaths(ctx.scope(), "73", operation)
+	receipt, err := readJobReceipt(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Role != "executor/leader" || receipt.Sandbox != "workspace-write" {
+		t.Fatalf("receipt hides effective Codex access: %+v", receipt)
 	}
 }
 

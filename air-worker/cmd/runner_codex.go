@@ -89,8 +89,8 @@ func codexArgs(root, prompt string, runner runnerSpec) []string {
 	return codexArgsForSandbox(root, prompt, runner, "workspace-write")
 }
 
-func codexReceiptMeta(runner runnerSpec) jobReceiptMeta {
-	return runnerReceiptMetaFor(runner)
+func codexReceiptMeta(runner runnerSpec, role, sandbox string) jobReceiptMeta {
+	return runnerReceiptMetaForRole(runner, role, sandbox)
 }
 
 func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
@@ -103,7 +103,7 @@ func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID 
 	cmd.Stdin = nil
 	// К42 — durable job receipt пишется RUNNING ДО запуска исполнителя Codex.
 	operation := runnerReceiptOperation("executor-codex", runner, c.iter)
-	out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), stepID, operation, cmd, codexReceiptMeta(runner))
+	out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), stepID, operation, cmd, codexReceiptMeta(runner, "executor/leader", "workspace-write"))
 	return parseCodexResult(decodeOutput(out), runErr)
 }
 
@@ -127,6 +127,7 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 	}
 	line(fmt.Sprintf("  orchestration core: AirWorker · transport codex · model %s · effort %s · subagents %d",
 		runner.Model, effort, requested))
+	line(fmt.Sprintf("  process roster: %d subagents read-only · leader workspace-write", requested))
 
 	results := make(chan codexSubagentRun, requested)
 	var wg sync.WaitGroup
@@ -142,7 +143,7 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 			cmd.Env = codexEnv(nil)
 			agentStep := fmt.Sprintf("%s-agent-%d", stepID, index)
 			operation := runnerReceiptOperation("executor-codex-subagent", runner, c.iter)
-			out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), agentStep, operation, cmd, codexReceiptMeta(runner))
+			out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), agentStep, operation, cmd, codexReceiptMeta(runner, "orchestration-subagent", "read-only"))
 			receiptPath, _ := jobReceiptPaths(c.scope(), agentStep, operation)
 			receipt, _ := readJobReceipt(receiptPath)
 			results <- codexSubagentRun{index: index, started: receipt != nil && receipt.ProcessStarted, result: parseCodexResult(decodeOutput(out), runErr)}

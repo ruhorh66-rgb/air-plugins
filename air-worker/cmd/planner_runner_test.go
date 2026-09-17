@@ -32,4 +32,8 @@ func TestCodexPlannerSandboxIsReadOnly(t *testing.T) {
 	if strings.Contains(joined, "workspace-write") {
 		t.Fatalf("planner unexpectedly has write sandbox: %s", joined)
 	}
+	meta := codexReceiptMeta(runnerSpec{Kind: "codex", Model: "gpt-test", Effort: "high"}, "planner", "read-only")
+	if meta.Role != "planner" || meta.Sandbox != "read-only" {
+		t.Fatalf("planner receipt hides effective access: %+v", meta)
+	}
 }

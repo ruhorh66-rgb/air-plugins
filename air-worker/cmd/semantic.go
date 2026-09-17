@@ -72,18 +72,20 @@ type semanticPacket struct {
 }
 
 type semanticRecord struct {
-	At             string           `json:"at"`
-	Subject        string           `json:"subject"`
-	Step           string           `json:"step"`
-	ExecutorVendor string           `json:"executor_vendor"`
-	ReviewerVendor string           `json:"reviewer_vendor"`
-	ReviewerModel  string           `json:"reviewer_model,omitempty"`
-	Session        string           `json:"session_id,omitempty"`
-	FactualCode    int              `json:"factual_code"`
-	Verdict        *semanticVerdict `json:"verdict,omitempty"`
-	Error          string           `json:"error,omitempty"`
-	CostUSD        *float64         `json:"cost_usd,omitempty"`
-	Turns          *int             `json:"turns,omitempty"`
+	At              string           `json:"at"`
+	Subject         string           `json:"subject"`
+	Step            string           `json:"step"`
+	ExecutorVendor  string           `json:"executor_vendor"`
+	ReviewerVendor  string           `json:"reviewer_vendor"`
+	ReviewerModel   string           `json:"reviewer_model,omitempty"`
+	ReviewerRole    string           `json:"reviewer_role,omitempty"`
+	ReviewerSandbox string           `json:"reviewer_sandbox,omitempty"`
+	Session         string           `json:"session_id,omitempty"`
+	FactualCode     int              `json:"factual_code"`
+	Verdict         *semanticVerdict `json:"verdict,omitempty"`
+	Error           string           `json:"error,omitempty"`
+	CostUSD         *float64         `json:"cost_usd,omitempty"`
+	Turns           *int             `json:"turns,omitempty"`
 }
 
 var semanticCommand = exec.Command
@@ -407,6 +409,7 @@ func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factual sema
 		ExecutorVendor: executor.Kind,
 		ReviewerVendor: reviewer.Kind,
 		ReviewerModel:  reviewer.Model,
+		ReviewerRole:   "semantic-reviewer",
 		FactualCode:    factual.Code,
 	}
 	if err != nil {
@@ -422,6 +425,9 @@ func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factual sema
 		publishSemantic(c.Root, rec)
 		return run
 	}
+	rec.ReviewerSandbox = "read-only"
+	line(fmt.Sprintf("  semantic reviewer: %s · model %s · role semantic-reviewer · sandbox %s",
+		reviewer.Kind, reviewer.Model, rec.ReviewerSandbox))
 	packet := buildSemanticPacket(c, step, factual, executorClaim)
 	prompt := semanticPrompt(packet)
 	var raw string

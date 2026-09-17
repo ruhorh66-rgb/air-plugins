@@ -1,5 +1,17 @@
 # CHANGELOG — air-worker
 
+## 0.10.9 — 18.09.2026
+
+### Codex role and sandbox evidence hotfix
+
+- Corrected the operational diagnosis from DevSpace: AirWorker 0.10.8 already launched the Codex executor and orchestration leader with workspace-write; only planner, semantic reviewer, and orchestration reviewers were read-only.
+- Durable Codex and Claude planner receipts now record role and effective sandbox alongside runner/provider/model/effort.
+- PowerShell selector flags are now passed as named parameters while selector values, including those beginning with `-`, remain quoted; DevSpace checks fail for missing evidence instead of `unknown selector: -Select`.
+- Runtime output names the exact Codex process roster before invocation: read-only reviewers and one workspace-write leader.
+- The generic Claude adapter permission line is labeled as such, so it can no longer be mistaken for the Codex sandbox.
+- The installed-binary probe and integration tests fail unless a Codex executor receives workspace-write and writes inside the product root while planner/reviewers remain read-only.
+
+Release control: targeted access/receipt/orchestration tests, full go test ./..., go vet ./..., git diff --check, plugin/version checks, and a deterministic installed-binary shim probe with no LLM call. Rollback: air-worker--v0.10.8.
 ## 0.10.8 — 17.09.2026
 
 ### OpenAI fallback ladder

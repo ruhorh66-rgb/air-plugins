@@ -52,6 +52,13 @@ func runnerReceiptMetaFor(runner runnerSpec) jobReceiptMeta {
 	return jobReceiptMeta{Runner: runner.Kind, Provider: runnerProvider(runner.Kind), Model: runner.Model, Effort: runner.Effort}
 }
 
+func runnerReceiptMetaForRole(runner runnerSpec, role, sandbox string) jobReceiptMeta {
+	meta := runnerReceiptMetaFor(runner)
+	meta.Role = role
+	meta.Sandbox = sandbox
+	return meta
+}
+
 func isVendorLimit(detail string) bool {
 	s := strings.ToLower(detail)
 	return strings.Contains(s, "429") || strings.Contains(s, "rate limit") ||
@@ -157,8 +164,12 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 	if eff == "" {
 		eff = "по умолчанию"
 	}
-	line(fmt.Sprintf("  исполнитель: %s · модель %s · усилие %s · потолок ходов %d",
-		runner.Kind, runner.Model, eff, c.MaxTurns))
+	access := ""
+	if runner.Kind == "codex" {
+		access = " · роль executor/leader · sandbox workspace-write"
+	}
+	line(fmt.Sprintf("  исполнитель: %s · модель %s · усилие %s%s · потолок ходов %d",
+		runner.Kind, runner.Model, eff, access, c.MaxTurns))
 
 	// Расход, которого поток НЕ ПРИНЁС, пишется как nil, а не как ноль: ноль означает
 	// «работа была и стоила нисколько», и бюджет считается в сторону «можно ещё».
