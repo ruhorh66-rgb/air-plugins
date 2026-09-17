@@ -101,7 +101,13 @@
     "sonnet:medium",
     "sonnet:max",
     "opus:medium",
-    "opus:max"
+    "opus:max",
+    "luna:medium",
+    "luna:max",
+    "terra:medium",
+    "terra:ultra",
+    "sol:medium",
+    "sol:ultra"
   ],
   "runners": {
     "script": {
@@ -122,6 +128,18 @@
     "opus": {
       "kind": "claude",
       "model": "opus"
+    },
+    "luna": {
+      "kind": "codex",
+      "model": "gpt-5.6-luna"
+    },
+    "terra": {
+      "kind": "codex",
+      "model": "gpt-5.6-terra"
+    },
+    "sol": {
+      "kind": "codex",
+      "model": "gpt-5.6-sol"
     }
   },
   "orchestration": {
