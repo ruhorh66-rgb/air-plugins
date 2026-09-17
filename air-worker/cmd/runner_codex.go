@@ -89,6 +89,10 @@ func codexArgs(root, prompt string, runner runnerSpec) []string {
 	return codexArgsForSandbox(root, prompt, runner, "workspace-write")
 }
 
+func codexReceiptMeta(runner runnerSpec) jobReceiptMeta {
+	return jobReceiptMeta{Runner: "codex", Provider: "openai", Model: runner.Model, Effort: runner.Effort}
+}
+
 func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
 	if err := validateCodexAddDirs(runner.AddDirs); err != nil {
 		return stepResult{Subtype: "invalid_runner_config", Detail: "codex add_dirs: " + err.Error()}
@@ -98,13 +102,14 @@ func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID 
 	cmd.Env = codexEnv(nil)
 	cmd.Stdin = nil
 	// К42 — durable job receipt пишется RUNNING ДО запуска исполнителя Codex.
-	out, runErr := runReceipted(context.Background(), c.scope(), stepID, "executor-codex", cmd)
+	out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), stepID, "executor-codex", cmd, codexReceiptMeta(runner))
 	return parseCodexResult(decodeOutput(out), runErr)
 }
 
 type codexSubagentRun struct {
-	index  int
-	result stepResult
+	index   int
+	started bool
+	result  stepResult
 }
 
 func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
@@ -134,19 +139,25 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 			cmd := runnerCommand(exePath, codexArgsForSandbox(c.Root, reviewPrompt, runner, "read-only")...)
 			cmd.Dir = c.Root
 			cmd.Env = codexEnv(nil)
-			out, runErr := runReceipted(context.Background(), c.scope(), fmt.Sprintf("%s-agent-%d", stepID, index), "executor-codex-subagent", cmd)
-			results <- codexSubagentRun{index: index, result: parseCodexResult(decodeOutput(out), runErr)}
+			agentStep := fmt.Sprintf("%s-agent-%d", stepID, index)
+			out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), agentStep, "executor-codex-subagent", cmd, codexReceiptMeta(runner))
+			receiptPath, _ := jobReceiptPaths(c.scope(), agentStep, "executor-codex-subagent")
+			receipt, _ := readJobReceipt(receiptPath)
+			results <- codexSubagentRun{index: index, started: receipt != nil && receipt.ProcessStarted, result: parseCodexResult(decodeOutput(out), runErr)}
 		}(i)
 	}
 	wg.Wait()
 	close(results)
 
 	ordered := make([]stepResult, requested)
-	started, completed := requested, 0
+	started, completed := 0, 0
 	ids := make([]string, 0, requested)
 	var problems []string
 	for run := range results {
 		ordered[run.index-1] = run.result
+		if run.started {
+			started++
+		}
 		if run.result.Session != "" {
 			ids = append(ids, run.result.Session)
 		}

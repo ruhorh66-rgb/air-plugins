@@ -340,6 +340,31 @@ func TestHookPreToolUseAllowsOrdinaryCommand(t *testing.T) {
 	}
 }
 
+func TestHookPreToolUseBlocksDirectAgentBypass(t *testing.T) {
+	session := "s-agent-bypass"
+	hookTestState(t, session)
+	withStdin(t, `{"session_id":"`+session+`","hook_event_name":"PreToolUse","tool_name":"Agent","tool_input":{"description":"review"}}`)
+
+	out, code := captureStderr(t, func() int { return cmdHook([]string{"PreToolUse"}) })
+	if code != 2 {
+		t.Fatalf("прямой Agent в активной AirWorker-сессии обязан давать код 2, получено %d", code)
+	}
+	for _, want := range []string{"обходит ядро AirWorker", "air-worker orchestrate"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("причина отказа обязана содержать %q, получено: %q", want, out)
+		}
+	}
+}
+
+func TestHookPreToolUseAllowsAgentBeforeAirWorkerActivation(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(hookStateDirEnv, dir)
+	withStdin(t, `{"session_id":"s-agent-inactive","hook_event_name":"PreToolUse","tool_name":"Agent","tool_input":{"description":"ordinary host task"}}`)
+	if code := cmdHook([]string{"PreToolUse"}); code != 0 {
+		t.Fatalf("до активации AirWorker прямой Agent обязан остаться no-op, получено %d", code)
+	}
+}
+
 // --- К11: каждый класс события — тест Go на решение бинарника ---------------------------
 //
 // каждый хук плагина — обёртка, зовущая `air-worker hook <событие>`; решение принимает

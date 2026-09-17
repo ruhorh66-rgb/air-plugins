@@ -1,9 +1,17 @@
 # CHANGELOG — air-worker
 
-## Unreleased
+## 0.10.7 — 17.09.2026
 
-- Codex runners accept validated per-runner `add_dirs` and pass each directory as repeated `--add-dir`; invalid entries fail before process startup.
-- Planner and AirWorker instructions pin the script-first contract: exact machine-verifiable work uses `script` without an LLM.
+### Codex access and native orchestration
+
+- Codex runners accept validated per-runner `add_dirs`; volume roots, UNC share roots, missing paths and files fail before process startup.
+- Planner policy requires exact machine-verifiable work to use the `script` tier without an LLM.
+- AirWorker launches the declared number of parallel read-only Codex reviewers and one workspace-write leader on the same model and effort; receipts record runner, provider, model, effort and successful process start.
+- Codex leaders no longer receive a second nested-Agent instruction. Status names AirWorker core, transport, model, effort and reviewer count.
+- Claude plugin `PreToolUse(Agent)` routes active AirWorker sessions through the binary and rejects direct host Agent calls that would bypass kernel receipts.
+- Claude semantic packets use stdin on Windows, removing the command-line length failure found during live acceptance.
+
+Release control: K72–K74, live AirWorker core with `gpt-5.6-luna`/medium reviewers 2/2/2 plus one DONE leader, Ponytail simplification review, full `go test ./...`, `go vet ./...`, `git diff --check`, plugin/version checks and live access smoke. The separate Claude semantic lane reached the provider and reported the account weekly limit; reset is outside this release. Rollback: `air-worker--v0.10.6`.
 
 ## 0.10.6 — 17.09.2026
 

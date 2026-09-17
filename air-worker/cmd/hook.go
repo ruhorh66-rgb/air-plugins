@@ -138,12 +138,20 @@ func handlerFor(event string) hookHandler {
 	return defaultHookHandler
 }
 
-// handlePreToolUseBypassGuard — страж обхода штатного пути установки (шаг 66), подключённый
-// к событию хоста этим шагом. classifyBypass сама по себе чистая функция над текстом
-// команды; здесь только извлечение команды из tool_input и вызов уже готового решения —
-// второй классификации не заводится.
+// handlePreToolUseBypassGuard — единый control-рубеж активной AirWorker-сессии.
+// Прямой Agent запрещён: он создаёт субагента средствами хоста и обходит ядро AirWorker,
+// поэтому его модель/effort/число не попадают в машинную квитанцию оркестрации. Штатный
+// путь — `air-worker orchestrate`; дочерний CLI-процесс ядра имеет отдельную, не объявленную
+// активной host-сессию и этим запретом не затрагивается.
+//
+// Для Bash/PowerShell здесь же остаётся страж обхода штатной установки (шаг 66).
+// classifyBypass сама по себе чистая функция над текстом команды; здесь только извлечение
+// команды из tool_input и вызов уже готового решения — второй классификации не заводится.
 func handlePreToolUseBypassGuard(in hookInput) (hookResult, error) {
-	if !strings.EqualFold(in.ToolName, "Bash") {
+	if strings.EqualFold(in.ToolName, "Agent") {
+		return hookResult{Block: true, Reason: "прямой Agent обходит ядро AirWorker и не создаёт проверяемую квитанцию model/effort/count; запусти air-worker orchestrate"}, nil
+	}
+	if !strings.EqualFold(in.ToolName, "Bash") && !strings.EqualFold(in.ToolName, "PowerShell") {
 		return hookResult{}, nil
 	}
 	var params struct {

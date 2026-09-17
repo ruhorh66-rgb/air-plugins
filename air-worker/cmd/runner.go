@@ -97,7 +97,7 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 	}
 	w("Write code and explain the change. Final acceptance belongs to the external judge.")
 	w("")
-	if c.Orchestrate {
+	if c.Orchestrate && runner.Kind == "claude" {
 		w("")
 		for _, instruction := range orchestrationInstructions(c.Subagents) {
 			w(instruction)

@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.10.6",
-  "description": "AirWorker 0.10.6: operational feedback intake, manual Windows launch, Haiku via AirLLMRouter, and dry Router diagnostics with independent Codex semantic review.",
+  "version": "0.10.7",
+  "description": "AirWorker 0.10.7: safe Codex writable directories, script-first planning, native Codex orchestration receipts, and a direct-Agent bypass guard.",
   "author": {
     "name": "AIR OS"
   },

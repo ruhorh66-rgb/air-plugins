@@ -658,6 +658,9 @@ air-worker report -product E:\-8-\asw
 | `turn-guard` | `Stop` | сверяет числа в ходе с замером на диске: отчёта нет — отказ; число разошлось — отказ с обоими числами; дерево изменилось, а судья не прогнан — отказ |
 | `subagent-track` | `SubagentStart`, `SubagentStop` | ведёт список живых прогонов файлом, а не памятью |
 | `mode-guard` | `PreToolUse` на `Bash\|PowerShell` | отклоняет самовольное выключение режима |
+| `air-worker hook` | `PreToolUse` на `Agent` | в активной AirWorker-сессии отклоняет прямой host Agent и направляет в `air-worker orchestrate` |
+
+Модель, effort и число исполнителей не берутся из текста ответа. Binary сохраняет `runner=codex`, `provider=openai`, точные `model` и `effort` в `.woody/jobs/*.receipt.json`, а requested/started/completed — в `steps.jsonl`. Только такая квитанция закрывает оркестрационный критерий; субагенты хоста, запущенные вне `air-worker orchestrate`, не засчитываются.
 | `encoding-guard` | `PostToolUse` на записи файла | правило о BOM исполняется в момент записи, а не вспоминается |
 
 `turn-guard` **не зовёт судью сам**: замер показал 28 секунд у судьи ASW против 0,08 у

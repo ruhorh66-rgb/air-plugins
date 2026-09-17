@@ -75,6 +75,19 @@ func TestCriterion56SemanticCodexUsesStdin(t *testing.T) {
 	}
 }
 
+func TestSemanticClaudeUsesStdin(t *testing.T) {
+	prompt := strings.Repeat("semantic-packet-", 4096)
+	cmd := semanticClaudeCommand("claude.cmd", `C:\product`, prompt, runnerSpec{Kind: "claude", Model: "sonnet"})
+	joined := strings.Join(cmd.Args, " ")
+	if strings.Contains(joined, "semantic-packet-") {
+		t.Fatalf("semantic packet leaked into argv: %d chars", len(joined))
+	}
+	raw, err := io.ReadAll(cmd.Stdin)
+	if err != nil || string(raw) != prompt {
+		t.Fatalf("semantic stdin mismatch: len=%d err=%v", len(raw), err)
+	}
+}
+
 func TestCombinedAcceptanceMatrix(t *testing.T) {
 	pass := semanticVerdict{Verdict: "PASS", StepDone: "yes", Drift: "none"}
 	drift := semanticVerdict{Verdict: "DRIFT", StepDone: "partial", Drift: "major"}

@@ -25,20 +25,22 @@ const (
 // jobReceipt — durable запись о долгой команде: всё необходимое, чтобы прочитать финал по
 // output_path, не удерживая сам процесс/сессию, которая её запустила.
 type jobReceipt struct {
-	JobID      string    `json:"job_id"`
-	PID        int       `json:"pid"`
-	StartedAt  time.Time `json:"started_at"`
-	Status     string    `json:"status"`
-	OutputPath string    `json:"output_path"`
-	Product    string    `json:"product"`
-	Principal  string    `json:"principal"`
-	Session    string    `json:"session"`
-	Step       string    `json:"step"`
-	Operation  string    `json:"operation"`
-	Runner     string    `json:"runner,omitempty"`
-	Provider   string    `json:"provider,omitempty"`
-	Model      string    `json:"model,omitempty"`
-	Cost       *float64  `json:"cost,omitempty"`
+	JobID          string    `json:"job_id"`
+	PID            int       `json:"pid"`
+	StartedAt      time.Time `json:"started_at"`
+	Status         string    `json:"status"`
+	OutputPath     string    `json:"output_path"`
+	Product        string    `json:"product"`
+	Principal      string    `json:"principal"`
+	Session        string    `json:"session"`
+	Step           string    `json:"step"`
+	Operation      string    `json:"operation"`
+	Runner         string    `json:"runner,omitempty"`
+	Provider       string    `json:"provider,omitempty"`
+	Model          string    `json:"model,omitempty"`
+	Effort         string    `json:"effort,omitempty"`
+	ProcessStarted bool      `json:"process_started"`
+	Cost           *float64  `json:"cost,omitempty"`
 }
 
 // jobLockKind — duplicate-start guard именует замок по (step, operation) внутри scope: тот
@@ -143,7 +145,18 @@ type jobCmdResult struct {
 // освободит lock. Именно поэтому lock.release() стоит ТОЛЬКО внутри горутины: второй старт
 // того же job в том же scope должен продолжать отказывать, пока ПЕРВЫЙ процесс жив, даже
 // если caller этого первого уже перестал ждать.
+type jobReceiptMeta struct {
+	Runner   string
+	Provider string
+	Model    string
+	Effort   string
+}
+
 func runReceipted(ctx context.Context, scope sessionScope, step, operation string, cmd *exec.Cmd) ([]byte, error) {
+	return runReceiptedWithMeta(ctx, scope, step, operation, cmd, jobReceiptMeta{})
+}
+
+func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operation string, cmd *exec.Cmd, meta jobReceiptMeta) ([]byte, error) {
 	receiptPath, outputPath := jobReceiptPaths(scope, step, operation)
 	if err := os.MkdirAll(filepath.Dir(receiptPath), 0o755); err != nil {
 		return nil, err
@@ -152,8 +165,18 @@ func runReceipted(ctx context.Context, scope sessionScope, step, operation strin
 	if err != nil {
 		return nil, err
 	}
+	r.Runner = meta.Runner
+	r.Provider = meta.Provider
+	r.Model = meta.Model
+	r.Effort = meta.Effort
+	if err := writeJobReceipt(receiptPath, r); err != nil {
+		_ = finishJobReceipt(receiptPath, jobStatusFailed)
+		lock.release()
+		return nil, err
+	}
 	outFile, err := os.Create(outputPath)
 	if err != nil {
+		_ = finishJobReceipt(receiptPath, jobStatusFailed)
 		lock.release()
 		return nil, err
 	}
@@ -168,6 +191,7 @@ func runReceipted(ctx context.Context, scope sessionScope, step, operation strin
 	// PID известен только после Start: receipt уже RUNNING на диске (см. startJobReceipt),
 	// здесь он лишь дополняется настоящим PID вместо нуля placeholder.
 	r.PID = cmd.Process.Pid
+	r.ProcessStarted = true
 	_ = writeJobReceipt(receiptPath, r)
 
 	resultCh := make(chan jobCmdResult, 1)

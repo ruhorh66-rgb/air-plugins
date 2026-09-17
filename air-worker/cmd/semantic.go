@@ -187,8 +187,8 @@ func semanticCodexArgs(root string, reviewer runnerSpec, schemaPath string) []st
 	return append(args, "-")
 }
 
-func semanticClaudeArgs(prompt string, reviewer runnerSpec) []string {
-	args := []string{"-p", prompt, "--output-format", "json", "--max-turns", "20",
+func semanticClaudeArgs(reviewer runnerSpec) []string {
+	args := []string{"-p", "--output-format", "json", "--max-turns", "20",
 		"--allowed-tools", "Read,Glob,Grep"}
 	if reviewer.Model != "" {
 		args = append(args, "--model", reviewer.Model)
@@ -198,6 +198,13 @@ func semanticClaudeArgs(prompt string, reviewer runnerSpec) []string {
 	}
 	return args
 }
+func semanticClaudeCommand(exePath, root, prompt string, reviewer runnerSpec) *exec.Cmd {
+	cmd := semanticCommand(exePath, semanticClaudeArgs(reviewer)...)
+	cmd.Dir = root
+	cmd.Stdin = strings.NewReader(prompt)
+	return cmd
+}
+
 func semanticCodexCommand(exePath, root, prompt string, reviewer runnerSpec, schemaPath string) *exec.Cmd {
 	cmd := semanticCommand(exePath, semanticCodexArgs(root, reviewer, schemaPath)...)
 	cmd.Dir = root
@@ -280,8 +287,7 @@ func invokeSemanticCodex(root, exePath, prompt string, reviewer runnerSpec) (str
 	return messages[len(messages)-1], session, cost, intPtr(turns), nil
 }
 func invokeSemanticClaude(root, exePath, prompt string, reviewer runnerSpec) (string, string, *float64, *int, error) {
-	cmd := semanticCommand(exePath, semanticClaudeArgs(prompt, reviewer)...)
-	cmd.Dir = root
+	cmd := semanticClaudeCommand(exePath, root, prompt, reviewer)
 	if env, took := runnerEnv(); took {
 		cmd.Env = env
 	}
