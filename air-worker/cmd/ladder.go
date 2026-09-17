@@ -7,9 +7,10 @@ import "strings"
 // script -> haiku -> codex -> opus, если так решено для продукта.
 
 type runnerSpec struct {
-	Kind   string `json:"kind"`
-	Model  string `json:"model"`
-	Effort string `json:"effort"`
+	Kind    string   `json:"kind"`
+	Model   string   `json:"model"`
+	Effort  string   `json:"effort"`
+	AddDirs []string `json:"add_dirs,omitempty"`
 }
 
 type ladderMatch struct {
@@ -72,7 +73,7 @@ func resolveRunner(cfg runConfig, rung string) runnerSpec {
 	effort := tierEffort(rung)
 
 	if r, ok := cfg.Runners[name]; ok {
-		out := runnerSpec{Kind: r.Kind, Model: r.Model, Effort: effort}
+		out := runnerSpec{Kind: r.Kind, Model: r.Model, Effort: effort, AddDirs: append([]string(nil), r.AddDirs...)}
 		if out.Kind == "" {
 			out.Kind = "claude"
 		}

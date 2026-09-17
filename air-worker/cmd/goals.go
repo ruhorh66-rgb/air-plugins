@@ -156,6 +156,9 @@ func goalProblems(g planGoals, steps []workStep) []string {
 		if s.Done || s.Gate {
 			continue
 		}
+		if strings.TrimSpace(s.Cmd) != "" && tierName(s.Tier) != "script" {
+			p = append(p, fmt.Sprintf("шаг %s содержит точную команду после ::, но назначен модели %s — детерминированный шаг обязан иметь ступень script", s.Num, s.Tier))
+		}
 		refs := stepCriteria(s)
 		if len(refs) == 0 {
 			bare = append(bare, s.Num)

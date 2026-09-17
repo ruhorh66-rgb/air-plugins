@@ -1,5 +1,10 @@
 # CHANGELOG — air-worker
 
+## Unreleased
+
+- Codex runners accept validated per-runner `add_dirs` and pass each directory as repeated `--add-dir`; invalid entries fail before process startup.
+- Planner and AirWorker instructions pin the script-first contract: exact machine-verifiable work uses `script` without an LLM.
+
 ## 0.10.6 — 17.09.2026
 
 ### Operational feedback + manual launch + Router diagnostics

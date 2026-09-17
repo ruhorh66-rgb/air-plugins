@@ -136,3 +136,24 @@ func TestПланировщикБезПостановкиОтказывает(t 
 		t.Errorf("планировщик с постановкой без файла вернул %d, ожидался отказ 2", code)
 	}
 }
+
+func TestScriptFirstRejectsModelForExactCommand(t *testing.T) {
+	g := planGoals{Goals: []planGoal{{ID: "Ц1", Text: "done"}}, Criteria: []planCriterion{{ID: "К1", Goal: "Ц1", Sign: "done", Measure: "проверка `тесты`"}}}
+	problems := goalProblems(g, []workStep{{Num: "1", Title: "exact", Tier: "sonnet:medium", Cmd: "go test ./...", Judge: "К1: tests"}})
+	if !containsText(problems, "детерминированный шаг обязан иметь ступень script") {
+		t.Fatalf("model tier accepted for exact command: %v", problems)
+	}
+	problems = goalProblems(g, []workStep{{Num: "1", Title: "exact", Tier: "script", Cmd: "go test ./...", Judge: "К1: tests"}})
+	if containsText(problems, "детерминированный шаг обязан иметь ступень script") {
+		t.Fatalf("script tier rejected for exact command: %v", problems)
+	}
+}
+
+func containsText(lines []string, needle string) bool {
+	for _, line := range lines {
+		if strings.Contains(line, needle) {
+			return true
+		}
+	}
+	return false
+}

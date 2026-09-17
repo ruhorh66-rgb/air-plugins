@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -29,6 +31,45 @@ func codexEnv(base []string) []string {
 	return out
 }
 
+func isCodexVolumeRoot(path string) bool {
+	clean := filepath.Clean(path)
+	volume := filepath.VolumeName(clean)
+	rest := strings.TrimPrefix(clean, volume)
+	return clean == string(filepath.Separator) ||
+		(volume != "" && (rest == "" || rest == `\` || rest == "/"))
+}
+
+func validateCodexAddDirs(paths []string) error {
+	for i, path := range paths {
+		raw := strings.TrimSpace(path)
+		if raw == "" {
+			return fmt.Errorf("entry %d is empty", i+1)
+		}
+		if !filepath.IsAbs(raw) {
+			return fmt.Errorf("entry %d must be absolute: %q", i+1, path)
+		}
+		clean := filepath.Clean(raw)
+		if isCodexVolumeRoot(clean) {
+			return fmt.Errorf("entry %d must not be a volume root: %q", i+1, path)
+		}
+		info, err := os.Stat(clean)
+		if err != nil {
+			return fmt.Errorf("entry %d is unavailable: %q: %w", i+1, path, err)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("entry %d is not a directory: %q", i+1, path)
+		}
+		resolved, err := filepath.EvalSymlinks(clean)
+		if err != nil {
+			return fmt.Errorf("entry %d cannot be resolved: %q: %w", i+1, path, err)
+		}
+		if isCodexVolumeRoot(resolved) {
+			return fmt.Errorf("entry %d resolves to a volume root: %q", i+1, path)
+		}
+	}
+	return nil
+}
+
 func codexArgs(root, prompt string, runner runnerSpec) []string {
 	args := []string{"exec", "--json", "--skip-git-repo-check", "-s", "workspace-write", "-C", root}
 	if runner.Model != "" {
@@ -37,10 +78,16 @@ func codexArgs(root, prompt string, runner runnerSpec) []string {
 	if runner.Effort != "" {
 		args = append(args, "-c", "model_reasoning_effort="+runner.Effort)
 	}
+	for _, dir := range runner.AddDirs {
+		args = append(args, "--add-dir", filepath.Clean(strings.TrimSpace(dir)))
+	}
 	return append(args, prompt)
 }
 
 func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
+	if err := validateCodexAddDirs(runner.AddDirs); err != nil {
+		return stepResult{Subtype: "invalid_runner_config", Detail: "codex add_dirs: " + err.Error()}
+	}
 	cmd := runnerCommand(exePath, codexArgs(c.Root, prompt, runner)...)
 	cmd.Dir = c.Root
 	cmd.Env = codexEnv(nil)
