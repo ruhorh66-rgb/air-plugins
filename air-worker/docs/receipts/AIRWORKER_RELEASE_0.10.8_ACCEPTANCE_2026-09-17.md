@@ -1,0 +1,17 @@
+# AirWorker 0.10.8 release acceptance — 2026-09-17
+
+Scope: step 89 / K75 — OpenAI fallback ladder and optional direct Responses API transport.
+
+- Exact coding ladder: PASS. luna:medium → luna:max → terra:medium → terra:ultra → sol:medium → sol:ultra; Codex CLI models are gpt-5.6-luna, gpt-5.6-terra and gpt-5.6-sol.
+- Fallback control: PASS. Only classified quota/rate limits advance. Authentication, permission and generic failures remain runner errors. Every attempt uses a distinct receipt containing runner/provider/model/effort; steps.jsonl records vendor_limit_fallback, destination rung, measured cost and orchestration counts.
+- Live AirWorker core acceptance: PASS for factual execution. A real Claude sonnet/medium weekly-limit response advanced in the same product/principal/session to Codex gpt-5.6-luna/medium. Two kernel-managed read-only reviewers reached DONE (2/2), the workspace-write leader reached DONE, DONE.txt contained the exact marker, step 89 closed and the factual judge returned 0.
+- Opposite-provider semantic control: NOT_PROVEN. Claude started after the successful Luna leader and returned: You've hit your weekly limit · resets 10am (Asia/Singapore). No semantic PASS is claimed.
+- Direct OpenAI Responses API transport: PASS by deterministic local HTTP contract test. Model, reasoning effort, bearer header, store=false, output parsing, 429 fallback, per-attempt request receipt and key non-disclosure are covered. OPENAI_API_KEY was absent on the release host, so no paid live REST request was made. The API transport is text-only; coding remains on authenticated Codex CLI.
+- Script-first policy: preserved. The planner and AirWorker instruction still require deterministic work to run as script without an LLM.
+- Tests: TestOpenAILadderFallback PASS; TestOpenAIAPIRunner PASS; full go test ./... PASS for airos/air-worker and tray; go vet ./... PASS; git diff --check PASS apart from informational CRLF conversion notices.
+- Plugin/reproducibility gates: PASS. tools/check-plugin.ps1 verified 0.10.8 in both manifests and seven hook handlers; tools/check-goal-file.ps1 passed 28/28; tools/check-reproducible.ps1 passed 40/40.
+- Ponytail simplification: PASS. The release uses one shared limit classifier, one sequential fallback decision, Go standard-library HTTP and the existing Codex CLI coding shell; no OpenAI SDK or second local coding-agent implementation was added.
+- Build: Go 1.27.0 windows/amd64. CLI SHA-256 C409BAFD715654EC9FB3CED0B83643B06CBE53929729DCFA616D4CCDE57AC62A; tray SHA-256 5ACD289E3CF7450C1E37A887C0109347C710476CB270A11765EB92D9A8437EB2.
+- Publication: PASS. Release commit ee753a15ff401d06f556ae419fad802471eef273 is on origin/main and origin/air-worker-openai-ladder-0.10.8; annotated tag air-worker--v0.10.8 resolves to that commit.
+- Distribution/install: PASS. Claude and Codex both report air-worker@air-plugins 0.10.8 from GitHub marketplace ruhorh66-rgb/air-plugins. Source, Claude cache, Codex cache and live CLI/tray hashes match. User-scope install completed without UAC using -no-start; Start Menu and PATH are registered, autostart is absent and tray is stopped. One stale user tray process initially held the old tray executable; it was stopped and installation then completed normally.
+- Rollback: install the previous GitHub plugin snapshot/tag air-worker--v0.10.7 in user scope with air-worker install -no-start; administrator rights are not required.

@@ -69,7 +69,7 @@
 
 По стандарту `AIR_PRODUCT_DEVELOPMENT_PLAN`: этот план — единственное место для хвостов, дефектов и решений. В переписке они не остаются.
 
-- **Подготовлен к публикации:** 0.10.8 OpenAI fallback ladder — шаг 89 закрыт кодом и живым AirWorker core прогоном 17.09.2026. Реальный weekly limit Anthropic перевёл ту же сессию на Luna/medium; core receipts доказали reviewers 2/2 и leader DONE, factual judge вернул 0. Независимый Claude semantic judge достиг provider и вернул тот же weekly limit, поэтому semantic остаётся честно NOT_PROVEN до сброса лимита.
+- **Выпущено:** 0.10.8 OpenAI fallback ladder — release commit `ee753a1`, tag `air-worker--v0.10.8`, origin/main, ветка и tag опубликованы 17.09.2026. Реальный weekly limit Anthropic перевёл ту же сессию на Luna/medium; core receipts доказали reviewers 2/2 и leader DONE, factual judge вернул 0. Claude/Codex caches и live install обновлены без UAC и автозапуска; CLI SHA-256 `C409BAFD715654EC9FB3CED0B83643B06CBE53929729DCFA616D4CCDE57AC62A`, tray SHA-256 `5ACD289E3CF7450C1E37A887C0109347C710476CB270A11765EB92D9A8437EB2`. Независимый Claude semantic judge достиг provider и вернул тот же weekly limit, поэтому semantic честно NOT_PROVEN до сброса лимита.
 - **Предыдущий выпуск:** 0.10.7 Codex access + native orchestration — release commit `fcf7116`, tag `air-worker--v0.10.7`, origin/main и tag опубликованы 17.09.2026. Два kernel-managed Codex reviewer и leader доказаны receipts Luna/medium 2/2/2; прямой host `Agent` блокируется в активной AirWorker-сессии. Claude/Codex caches и live install обновлены без UAC; source/Claude/Codex/live SHA-256 совпадает: `392ED26956BE9EE062BDD897D6258D8050CA7FC6A118E1E84BCA6DC10742331E`; автозапуск не объявлен.
 - **Следующий выпуск — 0.10.9 multi-session protection kernel:** шаги 39, 73, 71, 38, 41, 46, 74, 83 по dependency order.
 - **AirVera / live runtime:** AirVera — один consumer workload и источник эксплуатационных дефектов, не архитектурный владелец AirWorker/AirBot. Уже запущенный AirVera job не прерывать и не переустанавливать поверх процесса; новые сессии используют новый tagged plugin/runtime. Целевая архитектура обязана допускать несколько version-pinned jobs одновременно и не иметь глобального singleton-lock на рабочие сессии.
@@ -88,13 +88,13 @@
     - `air-worker version` — 0.10.0, SHA-256 совпал с эталоном тега, клон `F:\-8-\air-plugins` не тронут;
     - команд понадобилось четыре, а не две: `marketplace remove` снял и регистрацию плагина, поэтому нужен `plugin install`; плагин встал выключенным, поэтому нужен `plugin enable`;
     - пользовательская копия скила `~/.claude/skills/air-woody` версии 0.9.4 заслоняла плагинный скил — снята с резервной копией (шаг 66);
-  - SRVLM01 — Claude: GitHub marketplace/plugin cache штатно обновлён до 0.10.7; live install 0.10.7 без UAC, SHA совпадает с release, autostart снят.
-  - SRVLM01 — Codex: marketplace `air-plugins` и `air-worker@air-plugins` installed/enabled 0.10.7; SHA binary совпадает с release.
+  - SRVLM01 — Claude: GitHub marketplace/plugin cache штатно обновлён до 0.10.8; live install 0.10.8 без UAC, SHA совпадает с release, autostart снят.
+  - SRVLM01 — Codex: marketplace `air-plugins` и `air-worker@air-plugins` installed/enabled 0.10.8; SHA binary совпадает с release.
 - **Владение работой:** 0.10.8 выполнен через AirWorker core в orchestration mode; после публикации dependency order multi-session kernel возобновляется в 0.10.9 с шага 41.
 - **Координация:** перед переносом из старого worktree сверяется `git diff`; незавершённый код следующего шага не попадает в промежуточный релиз.
 - **Заблокировано:** нет.
 - **Отложено:** раздел «Что сознательно не в плане».
-- **Откат выпуска:** бинарник — `air-worker install` из кэша прежней версии плагина (`…\plugins\cache\air-plugins\air-worker\<версия>\bin\air-worker.exe install`), с шага 66 — только с повышенными правами, руками ЛПР; плагин — возврат коммита в маркетплейсе и `claude plugin update`.
+- **Откат выпуска:** штатно выбрать прежний GitHub tag/plugin snapshot и выполнить его пользовательский `air-worker install -no-start`; UAC и права администратора не нужны. Если старый tray держит файл, остановить только его и повторить. Плагин обновляется командами marketplace/plugin, без ручной правки caches.
 
 - **Решение ЛПР 17.09.2026 — немедленный 0.10.7:** выпустить закрытые 87–88 как малый Codex access/orchestration release. Ранее назначенный multi-session kernel сначала перешёл в 0.10.8, затем прямым приоритетом ЛПР 17.09.2026 уступил 0.10.8 шагу 89 и перенесён в 0.10.9; hardening — 0.10.10.
 
@@ -107,7 +107,7 @@
 - **0.10.5 — Router resilience release:** только **84 + 84а**. `runner kind=router` → AirLLMRouter v0.3.0 → готовая coding-agent оболочка → live OpenRouter `:free` coding smoke при недоступных Anthropic/OpenAI lanes → factual PASS → Codex semantic PASS → tag/publish/install. Цель выпуска — AirWorker остаётся работоспособным при исчерпании лимитов Anthropic/OpenAI.
 - **0.10.6 — operational feedback intake — ВЫПУЩЕН 17.09.2026:** 85 + 85а + 86 + 86а. `feedback_id` -> tracked evidence + canonical PLAN candidate; Vibe Coding feedback-contract; ручной Start Menu без autostart; Router/OpenCode diagnostics; tag `air-worker--v0.10.6`.
 - **0.10.7 — Codex access + native orchestration — ВЫПУЩЕН 17.09.2026:** 87 + 88. Безопасные add_dirs, машинный script-first, kernel-managed Codex reviewers, tag `air-worker--v0.10.7`.
-- **0.10.8 — OpenAI fallback ladder — ВЫПОЛНЕН 17.09.2026:** 89. Codex CLI с существующей авторизацией и отдельный text-only OpenAI Responses API transport; Luna/Terra/Sol × medium/maximal; vendor-limit fallback без ручного подтверждения.
+- **0.10.8 — OpenAI fallback ladder — ВЫПУЩЕН 17.09.2026:** 89. Codex CLI с существующей авторизацией и отдельный text-only OpenAI Responses API transport; Luna/Terra/Sol × medium/maximal; vendor-limit fallback без ручного подтверждения.
 - **0.10.9 — multi-session protection kernel:** 39 + 73 + 71 + 38 + 41 + 46 + 74 + 83. Явные `principal/session`, durable receipts, единый PlanState, binary protection hook/guard, transport-only adapters и live two-session acceptance.
 - **0.10.10 — operational hardening + orchestration observability:** 79 + 72 + 75 + 40 + 49 + 61. Distribution selfcheck, validate/selector batching, дешёвая observability, учёт субагентов, execution metrics/topology и единые роли поверх multi-session kernel.
 - **0.10.11 — GPT Chat + RDC:** 69. First-class external executor поверх job receipt: один task packet на один инструментальный прогон GPT-5.6 Sol/high, целевой бюджет ≤20 минут.
@@ -119,7 +119,7 @@
   2. `air-worker version` и `air-worker install -status` — подтвердить live 0.10.8, SHA CLI/tray, hooks generation и source-policy;
   3. `git -C F:\-7- log -3 --oneline -- air-worker` и `git status --short` — не захватить соседние dirty-файлы;
   4. `air-worker goals -product F:\-7-\air-worker` — дешёвая проверка PLAN;
-  5. после выпуска 0.10.8 начать 0.10.9 с шага 41 по dependency order; перед переносом шага 38 сверить `F:\-7-\_worktrees\aw-step38` и взять только готовый protection-layer.
+  5. начать 0.10.9 с шага 41 по dependency order; перед переносом шага 38 сверить `F:\-7-\_worktrees\aw-step38` и взять только готовый protection-layer.
 
 ## История — этапы до 0.10
 
