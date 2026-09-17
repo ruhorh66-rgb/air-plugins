@@ -147,12 +147,16 @@ func TestRouterFirstReleaseProfileKeepsCodexJudge(t *testing.T) {
 		if r.Kind == "script" {
 			continue
 		}
-		if r.Kind != "router" && r.Kind != "claude" {
+		if r.Kind != "router" && r.Kind != "claude" && r.Kind != "codex" && r.Kind != "openai" {
 			t.Fatalf("release has unsupported executor at %s: %+v", tier, r)
 		}
 		reviewer, err := oppositeSemanticReviewer(r)
-		if err != nil || reviewer.Kind != "codex" {
-			t.Fatalf("executor at %s is not judged by independent Codex: %+v, %v", tier, reviewer, err)
+		wantReviewer := "codex"
+		if r.Kind == "codex" || r.Kind == "openai" {
+			wantReviewer = "claude"
+		}
+		if err != nil || reviewer.Kind != wantReviewer {
+			t.Fatalf("executor at %s is not judged by the opposite provider: %+v, %v", tier, reviewer, err)
 		}
 	}
 }

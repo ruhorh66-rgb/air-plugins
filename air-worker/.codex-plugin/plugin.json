@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.10.7",
-  "description": "AirWorker 0.10.7: safe Codex writable directories, script-first planning, native Codex orchestration receipts, and a direct-Agent bypass guard.",
+  "version": "0.10.8",
+  "description": "AirWorker 0.10.8: native OpenAI Luna/Terra/Sol fallback, per-attempt receipts, and optional text-only Responses API transport.",
   "author": {
     "name": "AIR OS"
   },

@@ -109,6 +109,11 @@
     "sol:medium",
     "sol:ultra"
   ],
+  "openai": {
+    "_": "Прямой Responses API transport только текстовый: локальные файлы и команды остаются у Codex CLI. Ключ читается по имени переменной и не пишется в config/receipt.",
+    "base_url": "https://api.openai.com/v1",
+    "api_key_env": "OPENAI_API_KEY"
+  },
   "runners": {
     "script": {
       "kind": "script"

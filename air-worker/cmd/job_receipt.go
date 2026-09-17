@@ -40,6 +40,7 @@ type jobReceipt struct {
 	Model          string    `json:"model,omitempty"`
 	Effort         string    `json:"effort,omitempty"`
 	ProcessStarted bool      `json:"process_started"`
+	RequestStarted bool      `json:"request_started,omitempty"`
 	Cost           *float64  `json:"cost,omitempty"`
 }
 

@@ -1,6 +1,6 @@
 # OpenCode runtime payload
 
-AirWorker 0.10.7 vendors the official OpenCode Windows x64 baseline archive as a ready coding-agent shell. AirWorker does not fork or modify OpenCode and does not use it for provider/model selection.
+AirWorker 0.10.8 vendors the official OpenCode Windows x64 baseline archive as a ready coding-agent shell. AirWorker does not fork or modify OpenCode and does not use it for provider/model selection.
 
 - upstream: `anomalyco/opencode`
 - release: `v1.18.31`

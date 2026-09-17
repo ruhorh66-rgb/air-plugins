@@ -23,7 +23,41 @@ func runnerCapabilityLines(kind string) []string {
 	if kind == "router" {
 		return []string{"- files may be read, created and edited through the OpenCode coding-agent shell;", "- local commands and tests may be run inside the product root;", "- provider/model selection, keys and billing policy belong only to AirLLMRouter;", "- the external factual and semantic judges independently verify the result after the turn."}
 	}
+	if kind == "openai" {
+		return []string{"- the direct Responses API transport returns text only;", "- it has no access to local files or commands; use kind=codex for coding work;", "- the external factual judge independently verifies the answer."}
+	}
 	return []string{"- files may be read, created and edited;", "- local commands are not available to this detached runner;", "- the external loop runs build, tests and judge after the turn."}
+}
+
+func runnerReceiptOperation(base string, runner runnerSpec, iteration int) string {
+	parts := []string{base, runner.Model, runner.Effort}
+	if iteration > 0 {
+		parts = append(parts, fmt.Sprintf("iter-%d", iteration))
+	}
+	return strings.Trim(reNonWord.ReplaceAllString(strings.Join(parts, "-"), "-"), "-")
+}
+
+func runnerProvider(kind string) string {
+	switch kind {
+	case "claude":
+		return "anthropic"
+	case "codex", "openai":
+		return "openai"
+	default:
+		return kind
+	}
+}
+
+func runnerReceiptMetaFor(runner runnerSpec) jobReceiptMeta {
+	return jobReceiptMeta{Runner: runner.Kind, Provider: runnerProvider(runner.Kind), Model: runner.Model, Effort: runner.Effort}
+}
+
+func isVendorLimit(detail string) bool {
+	s := strings.ToLower(detail)
+	return strings.Contains(s, "429") || strings.Contains(s, "rate limit") ||
+		strings.Contains(s, "rate_limit") || strings.Contains(s, "quota exceeded") ||
+		strings.Contains(s, "insufficient_quota") || strings.Contains(s, "too many requests") ||
+		strings.Contains(s, "weekly limit") || strings.Contains(s, "usage limit reached")
 }
 
 // Ответ исполнителя, которому не дали прав. Образец широкий намеренно: формулировка
@@ -131,6 +165,9 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 	if c.WhatIf {
 		return stepResult{Ok: true, Session: "whatif", Subtype: "whatif"}
 	}
+	if runner.Kind == "openai" {
+		return c.invokeOpenAI(prompt, runner, step.Num)
+	}
 
 	tool := "claude"
 	if runner.Kind == "codex" {
@@ -214,7 +251,8 @@ func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec, stepID
 	// К42 — durable job receipt пишется RUNNING ДО запуска исполнителя; ctx без дедлайна,
 	// поэтому вызов, как и раньше, ждёт завершения синхронно, но теперь ещё и оставляет
 	// receipt/output_path на диске под owned scope этой петли/сессии.
-	out, _ := runReceipted(context.Background(), c.scope(), stepID, "executor-claude", cmd)
+	operation := runnerReceiptOperation("executor-claude", runner, c.iter)
+	out, _ := runReceiptedWithMeta(context.Background(), c.scope(), stepID, operation, cmd, runnerReceiptMetaFor(runner))
 	raw := decodeOutput(out)
 
 	// JSON вынимается ПОСТРОЧНО, а не разбором всего вывода: claude печатает
@@ -237,6 +275,9 @@ func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec, stepID
 		}
 	}
 	if res == nil {
+		if isVendorLimit(raw) {
+			return stepResult{Subtype: "vendor_limit", Detail: strings.TrimSpace(raw)}
+		}
 		line("  claude не вернул разбираемый результат; первые строки ответа:")
 		for i, l := range strings.Split(raw, "\n") {
 			if i >= 3 {
@@ -253,6 +294,9 @@ func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec, stepID
 	sub := res.Subtype
 	if res.IsError {
 		sub = "runner_error"
+		if isVendorLimit(res.Result) {
+			sub = "vendor_limit"
+		}
 	}
 	// ИСПОЛНИТЕЛЬ ПРОСИТ РАЗРЕШЕНИЯ — ЭТО НЕ ОТКАЗ МОДЕЛИ И НЕ РАБОТА.
 	//

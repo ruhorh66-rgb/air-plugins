@@ -263,11 +263,13 @@ func testReceiptWiredIntoExecutorLaunchPath(t *testing.T, root string) {
 
 	ctx := &loopCtx{Root: root, Principal: "claude", SessionKey: "sess-exec"}
 	scope := ctx.scope()
-	receiptPath, outputPath := jobReceiptPaths(scope, "73", "executor-codex")
+	runner := runnerSpec{Kind: "codex", Model: "m"}
+	operation := runnerReceiptOperation("executor-codex", runner, ctx.iter)
+	receiptPath, outputPath := jobReceiptPaths(scope, "73", operation)
 
 	done := make(chan stepResult, 1)
 	go func() {
-		done <- ctx.invokeCodex("codex", "task", runnerSpec{Kind: "codex", Model: "m"}, "73")
+		done <- ctx.invokeCodex("codex", "task", runner, "73")
 	}()
 
 	// invokeCodex (cmd/runner_codex.go) — настоящая точка запуска исполнителя, а не
@@ -277,7 +279,7 @@ func testReceiptWiredIntoExecutorLaunchPath(t *testing.T, root string) {
 
 	<-done
 	finished := pollReceiptStatus(t, receiptPath, jobStatusDone, time.Second)
-	if finished.Step != "73" || finished.Operation != "executor-codex" {
+	if finished.Step != "73" || finished.Operation != operation {
 		t.Fatalf("receipt исполнителя называет не тот step/operation: %+v", finished)
 	}
 	data, err := os.ReadFile(outputPath)

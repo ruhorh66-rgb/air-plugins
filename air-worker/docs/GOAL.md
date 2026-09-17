@@ -1,6 +1,6 @@
 # air-worker goal
 
-plan_for_version: 0.10.8
+plan_for_version: 0.10.9
 
 ## Goal
 
@@ -24,7 +24,7 @@ Make AirWorker the protected multi-session execution kernel used by AirBot-style
 4. Canonical PlanState with scoped runtime state (`71`).5. Binary protection hook and session-aware guard (`38`, `41`).
 6. Safe one-work-step execution per session (`74`).
 
-## Acceptance for 0.10.8
+## Acceptance for 0.10.9
 
 - Two sessions on the same product run concurrently with distinct session/job state.
 - Finishing or failing one does not stop, close or overwrite the other.
@@ -35,4 +35,4 @@ Make AirWorker the protected multi-session execution kernel used by AirBot-style
 
 ## Deferred after the first protected kernel
 
-Distribution selfcheck, full validate/selector batching, cheap structured observability, subagent accounting/topology and role cleanup are the 0.10.9 hardening layer. GPT Chat + RDC remains the following external-host adapter layer.
+Distribution selfcheck, full validate/selector batching, cheap structured observability, subagent accounting/topology and role cleanup are the 0.10.10 hardening layer. GPT Chat + RDC remains the following external-host adapter layer.

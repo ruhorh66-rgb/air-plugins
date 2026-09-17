@@ -111,6 +111,12 @@ type runConfig struct {
 	Orchestration orchestrationSpec     `json:"orchestration"`
 	Budget        budgetSpec            `json:"budget"`
 	Runner        runnerAuth            `json:"runner"`
+	OpenAI        openAIConfig          `json:"openai"`
+}
+
+type openAIConfig struct {
+	BaseURL   string `json:"base_url"`
+	APIKeyEnv string `json:"api_key_env"`
 }
 
 type factItem struct {
@@ -129,14 +135,14 @@ type checklistFile struct {
 // перестаёт расти, когда причину переписывают: этот отказ был найден у Goal/Drift Loop
 // ВЕРЫ и описан там дословно. Текст остаётся человеку, числа — машине.
 type machineVerdict struct {
-	At              string   `json:"at"`
-	Code            int      `json:"code"`
-	Distance        *int     `json:"distance"`
-	ChecksPassed    int      `json:"checks_passed"`
-	ChecksFailed    int      `json:"checks_failed"`
-	ChecksUnknown   int      `json:"checks_unknown"`
-	CriteriaPassed  []string `json:"criteria_passed,omitempty"`
-	CriteriaFailed  []string `json:"criteria_failed,omitempty"`
+	At             string   `json:"at"`
+	Code           int      `json:"code"`
+	Distance       *int     `json:"distance"`
+	ChecksPassed   int      `json:"checks_passed"`
+	ChecksFailed   int      `json:"checks_failed"`
+	ChecksUnknown  int      `json:"checks_unknown"`
+	CriteriaPassed []string `json:"criteria_passed,omitempty"`
+	CriteriaFailed []string `json:"criteria_failed,omitempty"`
 	// CriteriaGated — К40: критерии, ждущие решения ЛПР, отдельно от CriteriaUnknown
 	// («нечем измерить»). Закрытые gate-факты сюда не попадают: они уже в CriteriaPassed.
 	CriteriaGated   []string `json:"criteria_gated,omitempty"`
@@ -144,10 +150,10 @@ type machineVerdict struct {
 	CriteriaTotal   int      `json:"criteria_total"`
 	// LPRGates — К40: ВСЕ гейты ЛПР (гейты плана + CriteriaGated), одним числом, отдельно
 	// от executable-остатка. Закрытые gate-шаги плана в это число не входят.
-	LPRGates      int      `json:"lpr_gates"`
-	FactsClosed   *int     `json:"facts_closed"`
-	FactsGated    int      `json:"facts_gated"`
-	FactsRequired int      `json:"facts_required"`
+	LPRGates      int  `json:"lpr_gates"`
+	FactsClosed   *int `json:"facts_closed"`
+	FactsGated    int  `json:"facts_gated"`
+	FactsRequired int  `json:"facts_required"`
 	// FactsOverlap — К59: факты, которые legacy `min_facts` считал бы «не хватает», хотя они
 	// уже являются мерой критерия и учтены в CriteriaFailed/CriteriaGated. Названы здесь,
 	// чтобы отчёт мог предупредить о дублирующем подсчёте, а не просто занизить число молча.

@@ -165,16 +165,29 @@ func (c *loopCtx) invokeClaudeOrchestrated(exePath, prompt string, runner runner
 		line("  токен взят из окружения пользователя (в процессе его не было)")
 	}
 	// К42 — durable job receipt пишется RUNNING ДО запуска оркестрованного исполнителя.
-	out, _ := runReceipted(context.Background(), c.scope(), stepID, "executor-claude-orchestrated", cmd)
+	operation := runnerReceiptOperation("executor-claude-orchestrated", runner, c.iter)
+	out, _ := runReceiptedWithMeta(context.Background(), c.scope(), stepID, operation, cmd, runnerReceiptMetaFor(runner))
 	raw := decodeOutput(out)
 	res, agents := parseClaudeStream(raw, c.Subagents)
 	if res == nil {
+		if isVendorLimit(raw) {
+			return stepResult{Subtype: "vendor_limit", Detail: strings.TrimSpace(raw), AgentRequested: agents.Requested,
+				AgentStarted: agents.Started, AgentCompleted: agents.Completed, AgentIDs: agents.IDs, AgentIssue: orchestrationProblem(agents)}
+		}
 		line("  claude orchestration stream не вернул разбираемый result")
 		return stepResult{Subtype: "unparsed_orchestration", AgentRequested: agents.Requested, AgentStarted: agents.Started, AgentCompleted: agents.Completed, AgentIDs: agents.IDs, AgentIssue: orchestrationProblem(agents)}
 	}
 	sub := res.Subtype
 	if res.IsError {
 		sub = "runner_error"
+		if isVendorLimit(res.Result) {
+			sub = "vendor_limit"
+		}
+	}
+	if sub == "vendor_limit" {
+		return stepResult{Ok: false, Cost: res.TotalCostUSD, Turns: res.NumTurns, Session: res.SessionID, Subtype: sub,
+			ApiMs: res.DurationAPI, Detail: strings.TrimSpace(res.Result), AgentRequested: agents.Requested,
+			AgentStarted: agents.Started, AgentCompleted: agents.Completed, AgentIDs: agents.IDs, AgentIssue: orchestrationProblem(agents)}
 	}
 	if !orchestrationProven(agents) {
 		sub = "orchestration_not_proven"

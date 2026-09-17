@@ -34,6 +34,14 @@ type stepResult struct {
 	AgentIssue     string
 }
 
+func nextTierAfterVendorLimit(ladder []string, current int) (int, string, bool) {
+	next := current + 1
+	if next < 0 || next >= len(ladder) {
+		return current, "", false
+	}
+	return next, ladder[next], true
+}
+
 type loopCtx struct {
 	Root        string
 	Cfg         runConfig
@@ -485,6 +493,25 @@ func cmdLoop(argv []string) int {
 			}
 			if r.Cost != nil {
 				c.spent += *r.Cost
+			}
+			if r.Subtype == "vendor_limit" {
+				nextIndex, nextTier, ok := nextTierAfterVendorLimit(c.Ladder, tierIndex)
+				c.addStep(map[string]any{
+					"event": "vendor_limit_fallback", "step": step.Index, "title": step.Title,
+					"tier": tier, "iteration": c.iter, "runner": runner.Kind,
+					"provider": runnerProvider(runner.Kind), "model": runner.Model, "effort": runner.Effort,
+					"executor_cost_usd": r.Cost, "spent_usd": round4(c.spent),
+					"runner_said": nullIfEmpty(r.Detail), "fallback_to": nullIfEmpty(nextTier),
+					"orchestration": c.Orchestrate, "agents_requested": r.AgentRequested,
+					"agents_started": r.AgentStarted, "agents_completed": r.AgentCompleted,
+				})
+				if !ok {
+					closeWoody("ничего: vendor limit на последней ступени",
+						fmt.Sprintf("ступень %s исчерпала лимит, следующей разрешённой ступени нет", tier), 2)
+				}
+				tierIndex = nextIndex
+				line("  vendor limit — немедленно перехожу на " + nextTier + ".")
+				continue
 			}
 			// К31: ШАГ СО СВОЕЙ КОМАНДОЙ ЗАКРЫВАЕТСЯ КОДОМ ЭТОЙ КОМАНДЫ, А НЕ ДВИГАТЕЛЕМ ЦЕЛИ.
 			//

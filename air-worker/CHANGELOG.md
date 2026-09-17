@@ -1,5 +1,17 @@
 # CHANGELOG — air-worker
 
+## 0.10.8 — 17.09.2026
+
+### OpenAI fallback ladder
+
+- Added Luna/medium → Luna/max → Terra/medium → Terra/ultra → Sol/medium → Sol/ultra with the existing authenticated Codex CLI as the coding executor.
+- A confirmed Anthropic or OpenAI quota/rate limit advances one declared rung in the same AirWorker loop and session; auth, permission and other runner errors keep their stop behavior.
+- Each attempt has a distinct durable receipt with runner, provider, model, effort and process start. The transition log records the next rung and measured cost, leaving unknown cost as null.
+- Added an optional direct OpenAI Responses API transport for text-only tasks. It uses a configured key environment variable, stores no key in receipts and sets store=false. Local coding remains on Codex CLI.
+- Live AirWorker core test: a real Claude weekly-limit response advanced to Luna/medium; two read-only reviewers and one leader completed, the marker was created, the plan row closed and the factual judge returned 0. The opposite-provider Claude semantic review returned the same weekly-limit response and remains NOT_PROVEN.
+
+Release control: exact ladder/API tests, full go test ./..., go vet ./..., plugin/version checks, live two-reviewer fallback evidence. Rollback: air-worker--v0.10.7.
+
 ## 0.10.7 — 17.09.2026
 
 ### Codex access and native orchestration

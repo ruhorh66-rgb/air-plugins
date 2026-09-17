@@ -90,7 +90,7 @@ func codexArgs(root, prompt string, runner runnerSpec) []string {
 }
 
 func codexReceiptMeta(runner runnerSpec) jobReceiptMeta {
-	return jobReceiptMeta{Runner: "codex", Provider: "openai", Model: runner.Model, Effort: runner.Effort}
+	return runnerReceiptMetaFor(runner)
 }
 
 func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
@@ -102,7 +102,8 @@ func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID 
 	cmd.Env = codexEnv(nil)
 	cmd.Stdin = nil
 	// К42 — durable job receipt пишется RUNNING ДО запуска исполнителя Codex.
-	out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), stepID, "executor-codex", cmd, codexReceiptMeta(runner))
+	operation := runnerReceiptOperation("executor-codex", runner, c.iter)
+	out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), stepID, operation, cmd, codexReceiptMeta(runner))
 	return parseCodexResult(decodeOutput(out), runErr)
 }
 
@@ -140,8 +141,9 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 			cmd.Dir = c.Root
 			cmd.Env = codexEnv(nil)
 			agentStep := fmt.Sprintf("%s-agent-%d", stepID, index)
-			out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), agentStep, "executor-codex-subagent", cmd, codexReceiptMeta(runner))
-			receiptPath, _ := jobReceiptPaths(c.scope(), agentStep, "executor-codex-subagent")
+			operation := runnerReceiptOperation("executor-codex-subagent", runner, c.iter)
+			out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), agentStep, operation, cmd, codexReceiptMeta(runner))
+			receiptPath, _ := jobReceiptPaths(c.scope(), agentStep, operation)
 			receipt, _ := readJobReceipt(receiptPath)
 			results <- codexSubagentRun{index: index, started: receipt != nil && receipt.ProcessStarted, result: parseCodexResult(decodeOutput(out), runErr)}
 		}(i)
@@ -153,6 +155,7 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 	started, completed := 0, 0
 	ids := make([]string, 0, requested)
 	var problems []string
+	var vendorLimit string
 	for run := range results {
 		ordered[run.index-1] = run.result
 		if run.started {
@@ -165,7 +168,14 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 			completed++
 		} else {
 			problems = append(problems, fmt.Sprintf("subagent %d failed: %s %s", run.index, run.result.Subtype, run.result.Detail))
+			if run.result.Subtype == "vendor_limit" && vendorLimit == "" {
+				vendorLimit = run.result.Detail
+			}
 		}
+	}
+	if vendorLimit != "" {
+		return stepResult{Subtype: "vendor_limit", Detail: vendorLimit, AgentRequested: requested,
+			AgentStarted: started, AgentCompleted: completed, AgentIDs: ids, AgentIssue: strings.Join(problems, "; ")}
 	}
 	if completed != requested {
 		problems = append(problems, fmt.Sprintf("requested %d subagents, completed %d", requested, completed))
@@ -248,6 +258,9 @@ func parseCodexResult(raw string, runErr error) stepResult {
 	if !completed && !failed {
 		subtype = "unparsed"
 		detail = append(detail, "codex stream ended without terminal event")
+	}
+	if failed && isVendorLimit(raw+"\n"+strings.Join(detail, "\n")) {
+		subtype = "vendor_limit"
 	}
 	return stepResult{
 		Ok: completed && !failed, Cost: cost, Turns: &turns, Session: session,
