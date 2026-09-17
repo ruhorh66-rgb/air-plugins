@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 var runnerCommand = exec.Command
@@ -70,8 +71,8 @@ func validateCodexAddDirs(paths []string) error {
 	return nil
 }
 
-func codexArgs(root, prompt string, runner runnerSpec) []string {
-	args := []string{"exec", "--json", "--skip-git-repo-check", "-s", "workspace-write", "-C", root}
+func codexArgsForSandbox(root, prompt string, runner runnerSpec, sandbox string) []string {
+	args := []string{"exec", "--json", "--skip-git-repo-check", "-s", sandbox, "-C", root}
 	if runner.Model != "" {
 		args = append(args, "-m", runner.Model)
 	}
@@ -82,6 +83,10 @@ func codexArgs(root, prompt string, runner runnerSpec) []string {
 		args = append(args, "--add-dir", filepath.Clean(strings.TrimSpace(dir)))
 	}
 	return append(args, prompt)
+}
+
+func codexArgs(root, prompt string, runner runnerSpec) []string {
+	return codexArgsForSandbox(root, prompt, runner, "workspace-write")
 }
 
 func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
@@ -95,6 +100,83 @@ func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID 
 	// К42 — durable job receipt пишется RUNNING ДО запуска исполнителя Codex.
 	out, runErr := runReceipted(context.Background(), c.scope(), stepID, "executor-codex", cmd)
 	return parseCodexResult(decodeOutput(out), runErr)
+}
+
+type codexSubagentRun struct {
+	index  int
+	result stepResult
+}
+
+func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
+	if err := validateCodexAddDirs(runner.AddDirs); err != nil {
+		return stepResult{Subtype: "invalid_runner_config", Detail: "codex add_dirs: " + err.Error()}
+	}
+	requested := c.Subagents
+	if requested < 1 {
+		requested = 1
+	}
+	effort := runner.Effort
+	if effort == "" {
+		effort = "default"
+	}
+	line(fmt.Sprintf("  orchestration core: AirWorker · transport codex · model %s · effort %s · subagents %d",
+		runner.Model, effort, requested))
+
+	results := make(chan codexSubagentRun, requested)
+	var wg sync.WaitGroup
+	for i := 1; i <= requested; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			reviewPrompt := fmt.Sprintf(
+				"You are AirWorker native read-only subagent %d/%d. Analyze the task independently. Do not edit files. Return concrete risks, an implementation or review plan, and exact checks.\n\nCoordinator task:\n%s",
+				index, requested, prompt)
+			cmd := runnerCommand(exePath, codexArgsForSandbox(c.Root, reviewPrompt, runner, "read-only")...)
+			cmd.Dir = c.Root
+			cmd.Env = codexEnv(nil)
+			out, runErr := runReceipted(context.Background(), c.scope(), fmt.Sprintf("%s-agent-%d", stepID, index), "executor-codex-subagent", cmd)
+			results <- codexSubagentRun{index: index, result: parseCodexResult(decodeOutput(out), runErr)}
+		}(i)
+	}
+	wg.Wait()
+	close(results)
+
+	ordered := make([]stepResult, requested)
+	started, completed := requested, 0
+	ids := make([]string, 0, requested)
+	var problems []string
+	for run := range results {
+		ordered[run.index-1] = run.result
+		if run.result.Session != "" {
+			ids = append(ids, run.result.Session)
+		}
+		if run.result.Ok {
+			completed++
+		} else {
+			problems = append(problems, fmt.Sprintf("subagent %d failed: %s %s", run.index, run.result.Subtype, run.result.Detail))
+		}
+	}
+	if completed != requested {
+		problems = append(problems, fmt.Sprintf("requested %d subagents, completed %d", requested, completed))
+		return stepResult{Subtype: "orchestration_not_proven", AgentRequested: requested, AgentStarted: started,
+			AgentCompleted: completed, AgentIDs: ids, AgentIssue: strings.Join(problems, "; ")}
+	}
+
+	var evidence strings.Builder
+	evidence.WriteString("\n\nAIRWORKER NATIVE ORCHESTRATION: the kernel completed independent read-only reviews. Reconcile them before editing.\n")
+	for i, res := range ordered {
+		detail := res.Detail
+		if len(detail) > 12000 {
+			detail = detail[:12000]
+		}
+		fmt.Fprintf(&evidence, "\nSUBAGENT %d/%d (%s):\n%s\n", i+1, requested, runner.Model, detail)
+	}
+	leader := c.invokeCodex(exePath, prompt+evidence.String(), runner, stepID)
+	leader.AgentRequested = requested
+	leader.AgentStarted = started
+	leader.AgentCompleted = completed
+	leader.AgentIDs = ids
+	return leader
 }
 
 func parseCodexResult(raw string, runErr error) stepResult {

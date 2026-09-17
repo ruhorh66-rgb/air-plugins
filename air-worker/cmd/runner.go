@@ -151,6 +151,9 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 		return stepResult{Subtype: "no_runner"}
 	}
 	if runner.Kind == "codex" {
+		if c.Orchestrate {
+			return c.invokeCodexOrchestrated(exePath, prompt, runner, step.Num)
+		}
 		return c.invokeCodex(exePath, prompt, runner, step.Num)
 	}
 	if runner.Kind == "router" {
