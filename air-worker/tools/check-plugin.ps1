@@ -79,6 +79,53 @@ if (-not (Test-Path -LiteralPath $codexManifest)) {
     }
 }
 
+# Hermes is a third package surface. Validate source artifacts only; never enable,
+# install, copy, or select a profile from the release checker.
+$hermesManifest = Join-Path $ProductRoot '.hermes\plugins\air-worker\plugin.yaml'
+$hermesSkill = Join-Path $ProductRoot '.hermes\plugins\air-worker\skills\operate-air-worker\SKILL.md'
+if (-not (Test-Path -LiteralPath $hermesManifest -PathType Leaf)) {
+    $fail += "нет Hermes-манифеста: $hermesManifest"
+} else {
+    $hermesText = Get-Content -LiteralPath $hermesManifest -Raw -Encoding UTF8
+    $hmVersion = ([regex]::Match($hermesText, '(?m)^version:\s*([^\s#]+)\s*$')).Groups[1].Value.Trim('"', "'")
+    if ($hmVersion -ne [string]$pl.version) {
+        $fail += "версия Hermes-манифеста ($hmVersion) не совпадает с Claude/Codex ($($pl.version))"
+    } else {
+        $ok += "Claude/Codex/Hermes манифесты согласованы: $hmVersion"
+    }
+    $toolMatch = [regex]::Match($hermesText, '(?m)^provides_tools:\s*\[([^\]]*)\]\s*$')
+    $hermesTools = @()
+    if ($toolMatch.Success) {
+        $hermesTools = @($toolMatch.Groups[1].Value.Split(',') | ForEach-Object { $_.Trim(' ', '"', "'") } | Where-Object { $_ })
+    }
+    if ($hermesTools.Count -ne 1 -or $hermesTools[0] -ne 'air_worker') {
+        $fail += "Hermes-манифест должен объявлять ровно один tool air_worker; получено: $($hermesTools -join ', ')"
+    } else {
+        $ok += 'Hermes-манифест объявляет ровно один tool air_worker'
+    }
+}
+if (-not (Test-Path -LiteralPath $hermesSkill -PathType Leaf)) {
+    $fail += "нет Hermes-скила: $hermesSkill"
+} else {
+    $hermesSkillBytes = [IO.File]::ReadAllBytes($hermesSkill)
+    if ($hermesSkillBytes.Length -ge 3 -and $hermesSkillBytes[0] -eq 239 -and $hermesSkillBytes[1] -eq 187 -and $hermesSkillBytes[2] -eq 191) {
+        $fail += 'Hermes SKILL.md начинается с запрещённого UTF-8 BOM'
+    } else {
+        $ok += 'Hermes SKILL.md без BOM'
+    }
+}
+$hermesChecker = Join-Path $ProductRoot 'tools\check-hermes-adapter.ps1'
+if (-not (Test-Path -LiteralPath $hermesChecker -PathType Leaf)) {
+    $fail += "нет статической проверки Hermes: $hermesChecker"
+} else {
+    $hermesCheckOutput = & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $hermesChecker -StaticOnly 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+        $fail += "статическая проверка Hermes завершилась с ошибкой: $($hermesCheckOutput.Trim())"
+    } else {
+        $ok += 'tools/check-hermes-adapter.ps1 -StaticOnly пройден'
+    }
+}
+
 # --- 2. скилы объявлены каталогом, как требует канон -------------------------
 $skillsDir = Join-Path $ProductRoot 'skills'
 $skills = @(Get-ChildItem -LiteralPath $skillsDir -Directory -ErrorAction SilentlyContinue |

@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.10.9"
+	version = "0.10.10"
 )
 
 func usage() {
@@ -65,6 +65,9 @@ func usage() {
   air-worker plan   -product <корень> [-apply] [-model M] [-dry-run] [-use-answer <файл>]
         Планировщик: разбивка цели на шаги ОДНИМ дорогим вызовом. Предлагает в
         PLAN.proposed.md; существующий PLAN.md не трогается никогда.
+
+  air-worker adapter -action status -product <root> [-config <path>]
+        Emit compact read-only air-worker.tool/v1 campaign status JSON.
 
   air-worker tool   [-which claude|codex|opencode|router]
         Каким исполнителем пойдёт петля и каким правилом он найден. Ничего не
@@ -174,6 +177,8 @@ func run(argv []string) int {
 		return cmdSemantic(argv[1:])
 	case "plan":
 		return cmdPlan(argv[1:])
+	case "adapter":
+		return cmdAdapter(argv[1:])
 	case "tool":
 		return cmdTool(argv[1:])
 	case "encoding":

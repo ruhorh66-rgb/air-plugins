@@ -1,5 +1,16 @@
 # CHANGELOG — air-worker
 
+## 0.10.10 — 18.09.2026
+
+### Hermes adapter facade and non-switching profile packages
+
+- Added a compact, binary-owned adapter facade for read-only status and identity-bound campaign evidence; the harness remains transport and lifecycle glue rather than a second workflow engine.
+- Added a single-tool Hermes plugin contract with fixed action enums, deterministic hooks, trusted binary resolution, bounded output, redacted logs, and fail-closed completion enforcement.
+- Added minimal shadow and enforce Hermes profiles side-by-side, with explicit-only activation and no copied credentials, memory, sessions, cron, host paths, or unrelated state.
+- Added cross-platform Go contract tests plus non-mutating PowerShell release checks for Claude, Codex, Hermes, profile isolation, UTF-8/no-BOM skill packaging, and static adapter validation.
+
+Production promotion remains gated on Hermes supporting combined query-file prompt transport and machine-readable usage receipts in the same bounded one-shot path, followed by a real canary. Live/default profiles, installed plugins, caches, hooks, and active sessions are unchanged.
+
 ## 0.10.9 — 18.09.2026
 
 ### Codex role and sandbox evidence hotfix

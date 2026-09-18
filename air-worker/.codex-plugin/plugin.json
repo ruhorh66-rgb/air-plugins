@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.10.9",
-  "description": "AirWorker 0.10.9: explicit process roles and effective sandbox evidence for Codex planning, review, orchestration, and execution.",
+  "version": "0.10.10",
+  "description": "AirWorker 0.10.10: binary-owned adapter facade and packaged, non-enabled Hermes plugin/profile contracts; live/default state remains unchanged.",
   "author": {
     "name": "AIR OS"
   },

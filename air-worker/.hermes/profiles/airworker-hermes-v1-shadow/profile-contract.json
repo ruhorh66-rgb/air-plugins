@@ -1,0 +1,36 @@
+{
+  "schema_version": "air-worker.hermes-profile/v1",
+  "contract_version": "1.0.0",
+  "profile": {
+    "name": "airworker-hermes-v1-shadow",
+    "mode": "shadow",
+    "enforcement": false
+  },
+  "plugin": {
+    "name": "air-worker",
+    "version": "0.10.10",
+    "source_manifest": "../../plugins/air-worker/plugin.yaml"
+  },
+  "tool": {
+    "name": "air_worker",
+    "schema_version": "air-worker.tool/v1"
+  },
+  "capability_requirements": {
+    "safe_prompt_transport": {
+      "accepted": ["query-file", "stdin"],
+      "required": true
+    },
+    "oneshot": { "required": true },
+    "max_turns": { "required": true },
+    "run_budget": { "required": true },
+    "usage_receipt": {
+      "required": true,
+      "machine_readable": true,
+      "combined_with_query_file": true
+    }
+  },
+  "release_policy": {
+    "fail_closed_on_missing_capability": true,
+    "activation": "explicit-only"
+  }
+}

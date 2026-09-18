@@ -1,0 +1,7 @@
+name: air-worker
+version: 0.10.10
+description: Thin native Hermes transport for the AirWorker binary.
+manifest_version: 2
+api_version: 1
+provides_tools: [air_worker]
+provides_hooks: [pre_llm_call, pre_tool_call, post_tool_call, pre_verify, subagent_start, subagent_stop, on_session_start, on_session_end]

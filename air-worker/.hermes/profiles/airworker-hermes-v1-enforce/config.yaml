@@ -1,0 +1,3 @@
+plugins:
+  enabled:
+    - air-worker
