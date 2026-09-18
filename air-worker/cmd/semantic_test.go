@@ -45,6 +45,26 @@ func TestSemanticReviewerOppositeVendor(t *testing.T) {
 	}
 }
 
+func TestConfiguredSemanticReviewerPinsModelAndEffort(t *testing.T) {
+	cfg := runConfig{SemanticReviewer: runnerSpec{Kind: "codex", Model: "gpt-5.6-sol", Effort: "medium"}}
+	reviewer, err := configuredSemanticReviewer(cfg, runnerSpec{Kind: "claude"})
+	if err != nil || reviewer.Kind != "codex" || reviewer.Model != "gpt-5.6-sol" || reviewer.Effort != "medium" {
+		t.Fatalf("configured reviewer = %+v, %v", reviewer, err)
+	}
+	args := strings.Join(semanticCodexArgs(`C:\product`, reviewer, `C:\tmp\schema.json`), " ")
+	if !strings.Contains(args, "-m gpt-5.6-sol") || !strings.Contains(args, "-c model_reasoning_effort=medium") || !strings.Contains(args, "-s read-only") {
+		t.Fatalf("judge command lost requested model, effort or sandbox: %s", args)
+	}
+	cfg.SemanticReviewer.Model = ""
+	if _, err := configuredSemanticReviewer(cfg, runnerSpec{Kind: "claude"}); err == nil {
+		t.Fatal("partial reviewer configuration must fail")
+	}
+	cfg.SemanticReviewer.Model = "gpt-5.6-sol"
+	cfg.SemanticReviewer.Kind = "claude"
+	if _, err := configuredSemanticReviewer(cfg, runnerSpec{Kind: "claude"}); err == nil {
+		t.Fatal("same-vendor reviewer must fail")
+	}
+}
 func TestSemanticCodexIsReadOnly(t *testing.T) {
 	args := semanticCodexArgs(`C:\product`, runnerSpec{Kind: "codex", Effort: "high"}, `C:\tmp\schema.json`)
 	joined := strings.Join(args, " ")
