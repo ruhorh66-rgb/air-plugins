@@ -104,15 +104,16 @@ type driftThresholds struct {
 }
 
 type runConfig struct {
-	Judge         judgeSpec             `json:"judge"`
-	Plan          string                `json:"plan"`
-	GoalDrift     driftThresholds       `json:"goal_drift"`
-	Ladder        []string              `json:"ladder"`
-	Runners       map[string]runnerSpec `json:"runners"`
-	Orchestration orchestrationSpec     `json:"orchestration"`
-	Budget        budgetSpec            `json:"budget"`
-	Runner        runnerAuth            `json:"runner"`
-	OpenAI        openAIConfig          `json:"openai"`
+	Judge            judgeSpec             `json:"judge"`
+	SemanticReviewer runnerSpec            `json:"semantic_reviewer"`
+	Plan             string                `json:"plan"`
+	GoalDrift        driftThresholds       `json:"goal_drift"`
+	Ladder           []string              `json:"ladder"`
+	Runners          map[string]runnerSpec `json:"runners"`
+	Orchestration    orchestrationSpec     `json:"orchestration"`
+	Budget           budgetSpec            `json:"budget"`
+	Runner           runnerAuth            `json:"runner"`
+	OpenAI           openAIConfig          `json:"openai"`
 }
 
 type openAIConfig struct {

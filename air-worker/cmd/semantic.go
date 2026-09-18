@@ -78,6 +78,7 @@ type semanticRecord struct {
 	ExecutorVendor  string           `json:"executor_vendor"`
 	ReviewerVendor  string           `json:"reviewer_vendor"`
 	ReviewerModel   string           `json:"reviewer_model,omitempty"`
+	ReviewerEffort  string           `json:"reviewer_effort,omitempty"`
 	ReviewerRole    string           `json:"reviewer_role,omitempty"`
 	ReviewerSandbox string           `json:"reviewer_sandbox,omitempty"`
 	Session         string           `json:"session_id,omitempty"`
@@ -177,6 +178,29 @@ func oppositeSemanticReviewer(executor runnerSpec) (runnerSpec, error) {
 	}
 }
 
+// configuredSemanticReviewer preserves the opposite-vendor default but lets a
+// product pin the exact judge model and effort. An explicit partial setting is
+// rejected instead of silently running a different model.
+func configuredSemanticReviewer(cfg runConfig, executor runnerSpec) (runnerSpec, error) {
+	expected, err := oppositeSemanticReviewer(executor)
+	if err != nil {
+		return runnerSpec{}, err
+	}
+	selected := cfg.SemanticReviewer
+	if strings.TrimSpace(selected.Kind) == "" {
+		return expected, nil
+	}
+	selected.Kind = strings.ToLower(strings.TrimSpace(selected.Kind))
+	selected.Model = strings.TrimSpace(selected.Model)
+	selected.Effort = strings.TrimSpace(selected.Effort)
+	if selected.Kind != expected.Kind {
+		return runnerSpec{}, fmt.Errorf("semantic reviewer %q is not the independent %q vendor", selected.Kind, expected.Kind)
+	}
+	if selected.Model == "" || selected.Effort == "" {
+		return runnerSpec{}, errors.New("explicit semantic reviewer requires model and effort")
+	}
+	return selected, nil
+}
 func semanticCodexArgs(root string, reviewer runnerSpec, schemaPath string) []string {
 	args := []string{"exec", "--json", "--skip-git-repo-check", "-s", "read-only", "-C", root,
 		"--output-schema", schemaPath}
@@ -400,7 +424,7 @@ func publishSemantic(root string, rec semanticRecord) {
 }
 
 func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factual semanticFactualPacket, executorClaim string) semanticRun {
-	reviewer, err := oppositeSemanticReviewer(executor)
+	reviewer, err := configuredSemanticReviewer(c.Cfg, executor)
 	run := semanticRun{Reviewer: reviewer}
 	rec := semanticRecord{
 		At:             time.Now().UTC().Format(time.RFC3339Nano),
@@ -409,6 +433,7 @@ func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factual sema
 		ExecutorVendor: executor.Kind,
 		ReviewerVendor: reviewer.Kind,
 		ReviewerModel:  reviewer.Model,
+		ReviewerEffort: reviewer.Effort,
 		ReviewerRole:   "semantic-reviewer",
 		FactualCode:    factual.Code,
 	}
@@ -426,8 +451,8 @@ func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factual sema
 		return run
 	}
 	rec.ReviewerSandbox = "read-only"
-	line(fmt.Sprintf("  semantic reviewer: %s · model %s · role semantic-reviewer · sandbox %s",
-		reviewer.Kind, reviewer.Model, rec.ReviewerSandbox))
+	line(fmt.Sprintf("  semantic reviewer: %s · model %s · effort %s · role semantic-reviewer · sandbox %s",
+		reviewer.Kind, reviewer.Model, reviewer.Effort, rec.ReviewerSandbox))
 	packet := buildSemanticPacket(c, step, factual, executorClaim)
 	prompt := semanticPrompt(packet)
 	var raw string
