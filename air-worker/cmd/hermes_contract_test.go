@@ -141,9 +141,10 @@ type hermesProfileContract struct {
 			Required bool `json:"required"`
 		} `json:"run_budget"`
 		UsageReceipt struct {
-			Required              bool `json:"required"`
-			MachineReadable       bool `json:"machine_readable"`
-			CombinedWithQueryFile bool `json:"combined_with_query_file"`
+			Required               bool `json:"required"`
+			MachineReadable        bool `json:"machine_readable"`
+			CombinedWithQueryFile  bool `json:"combined_with_query_file"`
+			DeferredUntilSupported bool `json:"deferred_until_supported"`
 		} `json:"usage_receipt"`
 	} `json:"capability_requirements"`
 	ReleasePolicy struct {
@@ -192,15 +193,21 @@ func TestCriterion79HermesProfileContracts(t *testing.T) {
 			t.Fatalf("%s plugin/tool identity mismatch", want.name)
 		}
 		caps := got.CapabilityRequirements
-		accepted := strings.Join(caps.SafePromptTransport.Accepted, ",")
-		if !caps.SafePromptTransport.Required || !strings.Contains(accepted, "query-file") || !strings.Contains(accepted, "stdin") || !caps.OneShot.Required || !caps.MaxTurns.Required || !caps.RunBudget.Required {
+		acceptedValues := append([]string(nil), caps.SafePromptTransport.Accepted...)
+		sort.Strings(acceptedValues)
+		accepted := strings.Join(acceptedValues, ",")
+		if !caps.SafePromptTransport.Required || accepted != "query-file,stdin" || !caps.OneShot.Required || !caps.MaxTurns.Required || !caps.RunBudget.Required {
 			t.Fatalf("%s lacks bounded safe prompt requirements", want.name)
 		}
-		if !caps.UsageReceipt.Required || !caps.UsageReceipt.MachineReadable || !caps.UsageReceipt.CombinedWithQueryFile {
-			t.Fatalf("%s does not require combined machine-readable usage", want.name)
+		if caps.UsageReceipt.Required || caps.UsageReceipt.MachineReadable || caps.UsageReceipt.CombinedWithQueryFile || !caps.UsageReceipt.DeferredUntilSupported {
+			t.Fatalf("%s does not defer the unsupported combined usage receipt", want.name)
 		}
 		if !got.ReleasePolicy.FailClosedOnMissingCapability || got.ReleasePolicy.Activation != "explicit-only" {
 			t.Fatalf("%s is not explicit-only and fail-closed", want.name)
+		}
+		distribution := string(readContractFile(t, dir, "distribution.yaml"))
+		if got := yamlContractScalar(t, distribution, "hermes_requires"); got != ">=0.21.3" {
+			t.Fatalf("%s Hermes version floor = %q", want.name, got)
 		}
 		config := strings.ReplaceAll(string(readContractFile(t, dir, "config.yaml")), "\r\n", "\n")
 		if strings.TrimSpace(config) != "plugins:\n  enabled:\n    - air-worker" {

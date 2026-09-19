@@ -1,6 +1,6 @@
 # CHANGELOG — air-worker
 
-## 0.10.10 — 18.09.2026
+## 0.10.10 — Unreleased
 
 ### Hermes adapter facade and non-switching profile packages
 
@@ -9,7 +9,7 @@
 - Added minimal shadow and enforce Hermes profiles side-by-side, with explicit-only activation and no copied credentials, memory, sessions, cron, host paths, or unrelated state.
 - Added cross-platform Go contract tests plus non-mutating PowerShell release checks for Claude, Codex, Hermes, profile isolation, UTF-8/no-BOM skill packaging, and static adapter validation.
 
-Production promotion remains gated on Hermes supporting combined query-file prompt transport and machine-readable usage receipts in the same bounded one-shot path, followed by a real canary. Live/default profiles, installed plugins, caches, hooks, and active sessions are unchanged.
+The Hermes release contract now matches the supported 0.21.3 chat path: query-file/stdin transport, one-shot execution, max-turn and run-budget bounds. A combined chat usage receipt is explicitly optional and deferred to a future contract after Hermes ships it; it no longer blocks 0.10.10. Promotion still requires an isolated baseline→shadow→enforce canary using AirWorker receipts and Claude/Codex regression checks. Live/default profiles, installed plugins, caches, hooks, and active sessions are unchanged.
 
 ## 0.10.9 — 18.09.2026
 

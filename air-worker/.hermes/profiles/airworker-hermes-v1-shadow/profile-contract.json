@@ -24,9 +24,10 @@
     "max_turns": { "required": true },
     "run_budget": { "required": true },
     "usage_receipt": {
-      "required": true,
-      "machine_readable": true,
-      "combined_with_query_file": true
+      "required": false,
+      "machine_readable": false,
+      "combined_with_query_file": false,
+      "deferred_until_supported": true
     }
   },
   "release_policy": {

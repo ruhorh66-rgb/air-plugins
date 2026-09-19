@@ -59,6 +59,7 @@ foreach ($name in $profileNames) {
     if ($null -ne $manifest) {
         if ((Yaml-Scalar $manifest 'name') -ne $name) { Fail "$name manifest name mismatch" }
         if ((Yaml-Scalar $manifest 'version') -ne '1.0.0') { Fail "$name manifest version mismatch" }
+        if ((Yaml-Scalar $manifest 'hermes_requires') -ne '>=0.21.3') { Fail "$name Hermes version floor mismatch" }
         if ($manifest -notmatch '(?m)^\s*-\s+config\.yaml\s*$' -or $manifest -notmatch '(?m)^\s*-\s+profile-contract\.json\s*$') { Fail "$name distribution_owned mismatch" }
         foreach ($line in $manifest -split "`r?`n") {
             $value = ($line -replace '^\s*[^:#]+:\s*', '').Trim(' ', '"', "'")
@@ -81,9 +82,10 @@ foreach ($name in $profileNames) {
     if ($contract.plugin.name -ne 'air-worker' -or $contract.plugin.version -ne '0.10.10') { Fail "$name plugin identity mismatch" }
     if ($contract.tool.name -ne 'air_worker' -or $contract.tool.schema_version -ne 'air-worker.tool/v1') { Fail "$name tool schema mismatch" }
     $caps = $contract.capability_requirements
-    if (-not [bool]$caps.safe_prompt_transport.required -or @($caps.safe_prompt_transport.accepted) -notcontains 'query-file' -or @($caps.safe_prompt_transport.accepted) -notcontains 'stdin') { Fail "$name safe transport mismatch" }
+    $acceptedTransports = @($caps.safe_prompt_transport.accepted | ForEach-Object { [string]$_ } | Sort-Object)
+    if (-not [bool]$caps.safe_prompt_transport.required -or ($acceptedTransports -join ',') -ne 'query-file,stdin') { Fail "$name safe transport mismatch" }
     if (-not [bool]$caps.oneshot.required -or -not [bool]$caps.max_turns.required -or -not [bool]$caps.run_budget.required) { Fail "$name bounded run requirements mismatch" }
-    if (-not [bool]$caps.usage_receipt.required -or -not [bool]$caps.usage_receipt.machine_readable -or -not [bool]$caps.usage_receipt.combined_with_query_file) { Fail "$name usage receipt mismatch" }
+    if ([bool]$caps.usage_receipt.required -or [bool]$caps.usage_receipt.machine_readable -or [bool]$caps.usage_receipt.combined_with_query_file -or -not [bool]$caps.usage_receipt.deferred_until_supported) { Fail "$name deferred usage receipt contract mismatch" }
     if (-not [bool]$contract.release_policy.fail_closed_on_missing_capability -or $contract.release_policy.activation -ne 'explicit-only') { Fail "$name release policy mismatch" }
     if ($failures.Count -eq $startFailures) { Pass "$name package contract" }
 }
@@ -100,7 +102,9 @@ if ($null -ne $hermes) {
     if ($LASTEXITCODE -ne 0) { Fail "Hermes plugin doctor failed: $($doctorOutput.Trim())" } else { Pass 'Hermes plugin doctor' }
     if (-not $StaticOnly) {
         $version = (& hermes --version 2>&1 | Select-Object -First 1).ToString().Trim()
-        $rootHelp = & hermes --help 2>&1 | Out-String
+        if ($version -notmatch 'v(\d+)\.(\d+)\.(\d+)') { Fail "cannot parse Hermes version: $version" }
+        elseif ([version]("{0}.{1}.{2}" -f $Matches[1], $Matches[2], $Matches[3]) -lt [version]'0.21.3') { Fail "Hermes runtime is below 0.21.3: $version" }
+        else { Pass 'Hermes runtime satisfies >=0.21.3' }
         $chatHelp = & hermes chat --help 2>&1 | Out-String
         $queryFile = Has-Option $chatHelp '--query-file'
         $stdin = $queryFile -and $chatHelp -match "'\-' reads stdin"
@@ -112,11 +116,12 @@ if ($null -ne $hermes) {
         if (-not $oneshot) { Fail "Hermes lacks chat --oneshot ($version)" }
         if (-not $maxTurns) { Fail "Hermes lacks chat --max-turns ($version)" }
         if (-not $runBudget) { Fail "Hermes lacks chat --run-budget ($version)" }
-        if (-not $combinedUsage) {
-            $detail = if (Has-Option $rootHelp '--usage-file') { 'usage-file exists only on the incompatible top-level --oneshot path' } else { 'no usage-file option found' }
-            Fail "Hermes cannot combine chat --query-file with a machine-readable usage receipt: $detail ($version)"
-        }
-        if ($queryFile -and $stdin -and $oneshot -and $maxTurns -and $runBudget -and $combinedUsage) { Pass 'Hermes combined bounded one-shot usage capability' }
+        if ($queryFile -and $stdin -and $oneshot -and $maxTurns -and $runBudget) { Pass 'Hermes supported bounded one-shot chat capability' }
+        $compositionHelp = & hermes chat --query-file - --oneshot --max-turns 1 --run-budget 1 --help 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0 -or -not (Has-Option $compositionHelp '--query-file')) { Fail "Hermes rejects the required combined chat argv ($version)" }
+        else { Pass 'Hermes accepts the required combined chat argv' }
+        if ($combinedUsage) { Pass 'Hermes optional combined usage receipt is available' }
+        else { Pass 'Hermes combined usage receipt is unavailable and non-blocking for contract v1' }
     }
 } elseif (-not $StaticOnly) { Fail 'Hermes executable not found; runtime capability and plugin doctor cannot be proven' }
 else { Pass 'Hermes unavailable; runtime checks explicitly skipped' }

@@ -1,7 +1,7 @@
 name: airworker-hermes-v1-enforce
 version: 1.0.0
 description: "AirWorker Hermes v1 enforce profile contract"
-hermes_requires: ">=0.21.2"
+hermes_requires: ">=0.21.3"
 distribution_owned:
   - config.yaml
   - profile-contract.json
