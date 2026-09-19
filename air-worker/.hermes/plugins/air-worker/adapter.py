@@ -174,6 +174,25 @@ def _envelope(action: str, **values: Any) -> str:
     return json.dumps(_redact(result), ensure_ascii=False, separators=(",", ":"))
 
 
+def _orphaned(status: Optional[Mapping[str, Any]]) -> bool:
+    if not isinstance(status, Mapping):
+        return False
+    progress = status.get("progress")
+    if not isinstance(progress, Mapping):
+        return False
+    closed, total = progress.get("closed"), progress.get("total")
+    return bool(
+        isinstance(closed, int)
+        and not isinstance(closed, bool)
+        and isinstance(total, int)
+        and not isinstance(total, bool)
+        and closed < total
+        and status.get("next_action") == "run_loop"
+        and status.get("stop_reason") == "no_live_worker"
+        and not status.get("workers")
+    )
+
+
 def execute(args: Mapping[str, Any], **kwargs: Any) -> str:
     action = str(args.get("action") or "").strip().lower()
     if action not in _TIMEOUTS:
@@ -210,21 +229,77 @@ def execute(args: Mapping[str, Any], **kwargs: Any) -> str:
         return argv
 
     runs: list[dict[str, Any]] = []
-    if action == "run":
-        runs.append(_invoke(command("loop", identity=True), product, _TIMEOUTS[action]))
-    elif action == "verify":
-        runs.append(_invoke(command("judge"), product, _TIMEOUTS[action]))
-    status_run = _invoke(command("adapter", "-action", "status", identity=True), product, _TIMEOUTS["status"])
-    runs.append(status_run)
-    status = _parse(status_run)
-    operation = runs[0] if action in {"run", "verify"} else status_run
-    success = operation["exit_code"] == 0 and status_run["exit_code"] == 0 and status is not None
+    promoted = False
+    if action == "status":
+        status_run = _invoke(command("adapter", "-action", "status", identity=True), product, _TIMEOUTS["status"])
+        runs.append(status_run)
+        status = _parse(status_run)
+        operation = status_run
+        if enforcing and _orphaned(status):
+            promoted = True
+            operation = _invoke(command("loop", identity=True), product, _TIMEOUTS["run"])
+            runs.append(operation)
+            status_run = _invoke(command("adapter", "-action", "status", identity=True), product, _TIMEOUTS["status"])
+            runs.append(status_run)
+            status = _parse(status_run)
+    else:
+        operation = _invoke(
+            command("loop", identity=True) if action == "run" else command("judge"),
+            product,
+            _TIMEOUTS[action],
+        )
+        runs.append(operation)
+        status_run = _invoke(command("adapter", "-action", "status", identity=True), product, _TIMEOUTS["status"])
+        runs.append(status_run)
+        status = _parse(status_run)
+    verification_run: dict[str, Any] | None = None
+    auto_verified = False
+    if (
+        enforcing
+        and action in {"status", "run"}
+        and operation["exit_code"] == 0
+        and status_run["exit_code"] == 0
+        and status is not None
+        and status.get("outcome") == "completed"
+    ):
+        # Hermes 0.21.3 cannot force a second model turn from a terminal-output
+        # hook.  Close the continuity transaction inside the native tool instead:
+        # a completed enforce status/run is judged and re-read before it returns.
+        verification_run = _invoke(command("judge"), product, _TIMEOUTS["verify"])
+        runs.append(verification_run)
+        status_run = _invoke(command("adapter", "-action", "status", identity=True), product, _TIMEOUTS["status"])
+        runs.append(status_run)
+        status = _parse(status_run)
+        auto_verified = bool(
+            verification_run["exit_code"] == 0
+            and status_run["exit_code"] == 0
+            and status is not None
+            and status.get("outcome") == "completed"
+        )
+    success = bool(
+        operation["exit_code"] == 0
+        and status_run["exit_code"] == 0
+        and status is not None
+        and (verification_run is None or verification_run["exit_code"] == 0)
+    )
+    continuity_violation = bool(
+        (action == "run" or promoted)
+        and success
+        and _orphaned(status)
+    )
     result: dict[str, Any] = {
         "schema_version": SCHEMA,
         "action": action,
-        "exit_code": operation["exit_code"] if operation["exit_code"] else status_run["exit_code"],
+        "exit_code": (
+            operation["exit_code"]
+            or (verification_run["exit_code"] if verification_run is not None else 0)
+            or status_run["exit_code"]
+        ),
         "product": str(product),
     }
+    if auto_verified:
+        result["verified"] = True
+        result["verification_action"] = "verify"
     log_path = _save(action, runs)
     if log_path is not None:
         result["log_path"] = str(log_path)
@@ -235,13 +310,20 @@ def execute(args: Mapping[str, Any], **kwargs: Any) -> str:
                 result[key] = result[key][:_RESULT_LIMIT]
     else:
         result["stop_reason"] = "adapter_status_invalid"
-    result["outcome"] = status.get("outcome", "error") if success else "error"
+    result["outcome"] = status.get("outcome", "error") if success and not continuity_violation else "error"
     if operation.get("timed_out"):
-        result["stop_reason"] = f"{action}_timeout"
-    elif operation.get("launch_error") or status_run.get("launch_error"):
+        result["stop_reason"] = f"{'run' if promoted else action}_timeout"
+    elif verification_run is not None and verification_run.get("timed_out"):
+        result["stop_reason"] = "verify_timeout"
+    elif operation.get("launch_error") or status_run.get("launch_error") or (verification_run is not None and verification_run.get("launch_error")):
         result["stop_reason"] = "launch_failed"
-    elif operation["exit_code"] and action in {"run", "verify"}:
-        result["stop_reason"] = f"{action}_exit_{operation['exit_code']}"
+    elif operation["exit_code"] and (action in {"run", "verify"} or promoted):
+        result["stop_reason"] = f"{'run' if promoted else action}_exit_{operation['exit_code']}"
+    elif verification_run is not None and verification_run["exit_code"]:
+        result["stop_reason"] = f"verify_exit_{verification_run['exit_code']}"
+    elif continuity_violation:
+        result["exit_code"] = 2
+        result["stop_reason"] = "continuity_violation"
     result = _redact(result)
     try:
         from . import hooks

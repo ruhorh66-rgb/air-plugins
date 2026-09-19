@@ -75,7 +75,7 @@ func TestCriterion78HermesPluginContract(t *testing.T) {
 	if len(tools) != 1 || tools[0] != "air_worker" {
 		t.Fatalf("Hermes manifest must declare exactly one air_worker tool: %#v", tools)
 	}
-	requiredHooks := []string{"pre_llm_call", "pre_tool_call", "post_tool_call", "pre_verify", "subagent_start", "subagent_stop", "on_session_start", "on_session_end"}
+	requiredHooks := []string{"pre_llm_call", "pre_tool_call", "post_tool_call", "pre_verify", "transform_llm_output", "subagent_start", "subagent_stop", "on_session_start", "on_session_end"}
 	hooks := inlineYAMLList(t, manifest, "provides_hooks")
 	sort.Strings(hooks)
 	sort.Strings(requiredHooks)
@@ -86,6 +86,9 @@ func TestCriterion78HermesPluginContract(t *testing.T) {
 	registration := string(readContractFile(t, pluginRoot, "__init__.py"))
 	if strings.Count(registration, "ctx.register_tool(") != 1 || !strings.Contains(registration, `name="air_worker"`) {
 		t.Fatal("plugin must register exactly one air_worker tool")
+	}
+	if !strings.Contains(registration, `toolset="terminal"`) {
+		t.Fatal("air_worker must reuse a Hermes 0.21.3 built-in toolset so stream-json is not prefixed by an unknown-toolset warning")
 	}
 	for _, hook := range requiredHooks {
 		if !strings.Contains(registration, fmt.Sprintf(`("%s",`, hook)) {

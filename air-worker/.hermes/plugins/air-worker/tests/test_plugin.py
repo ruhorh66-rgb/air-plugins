@@ -47,7 +47,7 @@ class Tests(unittest.TestCase):
         self.p.hooks._reset_for_tests()
 
     @staticmethod
-    def status(outcome="stopped", **extra):
+    def status(outcome="needs_action", **extra):
         value = {
             "schema_version": "air-worker.tool/v1",
             "action": "status",
@@ -74,7 +74,8 @@ class Tests(unittest.TestCase):
         self.assertFalse(schema["additionalProperties"])
         self.assertEqual(["operate-air-worker"], [item[0] for item in ctx.skills])
         self.assertTrue(ctx.skills[0][1].is_file())
-        self.assertEqual(8, len(ctx.hooks))
+        self.assertEqual(9, len(ctx.hooks))
+        self.assertIn("transform_llm_output", [name for name, _ in ctx.hooks])
         for _, callback in ctx.hooks:
             self.assertIn("kwargs", inspect.signature(callback).parameters)
 
@@ -154,6 +155,26 @@ class Tests(unittest.TestCase):
             json.loads(Path(result["log_path"]).read_text(encoding="utf-8"))
             binary.unlink()
 
+    def test_zero_exit_run_with_pending_status_fails_continuity(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            binary = root.parent / (root.name + "-trusted-air-worker")
+            binary.write_bytes(b"x")
+            loop = type("Done", (), {"returncode": 0, "stdout": "loop returned", "stderr": ""})()
+            pending = type("Done", (), {"returncode": 0, "stdout": self.status(), "stderr": ""})()
+            env = {"AIR_WORKER_BIN": str(binary.resolve()), "AIR_WORKER_LOG_DIR": str(root / "logs")}
+            with mock.patch.dict(os.environ, env), mock.patch.object(
+                self.p.adapter.subprocess, "run", side_effect=[loop, pending]
+            ):
+                result = json.loads(
+                    self.p.adapter.execute({"action": "run", "product": str(root)}, session_id="s")
+                )
+            self.assertEqual("error", result["outcome"])
+            self.assertEqual(2, result["exit_code"])
+            self.assertEqual("continuity_violation", result["stop_reason"])
+            self.assertEqual("run_loop", result["next_action"])
+            binary.unlink()
+
     def test_launch_failure_is_enveloped(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -227,7 +248,7 @@ class Tests(unittest.TestCase):
             self.assertEqual("block", hooks.pre_tool_call(session_id="s", tool_name="terminal")["action"])
             self.assertIsNone(hooks.pre_tool_call(session_id="s", tool_name="air_worker"))
             self.assertEqual("continue", hooks.pre_verify(session_id="s")["action"])
-            hooks.record_status(str(root), {"action": "status", "exit_code": 0, "outcome": "stopped", "progress": {"closed": 1, "total": 2}, "next_action": "run_loop", "stop_reason": "no_live_worker", "receipts": []}, session_id="s")
+            hooks.record_status(str(root), {"action": "status", "exit_code": 0, "outcome": "needs_action", "progress": {"closed": 1, "total": 2}, "next_action": "run_loop", "stop_reason": "no_live_worker", "receipts": []}, session_id="s")
             self.assertIn("not verify", hooks.pre_verify(session_id="s")["message"])
             hooks.record_status(str(root), {"action": "verify", "exit_code": 0, "outcome": "completed", "progress": {"closed": 2, "total": 2}, "next_action": "none", "stop_reason": "plan_complete", "receipts": [], "log_path": "verify.json"}, session_id="s")
             self.assertIn("no current receipt", hooks.pre_verify(session_id="s")["message"])
@@ -256,7 +277,7 @@ class Tests(unittest.TestCase):
             self.assertIsNone(self.p.hooks.pre_verify(session_id="shadow-session"))
             with mock.patch.dict(os.environ, env), mock.patch.object(self.p.adapter.subprocess, "run", return_value=done) as run:
                 observed = json.loads(self.p.adapter.execute({"action": "status", "product": str(root)}))
-            self.assertEqual("stopped", observed["outcome"])
+            self.assertEqual("needs_action", observed["outcome"])
             self.assertEqual(1, run.call_count)
 
             enforce = Ctx("airworker-hermes-v1-enforce")
@@ -270,6 +291,107 @@ class Tests(unittest.TestCase):
                         rejected = json.loads(self.p.adapter.execute({"action": action, "product": str(root)}))
                         self.assertEqual("session_id_required", rejected["stop_reason"])
                 run.assert_not_called()
+            binary.unlink()
+
+    def test_enforce_status_promotes_orphaned_work_to_loop(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            binary = root.parent / (root.name + "-trusted-air-worker")
+            binary.write_bytes(b"x")
+            self.p.register(Ctx("airworker-hermes-v1-enforce"))
+            pending = type("Done", (), {"returncode": 0, "stdout": self.status(), "stderr": ""})()
+            loop = type("Done", (), {"returncode": 0, "stdout": "loop complete", "stderr": ""})()
+            complete = type("Done", (), {
+                "returncode": 0,
+                "stdout": self.status(
+                    "completed", progress={"closed": 3, "total": 3},
+                    next_action="none", stop_reason="plan_complete"
+                ),
+                "stderr": "",
+            })()
+            env = {"AIR_WORKER_BIN": str(binary.resolve()), "AIR_WORKER_LOG_DIR": str(root / "logs")}
+            with mock.patch.dict(os.environ, env), mock.patch.object(
+                self.p.adapter.subprocess, "run", side_effect=[pending, loop, complete, loop, complete]
+            ) as run:
+                result = json.loads(
+                    self.p.adapter.execute({"action": "status", "product": str(root)}, session_id="s")
+                )
+            self.assertEqual(["adapter", "loop", "adapter", "judge", "adapter"], [item.args[0][1] for item in run.call_args_list])
+            self.assertEqual("completed", result["outcome"])
+            self.assertEqual(0, result["exit_code"])
+            self.assertTrue(result["verified"])
+            self.assertEqual("verify", result["verification_action"])
+            for call in run.call_args_list:
+                if call.args[0][1] in {"adapter", "loop"}:
+                    self.assertEqual(["-principal", "hermes", "-session-key", "s"], call.args[0][-4:])
+            binary.unlink()
+
+    def test_enforce_status_does_not_promote_terminal_or_running_states(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            binary = root.parent / (root.name + "-trusted-air-worker")
+            binary.write_bytes(b"x")
+            self.p.register(Ctx("airworker-hermes-v1-enforce"))
+            env = {"AIR_WORKER_BIN": str(binary.resolve()), "AIR_WORKER_LOG_DIR": str(root / "logs")}
+            states = (
+                self.status("completed", progress={"closed": 3, "total": 3}, next_action="none", stop_reason="plan_complete"),
+                self.status("waiting", next_action="approve_lpr", stop_reason="lpr_gate"),
+                self.status("running", next_action="wait", stop_reason="", workers=[{"pid": 42}]),
+            )
+            for index, stdout in enumerate(states):
+                with self.subTest(index=index), mock.patch.dict(os.environ, env), mock.patch.object(
+                    self.p.adapter.subprocess, "run",
+                    return_value=type("Done", (), {"returncode": 0, "stdout": stdout, "stderr": ""})(),
+                ) as run:
+                    result = json.loads(self.p.adapter.execute({"action": "status", "product": str(root)}, session_id="s"))
+                    self.assertEqual(3 if index == 0 else 1, run.call_count)
+                    if index == 0:
+                        self.assertTrue(result["verified"])
+            binary.unlink()
+
+    def test_enforce_auto_verify_failure_is_structured(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            binary = root.parent / (root.name + "-trusted-air-worker")
+            binary.write_bytes(b"x")
+            self.p.register(Ctx("airworker-hermes-v1-enforce"))
+            pending = type("Done", (), {"returncode": 0, "stdout": self.status(), "stderr": ""})()
+            done = type("Done", (), {"returncode": 0, "stdout": "done", "stderr": ""})()
+            complete = type("Done", (), {
+                "returncode": 0,
+                "stdout": self.status("completed", progress={"closed": 2, "total": 2}, next_action="none", stop_reason="plan_complete"),
+                "stderr": "",
+            })()
+            judge_failed = type("Done", (), {"returncode": 5, "stdout": "", "stderr": "not proved"})()
+            env = {"AIR_WORKER_BIN": str(binary.resolve()), "AIR_WORKER_LOG_DIR": str(root / "logs")}
+            with mock.patch.dict(os.environ, env), mock.patch.object(
+                self.p.adapter.subprocess, "run", side_effect=[pending, done, complete, judge_failed, complete]
+            ):
+                result = json.loads(self.p.adapter.execute({"action": "status", "product": str(root)}, session_id="s"))
+            self.assertEqual("error", result["outcome"])
+            self.assertEqual(5, result["exit_code"])
+            self.assertEqual("verify_exit_5", result["stop_reason"])
+            self.assertNotIn("verified", result)
+            binary.unlink()
+
+    def test_enforce_promoted_loop_failure_is_structured(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            binary = root.parent / (root.name + "-trusted-air-worker")
+            binary.write_bytes(b"x")
+            self.p.register(Ctx("airworker-hermes-v1-enforce"))
+            pending = type("Done", (), {"returncode": 0, "stdout": self.status(), "stderr": ""})()
+            failed = type("Done", (), {"returncode": 7, "stdout": "", "stderr": "failed"})()
+            env = {"AIR_WORKER_BIN": str(binary.resolve()), "AIR_WORKER_LOG_DIR": str(root / "logs")}
+            with mock.patch.dict(os.environ, env), mock.patch.object(
+                self.p.adapter.subprocess, "run", side_effect=[pending, failed, pending]
+            ):
+                result = json.loads(
+                    self.p.adapter.execute({"action": "status", "product": str(root)}, session_id="s")
+                )
+            self.assertEqual("error", result["outcome"])
+            self.assertEqual(7, result["exit_code"])
+            self.assertEqual("run_exit_7", result["stop_reason"])
             binary.unlink()
 
     def test_receipt_limit_is_explicit_and_omitted_count_is_preserved(self):

@@ -82,7 +82,7 @@ func TestAdapterStatusIsReadOnlyAndReportsProgress(t *testing.T) {
 	before := adapterTreeSnapshot(t, root)
 
 	code, got := runAdapterForTest(t, "-action", "status", "-product", root)
-	if code != 0 || got.ExitCode != 0 || got.Outcome != "stopped" {
+	if code != 0 || got.ExitCode != 0 || got.Outcome != "needs_action" {
 		t.Fatalf("unexpected result: code=%d result=%+v", code, got)
 	}
 	if got.Progress != (adapterProgress{Closed: 1, Total: 2}) || got.CurrentStep != "2" || got.NextAction != "run_loop" || got.StopReason != "no_live_worker" {
@@ -167,7 +167,7 @@ func TestAdapterStatusRejectsUnverifiedStaleAndUnrelatedRunningReceipts(t *testi
 			tt.edit(root, r)
 			writeAdapterReceipt(t, root, "stale", r)
 			_, got := runAdapterForTest(t, "-action", "status", "-product", root, "-principal", "alice", "-session-key", "session-1")
-			if got.Outcome != "stopped" || got.StopReason != "no_live_worker" || len(got.Workers) != 0 {
+			if got.Outcome != "needs_action" || got.StopReason != "no_live_worker" || len(got.Workers) != 0 {
 				t.Fatalf("stale/unrelated receipt reported running: %+v", got)
 			}
 			if len(got.Receipts) != tt.expectReceipts {

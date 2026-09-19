@@ -5,10 +5,11 @@ package main
 import (
 	"os"
 	"syscall"
+	"time"
 )
 
-func adapterProcessAlive(pid int) bool {
-	if pid <= 0 {
+func adapterProcessMatches(pid int, receiptStartedAt time.Time) bool {
+	if pid <= 0 || receiptStartedAt.IsZero() {
 		return false
 	}
 	process, err := os.FindProcess(pid)

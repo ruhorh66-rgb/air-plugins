@@ -61,6 +61,27 @@ class HookEnforcementTests(unittest.TestCase):
         self.hooks.record_status(str(self.root), self.result(action="status"), session_id="session-a")
         self.assertIn("not verify", self.assert_continues()["message"])
 
+    def test_terminal_output_enforcement_rewrites_status_only_success_claim(self):
+        """Hermes 0.21.3 skips pre_verify when a turn has no recorded code edits."""
+        self.bind()
+        self.hooks.record_status(str(self.root), self.result(action="status"), session_id="session-a")
+        blocked = self.hooks.transform_llm_output(
+            session_id="session-a", response_text="Done", turn_id="turn-1"
+        )
+        self.assertIsInstance(blocked, str)
+        self.assertTrue(blocked.startswith("BLOCKED:"))
+        self.assertIn("not verify", blocked)
+
+    def test_terminal_output_enforcement_allows_same_session_verify_only(self):
+        self.bind("session-a")
+        self.bind("session-b")
+        self.hooks.record_status(str(self.root), self.result(), session_id="session-a")
+        self.assertIsNone(self.hooks.transform_llm_output(session_id="session-a", response_text="Done"))
+        self.assertIn(
+            "missing",
+            self.hooks.transform_llm_output(session_id="session-b", response_text="Done"),
+        )
+
     def test_nonzero_verify_exit_codes_fail_closed(self):
         self.bind()
         for code in (1, 2):
@@ -83,6 +104,14 @@ class HookEnforcementTests(unittest.TestCase):
                 self.assertIn(text, self.assert_continues()["message"])
         self.hooks.record_status(str(self.root), self.result(), session_id="session-a")
         self.assertIsNone(self.hooks.pre_verify(session_id="session-a", changed_paths=[str(self.changed)]))
+
+    def test_atomic_enforce_status_with_embedded_verify_allows_completion(self):
+        self.bind()
+        value = self.result(action="status")
+        value.update({"verified": True, "verification_action": "verify"})
+        self.hooks.record_status(str(self.root), value, session_id="session-a")
+        self.assertIsNone(self.hooks.pre_verify(session_id="session-a", changed_paths=[str(self.changed)]))
+        self.assertIsNone(self.hooks.transform_llm_output(session_id="session-a", response_text="Done"))
 
     def test_status_run_and_error_clear_prior_verification(self):
         self.bind()
@@ -160,6 +189,9 @@ class HookEnforcementTests(unittest.TestCase):
                 )
                 self.assertIsNone(
                     self.hooks.pre_verify(session_id="session-a", changed_paths=[str(self.changed)])
+                )
+                self.assertIsNone(
+                    self.hooks.transform_llm_output(session_id="session-a", response_text="Done")
                 )
         self.assertIsNotNone(self.hooks.pre_llm_call(session_id="session-a"))
 

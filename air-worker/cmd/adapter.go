@@ -169,7 +169,7 @@ func readAdapterReceipts(root, currentStep, principal, sessionKey string) ([]ada
 			continue
 		}
 		items = append(items, adapterReceiptItem{path: path, r: r})
-		if r.Status == jobStatusRunning && r.ProcessStarted && r.PID > 0 && adapterProcessAlive(r.PID) {
+		if r.Status == jobStatusRunning && r.ProcessStarted && r.PID > 0 && adapterProcessMatches(r.PID, r.StartedAt) {
 			workers = append(workers, adapterWorker{
 				JobID: r.JobID, PID: r.PID, Step: r.Step, Operation: r.Operation,
 				Principal: r.Principal, SessionKey: r.Session, Runner: r.Runner,
@@ -246,7 +246,10 @@ func buildAdapterStatus(root, configPath, principal, sessionKey string) adapterE
 	}
 
 	result.ExitCode = 0
-	result.Outcome = "stopped"
+	// Pending executable work with no live worker is not a successful stop.
+	// Keep it non-terminal so every harness must advance it with `loop` or
+	// report a continuity failure instead of presenting an idle campaign as done.
+	result.Outcome = "needs_action"
 	result.DetailPath = planPath
 	var current *workStep
 	for i := range steps {

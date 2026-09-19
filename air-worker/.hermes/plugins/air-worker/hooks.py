@@ -3,7 +3,10 @@
 The in-memory records below are only same-process enforcement evidence.  They do
 not claim that the AirWorker binary owns, or can authenticate, a Hermes session;
 the current adapter API does not carry such an ownership contract.  A plugin
-restart therefore discards verification evidence and completion fails closed.
+restart therefore discards verification evidence.  On Hermes 0.21.3,
+``pre_verify`` is a bounded continuation hook that fires only after generic file
+edits; terminal-output enforcement can rewrite a premature success claim but
+cannot continue a status-only agent turn.
 """
 from __future__ import annotations
 
@@ -144,7 +147,7 @@ def record_status(product: str, status: Mapping[str, Any], session_id: str = "")
     keys = (
         "schema_version", "action", "outcome", "exit_code", "progress",
         "current_step", "next_action", "stop_reason", "receipts", "evidence",
-        "workers", "detail_path", "log_path",
+        "workers", "detail_path", "log_path", "verified", "verification_action",
     )
     with _LOCK:
         # Compatibility for direct callers: infer only when exactly one canonical
@@ -285,24 +288,19 @@ def post_tool_call(**kwargs: Any) -> None:
         del _EVENTS[:-_MAX]
 
 
-def pre_verify(**kwargs: Any):
-    product, status = _bound(kwargs)
-    if not product:
-        return None
-    if not is_enforcing():
-        return None
-    sid = _sid(kwargs)
+def _verification_failure(product: str, status: Optional[Mapping[str, Any]], sid: str) -> Optional[str]:
+    """Return why final output may not claim ``product`` complete, or ``None``."""
     if not sid:
-        return {"action": "continue", "message": "AirWorker completion has no canonical Hermes session id; run air_worker verify in this session."}
+        return "AirWorker completion has no canonical Hermes session id; run air_worker verify in this session."
     if not status:
-        return {"action": "continue", "message": "AirWorker verification evidence is missing for this session; run air_worker verify."}
-    if status.get("action") != "verify":
-        return {"action": "continue", "message": "The latest same-session AirWorker action was not verify; run air_worker verify."}
+        return "AirWorker verification evidence is missing for this session; run air_worker verify."
+    if status.get("action") != "verify" and status.get("verified") is not True:
+        return "The latest same-session AirWorker action was not verify; run air_worker verify."
     exit_code = status.get("exit_code")
     if isinstance(exit_code, bool) or not isinstance(exit_code, int) or exit_code != 0:
-        return {"action": "continue", "message": "The latest same-session AirWorker verify did not exit successfully; rerun air_worker verify."}
+        return "The latest same-session AirWorker verify did not exit successfully; rerun air_worker verify."
     if status.get("outcome") != "completed":
-        return {"action": "continue", "message": "The latest same-session AirWorker verify did not complete; resolve it and verify again."}
+        return "The latest same-session AirWorker verify did not complete; resolve it and verify again."
     receipts = status.get("receipts")
     evidence = status.get("evidence")
     has_receipt = isinstance(receipts, (list, tuple)) and any(
@@ -312,10 +310,38 @@ def pre_verify(**kwargs: Any):
     )
     has_evidence = has_receipt or bool(evidence)
     if not has_evidence:
-        return {"action": "continue", "message": "The latest same-session AirWorker verify has no current receipt or evidence; verify again."}
+        return "The latest same-session AirWorker verify has no current receipt or evidence; verify again."
     if not isinstance(status.get("log_path"), str) or not status["log_path"].strip():
-        return {"action": "continue", "message": "The latest same-session AirWorker verify has no log_path; verify again."}
+        return "The latest same-session AirWorker verify has no log_path; verify again."
     return None
+
+
+def pre_verify(**kwargs: Any):
+    product, status = _bound(kwargs)
+    if not product or not is_enforcing():
+        return None
+    message = _verification_failure(product, status, _sid(kwargs))
+    if message:
+        return {"action": "continue", "message": message}
+    return None
+
+
+def transform_llm_output(**kwargs: Any):
+    """Rewrite premature success at Hermes 0.21.3's final-output seam.
+
+    ``pre_verify`` is only a bounded nudge after Hermes-recorded code edits.  A
+    status-only managed turn has no edits, so that hook is never called.  The
+    output transform cannot continue the turn; it only replaces an unverified
+    terminal response with an explicit policy failure so it cannot represent
+    successful product completion.
+    """
+    product, status = _bound(kwargs)
+    if not product or not is_enforcing():
+        return None
+    message = _verification_failure(product, status, _sid(kwargs))
+    if not message:
+        return None
+    return f"BLOCKED: Managed AirWorker product {product} cannot complete. {message}"
 
 
 def _sub(event: str, k: Mapping[str, Any]) -> None:

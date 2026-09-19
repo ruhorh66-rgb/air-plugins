@@ -1,15 +1,17 @@
 # CHANGELOG — air-worker
 
-## 0.10.10 — Unreleased
+## 0.10.10 — 19.09.2026
 
 ### Hermes adapter facade and non-switching profile packages
 
 - Added a compact, binary-owned adapter facade for read-only status and identity-bound campaign evidence; the harness remains transport and lifecycle glue rather than a second workflow engine.
 - Added a single-tool Hermes plugin contract with fixed action enums, deterministic hooks, trusted binary resolution, bounded output, redacted logs, and fail-closed completion enforcement.
+- Pending executable work with no live worker is now `needs_action`, never a successful stop. Shadow status remains read-only; enforce status atomically resumes that orphaned state through the existing binary loop and judges completion before returning `verified: true`. A zero-exit promoted or explicit `run` that returns to the same idle-pending state fails as `continuity_violation`; unverified terminal text is rewritten as an explicit policy failure.
+- Windows worker liveness now correlates the live PID creation time with the receipt start time, so a stale `RUNNING` receipt cannot accept a reused PID as its worker.
 - Added minimal shadow and enforce Hermes profiles side-by-side, with explicit-only activation and no copied credentials, memory, sessions, cron, host paths, or unrelated state.
 - Added cross-platform Go contract tests plus non-mutating PowerShell release checks for Claude, Codex, Hermes, profile isolation, UTF-8/no-BOM skill packaging, and static adapter validation.
 
-The Hermes release contract now matches the supported 0.21.3 chat path: query-file/stdin transport, one-shot execution, max-turn and run-budget bounds. A combined chat usage receipt is explicitly optional and deferred to a future contract after Hermes ships it; it no longer blocks 0.10.10. Promotion still requires an isolated baseline→shadow→enforce canary using AirWorker receipts and Claude/Codex regression checks. Live/default profiles, installed plugins, caches, hooks, and active sessions are unchanged.
+The Hermes release contract now matches the supported 0.21.3 chat path: query-file/stdin transport, one-shot execution, max-turn and run-budget bounds. A combined chat usage receipt is explicitly optional and deferred to a future contract after Hermes ships it; it no longer blocks 0.10.10. Isolated baseline→shadow→enforce acceptance proved `0/2 → 1/2 → 2/2` in one enforce `status` call, atomic judge verification, bypass blocking, and no default-profile switch.
 
 ## 0.10.9 — 18.09.2026
 
