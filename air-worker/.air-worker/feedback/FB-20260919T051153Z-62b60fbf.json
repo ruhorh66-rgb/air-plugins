@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260919T051153Z-62b60fbf",
+  "created_at": "2026-09-19T05:11:53.7339221Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.9",
+  "type": "defect",
+  "severity": "P3",
+  "observed": "Соседняя сессия при загрузке плагина 19.09.2026 около 13:00: air-worker tray -status отвечал «значок поднят», а install -status в то же время — что оболочка отказала принять значок. После tray -ensure install -status показал «ВИСИТ, принят 13:00:18, процесс 12556». Наблюдение передано ЛПР, воспроизведено не этой сессией.",
+  "expected": "tray -status отличает «процесс значка жив» от «оболочка приняла значок», как это делает install -status (DEPLOY.md: четыре строки — четыре разных утверждения).",
+  "evidence": "docs/receipts/AIRWORKER_0.10.9_CANONICALIZATION_2026-09-19.md (раздел 5, отчёт соседней сессии)",
+  "reproduction": "Значок, не принятый оболочкой (например, после перезапуска проводника): сравнить air-worker tray -status и air-worker install -status.",
+  "workaround": "air-worker tray -ensure, затем install -status.",
+  "proposed_outcome": "tray -status не называет значок поднятым, пока оболочка его не приняла."
+}

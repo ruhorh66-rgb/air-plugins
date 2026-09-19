@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260919T044427Z-1c5cc3db",
+  "created_at": "2026-09-19T04:44:27.4200794Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.9",
+  "type": "defect",
+  "severity": "P3",
+  "observed": "На SRVLM01 два процесса air-worker-tray.exe: видимый значок PID 12556 в сессии 1 (из %LOCALAPPDATA%\\air-worker\\bin, с 18.09 02:26) и второй PID 12092 в сессии 0 (неинтерактивной) с 18.09 08:53; путь образа второго недоступен. tray -status отвечает «значок поднят» и второй процесс не называет.",
+  "expected": "Значок один на пользователя в интерактивной сессии; в сессии 0 значок не поднимается; tray/install -status называют все процессы значка.",
+  "evidence": "docs/receipts/AIRWORKER_0.10.9_CANONICALIZATION_2026-09-19.md; Get-CimInstance Win32_Process -Filter \"Name='air-worker-tray.exe'\"",
+  "reproduction": "Неизвестно, кто поднял процесс в сессии 0; вероятно вызов tray -ensure из неинтерактивного запуска.",
+  "workaround": "Остановить лишний процесс вручную.",
+  "proposed_outcome": "tray -ensure отказывается в сессии 0; -status показывает число процессов значка."
+}

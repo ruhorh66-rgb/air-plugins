@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260919T054925Z-03d8b601",
+  "created_at": "2026-09-19T05:49:25.7976143Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.9",
+  "type": "defect",
+  "severity": "P1",
+  "observed": "Указание ЛПР 19.09.2026: «штатным запуском планировщика тоже должен заниматься ядро Airworker. Если это не реализовано, либо мы нарушили, то нужно это прописать явно и зафиксировать это в фидбэк для следующего релиза». Факт 19.09: air-worker plan -model sol:ultra упал на «command line is too long» (FB-20260919T052235Z-83ec8ec3). Модель пришлось звать сессии вручную: codex exec … - \u003c .woody\\planner-prompt.txt. Ядро только разобрало ответ через -use-answer. При этом -use-answer не принимает ни JSONL-события codex («invalid character { after top-level value»), ни чистый ответ модели («invalid character *»), а только обёртку {\"result\": …}, собранную руками. Квитанции планировщика (receipt с моделью, усилием и замером) при таком обходе нет.",
+  "expected": "Планировщика запускает только ядро air-worker, с заданием через файл или stdin, с receipt и замером. -use-answer принимает сохранённый ответ codex в его родном формате (JSONL) и в формате claude. Ручной вызов модели сессией в обход ядра не нужен и явно запрещён в описании продукта.",
+  "evidence": "F:\\-0-\\AIR_OS\\04_AI_OPERATIONS\\WOODY_RUNS\\srvlm01-airenv002-storage-order-0109\\.woody\\planner-manual-20260919.jsonl; .woody\\planner-answer-manual-20260919.json",
+  "reproduction": "air-worker plan -product \u003cпродукт\u003e -model sol:ultra на Windows с заданием больше предела командной строки",
+  "workaround": "codex exec -m gpt-5.6-sol -c model_reasoning_effort=ultra -s read-only --json -o \u003cответ\u003e - \u003c .woody\\planner-prompt.txt; обернуть ответ в {\"result\": …}; air-worker plan -use-answer",
+  "proposed_outcome": "Следующий релиз: запуск планировщика — только ядро; stdin/файл вместо командной строки; -use-answer понимает родные форматы; раздел «Планирование» в SKILL.md явно говорит, что ручной обход — нарушение."
+}

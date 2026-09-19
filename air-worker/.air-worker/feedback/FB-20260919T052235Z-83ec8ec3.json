@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260919T052235Z-83ec8ec3",
+  "created_at": "2026-09-19T05:22:35.5400581Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.9",
+  "type": "defect",
+  "severity": "P1",
+  "observed": "Планировщик air-worker plan с моделью sol:ultra (Codex) падает за 1 секунду: «The command line is too long». Задание планировщика 21 972 байта уходит в командную строку codex. Продукт srvlm01-airenv002-storage-order-0109, 19.09.2026 13:21; квитанция .woody\\jobs\\legacy-default-plan-planner-codex.out. Тот же класс, что FB-20260918T054119Z-f2562fb5 у исполнителя, но в пути планировщика.",
+  "expected": "Задание планировщику передаётся через stdin или файл: codex exec принимает «-» и читает задание из stdin.",
+  "evidence": "F:\\-0-\\AIR_OS\\04_AI_OPERATIONS\\WOODY_RUNS\\srvlm01-airenv002-storage-order-0109\\.woody\\jobs\\legacy-default-plan-planner-codex.out",
+  "reproduction": "air-worker plan -product \u003cкорень с OBJECTIVE.md ~10 КБ\u003e -model sol:ultra на Windows",
+  "workaround": "codex exec -m gpt-5.6-sol -c model_reasoning_effort=ultra -s read-only --json -o \u003cфайл ответа\u003e - \u003c .woody\\planner-prompt.txt; затем air-worker plan -use-answer \u003cфайл ответа\u003e",
+  "proposed_outcome": "Планировщик Codex запускается с заданием любой длины."
+}

@@ -1,9 +1,21 @@
 # air-worker
 
+> **Start here (0.10.x).** The product is the `air-worker` binary: judge, goal-drift engine,
+> loop, planner, report, feedback, install/tray. Hooks only deliver host events to it; skills
+> are optional help. A new session starts from the product instruction
+> (`E:\-5-\011_Plugins\AirWorker_Wiki\PRODUCT_INSTRUCTION.md` on the AIR OS coordinator) and
+> `PLAN.md`, section «Состояние и порядок старта». The released version is the newest
+> `air-worker--v*` tag on `origin/main`; the installed one is what `air-worker install -status`
+> reports. Branches `release/*`, `fix/*`, `wip/*` that are not merged into `main` are not releases.
+>
+> The sections below describe the heavy-task executor `skills/run-worker-task` (signed requests
+> through `llm-queue`, default since 0.3.0). It is one executor inside the product, not the 0.10.x
+> control plane.
+
 `air-worker` is the canonical dual-host plugin for Claude and Codex. It executes
 heavy non-swarm tasks through the existing `llm-queue`.
-Version 0.3.0 changes the default: a signed request is created and executed locally
-immediately. Telegram approval remains available only as `--approval telegram`.
+Since 0.3.0 its default is direct execution: a signed request is created and executed
+locally immediately. Telegram approval remains available only as `--approval telegram`.
 
 Install and release this directory as the one Claude+Codex package. The sibling
 `../air-worker-codex` directory is a checkout-only compatibility adapter for older
@@ -43,7 +55,8 @@ Direct queue dispatch now requires the queue's targeted `run-job` and
 `show-job-json` capability contract. It atomically starts exactly one known queue
 id, then polls that same id's redacted JSON receipt. The historical global
 `run --limit` implementation is unsafe with concurrent jobs and is rejected
-fail-closed; see [docs/GOAL.md](docs/GOAL.md).
+fail-closed; see the «Current release gate» section of
+[skills/run-worker-task/SKILL.md](skills/run-worker-task/SKILL.md).
 
 ## Router dependency
 
@@ -64,7 +77,9 @@ operations/runbooks, release history and accepted product knowledge. It is not a
 runtime directory: requests, results, metrics, protocol and secrets remain under
 the host-local `AIR_WORKER_RUNTIME`. `010_Task_Control_Platform` keeps only the
 aggregated status and a link. Other hosts resolve the equivalent coordinate through
-their AIR Storage registry instead of assuming the Windows drive path.
+their AIR Storage registry instead of assuming the Windows drive path. The session entry
+point there is `PRODUCT_INSTRUCTION.md`; the canonical and only development plan is
+`PLAN.md` in this directory.
 
 ## Legacy Telegram
 
@@ -81,4 +96,4 @@ runtime, identified by task id and status.
 
 Run `python skills/run-worker-task/scripts/selftest.py` from this plugin root for the
 offline suite. It includes 36 checks; live route verification is separate. See
-[docs/GOAL.md](docs/GOAL.md) and the shared skill for migration and acceptance.
+[skills/run-worker-task/SKILL.md](skills/run-worker-task/SKILL.md) for migration and acceptance.

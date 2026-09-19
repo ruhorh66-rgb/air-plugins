@@ -1,6 +1,10 @@
 # air-worker goal
 
-plan_for_version: 0.10.9
+plan_for_version: 0.10.10
+
+> Renumbered 2026-09-19 to match the PLAN release train: 0.10.7–0.10.9 were spent on
+> Codex access, the OpenAI fallback ladder and a hotfix, so the protected multi-session kernel is
+> 0.10.10, hardening 0.10.11 and GPT Chat + RDC 0.10.12. Scope is unchanged; `PLAN.md` wins.
 
 ## Goal
 
@@ -21,10 +25,11 @@ Make AirWorker the protected multi-session execution kernel used by AirBot-style
 1. Host-neutral principal/session identity (`39`).
 2. Multi-session isolation core (`83`).
 3. Durable owned job receipts (`73`).
-4. Canonical PlanState with scoped runtime state (`71`).5. Binary protection hook and session-aware guard (`38`, `41`).
+4. Canonical PlanState with scoped runtime state (`71`).
+5. Binary protection hook and session-aware guard (`38`, `41`).
 6. Safe one-work-step execution per session (`74`).
 
-## Acceptance for 0.10.9
+## Acceptance for 0.10.10
 
 - Two sessions on the same product run concurrently with distinct session/job state.
 - Finishing or failing one does not stop, close or overwrite the other.
@@ -35,4 +40,4 @@ Make AirWorker the protected multi-session execution kernel used by AirBot-style
 
 ## Deferred after the first protected kernel
 
-Distribution selfcheck, full validate/selector batching, cheap structured observability, subagent accounting/topology and role cleanup are the 0.10.10 hardening layer. GPT Chat + RDC remains the following external-host adapter layer.
+Distribution selfcheck, full validate/selector batching, cheap structured observability, subagent accounting/topology and role cleanup are the 0.10.11 hardening layer. GPT Chat + RDC remains the following external-host adapter layer (0.10.12).
