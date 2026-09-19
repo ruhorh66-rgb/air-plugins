@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260919T052623Z-3ceaa2e8",
+  "created_at": "2026-09-19T05:26:23.7326069Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.9",
+  "type": "friction",
+  "severity": "P3",
+  "observed": "skills/woody/SKILL.md, строка 744, объясняет молчание стража тем, что «Вуди грузится на каждом старте по контракту AIR_START». С AIR_START 0.15 (решение ЛПР 19.09.2026) пункт 6 снят: «Дятел Вуди» на старте не читается и живёт только в составе плагина air-worker.",
+  "expected": "Текст скила не ссылается на загрузку через AIR_START.",
+  "evidence": "docs/receipts/AIRWORKER_0.10.9_CANONICALIZATION_2026-09-19.md; AIR_OS 00_BOOTSTRAP/AIR_START_JOURNAL.md, запись 0.15",
+  "reproduction": "Прочитать skills/woody/SKILL.md около строки 744.",
+  "workaround": "Само правило стража (молчит, пока режим не включён) верно; неверно только объяснение. Скил 0.10.9 равен тегу и до выпуска не правится.",
+  "proposed_outcome": "В следующем выпуске строка говорит: страж молчит, пока режим не включён, как бы ни был загружен скил."
+}

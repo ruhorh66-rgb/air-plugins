@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260918T054119Z-a2405264",
+  "created_at": "2026-09-18T05:41:19.8120813Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.9",
+  "type": "defect",
+  "severity": "P2",
+  "observed": "air-worker goals отвечает «годен: да» на плане, где 38 критериев из 40 судья не может измерить: проверки отвечают кодом 2 «неизвестный пункт», потому что таких пунктов в скриптах нет. Продукт srvlm01-airenv002-storage-order-0109, 18.09.2026.",
+  "expected": "goals сверяет, что каждый тест критерия известен своей проверке (либо помечен как появляющийся на названном шаге), и называет неизмеримые критерии.",
+  "evidence": "F:\\-0-\\AIR_OS\\04_AI_OPERATIONS\\WOODY_RUNS\\srvlm01-airenv002-storage-order-0109\\.goal-verdict",
+  "reproduction": "air-worker goals -product F:\\-0-\\AIR_OS\\04_AI_OPERATIONS\\WOODY_RUNS\\srvlm01-airenv002-storage-order-0109",
+  "workaround": "Проверки расширяются шагом 3 плана продукта.",
+  "proposed_outcome": "План, который судья не может измерить, не объявляется годным молча."
+}

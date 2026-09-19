@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260919T044427Z-3154812f",
+  "created_at": "2026-09-19T04:44:27.3926316Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.9",
+  "type": "defect",
+  "severity": "P2",
+  "observed": "Команды feedback, goals и judge молча работали по дереву F:\\-7-\\air-worker, отставшему от выпуска: локальный main стоял на 0.10.6 (11 коммитов позади origin/main), а установлен был 0.10.9. 18.09.2026 четыре feedback с source=0.10.9 записаны в PLAN этого дерева и в канонический PLAN на origin/main не попали; goals мерил план 0.10.6 (68 критериев вместо 73).",
+  "expected": "Команда, пишущая или меряющая канонический PLAN, сверяет дерево продукта с установленным выпуском (версия plugin.json / положение относительно origin) и при расхождении называет его, а не работает молча.",
+  "evidence": "docs/receipts/AIRWORKER_0.10.9_CANONICALIZATION_2026-09-19.md; ветка wip/air-worker-0.10.10-batch-41-46 коммит a050388",
+  "reproduction": "Дерево продукта на теге ниже установленной версии; air-worker feedback -product \u003cдерево\u003e ...; air-worker goals -product \u003cдерево\u003e.",
+  "workaround": "Дерево синхронизировано с origin/main 19.09.2026; recovery-шаг 3 PLAN требует пустого git status -- air-worker.",
+  "proposed_outcome": "Расхождение дерева и выпуска видно в выводе feedback/goals/judge и install -status."
+}

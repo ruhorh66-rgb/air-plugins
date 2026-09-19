@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260918T054119Z-f2562fb5",
+  "created_at": "2026-09-18T05:41:19.7784849Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.9",
+  "type": "defect",
+  "severity": "P1",
+  "observed": "Исполнитель codex не стартует на Windows: «The command line is too long». Продукт srvlm01-airenv002-storage-order-0109, шаг 2, ступень luna:medium, оркестрация 2 субагента, 18.09.2026 10:15–10:28: три попытки, 0 ходов, «исполнитель отказал, работы не было». Подъём ступени после провала script-шага поэтому невозможен, модельные шаги плана упрутся в то же.",
+  "expected": "Задание исполнителю codex передаётся файлом или через stdin, длина командной строки не зависит от текста задания и вердикта судьи.",
+  "evidence": "F:\\-0-\\AIR_OS\\04_AI_OPERATIONS\\WOODY_RUNS\\srvlm01-airenv002-storage-order-0109\\.woody\\jobs\\hermes-android-20260918-024810-91d4d2-2-executor-codex-gpt-5-6-luna-medium-iter-2.out",
+  "reproduction": "Модельный шаг с исполнителем codex после провала script-ступени, когда в задание попадает полный вердикт судьи (40 критериев).",
+  "workaround": "нет",
+  "proposed_outcome": "Исполнитель codex стартует с заданием любой длины; отказ запуска называется причиной, а не «работы не было»."
+}

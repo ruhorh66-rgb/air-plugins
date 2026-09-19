@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260919T053702Z-44fa81f7",
+  "created_at": "2026-09-19T05:37:02.676352Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.9",
+  "type": "defect",
+  "severity": "P3",
+  "observed": "air-worker drift -json на продукте с негодным планом печатает текст «ОТКАЗ: план не годен к работе…» с кодом 2, а не JSON. Значок разбирает ответ drift как JSON и показывает «ответ drift не разобран» вместо причины (cmd/tray/main_windows.go, measure). Продукт srvlm01-airenv002-storage-order-0109, 19.09.2026: план не годен — критерии ссылаются на проверку «артефакты плана», которой в судье нет.",
+  "expected": "drift -json отвечает JSON и на отказе (код 2, причина полем); значок показывает причину.",
+  "evidence": "docs/receipts/AIRWORKER_0.10.9_CANONICALIZATION_2026-09-19.md; air-worker drift -product F:\\-0-\\AIR_OS\\04_AI_OPERATIONS\\WOODY_RUNS\\srvlm01-airenv002-storage-order-0109 -json",
+  "reproduction": "Продукт с негодным планом; air-worker drift -product \u003cпродукт\u003e -json.",
+  "workaround": "air-worker goals -product \u003cпродукт\u003e называет причину негодности плана.",
+  "proposed_outcome": "Машинный вывод -json не бывает текстом; подсказка значка называет «план не годен»."
+}

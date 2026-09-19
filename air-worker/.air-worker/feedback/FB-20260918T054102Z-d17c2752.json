@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260918T054102Z-d17c2752",
+  "created_at": "2026-09-18T05:41:02.8881401Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.9",
+  "type": "defect",
+  "severity": "P1",
+  "observed": "Шаг ступени script с командой, обёрнутой в обратные кавычки после «::», исполняется с кавычками: закрывающая кавычка уходит в последний аргумент. Продукт srvlm01-airenv002-storage-order-0109, шаг 2: «pwsh -NoProfile -File tools/check-backup-900.ps1 -Only сервер-облако» — проверка получает пункт «сервер-облако`» и отвечает «неизвестный пункт». Планировщик (sol:ultra) обернул так команды 31 шага из 48; air-worker goals ответил «годен: да». Петля провела на шаге 2 около 90 кампаний с 10:13 до 13:36 18.09.2026.",
+  "expected": "Разбор плана снимает обрамляющие обратные кавычки с команды после «::» либо goals отклоняет такой шаг с названной причиной; планировщик пишет команду без кавычек.",
+  "evidence": "F:\\-0-\\AIR_OS\\04_AI_OPERATIONS\\WOODY_RUNS\\srvlm01-airenv002-storage-order-0109\\.airworker-supervisor\\campaign-02-20260918-130924.stdout.log; docs\\receipts\\PLAN.pre-backtick-fix-20260918.md",
+  "reproduction": "Шаг: | 2 | … :: `pwsh -NoProfile -File tools/check-backup-900.ps1 -Only сервер-облако` | `script` | …; air-worker loop на этом плане.",
+  "workaround": "Кавычки сняты в плане продукта вручную 18.09.2026 13:38; та же команда без кавычек отвечает кодом 0.",
+  "proposed_outcome": "Команда script-шага исполняется ровно так, как записана без markdown-обрамления; план с обёрнутой командой не проходит goals."
+}

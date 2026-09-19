@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260919T044427Z-5a14b9d6",
+  "created_at": "2026-09-19T04:44:27.3454393Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.9",
+  "type": "defect",
+  "severity": "P2",
+  "observed": "Проверка судьи «бинарник собран, отвечает и согласен со скриптом» (tools/check-binary.ps1) красная на чистой копии тега air-worker--v0.10.9: 3 FAIL. Вердикт бинарника содержит поля criteria_passed, criteria_total, lpr_gates и текст «критериев N», legacy-судья judge.ps1 — нет. В релизный гейт 0.10.9 по акту приёмки проверка не входила, в PLAN не записана. Перепроверка 19.09.2026.",
+  "expected": "Проверка судьи продукта либо зелёная, либо её красный статус и причина записаны в PLAN; сверка скрипт/бинарник не краснеет от добавленных полей бинарника.",
+  "evidence": "docs/receipts/AIRWORKER_0.10.9_CANONICALIZATION_2026-09-19.md; tools/check-binary.ps1",
+  "reproduction": "powershell -NoProfile -ExecutionPolicy Bypass -File tools\\check-binary.ps1 -ProductRoot \u003cчистая копия тега\u003e\\air-worker",
+  "workaround": "нет; на работу выпуска не влияет, расстояние судьи продукта включает эту красную проверку",
+  "proposed_outcome": "Сверка скрипт/бинарник приведена к текущему формату вердикта либо снята вместе со второй реализацией судьи; решение записано в PLAN."
+}

@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260919T053702Z-23872bd7",
+  "created_at": "2026-09-19T05:37:02.7074431Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.9",
+  "type": "friction",
+  "severity": "P3",
+  "observed": "skills/run-worker-task/SKILL.md (раздел «Current release gate») и README отсылают к docs/GOAL.md за блокером llm-queue (run-job/show-job-json), а docs/GOAL.md с 0.10.x описывает multi-session kernel и о llm-queue ничего не содержит. README поправлен 19.09.2026 при канонизации, скил равен тегу 0.10.9 и до выпуска не правится.",
+  "expected": "Ссылки ведут туда, где блокер llm-queue описан, либо описание блокера лежит в самом скиле.",
+  "evidence": "docs/receipts/AIRWORKER_0.10.9_CANONICALIZATION_2026-09-19.md; skills/run-worker-task/SKILL.md; docs/GOAL.md",
+  "reproduction": "Открыть ссылку «see docs/GOAL.md» из skills/run-worker-task/SKILL.md.",
+  "workaround": "Блокер описан в самом SKILL.md run-worker-task, раздел «Current release gate».",
+  "proposed_outcome": "В следующем выпуске ссылка в скиле исправлена."
+}
