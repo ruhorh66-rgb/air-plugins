@@ -155,6 +155,25 @@ func TestAdapterStatusReportsLiveSemanticReviewerIdentity(t *testing.T) {
 	}
 }
 
+func TestEnforceDoesNotRelaunchWithLiveSemanticReviewerFromClosedStep(t *testing.T) {
+	root := t.TempDir()
+	writeAdapterFixture(t, root, "- [x] sonnet implementation\n- [ ] script acceptance\n")
+	writeAdapterReceipt(t, root, "review", &jobReceipt{
+		JobID: "review-closed-step", PID: os.Getpid(), StartedAt: time.Now().UTC(), Status: jobStatusRunning,
+		Product: root, Step: "1", Operation: "semantic-reviewer", Runner: "codex",
+		Provider: "codex", Model: "gpt-5.6-sol", Role: "semantic-reviewer", Sandbox: "read-only",
+		Principal: "hermes", Session: "session-1", ProcessStarted: true,
+	})
+
+	code, got := runAdapterForTest(t, "-action", "status", "-product", root, "-principal", "hermes", "-session-key", "session-1")
+	if code != 0 || got.CurrentStep != "2" || got.Outcome != "running" || got.NextAction != "wait" || got.StopReason != "" {
+		t.Fatalf("live reviewer for closed step did not suppress relaunch: code=%d result=%+v", code, got)
+	}
+	if len(got.Workers) != 1 || got.Workers[0].Step != "1" || got.Workers[0].Role != "semantic-reviewer" {
+		t.Fatalf("cross-step reviewer identity missing: %#v", got.Workers)
+	}
+}
+
 func TestAdapterHelperExit(t *testing.T) {
 	if os.Getenv("AIR_WORKER_ADAPTER_HELPER_EXIT") == "1" {
 		os.Exit(0)

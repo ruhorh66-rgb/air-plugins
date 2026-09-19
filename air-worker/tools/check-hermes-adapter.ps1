@@ -79,7 +79,7 @@ foreach ($name in $profileNames) {
     if ($contract.schema_version -ne 'air-worker.hermes-profile/v1' -or $contract.contract_version -ne '1.0.0') { Fail "$name profile contract version mismatch" }
     if ($contract.profile.name -ne $name -or $contract.profile.mode -ne ($name -replace '^airworker-hermes-v1-', '')) { Fail "$name profile identity mismatch" }
     if ([bool]$contract.profile.enforcement -ne $name.EndsWith('-enforce')) { Fail "$name enforcement mismatch" }
-    if ($contract.plugin.name -ne 'air-worker' -or $contract.plugin.version -ne '0.10.10') { Fail "$name plugin identity mismatch" }
+    if ($contract.plugin.name -ne 'air-worker' -or $contract.plugin.version -ne '0.10.11') { Fail "$name plugin identity mismatch" }
     if ($contract.tool.name -ne 'air_worker' -or $contract.tool.schema_version -ne 'air-worker.tool/v1') { Fail "$name tool schema mismatch" }
     $caps = $contract.capability_requirements
     $acceptedTransports = @($caps.safe_prompt_transport.accepted | ForEach-Object { [string]$_ } | Sort-Object)
@@ -92,8 +92,8 @@ foreach ($name in $profileNames) {
 
 $plugin = Read-Utf8NoBom $pluginManifest
 if ($null -ne $plugin) {
-    if ((Yaml-Scalar $plugin 'name') -ne 'air-worker' -or (Yaml-Scalar $plugin 'version') -ne '0.10.10') { Fail 'canonical plugin manifest is not air-worker 0.10.10' }
-    else { Pass 'canonical plugin manifest air-worker 0.10.10' }
+    if ((Yaml-Scalar $plugin 'name') -ne 'air-worker' -or (Yaml-Scalar $plugin 'version') -ne '0.10.11') { Fail 'canonical plugin manifest is not air-worker 0.10.11' }
+    else { Pass 'canonical plugin manifest air-worker 0.10.11' }
 }
 
 $hermes = Get-Command hermes -ErrorAction SilentlyContinue

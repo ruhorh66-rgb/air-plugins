@@ -108,7 +108,8 @@ func TestCriterion78HermesPluginContract(t *testing.T) {
 	if len(skill) > 2048 || bytes.Count(skill, []byte("\n")) > 20 {
 		t.Fatalf("Hermes skill is not short: %d bytes", len(skill))
 	}
-	if !bytes.HasPrefix(skill, []byte("---\n")) || !bytes.Contains(skill, []byte("\n---\n")) {
+	normalizedSkill := bytes.ReplaceAll(skill, []byte("\r\n"), []byte("\n"))
+	if !bytes.HasPrefix(normalizedSkill, []byte("---\n")) || !bytes.Contains(normalizedSkill, []byte("\n---\n")) {
 		t.Fatal("Hermes skill frontmatter is missing or not first")
 	}
 }

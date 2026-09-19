@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.10.10",
-  "description": "AirWorker 0.10.10: binary-owned adapter facade and packaged, non-enabled Hermes plugin/profile contracts; live/default state remains unchanged.",
+  "version": "0.10.11",
+  "description": "AirWorker 0.10.11: LPR gate barrier, Windows PowerShell 5.1 environment guard, and truthful live semantic-reviewer status.",
   "author": {
     "name": "AIR OS"
   },

@@ -1,5 +1,15 @@
 # CHANGELOG — air-worker
 
+## 0.10.11 — 20.09.2026
+
+### Three production P1 corrections
+
+- Stops at the first open LPR gate with the explicit `ЖДЁТ ЛПР` terminal state; malformed gate-like rows fail closed instead of allowing later work to run.
+- Sanitizes `PSModulePath` through one Windows PowerShell 5.1 child-command boundary while leaving PowerShell 7 children unchanged.
+- Keeps a verified live semantic reviewer visible after its implementation step closes, preventing enforce/status from falsely reporting `no_live_worker` or relaunching work.
+
+The release preserves the `air-worker.tool/v1` schema and contains no campaign, reviewer-selector, stdin-transport, or broader orchestration redesign. The plan draft was produced through a one-shot UTF-8 stdin planning bypass; that planner transport is evidence only and is not part of the runtime release scope. Published 0.10.10 artifacts remain immutable.
+
 ## 0.10.10 — 19.09.2026
 
 ### Hermes adapter facade and non-switching profile packages

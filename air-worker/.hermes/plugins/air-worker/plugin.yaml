@@ -1,5 +1,5 @@
 name: air-worker
-version: 0.10.10
+version: 0.10.11
 description: Thin native Hermes transport for the AirWorker binary.
 # Hermes 0.21.3 runtime accepts v2 manifests, but its production installer
 # rejects values above 1. This plugin uses only v1-compatible manifest fields.
