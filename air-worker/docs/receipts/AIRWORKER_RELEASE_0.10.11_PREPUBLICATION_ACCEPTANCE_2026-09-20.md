@@ -9,7 +9,7 @@ Publication / installation / activation: BLOCKED pending separate LPR
 - Repository: `ruhorh66-rgb/air-plugins`
 - Branch: `gpt/air-worker-0.10.11-p1-20260919`
 - Accepted source candidate: `d5824e706e6b022af29a45041b150f93138e941e`
-- Release tag target: assigned by the later binary-only packaging commit after source acceptance.
+- Release packaging/tag target: `adfb7cac8bc5bbe6e5318490603499a9fa6f4fca`.
 - Required base/ancestor: `33edba96ef736baf609bc98fd076de0c69c46300`
 - Scope authority: ARCH v0.3 at `9726f6527ad4c7e211f8d2633f1b70565284f3b3`
 - Accepted scope: only Ц7-1…Ц7-7 / three P1 corrections
@@ -58,6 +58,20 @@ Proven behaviors:
 - PID/start-time correlation and PID-reuse defenses remain mandatory and green.
 - Quarantine stdin transport, campaign redesign, reviewer-selector changes, storage-order scope, and Ц8–Ц11 did not enter runtime implementation.
 
-## Release gate
+## Publication read-back
 
-No tag, push, GitHub Release, marketplace update, installation, activation, service change, or live process replacement was performed. Those actions require a separate explicit LPR decision.
+Publication was explicitly authorized by LPR and completed at 2026-09-20 01:25 +08:00.
+
+- Main: `adfb7cac8bc5bbe6e5318490603499a9fa6f4fca` at publication.
+- Release branch: `release/air-worker-v0.10.11-hermes` → `adfb7cac8bc5bbe6e5318490603499a9fa6f4fca`.
+- Annotated tag: `air-worker--v0.10.11`.
+- Tag object: `6cb76646f724629f4411827807718f9bb4abac5c`.
+- Peeled tag commit: `adfb7cac8bc5bbe6e5318490603499a9fa6f4fca`.
+- GitHub Release ID: `392157169`.
+- URL: https://github.com/ruhorh66-rgb/air-plugins/releases/tag/air-worker--v0.10.11
+- Release state: non-draft, non-prerelease.
+- Asset `air-worker-0.10.11-windows-x64.exe`: ID `575174440`, `uploaded`, 7,647,232 bytes, digest `sha256:0f90b44d120e7587661a42438345db9c0ad054fd3fd094909781649e4f719a21`.
+- Asset `air-worker-tray-0.10.11-windows-x64.exe`: ID `575174442`, `uploaded`, 2,502,656 bytes, digest `sha256:f86d1517d6a37bc690732ac22e13e621039a31076452e4499cd07c1e3692c895`.
+- Asset `opencode-windows-x64-baseline-v1.18.31.zip`: ID `575174441`, `uploaded`, 60,718,508 bytes, digest `sha256:7c4fc9be7124df5e7c42184b99e8d8540fb0863bb0378b0c4219d9567b2d8434`.
+
+Installation, activation, service changes, and live process replacement were not performed and remain outside this publication LPR.
