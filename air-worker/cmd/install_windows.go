@@ -160,7 +160,7 @@ func createStartMenuShortcut(target string) (string, error) {
 		"$s.WorkingDirectory=" + psSingleQuoted(filepath.Dir(target)) + ";" +
 		"$s.Description='AIR Worker';" +
 		"$s.IconLocation=" + psSingleQuoted(target+",0") + ";$s.Save()"
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script)
+	cmd := newPowerShellCommand("-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return shortcut, fmt.Errorf("Start Menu shortcut: %v: %s", err, strings.TrimSpace(decodeOutput(out)))
 	}

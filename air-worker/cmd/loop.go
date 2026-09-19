@@ -429,8 +429,12 @@ func cmdLoop(argv []string) int {
 	// Теперь перед каждой итерацией план перечитывается, и работа идёт над ПЕРВЫМ ОТКРЫТЫМ
 	// исполняемым шагом. Сменился он — новый шаг начинает со своей ступени из плана.
 	for {
-		step, found := firstOpenWorkStep(steps)
-		if !found {
+		step, state := firstOpenPlanStep(steps)
+		if state == openPlanGate {
+			closeWoody("ничего: первый открытый шаг — гейт ЛПР «"+step.Title+"»",
+				"решение ЛПР по этому гейту; следующие шаги до решения не исполняются", 0)
+		}
+		if state == openPlanNone {
 			break
 		}
 		m := resolveLadderTier(c.Ladder, step.Tier)
@@ -913,29 +917,49 @@ func (c *loopCtx) judgeDetailed() (int, string, *judgeResult) {
 	}
 	started := time.Now()
 	args := append([]string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", c.JudgePath}, c.JudgeArgs...)
-	cmd := exec.Command("powershell.exe", args...)
+	cmd := newPowerShellCommand(args...)
 	cmd.Dir = c.Root
 	out, err := cmd.CombinedOutput()
 	c.verdictFresh = verdictWrittenSince(c.Root, started)
 	return exitCode(cmd, err), strings.TrimSpace(decodeOutput(out)), nil
 }
 
-// firstOpenWorkStep — первый незакрытый шаг, исполняемый работой. Гейт шагом работы не
-// считается: его закрывает решение ЛПР.
-func firstOpenWorkStep(steps []workStep) (workStep, bool) {
+type openPlanState uint8
+
+const (
+	openPlanNone openPlanState = iota
+	openPlanWork
+	openPlanGate
+)
+
+// firstOpenPlanStep preserves plan order. An open LPR gate is a barrier: work after it must
+// not be selected until the gate is closed by an LPR decision.
+func firstOpenPlanStep(steps []workStep) (workStep, openPlanState) {
 	for _, s := range steps {
-		if !s.Done && !s.Gate {
-			return s, true
+		if s.Done {
+			continue
 		}
+		if s.Gate {
+			return s, openPlanGate
+		}
+		return s, openPlanWork
 	}
-	return workStep{}, false
+	return workStep{}, openPlanNone
+}
+
+// firstOpenWorkStep is retained for callers that only need an executable step. It does not
+// skip across an open LPR gate.
+func firstOpenWorkStep(steps []workStep) (workStep, bool) {
+	step, state := firstOpenPlanStep(steps)
+	return step, state == openPlanWork
 }
 
 // stepChange — сменился ли первый открытый шаг плана относительно текущего. ok — есть ли
 // открытый шаг вообще.
 func stepChange(steps []workStep, cur workStep) (next workStep, ok, changed bool) {
-	next, ok = firstOpenWorkStep(steps)
-	return next, ok, !ok || !sameStep(next, cur)
+	next, state := firstOpenPlanStep(steps)
+	ok = state == openPlanWork
+	return next, ok, state != openPlanWork || !sameStep(next, cur)
 }
 
 // shouldAdvance — переходить ли к следующему шагу плана.
@@ -1049,7 +1073,7 @@ func (c *loopCtx) runScriptStep(step workStep) stepResult {
 	if c.WhatIf {
 		return stepResult{Ok: true, Session: "whatif"}
 	}
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", step.Cmd)
+	cmd := newPowerShellCommand("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", step.Cmd)
 	cmd.Dir = c.Root
 	out, err := cmd.CombinedOutput()
 	code := exitCode(cmd, err)

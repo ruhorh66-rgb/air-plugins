@@ -20,6 +20,28 @@ import (
 // поднимает ступень (движение по-прежнему меряет двигатель цели — путь уже проверен
 // TestДвижениеПетли и соседями в movement_test.go).
 
+func TestLoopStopsAtOpenGate(t *testing.T) {
+	steps := []workStep{
+		{Index: 1, Num: "1", Title: "completed", Done: true},
+		{Index: 2, Num: "2", Title: "release approval", Gate: true},
+		{Index: 3, Num: "3", Title: "must not run"},
+	}
+
+	step, state := firstOpenPlanStep(steps)
+	if state != openPlanGate || step.Num != "2" {
+		t.Fatalf("first open plan item = %+v (%v), want LPR gate 2", step, state)
+	}
+	if work, ok := firstOpenWorkStep(steps); ok {
+		t.Fatalf("selected work after an open LPR gate: %+v", work)
+	}
+
+	steps[1].Done = true
+	step, state = firstOpenPlanStep(steps)
+	if state != openPlanWork || step.Num != "3" {
+		t.Fatalf("after gate closure first open item = %+v (%v), want work 3", step, state)
+	}
+}
+
 func TestScriptStepCloses(t *testing.T) {
 	cases := []struct {
 		name string
@@ -114,29 +136,39 @@ func TestЗакрытиеШагаScriptВСпискеНеТрогаетОста�
 }
 
 func TestЗакрытиеШагаScriptСчётСовпадаетСReadPlanStepsПриГейте(t *testing.T) {
-	// Гейт занимает свой номер по счёту, как у readPlanSteps: разойдись счёт —
-	// closeStepInPlan закрыл бы чужую строку. Тот же класс дефекта, что уже чинили в
-	// parsePlan (расхождение двух разборщиков плана).
+	// Гейт занимает свой номер по счёту и блокирует следующие шаги до решения ЛПР.
 	head := "| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n"
 	plan := writeLoopPlan(t, head+
 		"| 1 | Релиз | — | гейт: ЛПР |\n"+
 		"| 2 | Проверка окружения :: exit 0 | script | автоматика |\n"+
 		"| 3 | Следующий шаг | haiku | тест |\n")
 
+	gate, state := firstOpenPlanStep(readPlanSteps(plan))
+	if state != openPlanGate || gate.Num != "1" {
+		t.Fatalf("ожидался открытый гейт 1, получено %+v (%v)", gate, state)
+	}
+	if step, ok := firstOpenWorkStep(readPlanSteps(plan)); ok {
+		t.Fatalf("рабочий шаг выбран до закрытия гейта: %+v", step)
+	}
+
+	// Имитируем отдельное решение ЛПР, а не закрытие петлёй.
+	if err := os.WriteFile(plan, []byte(head+
+		"| ~~1~~ | Релиз | — | гейт: ЛПР |\n"+
+		"| 2 | Проверка окружения :: exit 0 | script | автоматика |\n"+
+		"| 3 | Следующий шаг | haiku | тест |\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	step, ok := firstOpenWorkStep(readPlanSteps(plan))
 	if !ok || step.Index != 2 || step.Num != "2" {
-		t.Fatalf("ожидался открытый рабочий шаг 2 (гейт 1 пропускается), получено %+v (%v)", step, ok)
+		t.Fatalf("после решения ЛПР ожидался рабочий шаг 2, получено %+v (%v)", step, ok)
 	}
 	if err := closeStepInPlan(plan, step); err != nil {
 		t.Fatalf("closeStepInPlan: %v", err)
 	}
 
 	steps := readPlanSteps(plan)
-	if steps[0].Done {
-		t.Error("гейт закрывается решением ЛПР, а не петлёй — closeStepInPlan не должен был его тронуть")
-	}
-	if !steps[1].Done {
-		t.Error("шаг 2 обязан быть закрыт")
+	if !steps[0].Done || !steps[1].Done {
+		t.Fatalf("гейт и шаг 2 должны оставаться закрыты: %+v", steps)
 	}
 	next, ok := firstOpenWorkStep(steps)
 	if !ok || next.Num != "3" {

@@ -352,6 +352,9 @@ func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope,
 	}
 	cmd := exec.Command(shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
 		preamble+"& "+quoted+tail+"; exit $LASTEXITCODE")
+	if runtime.GOOS == "windows" {
+		cmd.Env = sanitizePSModulePath(os.Environ())
+	}
 	cmd.Dir = root
 	// К42 — durable job receipt пишется RUNNING ДО запуска этой проверки; transport/RDC
 	// timeout здесь не наступает (ctx без дедлайна), поэтому вызов, как и раньше, ждёт

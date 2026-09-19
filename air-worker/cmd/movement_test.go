@@ -136,19 +136,25 @@ func TestПетляБерётПервыйОткрытыйШагИзПланаН�
 			t.Fatal(err)
 		}
 	}
-	head := "| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n| 7 | Решение ЛПР | — | подпись |\n"
-	write(head + "| 8а | Литералы mcpupdate | haiku | тест |\n| 8б | Литералы enginenotice | haiku | тест |\n")
+	headOpen := "| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n| 7 | Решение ЛПР | — | подпись |\n"
+	headClosed := "| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n| ~~7~~ | Решение ЛПР | — | подпись |\n"
+	write(headOpen + "| 8а | Литералы mcpupdate | haiku | тест |\n| 8б | Литералы enginenotice | haiku | тест |\n")
+	gate, state := firstOpenPlanStep(readPlanSteps(plan))
+	if state != openPlanGate || gate.Num != "7" {
+		t.Fatalf("до решения ЛПР ожидался гейт 7, получено %+v (%v)", gate, state)
+	}
+	write(headClosed + "| 8а | Литералы mcpupdate | haiku | тест |\n| 8б | Литералы enginenotice | haiku | тест |\n")
 	cur, ok := firstOpenWorkStep(readPlanSteps(plan))
 	if !ok || cur.Num != "8а" {
-		t.Fatalf("до закрытия: ожидался шаг 8а, получено %+v (%v)", cur, ok)
+		t.Fatalf("после решения ЛПР ожидался шаг 8а, получено %+v (%v)", cur, ok)
 	}
-	write(head + "| ~~8а~~ | Литералы mcpupdate | haiku | тест |\n| 8б | Литералы enginenotice | haiku | тест |\n")
+	write(headClosed + "| ~~8а~~ | Литералы mcpupdate | haiku | тест |\n| 8б | Литералы enginenotice | haiku | тест |\n")
 	next, ok := firstOpenWorkStep(readPlanSteps(plan))
 	if !ok || next.Num != "8б" || sameStep(next, cur) {
 		t.Fatalf("после закрытия 8а: ожидался другой шаг 8б, получено %+v (%v)", next, ok)
 	}
 	// Правка текста открытого шага — тот же шаг: лестница заново не начинается.
-	write(head + "| 8а | Литералы mcpupdate (уточнено) | haiku | тест |\n| 8б | Литералы enginenotice | haiku | тест |\n")
+	write(headClosed + "| 8а | Литералы mcpupdate (уточнено) | haiku | тест |\n| 8б | Литералы enginenotice | haiku | тест |\n")
 	edited, _ := firstOpenWorkStep(readPlanSteps(plan))
 	if !sameStep(edited, cur) {
 		t.Fatalf("правка текста шага приняла его за другой шаг: %+v против %+v", edited, cur)
