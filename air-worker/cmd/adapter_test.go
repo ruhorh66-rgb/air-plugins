@@ -120,11 +120,38 @@ func TestAdapterStatusReportsOnlyVerifiedLiveCurrentWorker(t *testing.T) {
 	if len(got.Workers) != 1 || got.Workers[0].PID != os.Getpid() || got.Workers[0].Principal != "alice" {
 		t.Fatalf("workers = %#v", got.Workers)
 	}
+	if got.Workers[0].Role != "" || got.Workers[0].Provider != "" || got.Workers[0].Model != "" {
+		t.Fatalf("unexpected executor identity fields: %#v", got.Workers[0])
+	}
 	if got.DetailPath != outputPath {
 		t.Fatalf("detail_path = %q", got.DetailPath)
 	}
 	if after := adapterTreeSnapshot(t, root); !reflect.DeepEqual(before, after) {
 		t.Fatalf("status mutated receipt tree\nbefore: %#v\nafter:  %#v", before, after)
+	}
+}
+
+func TestAdapterStatusReportsLiveSemanticReviewerIdentity(t *testing.T) {
+	root := t.TempDir()
+	writeAdapterFixture(t, root, "- [ ] sonnet work\n")
+	outputPath := filepath.Join(root, ".woody", "jobs", "review.out")
+	writeAdapterReceipt(t, root, "review", &jobReceipt{
+		JobID: "review-1", PID: os.Getpid(), StartedAt: time.Now().UTC(), Status: jobStatusRunning,
+		OutputPath: outputPath, Product: root, Step: "1", Operation: "semantic-reviewer",
+		Runner: "codex", Provider: "codex", Model: "o3", Role: "semantic-reviewer",
+		Sandbox: "read-only", Principal: "hermes", Session: "session-1", ProcessStarted: true,
+	})
+
+	_, got := runAdapterForTest(t, "-action", "status", "-product", root, "-principal", "hermes", "-session-key", "session-1")
+	if got.Outcome != "running" || got.StopReason != "" || got.NextAction != "wait" {
+		t.Fatalf("semantic reviewer did not keep status live: %+v", got)
+	}
+	if len(got.Workers) != 1 {
+		t.Fatalf("workers = %#v", got.Workers)
+	}
+	w := got.Workers[0]
+	if w.Role != "semantic-reviewer" || w.Provider != "codex" || w.Model != "o3" || w.Sandbox != "read-only" {
+		t.Fatalf("semantic reviewer identity not preserved: %#v", w)
 	}
 }
 
