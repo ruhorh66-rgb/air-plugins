@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260919T060538Z-05e824fb",
+  "created_at": "2026-09-19T06:05:38.2346679Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.10.9",
+  "type": "defect",
+  "severity": "P2",
+  "observed": "Судья продукта (air-worker judge -product F:\\-7-\\air-worker) на каноническом дереве 0.10.9 (eef79b6), 19.09.2026, прогон 422 с: код 1. Кроме check-binary (FB-20260919T044427Z-5a14b9d6) красны три проверки run-config: «двигатель достижим, потолки объявлены…» (tools/check-engine.ps1) — «двигатель зовёт судью больше одного раза за один запуск»; «граница между Go и Python держится» (tools/check-boundary.ps1) — «Go тянется к очереди: air_llm_router… AIR_LLM_ROUTER_PY»; «тесты хуков» (skills/woody/tools/test-interrupt-guard.ps1) — «Test-Path: Illegal characters in path». Проверки судьи в релизный гейт 0.10.9 не входили; причина в канонизации не разбиралась.",
+  "expected": "Каждая проверка судьи продукта либо зелёная, либо её красный статус и причина записаны в PLAN шагом или гейтом.",
+  "evidence": "docs/receipts/AIRWORKER_0.10.9_CANONICALIZATION_2026-09-19.md; air-worker judge -product F:\\-7-\\air-worker",
+  "reproduction": "air-worker judge -product F:\\-7-\\air-worker (около 7 минут).",
+  "workaround": "нет; выпуск и установка 0.10.9 от этого не зависят.",
+  "proposed_outcome": "По каждой из трёх проверок — шаг плана или правка проверки под текущую архитектуру; для границы Go/Python — см. гейт 70."
+}
