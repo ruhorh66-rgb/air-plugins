@@ -1,7 +1,9 @@
 name: air-worker
 version: 0.10.10
 description: Thin native Hermes transport for the AirWorker binary.
-manifest_version: 2
+# Hermes 0.21.3 runtime accepts v2 manifests, but its production installer
+# rejects values above 1. This plugin uses only v1-compatible manifest fields.
+manifest_version: 1
 api_version: 1
 provides_tools: [air_worker]
 provides_hooks: [pre_llm_call, pre_tool_call, post_tool_call, pre_verify, transform_llm_output, subagent_start, subagent_stop, on_session_start, on_session_end]

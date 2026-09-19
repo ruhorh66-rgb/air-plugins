@@ -8,6 +8,7 @@
 - Added a single-tool Hermes plugin contract with fixed action enums, deterministic hooks, trusted binary resolution, bounded output, redacted logs, and fail-closed completion enforcement.
 - Pending executable work with no live worker is now `needs_action`, never a successful stop. Shadow status remains read-only; enforce status atomically resumes that orphaned state through the existing binary loop and judges completion before returning `verified: true`. A zero-exit promoted or explicit `run` that returns to the same idle-pending state fails as `continuity_violation`; unverified terminal text is rewritten as an explicit policy failure.
 - Windows worker liveness now correlates the live PID creation time with the receipt start time, so a stale `RUNNING` receipt cannot accept a reused PID as its worker.
+- Declares the Hermes plugin manifest as v1 because the Hermes 0.21.3 installer rejects v2 even though its runtime loads it; the plugin uses only v1-compatible fields.
 - Added minimal shadow and enforce Hermes profiles side-by-side, with explicit-only activation and no copied credentials, memory, sessions, cron, host paths, or unrelated state.
 - Added cross-platform Go contract tests plus non-mutating PowerShell release checks for Claude, Codex, Hermes, profile isolation, UTF-8/no-BOM skill packaging, and static adapter validation.
 
