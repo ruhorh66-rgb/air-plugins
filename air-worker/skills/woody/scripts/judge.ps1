@@ -46,6 +46,13 @@ if (-not $jc) {
 $failed = @()      # проверено и не пройдено
 $unknown = @()     # проверять нечем
 $passed = @()
+$items = @()
+$criteriaPassed = @()
+$criteriaFailed = @()
+$criteriaGated = @()
+$criteriaUnknown = @()
+$criteriaTotal = 0
+$planLprGates = 0
 
 # --- проверки ---------------------------------------------------------------
 # Каждая идёт ОТДЕЛЬНЫМ процессом. Вызванная через `&`, она выполняется в этом же
@@ -254,6 +261,36 @@ if ($want -gt 0) {
     }
 }
 
+# --- критерии плана ---------------------------------------------------------
+# Legacy PowerShell judge remains a parity oracle while the binary is canonical.
+# Read fact-bound criteria so machine verdict fields cannot silently lag behind.
+$planPath = Join-Path $ProductRoot 'PLAN.md'
+if (Test-Path -LiteralPath $planPath) {
+    $itemById = @{}
+    foreach ($it in @($items)) { if ($it.id) { $itemById[[string]$it.id] = $it } }
+    foreach ($line in @(Get-Content -LiteralPath $planPath -Encoding UTF8)) {
+        if ($line -match '^\|\s*(?!~~)\d+[a-zа-я]?\s*\|.*гейт:\s*ЛПР') { $planLprGates++ }
+        if ($line -notmatch '^\|\s*(К\d+)\s*\|.*\|\s*([^|]+)\s*\|\s*$') { continue }
+        $criterionId = [string]$Matches[1]
+        $measure = [string]$Matches[2]
+        $criteriaTotal++
+        $factRefs = @([regex]::Matches($measure, '(?i)факт\s+`([^`]+)`') | ForEach-Object { $_.Groups[1].Value })
+        if ($factRefs.Count -eq 0) { $criteriaUnknown += $criterionId; continue }
+        $states = @($factRefs | ForEach-Object { $itemById[[string]$_] })
+        if ($states.Count -ne $factRefs.Count -or @($states | Where-Object { $null -eq $_ }).Count) {
+            $criteriaUnknown += $criterionId
+        } elseif (@($states | Where-Object { $_.status -eq 'gated' -and $_.awaits }).Count) {
+            $criteriaGated += $criterionId
+        } elseif (@($states | Where-Object { $_.status -eq 'gated' -and -not $_.awaits }).Count) {
+            $criteriaUnknown += $criterionId
+        } elseif (@($states | Where-Object { $_.status -ne 'completed' }).Count) {
+            $criteriaFailed += $criterionId
+        } else {
+            $criteriaPassed += $criterionId
+        }
+    }
+}
+
 # --- вердикт ----------------------------------------------------------------
 # Кладётся ещё и в файл: вывод проходит через консольную трубу, а системная кодировка
 # машины кириллицы не содержит — в журналах оставались «???? ?? ??????????». Потеря
@@ -292,6 +329,8 @@ function Publish-Verdict([string]$text, [int]$code) {
         facts_closed   = $(if ($null -ne $script:factsClosed) { $script:factsClosed } else { $null })
         facts_gated    = $gatedCount
         facts_required = $want
+        criteria_total = $criteriaTotal
+        lpr_gates      = ($planLprGates + $criteriaGated.Count)
         verdict_text   = $text
         # ЧЕМ ПОСЧИТАНО. Поле завёл бинарник, и AIR-ENV-002 13.09.2026 верно заметила,
         # что оно полезное, но его отсутствие у скрипта делает набор полей несимметричным —
@@ -299,6 +338,10 @@ function Publish-Verdict([string]$text, [int]$code) {
         # молча. Пока обе живут рядом, по этому полю видно, которая считала.
         by             = "judge.ps1 0.10.0"
     }
+    if ($criteriaPassed.Count) { $machine.criteria_passed = @($criteriaPassed) }
+    if ($criteriaFailed.Count) { $machine.criteria_failed = @($criteriaFailed) }
+    if ($criteriaGated.Count) { $machine.criteria_gated = @($criteriaGated) }
+    if ($criteriaUnknown.Count) { $machine.criteria_unknown = @($criteriaUnknown) }
     try {
         $json = $machine | ConvertTo-Json -Depth 4
         [IO.File]::WriteAllText((Join-Path $ProductRoot '.goal-verdict.json'), $json, (New-Object Text.UTF8Encoding $false))
@@ -313,6 +356,8 @@ if ($failed.Count) {
     Publish-Verdict ("ЦЕЛЬ НЕ ДОСТИГНУТА: " + ($failed -join '; ')) 1
     exit 1
 }
-$summary = if ($factsLine) { "пройдено проверок $($passed.Count), $factsLine" } else { "пройдено проверок $($passed.Count)" }
+$summary = "пройдено проверок $($passed.Count)"
+if ($criteriaPassed.Count) { $summary += ", критериев $($criteriaPassed.Count)" }
+if ($factsLine) { $summary += ", $factsLine" }
 Publish-Verdict "ЦЕЛЬ ДОСТИГНУТА: $summary" 0
 exit 0
