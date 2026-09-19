@@ -8,7 +8,8 @@ Publication / installation / activation: BLOCKED pending separate LPR
 
 - Repository: `ruhorh66-rgb/air-plugins`
 - Branch: `gpt/air-worker-0.10.11-p1-20260919`
-- Release candidate and future tag target: `d5824e706e6b022af29a45041b150f93138e941e`
+- Accepted source candidate: `d5824e706e6b022af29a45041b150f93138e941e`
+- Release tag target: assigned by the later binary-only packaging commit after source acceptance.
 - Required base/ancestor: `33edba96ef736baf609bc98fd076de0c69c46300`
 - Scope authority: ARCH v0.3 at `9726f6527ad4c7e211f8d2633f1b70565284f3b3`
 - Accepted scope: only Ц7-1…Ц7-7 / three P1 corrections
