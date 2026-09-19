@@ -316,6 +316,10 @@ func cmdLoop(argv []string) int {
 		return 2
 	}
 	c.goals = goals
+	if gate, state := firstOpenPlanStep(steps); state == openPlanGate {
+		fmt.Printf("ЖДЁТ ЛПР: гейт %s «%s»%s", gate.Num, gate.Title, lineEnding)
+		return 3
+	}
 
 	line("продукт     : " + root)
 	if c.JudgePath != "" {
@@ -431,8 +435,8 @@ func cmdLoop(argv []string) int {
 	for {
 		step, state := firstOpenPlanStep(steps)
 		if state == openPlanGate {
-			closeWoody("ничего: первый открытый шаг — гейт ЛПР «"+step.Title+"»",
-				"решение ЛПР по этому гейту; следующие шаги до решения не исполняются", 0)
+			fmt.Printf("ЖДЁТ ЛПР: гейт %s «%s»%s", step.Num, step.Title, lineEnding)
+			return 3
 		}
 		if state == openPlanNone {
 			break

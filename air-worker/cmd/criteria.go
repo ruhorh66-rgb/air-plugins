@@ -117,13 +117,14 @@ func goSelectorExists(root string, chk checkSpec, selector string) measureResult
 	}
 	args := append([]string{}, chk.Args...)
 	args = append(args, "-list", "^"+regexp.QuoteMeta(selector)+"$")
-	c := exec.Command(resolved, args...)
+	c := newChildCommand(resolved, args...)
 	c.Dir = root
 	if len(chk.Env) > 0 {
 		c.Env = os.Environ()
 		for k, v := range chk.Env {
 			c.Env = append(c.Env, k+"="+v)
 		}
+		c.Env = configuredChildEnvironment(resolved, c.Env)
 	}
 	out, err := c.CombinedOutput()
 	code := exitCode(c, err)

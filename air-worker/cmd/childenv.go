@@ -3,20 +3,38 @@ package main
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
+
+func newChildCommand(name string, args ...string) *exec.Cmd {
+	cmd := exec.Command(name, args...)
+	if isWindowsPowerShell(name) {
+		cmd.Env = sanitizePSModulePath(os.Environ())
+	}
+	return cmd
+}
 
 func newPowerShellCommand(args ...string) *exec.Cmd {
 	shell := "pwsh"
 	if runtime.GOOS == "windows" {
 		shell = "powershell.exe"
 	}
-	cmd := exec.Command(shell, args...)
-	if runtime.GOOS == "windows" {
-		cmd.Env = sanitizePSModulePath(os.Environ())
+	return newChildCommand(shell, args...)
+}
+
+func isWindowsPowerShell(name string) bool {
+	return runtime.GOOS == "windows" && strings.EqualFold(filepath.Base(name), "powershell.exe")
+}
+
+// configuredChildEnvironment preserves the old explicit-environment behaviour for
+// configured checks while applying the same PowerShell 5.1 guard after overrides.
+func configuredChildEnvironment(name string, env []string) []string {
+	if isWindowsPowerShell(name) {
+		return sanitizePSModulePath(env)
 	}
-	return cmd
+	return env
 }
 
 func sanitizePSModulePath(env []string) []string {

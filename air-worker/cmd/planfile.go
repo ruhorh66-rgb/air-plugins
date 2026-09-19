@@ -36,7 +36,8 @@ var (
 	// rePlanRowNum — ТОЛЬКО номер табличной строки, той же формой, что головы rePlanTable и
 	// rePlanGate. Нужен closeStepInPlan: строку закрывает петля сама (К31), а не исполнитель,
 	// и трогать при этом можно ровно номер — ни отступы, ни остальные колонки.
-	rePlanRowNum = regexp.MustCompile(`^\s*\|\s*(~~)?\s*([0-9]+[A-Za-zА-Яа-я]?)\s*(~~)?\s*\|`)
+	rePlanRowNum            = regexp.MustCompile(`^\s*\|\s*(~~)?\s*([0-9]+[A-Za-zА-Яа-я]?)\s*(~~)?\s*\|`)
+	reNumberedFourColumnRow = regexp.MustCompile(`^\s*\|\s*(~~)?\s*([0-9]+[A-Za-zА-Яа-я]?)\s*(~~)?\s*\|\s*([^|]*)\|\s*([^|]*)\|\s*([^|]*)\|\s*$`)
 )
 
 type workStep struct {
@@ -83,6 +84,21 @@ func readPlanSteps(path string) []workStep {
 		}
 		m := rePlanTable.FindStringSubmatch(line)
 		if m == nil {
+			// A numbered four-column row that advertises an LPR gate must never vanish
+			// because its punctuation or tier cell is malformed. Its closure cannot be
+			// trusted either, so represent it as an open barrier until a human repairs it.
+			if malformed := reNumberedFourColumnRow.FindStringSubmatch(line); malformed != nil {
+				gateText := strings.ToLower(malformed[5] + " " + malformed[6])
+				if strings.Contains(gateText, "гейт") || strings.Contains(gateText, "лпр") ||
+					strings.Contains(gateText, "lpr") {
+					i++
+					steps = append(steps, workStep{
+						Index: i, Num: malformed[2], Tier: "gate", Gate: true,
+						Title: malformed[2] + ". " + strings.TrimSpace(malformed[4]) + " [некорректный гейт]",
+						Judge: strings.TrimSpace(malformed[6]),
+					})
+				}
+			}
 			continue
 		}
 		// Заголовок таблицы сюда не попадает: слово «Ступень» не входит в перечень имён
