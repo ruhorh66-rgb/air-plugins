@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -216,8 +215,7 @@ func semanticCodexCommand(exePath, root, prompt string, reviewer runnerSpec, sch
 	return cmd
 }
 
-func invokeSemanticCodex(scope sessionScope, exePath, prompt string, reviewer runnerSpec, step string) (string, string, *float64, *int, error) {
-	root := scope.Root
+func invokeSemanticCodex(root, exePath, prompt string, reviewer runnerSpec) (string, string, *float64, *int, error) {
 	schema, err := os.CreateTemp("", "air-worker-semantic-schema-*.json")
 	if err != nil {
 		return "", "", nil, nil, fmt.Errorf("create semantic output schema: %w", err)
@@ -232,10 +230,7 @@ func invokeSemanticCodex(scope sessionScope, exePath, prompt string, reviewer ru
 		return "", "", nil, nil, fmt.Errorf("close semantic output schema: %w", err)
 	}
 	cmd := semanticCodexCommand(exePath, root, prompt, reviewer, schemaPath)
-	out, runErr := runReceiptedWithMeta(context.Background(), scope, step, "semantic-reviewer", cmd, jobReceiptMeta{
-		Runner: reviewer.Kind, Provider: reviewer.Kind, Model: reviewer.Model, Effort: reviewer.Effort,
-		Role: "semantic-reviewer", Sandbox: "read-only",
-	})
+	out, runErr := cmd.CombinedOutput()
 
 	completed, failed := false, false
 	session, turns := "", 0
@@ -293,16 +288,12 @@ func invokeSemanticCodex(scope sessionScope, exePath, prompt string, reviewer ru
 	}
 	return messages[len(messages)-1], session, cost, intPtr(turns), nil
 }
-func invokeSemanticClaude(scope sessionScope, exePath, prompt string, reviewer runnerSpec, step string) (string, string, *float64, *int, error) {
-	root := scope.Root
+func invokeSemanticClaude(root, exePath, prompt string, reviewer runnerSpec) (string, string, *float64, *int, error) {
 	cmd := semanticClaudeCommand(exePath, root, prompt, reviewer)
 	if env, took := runnerEnv(); took {
 		cmd.Env = env
 	}
-	out, runErr := runReceiptedWithMeta(context.Background(), scope, step, "semantic-reviewer", cmd, jobReceiptMeta{
-		Runner: reviewer.Kind, Provider: reviewer.Kind, Model: reviewer.Model, Effort: reviewer.Effort,
-		Role: "semantic-reviewer", Sandbox: "read-only",
-	})
+	out, runErr := cmd.CombinedOutput()
 	raw := decodeOutput(out)
 	var res *claudeResult
 	for _, line := range strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n") {
@@ -442,9 +433,9 @@ func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factual sema
 	var raw string
 	switch reviewer.Kind {
 	case "codex":
-		raw, run.Session, run.Cost, run.Turns, err = invokeSemanticCodex(c.scope(), exePath, prompt, reviewer, step.Num)
+		raw, run.Session, run.Cost, run.Turns, err = invokeSemanticCodex(c.Root, exePath, prompt, reviewer)
 	case "claude":
-		raw, run.Session, run.Cost, run.Turns, err = invokeSemanticClaude(c.scope(), exePath, prompt, reviewer, step.Num)
+		raw, run.Session, run.Cost, run.Turns, err = invokeSemanticClaude(c.Root, exePath, prompt, reviewer)
 	default:
 		err = fmt.Errorf("unsupported semantic reviewer %q", reviewer.Kind)
 	}

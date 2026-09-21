@@ -165,16 +165,11 @@ func readAdapterReceipts(root, currentStep, principal, sessionKey string) ([]ada
 		if err != nil {
 			continue
 		}
-		if !sameAdapterProduct(root, r.Product) || !receiptIdentityMatches(r, principal, sessionKey) {
-			continue
-		}
-		verifiedLive := r.Status == jobStatusRunning && r.ProcessStarted && r.PID > 0 && adapterProcessMatches(r.PID, r.StartedAt)
-		crossStepReviewer := r.Operation == "semantic-reviewer" && verifiedLive
-		if currentStep != "" && r.Step != currentStep && !crossStepReviewer {
+		if !sameAdapterProduct(root, r.Product) || (currentStep != "" && r.Step != currentStep) || !receiptIdentityMatches(r, principal, sessionKey) {
 			continue
 		}
 		items = append(items, adapterReceiptItem{path: path, r: r})
-		if verifiedLive {
+		if r.Status == jobStatusRunning && r.ProcessStarted && r.PID > 0 && adapterProcessMatches(r.PID, r.StartedAt) {
 			workers = append(workers, adapterWorker{
 				JobID: r.JobID, PID: r.PID, Step: r.Step, Operation: r.Operation,
 				Principal: r.Principal, SessionKey: r.Session, Runner: r.Runner,

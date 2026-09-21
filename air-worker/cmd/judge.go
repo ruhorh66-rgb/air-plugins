@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -345,7 +346,11 @@ func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope,
 	preamble := `[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); $OutputEncoding=[System.Text.UTF8Encoding]::new($false); `
 	quoted := "'" + strings.ReplaceAll(scriptPath, "'", "''") + "'"
 	tail := powerShellScriptTail(chk.Args, namedIndices)
-	cmd := newPowerShellCommand("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+	shell := "powershell.exe"
+	if runtime.GOOS != "windows" {
+		shell = "pwsh"
+	}
+	cmd := exec.Command(shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
 		preamble+"& "+quoted+tail+"; exit $LASTEXITCODE")
 	cmd.Dir = root
 	// К42 — durable job receipt пишется RUNNING ДО запуска этой проверки; transport/RDC
@@ -395,14 +400,13 @@ func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope
 			}
 		}
 	}
-	cmd := newChildCommand(resolved, chk.Args...)
+	cmd := exec.Command(resolved, chk.Args...)
 	cmd.Dir = root
 	if len(chk.Env) > 0 {
 		cmd.Env = os.Environ()
 		for k, v := range chk.Env {
 			cmd.Env = append(cmd.Env, k+"="+v)
 		}
-		cmd.Env = configuredChildEnvironment(resolved, cmd.Env)
 	}
 	out, err := runReceipted(context.Background(), scope, "judge", name, cmd)
 	code := exitCode(cmd, err)
