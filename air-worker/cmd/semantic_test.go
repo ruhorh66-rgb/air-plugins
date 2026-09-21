@@ -3,9 +3,11 @@ package main
 import (
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseSemanticVerdictStrict(t *testing.T) {
@@ -86,6 +88,63 @@ func TestSemanticClaudeUsesStdin(t *testing.T) {
 	if err != nil || string(raw) != prompt {
 		t.Fatalf("semantic stdin mismatch: len=%d err=%v", len(raw), err)
 	}
+}
+
+func TestSemanticReviewerRegistersReceipt(t *testing.T) {
+	oldCommand := semanticCommand
+	t.Cleanup(func() { semanticCommand = oldCommand })
+	t.Setenv("AW_SEMANTIC_HELPER", "1")
+	semanticCommand = func(_ string, _ ...string) *exec.Cmd {
+		return exec.Command(os.Args[0], "-test.run=TestSemanticReviewerHelperProcess", "--")
+	}
+
+	root := t.TempDir()
+	scope := legacyScope(root)
+	reviewer := runnerSpec{Kind: "codex", Model: "test", Effort: "low"}
+	resultCh := make(chan error, 1)
+	go func() {
+		_, _, _, _, err := invokeSemanticCodex(scope, os.Args[0], "test prompt", reviewer, "5")
+		resultCh <- err
+	}()
+
+	receiptPath, _ := jobReceiptPaths(scope, "5", "semantic-reviewer")
+	deadline := time.Now().Add(2 * time.Second)
+	var receipt *jobReceipt
+	for time.Now().Before(deadline) {
+		if candidate, err := readJobReceipt(receiptPath); err == nil && candidate.Status == jobStatusRunning && candidate.ProcessStarted && candidate.PID > 0 {
+			receipt = candidate
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if receipt == nil {
+		t.Fatalf("semantic receipt did not expose a running PID: %s", receiptPath)
+	}
+	if receipt.Operation != "semantic-reviewer" || receipt.Role != "semantic-reviewer" {
+		t.Fatalf("semantic receipt metadata = %+v", receipt)
+	}
+	if !receipt.ProcessStarted || receipt.PID <= 0 {
+		t.Fatalf("semantic receipt does not identify a running process: %+v", receipt)
+	}
+
+	if err := <-resultCh; err != nil {
+		t.Fatalf("invokeSemanticCodex: %v", err)
+	}
+	finished := pollReceiptStatus(t, receiptPath, jobStatusDone, 2*time.Second)
+	if finished.PID != receipt.PID || !finished.ProcessStarted {
+		t.Fatalf("semantic receipt lost process identity: running=%+v done=%+v", receipt, finished)
+	}
+}
+
+func TestSemanticReviewerHelperProcess(t *testing.T) {
+	if os.Getenv("AW_SEMANTIC_HELPER") != "1" {
+		return
+	}
+	time.Sleep(500 * time.Millisecond)
+	println(`{"type":"thread.started","thread_id":"semantic-helper"}`)
+	println(`{"type":"turn.started"}`)
+	println(`{"type":"item.completed","item":{"type":"agent_message","text":"{\"verdict\":\"PASS\",\"step_done\":\"yes\",\"drift\":\"none\",\"evidence\":[],\"next\":\"done\"}"}}`)
+	println(`{"type":"turn.completed"}`)
 }
 
 func TestCombinedAcceptanceMatrix(t *testing.T) {

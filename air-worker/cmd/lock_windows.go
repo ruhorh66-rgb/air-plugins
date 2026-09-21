@@ -5,11 +5,13 @@ package main
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -57,6 +59,11 @@ var (
 )
 
 var kernel32Lock = syscall.NewLazyDLL("kernel32.dll")
+
+var (
+	writeFileAtomicRetryTimeout = 2 * time.Second
+	writeFileAtomicRetryDelay   = 10 * time.Millisecond
+)
 
 const (
 	errAlreadyExistsLock = 183
@@ -138,9 +145,39 @@ func writeFileAtomic(path string, data []byte) error {
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
-	if err := os.Rename(tmp, path); err != nil {
-		os.Remove(tmp)
-		return err
+
+	deadline := time.Now().Add(writeFileAtomicRetryTimeout)
+	delay := writeFileAtomicRetryDelay
+	for {
+		err := os.Rename(tmp, path)
+		if err == nil {
+			return nil
+		}
+		if !retryableRenameError(err) {
+			os.Remove(tmp)
+			return err
+		}
+
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			os.Remove(tmp)
+			return err
+		}
+		if delay > remaining {
+			delay = remaining
+		}
+		time.Sleep(delay)
+		if delay < 100*time.Millisecond {
+			delay *= 2
+			if delay > 100*time.Millisecond {
+				delay = 100 * time.Millisecond
+			}
+		}
 	}
-	return nil
+}
+
+func retryableRenameError(err error) bool {
+	return errors.Is(err, syscall.Errno(5)) ||
+		errors.Is(err, syscall.Errno(32)) ||
+		errors.Is(err, syscall.Errno(33))
 }

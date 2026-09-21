@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -216,24 +217,130 @@ func criteriaBinding(root string, cfg runConfig, g planGoals) []string {
 	return out
 }
 
-// judgeFiles — из чего состоит судья продукта: конфигурация (какие проверки идут) и свой
-// судья, если назван. Их стережёт страж работы (этап 0.10, К10): судья определяет, что
-// значит «готово», и сессия, которая его правит, сама себе ставит оценку. ЛПР 14.09.2026:
-// «пир полез в код судьи, зачем нам такое поведение?»
-//
-// Скрипт проверки в список НЕ входит, и намеренно: это тест продукта, его пишет работа по
-// шагам плана. Стеречь его значило бы звать ЛПР на каждый новый тест — ровно те лишние
-// вопросы, от которых лечит К9. Ослабленный тест этим не ловится; ловится подключение и
-// отключение проверок и подмена судьи — то, что и сделала сессия 14.09.
-func judgeFiles(root string, cfg runConfig, cfgLoaded bool) []string {
-	out := []string{filepath.Join(root, "run-config.json")}
-	if !cfgLoaded {
-		return out
+// protectedJudgeFiles — полный набор файлов, определяющих проверку продукта.
+func protectedJudgeFiles(root string, cfg runConfig, configPath string) []string {
+	root, _ = filepath.Abs(root)
+	if strings.TrimSpace(configPath) == "" {
+		configPath = filepath.Join(root, "run-config.json")
 	}
-	if cfg.Judge.Path != "" {
-		out = append(out, filepath.Clean(filepath.Join(root, cfg.Judge.Path)))
+	paths := []string{configPath, cfg.Judge.Path, cfg.Judge.Checklist}
+	for _, check := range cfg.Judge.Checks {
+		paths = append(paths, check.Script)
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, rawPath := range paths {
+		path, ok := judgePath(root, rawPath)
+		if !ok || seen[path] {
+			continue
+		}
+		info, err := os.Stat(path)
+		if err != nil || info.IsDir() {
+			continue
+		}
+		seen[path] = true
+		out = append(out, path)
 	}
 	return out
+}
+
+func judgePath(root, rawPath string) (string, bool) {
+	if strings.TrimSpace(rawPath) == "" {
+		return "", false
+	}
+	if !filepath.IsAbs(rawPath) {
+		rawPath = filepath.Join(root, rawPath)
+	}
+	path, err := filepath.Abs(rawPath)
+	if err != nil {
+		return "", false
+	}
+	path = filepath.Clean(path)
+	return path, pathWithinRoot(root, path)
+}
+
+func pathWithinRoot(root, path string) bool {
+	rel, err := filepath.Rel(root, path)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// judgeFiles сохраняет старый интерфейс вывода goals.
+func judgeFiles(root string, cfg runConfig, cfgLoaded bool) []string {
+	if !cfgLoaded {
+		return []string{filepath.Join(root, "run-config.json")}
+	}
+	return protectedJudgeFiles(root, cfg, filepath.Join(root, "run-config.json"))
+}
+
+type judgeSnapshot struct {
+	files map[string][]byte
+	dirs  map[string]map[string]bool
+}
+
+func snapshotJudgeFiles(root string, cfg runConfig, configPath string) (judgeSnapshot, error) {
+	p := judgeSnapshot{files: map[string][]byte{}, dirs: map[string]map[string]bool{}}
+	for _, path := range protectedJudgeFiles(root, cfg, configPath) {
+		path = filepath.Clean(path)
+		b, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return p, err
+		}
+		p.files[path] = b
+	}
+	for _, check := range cfg.Judge.Checks {
+		scriptPath, ok := judgePath(root, check.Script)
+		if !ok {
+			continue
+		}
+		dir := filepath.Dir(scriptPath)
+		entries, err := os.ReadDir(dir)
+		if err != nil && !os.IsNotExist(err) {
+			return p, err
+		}
+		seen := map[string]bool{}
+		for _, entry := range entries {
+			seen[entry.Name()] = true
+		}
+		p.dirs[dir] = seen
+	}
+	return p, nil
+}
+
+func restoreJudgeFiles(snap judgeSnapshot) (restored []string, err error) {
+	for path, before := range snap.files {
+		after, readErr := os.ReadFile(path)
+		if readErr != nil || !slices.Equal(after, before) {
+			if writeErr := os.WriteFile(path, before, 0o644); writeErr != nil {
+				return nil, writeErr
+			}
+			restored = append(restored, path)
+		}
+	}
+	slices.Sort(restored)
+	return restored, nil
+}
+
+func newJudgeFiles(snap judgeSnapshot) ([]string, error) {
+	var warnings []string
+	for dir, before := range snap.dirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
+		}
+		for _, entry := range entries {
+			if !before[entry.Name()] {
+				warnings = append(warnings, filepath.Join(dir, entry.Name()))
+			}
+		}
+	}
+	slices.Sort(warnings)
+	return warnings, nil
 }
 
 // cmdGoals — годен ли план продукта к работе: блок целей, критерии, ссылки шагов, привязка

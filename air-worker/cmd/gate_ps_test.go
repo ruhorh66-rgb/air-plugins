@@ -2,13 +2,105 @@ package main
 
 import (
 	"bytes"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
+
+// windowsPowerShellLaunchLines находит буквальные запуски Windows PowerShell.
+func windowsPowerShellLaunchLines(source string) ([]int, error) {
+	set := token.NewFileSet()
+	file, err := parser.ParseFile(set, "source.go", source, 0)
+	if err != nil {
+		return nil, err
+	}
+	var lines []int
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok || len(call.Args) == 0 {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || selector.Sel.Name != "Command" && selector.Sel.Name != "CommandContext" {
+			return true
+		}
+		pkg, ok := selector.X.(*ast.Ident)
+		if !ok || pkg.Name != "exec" {
+			return true
+		}
+		literal, ok := call.Args[0].(*ast.BasicLit)
+		if !ok || literal.Kind != token.STRING {
+			return true
+		}
+		name, err := strconv.Unquote(literal.Value)
+		if err != nil {
+			return true
+		}
+		name = strings.TrimSuffix(strings.ToLower(filepath.Base(name)), ".exe")
+		if name == "powershell" || name == "pwsh" {
+			lines = append(lines, set.Position(call.Pos()).Line)
+		}
+		return true
+	})
+	return lines, nil
+}
+
+func TestAllWindowsPowerShellLaunchesUseSanitizedHelper(t *testing.T) {
+	cleanSource := `package main
+import "os/exec"
+func clean() { exec.Command("git", "status"); exec.CommandContext(nil, "other", "x") }`
+	if lines, err := windowsPowerShellLaunchLines(cleanSource); err != nil || len(lines) != 0 {
+		t.Fatalf("clean source reported PowerShell launches: lines=%v err=%v", lines, err)
+	}
+	bypassSource := `package main
+import "os/exec"
+func bypass() { exec.Command("PoWeRsHeLl.ExE", "-NoProfile") }`
+	if lines, err := windowsPowerShellLaunchLines(bypassSource); err != nil || len(lines) != 1 {
+		t.Fatalf("synthetic bypass was not found: lines=%v err=%v", lines, err)
+	}
+
+	paths := []string{"."}
+	entries, err := os.ReadDir("tray")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) > 0 {
+		paths = append(paths, "tray")
+	}
+	for _, dir := range paths {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+				continue
+			}
+			name := filepath.Join(dir, entry.Name())
+			source, err := os.ReadFile(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			lines, err := windowsPowerShellLaunchLines(string(source))
+			if err != nil {
+				t.Fatalf("parse %s: %v", name, err)
+			}
+			if filepath.Base(name) == "childenv.go" {
+				continue
+			}
+			if len(lines) != 0 {
+				t.Fatalf("%s:%d запускает PowerShell мимо newPowerShellCommand/newChildCommand", name, lines[0])
+			}
+		}
+	}
+}
 
 func TestLoopGateParsingFailClosed(t *testing.T) {
 	plan := writeLoopPlan(t, "| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n"+

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -147,6 +148,42 @@ func TestCriterion42Pending(t *testing.T) {
 	t.Run("wired_into_executor_launch_path", func(t *testing.T) {
 		testReceiptWiredIntoExecutorLaunchPath(t, root)
 	})
+}
+
+func TestRunReceiptedFailsClosedWhenPIDRegistrationFails(t *testing.T) {
+	root := setupSessionProduct(t)
+	scope := newScope(root, sessionIdentity{"claude", "sess-pid-failure"})
+	cmd := slowHelperCmd(t, 30_000)
+
+	oldWriter := writeJobReceiptFunc
+	t.Cleanup(func() { writeJobReceiptFunc = oldWriter })
+	writes := 0
+	writeJobReceiptFunc = func(path string, receipt *jobReceipt) error {
+		writes++
+		if writes == 3 {
+			return fmt.Errorf("тестовая ошибка регистрации PID")
+		}
+		return oldWriter(path, receipt)
+	}
+
+	_, err := runReceipted(context.Background(), scope, "4", "pid-registration", cmd)
+	if err == nil || !strings.Contains(err.Error(), "не удалось зарегистрировать PID") {
+		t.Fatalf("ожидалась ошибка регистрации PID, получено: %v", err)
+	}
+	if cmd.ProcessState == nil || cmd.ProcessState.Exited() == false {
+		t.Fatal("дочерний процесс должен быть завершён после срыва регистрации PID")
+	}
+	receiptPath, _ := jobReceiptPaths(scope, "4", "pid-registration")
+	receipt, readErr := readJobReceipt(receiptPath)
+	if readErr != nil {
+		t.Fatalf("квитанция не читается: %v", readErr)
+	}
+	if receipt.Status != jobStatusFailed {
+		t.Fatalf("квитанция должна быть FAILED после срыва регистрации PID: %+v", receipt)
+	}
+	if receipt.Status == jobStatusRunning && receipt.ProcessStarted && receipt.PID > 0 {
+		t.Fatalf("квитанция не должна оставаться RUNNING с живым PID: %+v", receipt)
+	}
 }
 
 // jobReceiptSlowHelperMarker — включает медленный дочерний процесс: get self-exec'нутый

@@ -494,11 +494,45 @@ func cmdLoop(argv []string) int {
 			// Подпись дерева снимается ДО работы: по ней потом видно, была работа или нет,
 			// и это факт, а не пересказ исполнителя о себе.
 			c.treeBefore = c.treeSignature()
+			var planBefore []byte
+			if runner.Kind != "script" {
+				var err error
+				planBefore, err = os.ReadFile(planPath)
+				if err != nil {
+					closeWoody("ничего: не удалось снять снимок плана", err.Error(), 1)
+				}
+			}
 			var r stepResult
+			var judgeWarnings []string
+			var judgeTamper []string
+			var judgeProtection judgeSnapshot
+			if runner.Kind != "script" {
+				var err error
+				judgeProtection, err = snapshotJudgeFiles(c.Root, c.Cfg, c.CfgPath)
+				if err != nil {
+					closeWoody("ничего: не удалось снять снимок файлов судьи", err.Error(), 1)
+				}
+			}
 			if runner.Kind == "script" {
 				r = c.runScriptStep(step)
 			} else {
 				r = c.runModelStep(step, tier, text, runner)
+			}
+			if runner.Kind != "script" {
+				judgeTamper, err = restoreJudgeFiles(judgeProtection)
+				if err != nil {
+					closeWoody("ничего: не удалось вернуть файлы судьи", err.Error(), 1)
+				}
+				judgeWarnings, err = newJudgeFiles(judgeProtection)
+				if err != nil {
+					closeWoody("ничего: не удалось проверить новые файлы судьи", err.Error(), 1)
+				}
+				for _, path := range judgeTamper {
+					line("  правка файла судьи исполнителем отклонена: " + path)
+				}
+				for _, path := range judgeWarnings {
+					line("  исполнитель добавил файл рядом со скриптом судьи: " + path)
+				}
 			}
 			if r.Cost != nil {
 				c.spent += *r.Cost
@@ -585,6 +619,21 @@ func cmdLoop(argv []string) int {
 				}
 			}
 
+			planTamper := false
+			if runner.Kind != "script" {
+				closed, tampered, err := reconcileModelStepPlan(planPath, planBefore, step, modelStepFactualPass(step, r.Ok, detailed), sem)
+				planTamper = tampered
+				if tampered {
+					line("  правка PLAN.md исполнителем отклонена: план возвращён к состоянию до хода")
+				}
+				if err != nil {
+					closeWoody("ничего: ядро не смогло согласовать PLAN.md", err.Error(), 1)
+				}
+				if closed {
+					line("  модельный шаг закрыт ядром по вердикту судей.")
+				}
+			}
+
 			c.addStep(map[string]any{
 				"step": step.Index, "title": step.Title, "tier": tier,
 				"iteration": c.iter, "code": code,
@@ -594,6 +643,10 @@ func cmdLoop(argv []string) int {
 				"semantic_verdict": semVerdict, "semantic_drift": semDrift,
 				"semantic_reviewer": semReviewer, "semantic_error": semError,
 				"semantic_cost_usd": semCost, "semantic_turns": semTurns,
+				"plan_tamper":         planTamper,
+				"judge_tamper":        judgeTamper,
+				"judge_file_warnings": judgeWarnings,
+				"judge_tamper_new":    judgeWarnings,
 				// ОТВЕТ ИСПОЛНИТЕЛЯ ЛОЖИТСЯ В ЖУРНАЛ. Без него прогон, потративший
 				// $7.33 и не изменивший ни одного файла, не оставлял следа о причине:
 				// цена и ходы были, а что сказал исполнитель — нигде.

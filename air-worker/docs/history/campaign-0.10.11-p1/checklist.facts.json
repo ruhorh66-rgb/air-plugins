@@ -1,0 +1,13 @@
+{
+  "facts": [
+    {"id":"f01","status":"pending","fact":"ARCH Ц7-1: loop and orchestrate stop at the first open LPR gate.","proved_by":"TestLoopStopsAtOpenGate","evidence":""},
+    {"id":"f02","status":"pending","fact":"ARCH Ц7-2: no script or model tier can execute or escalate below an open gate.","proved_by":"TestLoopNeverEscalatesPastOpenGate","evidence":""},
+    {"id":"f03","status":"pending","fact":"ARCH Ц7-3: closed and malformed gate rows have deterministic fail-closed behavior.","proved_by":"TestLoopGateParsingFailClosed","evidence":""},
+    {"id":"f04","status":"pending","fact":"ARCH Ц7-4: Windows PowerShell 5.1 children receive sanitized PSModulePath while pwsh remains unchanged.","proved_by":"TestWindowsPowerShellChildEnvironment","evidence":""},
+    {"id":"f05","status":"pending","fact":"ARCH Ц7-5: every Windows PowerShell launch uses the single sanitizing helper.","proved_by":"TestAllWindowsPowerShellLaunchesUseSanitizedHelper","evidence":""},
+    {"id":"f06","status":"pending","fact":"ARCH Ц7-6: live semantic reviewer receipt plus PID/start-time yields running status and a workers role.","proved_by":"TestAdapterStatusIncludesLiveSemanticReviewer","evidence":""},
+    {"id":"f07","status":"pending","fact":"ARCH Ц7-7: enforce does not relaunch while semantic review is alive.","proved_by":"TestEnforceDoesNotRelaunchWithLiveSemanticReviewer","evidence":""},
+    {"id":"f08","status":"pending","fact":"AirWorker 0.10.11 acceptance suite passes and release artifacts report 0.10.11.","proved_by":"release acceptance receipt","evidence":""},
+    {"id":"f09","status":"pending","fact":"Publication, marketplace update, installation and activation occur only after explicit LPR gates and are verified by read-back.","proved_by":"LPR and release receipts","evidence":""}
+  ]
+}

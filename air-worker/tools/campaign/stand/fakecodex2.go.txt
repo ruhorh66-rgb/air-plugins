@@ -1,0 +1,27 @@
+package main
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"strconv"
+	"time"
+)
+
+// Подставной codex: как fakecodex, но пишет свой PID в файл FAKE_CODEX_PIDFILE — чтобы после прогона
+// сверить его с PID в квитанции.
+func main() {
+	if pf := os.Getenv("FAKE_CODEX_PIDFILE"); pf != "" {
+		_ = os.WriteFile(pf, []byte(strconv.Itoa(os.Getpid())), 0o644)
+	}
+	_, _ = io.Copy(io.Discard, os.Stdin)
+	sleep := 20
+	if v, err := strconv.Atoi(os.Getenv("FAKE_CODEX_SLEEP")); err == nil {
+		sleep = v
+	}
+	fmt.Println(`{"type":"thread.started","thread_id":"fake-thread"}`)
+	fmt.Println(`{"type":"turn.started"}`)
+	time.Sleep(time.Duration(sleep) * time.Second)
+	fmt.Println(`{"type":"item.completed","item":{"type":"agent_message","text":"{\"verdict\":\"PASS\",\"step_done\":\"yes\",\"drift\":\"none\",\"evidence\":[\"fake reviewer\"],\"next\":\"none\"}"}}`)
+	fmt.Println(`{"type":"turn.completed","usage":{}}`)
+}

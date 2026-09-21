@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // ЭТИ ПРОВЕРКИ ЗОВУТ ЗАМОК, А НЕ СМОТРЯТ НА НЕГО.
@@ -114,5 +115,67 @@ func TestWriteFileAtomicLeavesNoLitter(t *testing.T) {
 	}
 	if len(entries) != 1 {
 		t.Errorf("в каталоге %d файлов вместо одного", len(entries))
+	}
+}
+
+func TestWriteFileAtomicRetriesRenameWhileReaderHoldsTarget(t *testing.T) {
+	originalTimeout := writeFileAtomicRetryTimeout
+	originalDelay := writeFileAtomicRetryDelay
+	t.Cleanup(func() {
+		writeFileAtomicRetryTimeout = originalTimeout
+		writeFileAtomicRetryDelay = originalDelay
+	})
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "verdict.json")
+	if err := os.WriteFile(path, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	reader, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	closed := make(chan struct{})
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		_ = reader.Close()
+		close(closed)
+	}()
+
+	if err := writeFileAtomic(path, []byte("new")); err != nil {
+		t.Fatalf("повтор замены не дождался освобождения файла: %v", err)
+	}
+	<-closed
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "new" {
+		t.Fatalf("содержимое не заменилось: %q", got)
+	}
+
+	writeFileAtomicRetryTimeout = 50 * time.Millisecond
+	writeFileAtomicRetryDelay = 5 * time.Millisecond
+	if err := os.WriteFile(path, []byte("old-again"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	reader, err = os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFileAtomic(path, []byte("never")); err == nil {
+		t.Fatal("ожидалась ошибка после исчерпания времени повтора")
+	}
+	if err := reader.Close(); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), ".tmp") {
+			t.Fatalf("после ошибки остался временный файл %s", entry.Name())
+		}
 	}
 }

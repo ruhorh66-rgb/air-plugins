@@ -129,6 +129,39 @@ type checklistFile struct {
 	Items []factItem `json:"items"`
 }
 
+// UnmarshalJSON принимает оба исторических имени реестра. При наличии обоих
+// ключей запись из items имеет приоритет над записью из facts с тем же id.
+func (c *checklistFile) UnmarshalJSON(data []byte) error {
+	type checklistPayload struct {
+		Items []factItem `json:"items"`
+		Facts []factItem `json:"facts"`
+	}
+	var payload checklistPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
+	if len(payload.Items) == 0 {
+		c.Items = payload.Facts
+		return nil
+	}
+
+	merged := append([]factItem(nil), payload.Facts...)
+	positions := make(map[string]int, len(merged))
+	for i, item := range merged {
+		positions[item.ID] = i
+	}
+	for _, item := range payload.Items {
+		if i, ok := positions[item.ID]; ok {
+			merged[i] = item
+			continue
+		}
+		positions[item.ID] = len(merged)
+		merged = append(merged, item)
+	}
+	c.Items = merged
+	return nil
+}
+
 // machineVerdict — числа рядом с человеческим текстом.
 //
 // Заведено потому, что счётчик, считающий поиском подстроки в тексте причины, молча

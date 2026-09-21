@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -106,5 +108,47 @@ func TestBOMНеЛомаетРазбор(t *testing.T) {
 	}
 	if len(cl.Items) != 1 {
 		t.Fatalf("ожидался 1 факт, получено %d", len(cl.Items))
+	}
+}
+
+func TestChecklistAcceptsFactsKeyAsItems(t *testing.T) {
+	var fromFacts, fromItems, merged, empty checklistFile
+	if err := json.Unmarshal([]byte(`{"facts":[
+		{"id":"f01","status":"completed"},
+		{"id":"f02","status":"pending"}
+	]}`), &fromFacts); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(`{"items":[
+		{"id":"f01","status":"completed"},
+		{"id":"f02","status":"pending"}
+	]}`), &fromItems); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(fromFacts.Items, fromItems.Items) {
+		t.Fatalf("facts и items должны давать одинаковые факты: facts=%#v items=%#v", fromFacts.Items, fromItems.Items)
+	}
+	if err := json.Unmarshal([]byte(`{"facts":[
+		{"id":"f01","status":"pending"},
+		{"id":"f02","status":"completed"}
+	],"items":[
+		{"id":"f01","status":"completed"},
+		{"id":"f03","status":"gated","awaits":"решение"}
+	]}`), &merged); err != nil {
+		t.Fatal(err)
+	}
+	want := []factItem{
+		{ID: "f01", Status: "completed"},
+		{ID: "f02", Status: "completed"},
+		{ID: "f03", Status: "gated", Awaits: "решение"},
+	}
+	if !reflect.DeepEqual(merged.Items, want) {
+		t.Fatalf("оба ключа должны объединяться с приоритетом items: got=%#v want=%#v", merged.Items, want)
+	}
+	if err := json.Unmarshal([]byte(`{}`), &empty); err != nil {
+		t.Fatal(err)
+	}
+	if len(empty.Items) != 0 {
+		t.Fatalf("пустой реестр должен давать пустой список: %#v", empty.Items)
 	}
 }

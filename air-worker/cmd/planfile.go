@@ -1,11 +1,52 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"regexp"
 	"strings"
 )
+
+// restorePlanBytes возвращает план ровно к байтам, которые были до хода
+// исполнителя. План принадлежит ядру: запись исполнителя не должна переживать
+// reconciliation даже тогда, когда она затронула чужие строки.
+func restorePlanBytes(path string, before []byte) error {
+	return os.WriteFile(path, before, 0o644)
+}
+
+// closeModelStepOnPass закрывает модельный шаг только после подтверждения
+// фактическим и (если он был вызван) смысловым судьёй.
+func closeModelStepOnPass(path string, step workStep, factualPass bool, sem *semanticRun) error {
+	if !factualPass {
+		return nil
+	}
+	if sem != nil && (sem.Error != "" || sem.Verdict.Verdict != "PASS" || sem.Verdict.StepDone != "yes") {
+		return nil
+	}
+	return closeStepInPlan(path, step)
+}
+
+// reconcileModelStepPlan сначала откатывает любую правку исполнителя, затем
+// оставляет ядру единственное право закрыть строку по вердикту.
+func reconcileModelStepPlan(planPath string, before []byte, step workStep, factualPass bool, sem *semanticRun) (closed, tampered bool, err error) {
+	after, err := os.ReadFile(planPath)
+	if err != nil {
+		tampered = true
+		if err := restorePlanBytes(planPath, before); err != nil {
+			return false, true, err
+		}
+	} else if !bytes.Equal(after, before) {
+		tampered = true
+		if err := restorePlanBytes(planPath, before); err != nil {
+			return false, true, err
+		}
+	}
+	if err := closeModelStepOnPass(planPath, step, factualPass, sem); err != nil {
+		return false, tampered, err
+	}
+	return factualPass && (sem == nil || (sem.Error == "" && sem.Verdict.Verdict == "PASS" && sem.Verdict.StepDone == "yes")), tampered, nil
+}
 
 // Разбор плана для ПЕТЛИ. Отличается от parsePlan (plan.go) назначением: тому нужны
 // только номера и признаки закрытости для расстояния до цели, этому — ступень, заголовок,
@@ -195,4 +236,10 @@ func closeCheckLine(ln string) string {
 	}
 	markStart, markEnd := loc[2], loc[3] // группа 1 — символ внутри [ ]
 	return ln[:markStart] + "x" + ln[markEnd:]
+}
+
+// modelStepFactualPass — фактическое условие закрытия модельного шага: пройдены критерии САМОГО шага, а не вся
+// цель. Цель красна до последнего шага; условие «вся цель зелёная» не закрыло бы ядром ни одного шага.
+func modelStepFactualPass(step workStep, ok bool, detailed *judgeResult) bool {
+	return ok && stepFactualVerdict(step, detailed).Code == 0
 }

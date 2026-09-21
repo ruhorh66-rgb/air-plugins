@@ -1,0 +1,12 @@
+{
+  "goal": "Release AirWorker 0.10.11 as a minimal three-P1 correction line that enforces open LPR gates, sanitizes Windows PowerShell 5.1 child PSModulePath, and reports a live semantic reviewer truthfully without changing the v1 adapter schema.",
+  "objective": "OBJECTIVE.md",
+  "enabled": false,
+  "workdir": ".",
+  "taskFile": "PLAN.md",
+  "judge": "bin\\air-worker.exe judge -product .",
+  "engine": "bin\\air-worker.exe loop -product .",
+  "maxIterations": 12,
+  "maxMinutes": 360,
+  "maxRunsPerDay": 4
+}

@@ -1,0 +1,52 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"time"
+)
+
+// Читатель квитанций для проверки гонки. Режимы:
+//   poll <dir> <секунд> <пауза_мкс> — читает *.receipt.json в цикле так же, как readAdapterReceipts (os.ReadFile);
+//   hold <dir> <секунд_ожидания> <миллисекунд_удержания> — ждёт появления квитанции, открывает её и держит открытой.
+func main() {
+	mode, dir := os.Args[1], os.Args[2]
+	a3, _ := strconv.Atoi(os.Args[3])
+	switch mode {
+	case "poll":
+		gap, _ := strconv.Atoi(os.Args[4])
+		end := time.Now().Add(time.Duration(a3) * time.Second)
+		n := 0
+		for time.Now().Before(end) {
+			files, _ := filepath.Glob(filepath.Join(dir, "*.receipt.json"))
+			for _, f := range files {
+				_, _ = os.ReadFile(f)
+				n++
+			}
+			if gap > 0 {
+				time.Sleep(time.Duration(gap) * time.Microsecond)
+			}
+		}
+		fmt.Println("poll reads:", n)
+	case "hold":
+		hold, _ := strconv.Atoi(os.Args[4])
+		end := time.Now().Add(time.Duration(a3) * time.Second)
+		for time.Now().Before(end) {
+			files, _ := filepath.Glob(filepath.Join(dir, "*.receipt.json"))
+			if len(files) > 0 {
+				f, err := os.Open(files[0])
+				if err != nil {
+					continue
+				}
+				fmt.Println("hold: opened", filepath.Base(files[0]), "at", time.Now().Format("15:04:05.000"))
+				time.Sleep(time.Duration(hold) * time.Millisecond)
+				f.Close()
+				return
+			}
+			time.Sleep(200 * time.Microsecond)
+		}
+		fmt.Println("hold: receipt did not appear")
+	}
+}

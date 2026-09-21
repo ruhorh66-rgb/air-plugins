@@ -1,0 +1,116 @@
+{
+  "_": "Кампания 0.10.11-fix (Aworker, 21.09.2026). Исполнитель Codex, смысловой судья Claude (ядро выбирает противоположного вендора само). Тяжёлые проверки исполняют шаги плана и пишут результат в .campaign/results; проверки судьи только читают результат и сверяют хэш исходников.",
+  "judge": {
+    "checks": [
+      {
+        "name": "тесты бинарника",
+        "_": "Полный go test; для критерия с тестом — только названный тест (select).",
+        "command": "go",
+        "args": [
+          "-C",
+          "cmd",
+          "test",
+          "./...",
+          "-count=1"
+        ],
+        "select": "-run ^{}$"
+      },
+      {
+        "name": "полный прогон",
+        "script": "tools/campaign/check-result.ps1",
+        "args": [
+          "suite"
+        ]
+      },
+      {
+        "name": "мутация M6",
+        "script": "tools/campaign/check-result.ps1",
+        "args": [
+          "m6"
+        ]
+      },
+      {
+        "name": "стенд гонки",
+        "script": "tools/campaign/check-result.ps1",
+        "args": [
+          "stand"
+        ]
+      },
+      {
+        "name": "сценарии Ц7",
+        "script": "tools/campaign/check-result.ps1",
+        "args": [
+          "c7"
+        ]
+      },
+      {
+        "name": "goals продукта",
+        "script": "tools/campaign/check-goals.ps1",
+        "args": []
+      },
+      {
+        "name": "происхождение сборки",
+        "script": "tools/campaign/check-provenance.ps1",
+        "args": []
+      },
+      {
+        "name": "мутации Д-5",
+        "script": "tools/campaign/check-result.ps1",
+        "args": [
+          "d5m"
+        ]
+      },
+      {
+        "name": "мутации Д-6",
+        "script": "tools/campaign/check-result.ps1",
+        "args": [
+          "d6m"
+        ]
+      },
+      {
+        "name": "объём правок",
+        "script": "tools/campaign/check-scope.ps1",
+        "args": []
+      }
+    ],
+    "checklist": "docs/campaign-0.10.11-fix/checklist.json",
+    "min_facts": 0
+  },
+  "plan": "docs/campaign-0.10.11-fix/PLAN.md",
+  "budget": {
+    "_": "Потолок поднят ЛПР 21.09: один запуск проходит несколько шагов подряд; денежный потолок и потолок ходов остаются.",
+    "iterations": 8,
+    "usd": 15,
+    "turns_per_iteration": 60
+  },
+  "ladder": [
+    "script",
+    "luna:medium",
+    "luna:max",
+    "terra:medium",
+    "terra:ultra",
+    "sol:medium",
+    "sol:ultra"
+  ],
+  "runners": {
+    "script": {
+      "kind": "script"
+    },
+    "luna": {
+      "kind": "codex",
+      "model": "gpt-5.6-luna"
+    },
+    "terra": {
+      "kind": "codex",
+      "model": "gpt-5.6-terra"
+    },
+    "sol": {
+      "kind": "codex",
+      "model": "gpt-5.6-sol"
+    }
+  },
+  "orchestration": {
+    "enabled": true,
+    "subagents": 0
+  }
+}

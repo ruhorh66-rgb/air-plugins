@@ -78,7 +78,7 @@ func startJobReceipt(scope sessionScope, step, operation, receiptPath, outputPat
 		Step:       step,
 		Operation:  operation,
 	}
-	if err := writeJobReceipt(receiptPath, r); err != nil {
+	if err := writeJobReceiptFunc(receiptPath, r); err != nil {
 		lock.release()
 		return nil, nil, err
 	}
@@ -94,8 +94,11 @@ func finishJobReceipt(receiptPath, status string) error {
 		return err
 	}
 	r.Status = status
-	return writeJobReceipt(receiptPath, r)
+	return writeJobReceiptFunc(receiptPath, r)
 }
+
+// writeJobReceiptFunc — seam для проверки отказа записи квитанции на каждом этапе запуска.
+var writeJobReceiptFunc = writeJobReceipt
 
 func writeJobReceipt(path string, r *jobReceipt) error {
 	data, err := json.MarshalIndent(r, "", "  ")
@@ -176,7 +179,7 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 	r.Effort = meta.Effort
 	r.Role = meta.Role
 	r.Sandbox = meta.Sandbox
-	if err := writeJobReceipt(receiptPath, r); err != nil {
+	if err := writeJobReceiptFunc(receiptPath, r); err != nil {
 		_ = finishJobReceipt(receiptPath, jobStatusFailed)
 		lock.release()
 		return nil, err
@@ -199,7 +202,19 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 	// здесь он лишь дополняется настоящим PID вместо нуля placeholder.
 	r.PID = cmd.Process.Pid
 	r.ProcessStarted = true
-	_ = writeJobReceipt(receiptPath, r)
+	if err := writeJobReceiptFunc(receiptPath, r); err != nil {
+		registrationErr := fmt.Errorf("не удалось зарегистрировать PID %d: %w", r.PID, err)
+		// Запуск без записи настоящего PID не считается успешным: немедленно убиваем
+		// дочерний процесс и дожидаемся его завершения до освобождения job-lock.
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		_ = outFile.Close()
+		r.Status = jobStatusFailed
+		r.ProcessStarted = false
+		_ = writeJobReceiptFunc(receiptPath, r)
+		lock.release()
+		return nil, registrationErr
+	}
 
 	resultCh := make(chan jobCmdResult, 1)
 	go func() {
