@@ -10,6 +10,16 @@
 
 The release preserves the `air-worker.tool/v1` schema and contains no campaign, reviewer-selector, stdin-transport, or broader orchestration redesign. The plan draft was produced through a one-shot UTF-8 stdin planning bypass; that planner transport is evidence only and is not part of the runtime release scope. Published 0.10.10 artifacts remain immutable.
 
+### Corrections after independent verification (2026-09-21)
+
+- Receipt writes on Windows retry `os.Rename` while another process holds the target open, so the PID of a launched process is no longer lost when `adapter status` reads the receipt at the same moment.
+- A failed PID registration after launch is no longer swallowed: the process is stopped and the launch fails with a named reason instead of leaving an invisible semantic reviewer.
+- A test now fails when the semantic reviewer is launched without a receipt; the mutation check confirms it.
+- The registry reader accepts the `facts` key as `items`; the product `goals` answer yes again.
+- A static guard fails on any Windows PowerShell launch outside the sanitizing helper.
+- The core closes a model step in `PLAN.md` itself, only after both judges pass; any edit of `PLAN.md` by the executor is rejected and the file is restored byte for byte.
+- Release binaries are built from a clean checkout of the source commit with the flags of the published build; the embedded revision is that commit and `vcs.modified` is `false`.
+
 ## 0.10.10 — 19.09.2026
 
 ### Hermes adapter facade and non-switching profile packages
