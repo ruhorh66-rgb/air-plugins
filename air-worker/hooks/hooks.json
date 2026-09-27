@@ -84,6 +84,11 @@
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/skills/woody/hooks/encoding-guard.cmd\"",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/air-worker.exe\" hook PostToolUse",
+            "timeout": 10
           }
         ]
       }

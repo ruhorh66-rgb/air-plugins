@@ -68,6 +68,9 @@ func usage() {
   air-worker plan   -product <корень> [-apply] [-model M] [-dry-run] [-use-answer <файл>]
         Планировщик: разбивка цели на шаги ОДНИМ дорогим вызовом. Предлагает в
         PLAN.proposed.md; существующий PLAN.md не трогается никогда.
+  air-worker plan-lint -product <корень> [-json]
+        Неблокирующая формальная подсказка: разведочный model-step, уже измеряемый
+        существующей проверкой и без mutation/file target, возможно должен быть script.
 
   air-worker adapter -action status -product <root> [-config <path>]
         Emit compact read-only air-worker.tool/v1 campaign status JSON.
@@ -90,11 +93,14 @@ func usage() {
         Сводка экосистемы без LLM: у каждого продукта явные root+plan, расстояние до
         ближайшей плановой вехи, native goal-distance если доказуем, иначе NOT_PROVEN/limits.
 
+  air-worker validate -product <корень> [-json]
+        Механическая проверка PLAN/run-config/judge: файлы, NUL, selector-контракты и
+        измеримость критериев. Business/judge checks не запускает; Go selectors перечисляет
+        одним go test -list на проверку.
   air-worker goals  -product <корень> [-json]
-        Годен ли план к работе: цели объявлены, исполняемые шаги ссылаются на критерии,
-        критерии меряются проверкой судьи или фактом реестра. Судью не гоняет — зовётся
-        стражем работы на каждой правке файла. Коды: 0 годен, 1 не годен, 2 плана нет.
-        Решение ЛПР 14.09.2026: без плана и без целей air-worker не работает.
+        Годен ли план к работе: использует тот же validation engine. Коды: 0 годен,
+        1 не годен, 2 продукта/плана нет. Решение ЛПР 14.09.2026: без плана и целей
+        air-worker не работает; неизмеримый selector не считается годным.
 
   air-worker feedback -product <root> -source-version <v> -type defect|friction|idea -severity P0|P1|P2|P3
         Capture operational feedback as immutable product evidence plus a non-executable
@@ -196,6 +202,8 @@ func run(argv []string) int {
 		return cmdSemantic(argv[1:])
 	case "plan":
 		return cmdPlan(argv[1:])
+	case "plan-lint":
+		return cmdPlanLint(argv[1:])
 	case "adapter":
 		return cmdAdapter(argv[1:])
 	case "tool":
@@ -204,6 +212,8 @@ func run(argv []string) int {
 		return cmdEncoding(argv[1:])
 	case "report":
 		return cmdReport(argv[1:])
+	case "validate":
+		return cmdValidate(argv[1:])
 	case "goals":
 		return cmdGoals(argv[1:])
 	case "feedback":

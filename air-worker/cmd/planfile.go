@@ -92,7 +92,40 @@ type workStep struct {
 	Gate  bool
 }
 
+const protectedPlanPipe = "\uE000"
+
+func protectPlanCellPipes(line string) string {
+	var b strings.Builder
+	b.Grow(len(line))
+	inCode := false
+	escaped := false
+	for _, r := range line {
+		switch {
+		case r == '`' && !escaped:
+			inCode = !inCode
+			b.WriteRune(r)
+			escaped = false
+		case r == '|' && (inCode || escaped):
+			b.WriteString(protectedPlanPipe)
+			escaped = false
+		default:
+			b.WriteRune(r)
+			if r == '\\' && !escaped {
+				escaped = true
+			} else {
+				escaped = false
+			}
+		}
+	}
+	return b.String()
+}
+
+func restorePlanCellPipes(value string) string {
+	return strings.ReplaceAll(value, protectedPlanPipe, "|")
+}
+
 func splitCmd(rest string) (title, cmd string) {
+	rest = restorePlanCellPipes(rest)
 	if i := strings.Index(rest, "::"); i >= 0 {
 		return strings.TrimSpace(rest[:i]), strings.TrimSpace(rest[i+2:])
 	}
@@ -115,28 +148,29 @@ func readPlanSteps(path string) []workStep {
 			})
 			continue
 		}
-		if m := rePlanGate.FindStringSubmatch(line); m != nil {
+		probe := protectPlanCellPipes(line)
+		if m := rePlanGate.FindStringSubmatch(probe); m != nil {
 			i++
 			steps = append(steps, workStep{
 				Index: i, Num: m[2], Done: m[1] != "", Tier: "gate", Gate: true,
-				Title: m[2] + ". " + strings.TrimSpace(m[3]), Judge: strings.TrimSpace(m[4]),
+				Title: m[2] + ". " + strings.TrimSpace(restorePlanCellPipes(m[3])), Judge: strings.TrimSpace(restorePlanCellPipes(m[4])),
 			})
 			continue
 		}
-		m := rePlanTable.FindStringSubmatch(line)
+		m := rePlanTable.FindStringSubmatch(probe)
 		if m == nil {
 			// A numbered four-column row that advertises an LPR gate must never vanish
 			// because its punctuation or tier cell is malformed. Its closure cannot be
 			// trusted either, so represent it as an open barrier until a human repairs it.
-			if malformed := reNumberedFourColumnRow.FindStringSubmatch(line); malformed != nil {
+			if malformed := reNumberedFourColumnRow.FindStringSubmatch(probe); malformed != nil {
 				gateText := strings.ToLower(malformed[5] + " " + malformed[6])
 				if strings.Contains(gateText, "гейт") || strings.Contains(gateText, "лпр") ||
 					strings.Contains(gateText, "lpr") {
 					i++
 					steps = append(steps, workStep{
 						Index: i, Num: malformed[2], Tier: "gate", Gate: true,
-						Title: malformed[2] + ". " + strings.TrimSpace(malformed[4]) + " [некорректный гейт]",
-						Judge: strings.TrimSpace(malformed[6]),
+						Title: malformed[2] + ". " + strings.TrimSpace(restorePlanCellPipes(malformed[4])) + " [некорректный гейт]",
+						Judge: strings.TrimSpace(restorePlanCellPipes(malformed[6])),
 					})
 				}
 			}
@@ -148,7 +182,7 @@ func readPlanSteps(path string) []workStep {
 		title, cmd := splitCmd(strings.TrimSpace(m[3]))
 		steps = append(steps, workStep{
 			Index: i, Num: m[2], Done: m[1] != "", Tier: m[4] + m[5],
-			Title: m[2] + ". " + title, Cmd: cmd, Judge: strings.TrimSpace(m[6]),
+			Title: m[2] + ". " + title, Cmd: cmd, Judge: strings.TrimSpace(restorePlanCellPipes(m[6])),
 		})
 	}
 	return steps
@@ -180,6 +214,7 @@ func closeStepInPlan(path string, step workStep) error {
 	i := 0
 	found := false
 	for li, ln := range lines {
+		probe := protectPlanCellPipes(ln)
 		switch {
 		case reCheckLine.MatchString(ln):
 			i++
@@ -187,11 +222,11 @@ func closeStepInPlan(path string, step workStep) error {
 				lines[li] = closeCheckLine(ln)
 				found = true
 			}
-		case rePlanGate.MatchString(ln):
+		case rePlanGate.MatchString(probe):
 			// Гейты петля не закрывает, но счёт обязан идти той же строкой, что у
 			// readPlanSteps, — иначе номер по счёту у всех шагов ПОСЛЕ гейта разойдётся.
 			i++
-		case rePlanTable.MatchString(ln):
+		case rePlanTable.MatchString(probe):
 			i++
 			if i == step.Index {
 				lines[li] = closeTableRow(ln)

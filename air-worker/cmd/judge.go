@@ -30,13 +30,14 @@ import (
 // «доказательство уничтожено».
 
 type checkSpec struct {
-	Name    string            `json:"name"`
-	Script  string            `json:"script"`
-	Command string            `json:"command"`
-	Args    []string          `json:"args"`
-	Select  string            `json:"select"`
-	Log     string            `json:"log"`
-	Env     map[string]string `json:"env"`
+	Name      string            `json:"name"`
+	Script    string            `json:"script"`
+	Command   string            `json:"command"`
+	Args      []string          `json:"args"`
+	Select    string            `json:"select"`
+	Selectors []string          `json:"selectors,omitempty"`
+	Log       string            `json:"log"`
+	Env       map[string]string `json:"env"`
 }
 
 type judgeSpec struct {

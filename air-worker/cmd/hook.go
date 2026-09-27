@@ -132,6 +132,7 @@ func defaultHookHandler(hookInput) (hookResult, error) { return hookResult{}, ni
 // на следующих шагах, без изменения диспетчера.
 var hookHandlers = map[string]hookHandler{
 	"PreToolUse":       handlePreToolUseBypassGuard,
+	"PostToolUse":      handlePostToolUsePlanLint,
 	"Stop":             handleStopLearning,
 	"SessionStart":     handleLearningContext,
 	"UserPromptSubmit": handleUserPromptLearning,
@@ -398,7 +399,7 @@ func cmdHook(argv []string) (code int) {
 		}
 		if b, marshalErr := json.Marshal(payload); marshalErr == nil {
 			fmt.Print(string(b) + lineEnding)
-			writeHookTrace(sessionID, event, class, "контекст", "загружены approved AirCurator rules")
+			writeHookTrace(sessionID, event, class, "контекст", "обработчик вернул additionalContext")
 		}
 	}
 	return 0

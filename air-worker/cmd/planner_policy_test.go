@@ -19,3 +19,17 @@ func TestPlannerPromptRequiresScriptFirst(t *testing.T) {
 		}
 	}
 }
+
+func TestPlannerPromptRequiresReadyToolsBeforeExternalIntegration(t *testing.T) {
+	prompt := buildPlannerPrompt("goal", "{}", "task", "body", []string{"script", "sonnet"}, []string{"tests"})
+	for _, phrase := range []string{
+		"## Готовые средства",
+		"| Инструмент | Штатное средство | Версия | Покрытие |",
+		"официальный SDK/CLI/API",
+		"Не предписывай свой HTTP-клиент",
+	} {
+		if !strings.Contains(prompt, phrase) {
+			t.Fatalf("planner prompt lost ready-tools contract %q", phrase)
+		}
+	}
+}

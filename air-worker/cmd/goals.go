@@ -355,61 +355,23 @@ func cmdGoals(argv []string) int {
 	if err := fs.Parse(argv); err != nil {
 		return 2
 	}
-	root, err := filepath.Abs(*product)
-	if err != nil {
-		fmt.Print("НЕЧЕМ ПРОВЕРИТЬ: не разобран путь продукта: " + err.Error() + lineEnding)
-		return 2
-	}
-	var cfg runConfig
-	cfgErr := readJSON(filepath.Join(root, "run-config.json"), &cfg)
-	planName := cfg.Plan
-	if planName == "" {
-		planName = "PLAN.md"
-	}
-	planPath := filepath.Join(root, planName)
-
+	validation, code := validateProduct(*product)
+	root := validation.Product
 	res := struct {
-		Product    string   `json:"product"`
-		Plan       string   `json:"plan"`
-		Goals      int      `json:"goals"`
-		Criteria   int      `json:"criteria"`
-		OpenGates  []string `json:"open_gates"`
-		JudgeFiles []string `json:"judge_files"`
-		// LoopRunning — по продукту идёт петля. Страж работы пропускает по нему исполнителя
-		// петли: отцеплённый `claude -p` в корне продукта получает хуки плагина, а продукт у
-		// него не объявлен, — без этого страж остановил бы саму петлю.
+		Product     string   `json:"product"`
+		Plan        string   `json:"plan"`
+		Goals       int      `json:"goals"`
+		Criteria    int      `json:"criteria"`
+		OpenGates   []string `json:"open_gates"`
+		JudgeFiles  []string `json:"judge_files"`
 		LoopRunning bool     `json:"loop_running"`
 		Problems    []string `json:"problems"`
-	}{Product: root, Plan: planPath, OpenGates: []string{}, JudgeFiles: judgeFiles(root, cfg, cfgErr == nil),
-		LoopRunning: lockHeld(lockName("loop", root)), Problems: []string{}}
-
-	code := 0
-	steps := readPlanSteps(planPath)
-	// Открытые гейты печатаются всегда: по ним страж хода проверяет, законно ли ход ждёт ЛПР
-	// (этап 0.10, К9). Ожидание ЛПР без открытого гейта — вопрос, ответ на который план
-	// обязан давать сам.
-	for _, s := range steps {
-		if s.Gate && !s.Done {
-			res.OpenGates = append(res.OpenGates, s.Num)
-		}
-	}
-	switch {
-	case cfgErr != nil:
-		res.Problems = append(res.Problems, "нет run-config.json — это не продукт air-worker")
-		code = 2
-	case len(steps) == 0:
-		res.Problems = append(res.Problems, "план пуст или не найден: "+planPath)
-		code = 2
-	default:
-		g := readPlanGoals(planPath)
-		res.Goals, res.Criteria = len(g.Goals), len(g.Criteria)
-		res.Problems = append(res.Problems, goalProblems(g, steps)...)
-		if len(g.Criteria) > 0 {
-			res.Problems = append(res.Problems, criteriaBinding(root, cfg, g)...)
-		}
-		if len(res.Problems) > 0 {
-			code = 1
-		}
+	}{
+		Product: validation.Product, Plan: validation.Plan,
+		Goals: validation.Goals, Criteria: validation.Criteria,
+		OpenGates: validation.OpenGates, JudgeFiles: validation.JudgeFiles,
+		LoopRunning: root != "" && lockHeld(lockName("loop", root)),
+		Problems:    append([]string{}, validation.Problems...),
 	}
 
 	if *asJSON {
@@ -417,7 +379,7 @@ func cmdGoals(argv []string) int {
 		fmt.Print(string(b) + lineEnding)
 		return code
 	}
-	fmt.Print("план     : " + planPath + lineEnding)
+	fmt.Print("план     : " + res.Plan + lineEnding)
 	fmt.Printf("цели     : %d, критериев %d"+lineEnding, res.Goals, res.Criteria)
 	if len(res.OpenGates) > 0 {
 		fmt.Print("гейты    : открыты " + strings.Join(res.OpenGates, ", ") + lineEnding)

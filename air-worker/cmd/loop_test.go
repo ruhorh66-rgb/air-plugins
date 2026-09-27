@@ -334,3 +334,37 @@ func TestШагScriptКодНеНольОставляетШагОткрытым(
 		t.Fatalf("шаг обязан остаться первым открытым до движения двигателя цели, получено %+v (%v)", still, ok)
 	}
 }
+
+func TestPlanTableLiteralPipeInsideCodeSpanParsesAndCloses(t *testing.T) {
+	head := "| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n"
+	originalRow := "| 1 | Проверить `air-worker semantic|review` transport | sonnet | К57, К58: TestCriterion57Pending |"
+	plan := writeLoopPlan(t, head+originalRow+"\n| 2 | Следующий шаг | script | К1 |\n")
+
+	steps := readPlanSteps(plan)
+	if len(steps) != 2 {
+		t.Fatalf("literal pipe split the four-column plan row: %#v", steps)
+	}
+	if steps[0].Num != "1" || !strings.Contains(steps[0].Title, "semantic|review") || steps[0].Judge != "К57, К58: TestCriterion57Pending" {
+		t.Fatalf("row content not restored after protected-pipe parse: %#v", steps[0])
+	}
+	if err := closeStepInPlan(plan, steps[0]); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantRow := "| ~~1~~ | Проверить `air-worker semantic|review` transport | sonnet | К57, К58: TestCriterion57Pending |"
+	if !strings.Contains(string(raw), wantRow) {
+		t.Fatalf("close changed more than the step number:\n%s", raw)
+	}
+}
+
+func TestPlanTableEscapedPipeInsideCellParses(t *testing.T) {
+	head := "| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n"
+	plan := writeLoopPlan(t, head+"| 1 | Сверить left \\| right | script | К60: TestCriterion60Pending |\n")
+	steps := readPlanSteps(plan)
+	if len(steps) != 1 || steps[0].Num != "1" || !strings.Contains(steps[0].Title, "left \\| right") {
+		t.Fatalf("escaped pipe broke plan row: %#v", steps)
+	}
+}
