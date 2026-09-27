@@ -1,5 +1,24 @@
 # CHANGELOG — air-worker
 
+## 0.10.12 — 28.09.2026
+
+### AirCurator block + LPR-gated self-learning
+
+- AirCurator is now a built-in AirWorker role/skill, not a separate plugin/runtime. `curator patrol|digest` reports the nearest milestone, gate, pending LPR decisions and measured learning effect.
+- Added the self-learning loop: `learn add|propose|pending|apply|effect|context|rollback`. Background review is threshold-triggered and read-only; it may create only `PENDING_LPR` proposals.
+- Variant 1 is enforced mechanically: an exact user `UserPromptSubmit` of `да <proposal-id>` creates a proposal-digest-bound, session-attributed, one-shot approval grant. `learn apply` has no text-approval shortcut and atomically claims the grant before mutating active rules.
+- Active `.air-worker/learn/RULES.md` is loaded only when its SHA-256 matches the latest apply/rollback ledger transition. Direct Write/Edit/shell access to learning state and forged `hook UserPromptSubmit` paths are blocked in active Claude sessions.
+- Learning mutations retain before/after SHA-256, immutable blobs and rollback evidence; rollback refuses to overwrite newer rule state. `learn effect` counts repeats of the same class only after application.
+- `learning.auto_apply` exists in the config contract and ships `false`; enabling Hermes-style auto-apply requires a separate LPR decision and is not activated by this release.
+
+### Deterministic ecosystem measurement
+
+- Added `report -all` with the explicit `air-worker.products/v1` registry contract: each product declares its root and canonical plan path. One command returns text or JSON for distance to the nearest plan milestone, native goal distance when provable, open gates, next work and measurement limits.
+- External Wiki plans are supported without pretending they are native runtime plans. Non-machine-readable plans report `NOT_PROVEN`; missing judge/run-config data remains unknown instead of becoming zero.
+- Added `curator digest -all`, reusing the same registry to build the 10:00 ecosystem view: milestones, `ЖДЁТ ДА` and learning effect, without an LLM recomputing statistics.
+
+Release control: full Go tests, Hermes hook/adapter checks, plugin/version parity, real six-product `report -all`/curator digest smoke, clean-checkout binaries and an exact-tree semantic review. Tag, GitHub Release, marketplace and installation remain separate LPR gates.
+
 ## 0.10.11 — 20.09.2026
 
 ### Three production P1 corrections

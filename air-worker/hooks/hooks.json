@@ -8,6 +8,11 @@
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/skills/woody/hooks/turn-guard.cmd\"",
             "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/air-worker.exe\" hook Stop",
+            "timeout": 5
           }
         ]
       }
@@ -42,11 +47,26 @@
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/skills/woody/hooks/mode-guard.cmd\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/air-worker.exe\" hook PreToolUse",
+            "timeout": 10
           }
         ]
       },
       {
         "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/air-worker.exe\" hook PreToolUse",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
@@ -75,6 +95,22 @@
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/skills/woody/hooks/tray-up.cmd\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/air-worker.exe\" hook SessionStart",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/air-worker.exe\" hook UserPromptSubmit",
+            "timeout": 5
           }
         ]
       }

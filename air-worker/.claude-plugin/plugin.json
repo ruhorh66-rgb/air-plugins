@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.10.11",
-  "description": "AirWorker 0.10.11: LPR gate barrier, Windows PowerShell 5.1 environment guard, and truthful live semantic-reviewer status.",
+  "version": "0.10.12",
+  "description": "AirWorker 0.10.12: built-in AirCurator, LPR-gated self-learning, and deterministic portfolio report -all.",
   "author": {
     "name": "AIR OS"
   },

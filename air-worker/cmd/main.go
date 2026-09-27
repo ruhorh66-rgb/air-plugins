@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.10.11"
+	version = "0.10.12"
 )
 
 func usage() {
@@ -83,6 +83,9 @@ func usage() {
         изменения в дереве и следующий шаг плана. Вставляется в ход дословно; -json
         сверяет страж. Поля, которые прежде требовались от модели словами, здесь
         нельзя ни забыть, ни сочинить.
+  air-worker report -all [-registry <air-worker.products/v1.json>] [-json]
+        Сводка экосистемы без LLM: у каждого продукта явные root+plan, расстояние до
+        ближайшей плановой вехи, native goal-distance если доказуем, иначе NOT_PROVEN/limits.
 
   air-worker goals  -product <корень> [-json]
         Годен ли план к работе: цели объявлены, исполняемые шаги ссылаются на критерии,
@@ -93,6 +96,19 @@ func usage() {
   air-worker feedback -product <root> -source-version <v> -type defect|friction|idea -severity P0|P1|P2|P3
         Capture operational feedback as immutable product evidence plus a non-executable
         candidate in the canonical PLAN. Full success or explicit PARTIAL with nonzero exit.
+
+  air-worker learn add|propose|pending|apply|effect|context|rollback ...
+        Петля самообучения AirCurator. Фоновый разбор может только предложить правило.
+        "да <id>" принимается только из доверенного UserPromptSubmit активной сессии и создаёт
+        одноразовый grant; apply потребляет grant. Прямая запись в .air-worker/learn блокируется.
+        Каждая мутация имеет digest-ledger и обратимый blob.
+
+  air-worker curator patrol|digest -product <root> [-json]
+        Одноразовый обход/сводка встроенного AirCurator: ближайшая веха, шаг/гейт,
+        очередь PENDING_LPR и эффект уже применённых правил.
+  air-worker curator digest -all [-registry <air-worker.products/v1.json>] [-json]
+        Сводка 10:00 SGT по экосистеме: вехи из report -all, ЖДЁТ ДА и эффект обучения.
+        Планировщик ОС может звать эту команду; отдельного AirCurator runtime нет.
 
   air-worker install [-dir <куда>] [-autostart] [-no-start] [-status] [-uninstall]
         Ставит продукт в пользовательскую область и вешает значок в трее. ПОВЫШЕНИЕ ПРАВ
@@ -189,6 +205,10 @@ func run(argv []string) int {
 		return cmdGoals(argv[1:])
 	case "feedback":
 		return cmdFeedback(argv[1:])
+	case "learn":
+		return cmdLearn(argv[1:])
+	case "curator":
+		return cmdCurator(argv[1:])
 	case "install":
 		return cmdInstall(argv[1:])
 	case "tray":

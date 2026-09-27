@@ -147,6 +147,10 @@
       "model": "gpt-5.6-sol"
     }
   },
+  "learning": {
+    "_": "Variant 1 (LPR 28.09): background review creates PENDING_LPR only. Auto-apply requires a separate later LPR decision.",
+    "auto_apply": false
+  },
   "orchestration": {
     "_": "Шаги 3, 4 и 6 независимы между собой — их можно вести параллельно. Шаги 1-2 и 7-8 последовательны и упираются в судью.",
     "enabled": true,

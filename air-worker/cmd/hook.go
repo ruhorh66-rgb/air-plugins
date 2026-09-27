@@ -100,20 +100,23 @@ func classifyHookEvent(event string) hookClass {
 // читают его же: заводить второй разбор JSON под каждый обработчик значило бы разойтись с
 // протоколом по частям, а не сразу.
 type hookInput struct {
-	SessionID      string          `json:"session_id"`
-	TranscriptPath string          `json:"transcript_path"`
-	Cwd            string          `json:"cwd"`
-	HookEventName  string          `json:"hook_event_name"`
-	ToolName       string          `json:"tool_name,omitempty"`
-	ToolInput      json.RawMessage `json:"tool_input,omitempty"`
-	StopHookActive bool            `json:"stop_hook_active,omitempty"`
+	SessionID            string          `json:"session_id"`
+	TranscriptPath       string          `json:"transcript_path"`
+	Cwd                  string          `json:"cwd"`
+	HookEventName        string          `json:"hook_event_name"`
+	ToolName             string          `json:"tool_name,omitempty"`
+	ToolInput            json.RawMessage `json:"tool_input,omitempty"`
+	Prompt               string          `json:"prompt,omitempty"`
+	StopHookActive       bool            `json:"stop_hook_active,omitempty"`
+	LastAssistantMessage string          `json:"last_assistant_message,omitempty"`
 }
 
 // hookResult — решение обработчика. Reason годится и для stderr харнесса, и для следа —
 // один текст на оба места, а не два формулирования одной причины.
 type hookResult struct {
-	Block  bool
-	Reason string
+	Block   bool
+	Reason  string
+	Context string
 }
 
 // hookHandler — обработчик одного события. Ошибка ИЛИ паника здесь — это «решение получить
@@ -128,7 +131,10 @@ func defaultHookHandler(hookInput) (hookResult, error) { return hookResult{}, ni
 // решения (учёт субагентов, стражи кодировки и режима) встанут регистрацией в этой же карте
 // на следующих шагах, без изменения диспетчера.
 var hookHandlers = map[string]hookHandler{
-	"PreToolUse": handlePreToolUseBypassGuard,
+	"PreToolUse":       handlePreToolUseBypassGuard,
+	"Stop":             handleStopLearning,
+	"SessionStart":     handleLearningContext,
+	"UserPromptSubmit": handleUserPromptLearning,
 }
 
 func handlerFor(event string) hookHandler {
@@ -136,6 +142,39 @@ func handlerFor(event string) hookHandler {
 		return h
 	}
 	return defaultHookHandler
+}
+
+func learningStatePathMention(value string) bool {
+	normalized := strings.ToLower(filepath.ToSlash(strings.TrimSpace(value)))
+	return strings.Contains(normalized, ".air-worker/learn/") ||
+		strings.HasSuffix(normalized, ".air-worker/learn")
+}
+
+func learningApprovalBypass(in hookInput) (bool, string) {
+	tool := strings.ToLower(strings.TrimSpace(in.ToolName))
+	var input map[string]any
+	_ = json.Unmarshal(in.ToolInput, &input)
+
+	if tool == "write" || tool == "edit" || tool == "notebookedit" {
+		for _, key := range []string{"path", "file_path", "target_path", "output_path", "notebook_path"} {
+			if value, ok := input[key].(string); ok && learningStatePathMention(value) {
+				return true, "прямая запись в .air-worker/learn запрещена: состояние самообучения меняет только air-worker learn"
+			}
+		}
+		return false, ""
+	}
+	if tool != "bash" && tool != "powershell" {
+		return false, ""
+	}
+	command, _ := input["command"].(string)
+	low := strings.ToLower(command)
+	if strings.Contains(low, "hook userpromptsubmit") && strings.Contains(low, "air-worker") {
+		return true, "UserPromptSubmit — доверенное событие хоста; сессия не может выписать себе LPR approval вызовом air-worker hook"
+	}
+	if learningStatePathMention(command) {
+		return true, "прямой доступ shell к .air-worker/learn запрещён: используй штатные air-worker learn add|propose|pending|apply|effect|context|rollback"
+	}
+	return false, ""
 }
 
 // handlePreToolUseBypassGuard — единый control-рубеж активной AirWorker-сессии.
@@ -148,6 +187,9 @@ func handlerFor(event string) hookHandler {
 // classifyBypass сама по себе чистая функция над текстом команды; здесь только извлечение
 // команды из tool_input и вызов уже готового решения — второй классификации не заводится.
 func handlePreToolUseBypassGuard(in hookInput) (hookResult, error) {
+	if blocked, reason := learningApprovalBypass(in); blocked {
+		return hookResult{Block: true, Reason: reason}, nil
+	}
 	if strings.EqualFold(in.ToolName, "Agent") {
 		return hookResult{Block: true, Reason: "прямой Agent обходит ядро AirWorker и не создаёт проверяемую квитанцию model/effort/count; запусти air-worker orchestrate"}, nil
 	}
@@ -346,6 +388,18 @@ func cmdHook(argv []string) (code int) {
 		fmt.Fprint(os.Stderr, "air-worker hook "+event+": "+res.Reason+lineEnding)
 		writeHookTrace(sessionID, event, class, "отклонил", res.Reason)
 		return 2
+	}
+	if strings.TrimSpace(res.Context) != "" {
+		payload := map[string]any{
+			"hookSpecificOutput": map[string]any{
+				"hookEventName":     event,
+				"additionalContext": res.Context,
+			},
+		}
+		if b, marshalErr := json.Marshal(payload); marshalErr == nil {
+			fmt.Print(string(b) + lineEnding)
+			writeHookTrace(sessionID, event, class, "контекст", "загружены approved AirCurator rules")
+		}
 	}
 	return 0
 }

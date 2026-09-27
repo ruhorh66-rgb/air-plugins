@@ -348,9 +348,14 @@ func firstLine(s string) string {
 func cmdReport(argv []string) int {
 	fs := flag.NewFlagSet("report", flag.ContinueOnError)
 	product := fs.String("product", ".", "корень продукта")
+	all := fs.Bool("all", false, "сводка по всем продуктам из единого registry root/plan")
+	registry := fs.String("registry", "", "air-worker.products/v1; default: AIR_WORKER_PRODUCTS_FILE или state/air-worker-products.json")
 	asJSON := fs.Bool("json", false, "машинный вывод для сверки стражем")
 	if err := fs.Parse(argv); err != nil {
 		return 2
+	}
+	if *all {
+		return cmdReportAll(*registry, *asJSON)
 	}
 	root, err := filepath.Abs(*product)
 	if err != nil {

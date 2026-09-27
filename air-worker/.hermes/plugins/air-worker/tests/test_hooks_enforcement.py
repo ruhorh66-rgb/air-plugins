@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import json
 import sys
 import tempfile
 import unittest
@@ -178,6 +180,21 @@ class HookEnforcementTests(unittest.TestCase):
             "block",
             self.hooks.pre_tool_call(session_id="session-a", tool_name="vendor.mystery_process", args={})["action"],
         )
+
+    def test_pre_llm_loads_only_active_aircurator_rules(self):
+        self.bind()
+        learn = self.root / ".air-worker" / "learn"
+        learn.mkdir(parents=True)
+        (learn / "proposals.jsonl").write_text('{"rule":"UNAPPROVED MUST STAY OUT"}\n', encoding="utf-8")
+        rules = "# AirWorker learned rules\n- [LP-approved] verify delivery\n"
+        (learn / "RULES.md").write_text(rules, encoding="utf-8")
+        digest = hashlib.sha256((learn / "RULES.md").read_bytes()).hexdigest()
+        (learn / "ledger.jsonl").write_text(json.dumps({"action": "apply", "after_sha256": digest}) + "\n", encoding="utf-8")
+        directive = self.hooks.pre_llm_call(session_id="session-a")
+        self.assertIsInstance(directive, dict)
+        self.assertIn("LP-approved", directive["context"])
+        self.assertIn("verify delivery", directive["context"])
+        self.assertNotIn("UNAPPROVED MUST STAY OUT", directive["context"])
 
     def test_shadow_and_unknown_profiles_observe_without_blocking(self):
         self.bind()

@@ -96,6 +96,13 @@ type orchestrationSpec struct {
 	Subagents int  `json:"subagents"`
 }
 
+type learningSpec struct {
+	// Variant 1 (LPR 28.09): background review may propose, but not apply.
+	// The switch is intentionally present now so a later explicit LPR decision can
+	// enable Hermes-style auto-apply without inventing a second configuration shape.
+	AutoApply bool `json:"auto_apply"`
+}
+
 type driftThresholds struct {
 	StallThrottle    *int `json:"stall_moves_throttle"`
 	StallEscalate    *int `json:"stall_moves_escalate"`
@@ -109,6 +116,7 @@ type runConfig struct {
 	Ladder        []string              `json:"ladder"`
 	Runners       map[string]runnerSpec `json:"runners"`
 	Orchestration orchestrationSpec     `json:"orchestration"`
+	Learning      learningSpec          `json:"learning"`
 	Budget        budgetSpec            `json:"budget"`
 	Runner        runnerAuth            `json:"runner"`
 	OpenAI        openAIConfig          `json:"openai"`

@@ -10,6 +10,7 @@ cannot continue a status-only agent turn.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -24,6 +25,7 @@ _EVENTS: list[dict[str, Any]] = []
 _MAX = 128
 _ENFORCE_PROFILE = "airworker-hermes-v1-enforce"
 _ENFORCING = False
+_LEARN_CONTEXT_LIMIT = 12000
 
 # Explicitly safe observer tools.  Namespaces are removed before classification.
 _READ_ONLY = frozenset({
@@ -177,22 +179,51 @@ def _bound(k: Mapping[str, Any]) -> tuple[Optional[str], Optional[dict[str, Any]
         return product, status
 
 
+def _learn_rules_context(product: str) -> str:
+    """Load active rules only when the native apply/rollback ledger proves the bytes."""
+    try:
+        root = Path(product) / ".air-worker" / "learn"
+        raw = (root / "RULES.md").read_bytes()
+        ledger_lines = (root / "ledger.jsonl").read_text(encoding="utf-8").splitlines()
+        expected = ""
+        for line in reversed(ledger_lines):
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if row.get("action") in {"apply", "rollback"}:
+                expected = str(row.get("after_sha256") or "")
+                break
+        if not expected or hashlib.sha256(raw).hexdigest() != expected:
+            return ""
+        if len(raw) > _LEARN_CONTEXT_LIMIT:
+            raw = raw[:_LEARN_CONTEXT_LIMIT]
+        text = raw.decode("utf-8", errors="strict").strip()
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return ""
+    return text
+
+
 def pre_llm_call(**kwargs: Any):
     product, status = _bound(kwargs)
     if not product:
         return None
     if not status:
-        return {"context": f"AirWorker managed product: {product}. Call air_worker status before acting."}
-    fields = []
-    progress = status.get("progress")
-    if isinstance(progress, dict):
-        fields.append(f"closed/total={progress.get('closed', 0)}/{progress.get('total', 0)}")
-    fields.extend(
-        f"{key}={status[key]}" for key in
-        ("action", "outcome", "current_step", "next_action", "stop_reason", "detail_path", "log_path")
-        if status.get(key) not in (None, "", [])
-    )
-    return {"context": f"AirWorker managed product: {product}; {'; '.join(fields) or 'status=unknown'}. Use only air_worker for transitions."}
+        base = f"AirWorker managed product: {product}. Call air_worker status before acting."
+    else:
+        fields = []
+        progress = status.get("progress")
+        if isinstance(progress, dict):
+            fields.append(f"closed/total={progress.get('closed', 0)}/{progress.get('total', 0)}")
+        fields.extend(
+            f"{key}={status[key]}" for key in
+            ("action", "outcome", "current_step", "next_action", "stop_reason", "detail_path", "log_path")
+            if status.get(key) not in (None, "", [])
+        )
+        base = f"AirWorker managed product: {product}; {'; '.join(fields) or 'status=unknown'}. Use only air_worker for transitions."
+    learned = _learn_rules_context(product)
+    if learned:
+        base += "\n\nAPPROVED AIRCURATOR RULES (loaded from .air-worker/learn/RULES.md):\n" + learned
+    return {"context": base}
 
 
 def _tool_leaf(name: Any) -> str:

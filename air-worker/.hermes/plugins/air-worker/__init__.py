@@ -33,3 +33,7 @@ def register(ctx) -> None:
         "operate-air-worker",
         Path(__file__).parent / "skills" / "operate-air-worker" / "SKILL.md",
     )
+    ctx.register_skill(
+        "air-curator",
+        Path(__file__).parent / "skills" / "air-curator" / "SKILL.md",
+    )
