@@ -54,9 +54,10 @@ $goText = Get-Text $goFiles
 $pyText = Get-Text $pyFiles
 
 # --- 1. Go не заводит своего клиента очереди --------------------------------
-# Исполнение задач идёт через llm-queue — СОСЕДНИЙ продукт со своим объявленным CLI.
-# Свой клиент в Go был бы второй реализацией одного правила на уровне продуктов.
-$queueMarks = @('llm-queue', 'dispatcher', 'enqueue', 'llm_client', 'openrouter', 'air_llm_router')
+# Начиная с 0.10.5 Go вправе запускать внешний runner OpenCode/AirLLMRouter, но не владеет
+# очередью, ключами или provider API. Проверяем именно вторую реализацию очереди/провайдера,
+# а не имя официального внешнего адаптера (AIR_LLM_ROUTER_PY).
+$queueMarks = @('llm-queue', 'dispatcher.py', 'enqueue-exec', 'llm_client.py', 'OPENROUTER_API_KEY', 'openrouter.ai/api')
 $goQueue = @()
 foreach ($m in $queueMarks) {
     # Упоминание в КОММЕНТАРИИ законно и даже полезно: там объясняется, чего Go не делает.
