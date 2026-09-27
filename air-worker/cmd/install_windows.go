@@ -458,6 +458,11 @@ func cmdInstall(argv []string) int {
 				fmt.Print(v + lineEnding)
 			}
 		}
+		// Distribution identity берётся тем же snapshot engine, что отдельный selfcheck:
+		// никакой второй логики revision/payload в install-status нет.
+		for _, line := range installIdentityStatusLines(dstCLI, claudeConfigDir(), codexConfigDir()) {
+			fmt.Print("Identity   : " + line + lineEnding)
+		}
 		return 0
 	}
 

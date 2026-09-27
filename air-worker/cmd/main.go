@@ -123,6 +123,11 @@ func usage() {
         Сводка 10:00 SGT по экосистеме: вехи из report -all, ЖДЁТ ДА и эффект обучения.
         Планировщик ОС может звать эту команду; отдельного AirCurator runtime нет.
 
+  air-worker selfcheck [-json] [-live <air-worker>] [-claude-config <dir>] [-codex-config <dir>]
+        Read-only distribution identity: live version/revision/SHA, Claude/Codex GitHub
+        marketplace cache version/revision/payload snapshot, active config dirs and profile ambiguity.
+        Same-version revision/SHA drift is a violation, not "already latest".
+
   air-worker install [-dir <куда>] [-autostart] [-no-start] [-status] [-uninstall]
         Ставит продукт в пользовательскую область и вешает значок в трее. ПОВЫШЕНИЕ ПРАВ
         НЕ ТРЕБУЕТСЯ ни на одном шаге: файлы идут в %LOCALAPPDATA%\air-worker. Значок
@@ -228,6 +233,8 @@ func run(argv []string) int {
 		return cmdLearn(argv[1:])
 	case "curator":
 		return cmdCurator(argv[1:])
+	case "selfcheck":
+		return cmdSelfcheck(argv[1:])
 	case "install":
 		return cmdInstall(argv[1:])
 	case "tray":

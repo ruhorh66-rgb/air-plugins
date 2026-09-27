@@ -13,6 +13,30 @@
 
 Real SRVLM01 smoke during development: AirSync measured through its Wiki control plane; AirLegal measured through both scoped status-table and fresh deterministic `goal_metrics.py` JSON; AirWorker_Wiki scoped to the current `PORTFOLIO-DRIFT-1` section; ASW explicit judge refresh produced a fresh machine verdict with distance 2.
 
+### PLAN hygiene and semantic plan review
+
+- Added structural `validate`/shared `goals` validation for PLAN/run-config/judge inputs, NUL guards and selector contracts. Existing check names no longer prove that a named selector exists; Go selector inventory is batched, script selectors require declared/static proof, and only an open step of the same criterion may explicitly promise a future selector.
+- Added warnings-only `plan-lint` plus a fail-open PostToolUse PLAN hook. Deterministic reconnaissance can be named without blocking execution; coding/judgment/file-target steps stay outside the lint rule.
+- Made the LPR “Готовые средства” rule mechanical: external-tool plans declare the official SDK/CLI/API, version and coverage before implementation; homemade/direct control is warned only when it can be tied to a declared ready tool.
+- Added composition-scoped Semantic Plan Review. Add/remove/reorder/tier changes require an opposite-vendor read-only review; text edits and Done markers do not. The receipt carries full-file and composition SHA-256 and fails closed on stale/tampered output.
+
+### Structured factual observability and execution metrics
+
+- `judge -json` now emits the same factual run as structured per-check/per-criterion observations with state, reason, duration and selector evidence.
+- Machine verdicts carry an input fingerprint over PLAN/run-config/judge/checklist/scripts. `report --cached|--no-judge` never reruns the judge and reports stale/missing evidence as `NOT_PROVEN`; `--informational|--no-fail` changes only process exit, never factual code.
+- Agent lifecycle accounting distinguishes requested/started/completed/aborted/orphan/live/background. Parent-stream termination aborts unfinished synchronous agents instead of leaving false “live” counts; orchestration success requires balanced observable lifecycle evidence.
+- `steps.jsonl` feeds deterministic execution metrics: retry rows do not double-count iterations, unknown turns/cost remain unknown, and dry-run/no-work/never-started are distinct.
+- Report text and JSON share one topology contract for orchestrator/executor/factual judge/semantic judge/engine/planner/guard plus current tier/provider/model/effort.
+
+### Distribution identity and installed selfcheck
+
+- Added read-only `air-worker selfcheck`: live binary version/revision/SHA, canonical Claude/Codex marketplace caches, cache payload SHA, active config roots and deterministic multiple-profile ambiguity warnings. It works from installed runtime/cache without a source checkout.
+- Same-version/different-revision or binary/payload drift is an explicit violation instead of being masked by marketplace “already latest”. Host runtime cache markers such as `.in_use/<pid>` are excluded from immutable payload identity.
+- `install -status` reuses the exact selfcheck snapshot engine; source/install rules and distribution identity are not implemented twice.
+- Added a release identity guard: dirty payload is rejected and an existing `air-worker--v<version>` tag may only identify the same release commit. Tag/Release/marketplace/install remain separate LPR gates.
+
+Real SRVLM01 identity smoke: installed live, Claude cache and Codex cache all report 0.10.11 / revision `454aeda…` / identical binary SHA and canonical payload SHA; both marketplaces are GitHub and selfcheck returns PASS.
+
 ## 0.10.12 — 28.09.2026
 
 ### AirCurator block + LPR-gated self-learning

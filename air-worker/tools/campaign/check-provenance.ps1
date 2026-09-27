@@ -31,5 +31,14 @@ foreach ($name in @('air-worker.exe', 'air-worker-tray.exe')) {
 }
 $dirty = & git -C $repo status --porcelain -- air-worker/cmd
 if ($dirty) { Write-Output 'NOT CONFIRMED: cmd/ has uncommitted changes'; exit 1 }
-Write-Output ('OK: binaries built from a clean checkout of ' + $rev.Substring(0, 7) + ', cmd/ identical to HEAD')
+
+# Distribution identity is wider than cmd/: the marketplace payload cannot be republished
+# under an already-used version/tag with a different commit, and any dirty air-worker payload
+# makes that identity unprovable.
+$manifest = Get-Content -LiteralPath (Join-Path $script:Root '.claude-plugin\plugin.json') -Raw | ConvertFrom-Json
+$identityGuard = Join-Path $script:Root 'tools\check-distribution-identity.ps1'
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $identityGuard -Repo $repo -Version ([string]$manifest.version) -Commit HEAD
+if ($LASTEXITCODE -ne 0) { Write-Output 'NOT CONFIRMED: distribution identity guard failed'; exit 1 }
+
+Write-Output ('OK: binaries built from a clean checkout of ' + $rev.Substring(0, 7) + ', cmd/ identical to HEAD; distribution identity unused or same-tag/same-commit')
 exit 0

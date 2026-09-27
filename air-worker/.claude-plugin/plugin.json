@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
   "version": "0.10.13",
-  "description": "AirWorker 0.10.13: deterministic portfolio report/drift across split control roots, legacy plans, native judges, and external metrics.",
+  "description": "AirWorker 0.10.13: plan hygiene and semantic plan review, structured observability, execution metrics/topology, distribution selfcheck, and multi-root portfolio drift.",
   "author": {
     "name": "AIR OS"
   },
