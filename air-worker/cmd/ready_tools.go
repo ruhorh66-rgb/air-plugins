@@ -24,7 +24,7 @@ type readyToolsInfo struct {
 var (
 	reExternalIntegrationSignal = regexp.MustCompile(`(?i)(?:\b[A-Za-z0-9_.-]+-sdk\b|\bSDK\b|(?:official|официальн\p{L}*|штатн\p{L}*)\s+(?:SDK|CLI|API)\b|(?:external|внешн\p{L}*)\s+(?:tool|instrument|инструмент\p{L}*))`)
 	reReadyMeans                = regexp.MustCompile(`(?i)(?:^|[^[:alpha:]])(?:SDK|CLI|API)(?:[^[:alpha:]]|$)`)
-	reHomemadeTooling           = regexp.MustCompile(`(?i)(самопис|custom\s+(?:http\s+)?client|HTTP[- ]?клиент|написать\s+(?:свой\s+)?(?:HTTP[- ]?)?клиент|urllib|Invoke-RestMethod|\bcurl\b|(?:прям(?:ой|ое|ая|ые)?|direct)\s+(?:доступ|access).*(?:MySQL|MinIO|Elasticsearch|БД|database))`)
+	reHomemadeTooling           = regexp.MustCompile(`(?i)(самопис|custom\s+(?:http\s+)?client|HTTP[- ]?клиент|написать\s+(?:свой\s+)?(?:HTTP[- ]?)?клиент|urllib|Invoke-RestMethod|\bcurl\b|(?:прям(?:ой|ое|ая|ые)?|direct)\s+(?:доступ|access))`)
 )
 
 func containsAnyFold(value string, needles ...string) bool {
@@ -161,6 +161,29 @@ func validateReadyTools(planPath string, steps []workStep) []string {
 	return nil
 }
 
+func readyToolMatchesStep(entry readyToolEntry, text string) bool {
+	lower := strings.ToLower(text)
+	if tool := strings.ToLower(strings.TrimSpace(entry.Tool)); len([]rune(tool)) >= 3 && strings.Contains(lower, tool) {
+		return true
+	}
+	generic := map[string]bool{
+		"official": true, "официальный": true, "официальное": true, "штатный": true, "штатное": true,
+		"sdk": true, "cli": true, "api": true,
+	}
+	for _, token := range strings.FieldsFunc(strings.ToLower(entry.Means), func(r rune) bool {
+		return !(r >= 'a' && r <= 'z') && !(r >= '0' && r <= '9') && r != '-' && r != '_' && r < 0x80
+	}) {
+		token = strings.Trim(token, "-_")
+		if len([]rune(token)) < 4 || generic[token] {
+			continue
+		}
+		if strings.Contains(lower, token) {
+			return true
+		}
+	}
+	return false
+}
+
 func homemadeToolingWarnings(steps []workStep, ready readyToolsInfo) []planLintWarning {
 	if !ready.Present || len(ready.Entries) == 0 {
 		return nil
@@ -171,12 +194,24 @@ func homemadeToolingWarnings(steps []workStep, ready readyToolsInfo) []planLintW
 			continue
 		}
 		text := step.Title + " " + step.Cmd
-		if match := strings.TrimSpace(reHomemadeTooling.FindString(text)); match != "" {
-			warnings = append(warnings, planLintWarning{
-				Step: step.Num, Tier: step.Tier, Rule: "AW-PLAN-LINT-02",
-				Detail: fmt.Sprintf("шаг предписывает самописное/прямое управление (%s), хотя PLAN объявляет штатные SDK/CLI/API; нужен доказанный gap и решение ЛПР", match),
-			})
+		match := strings.TrimSpace(reHomemadeTooling.FindString(text))
+		if match == "" {
+			continue
 		}
+		var related []string
+		for _, entry := range ready.Entries {
+			if readyToolMatchesStep(entry, text) {
+				related = append(related, entry.Tool)
+			}
+		}
+		if len(related) == 0 {
+			continue
+		}
+		warnings = append(warnings, planLintWarning{
+			Step: step.Num, Tier: step.Tier, Rule: "AW-PLAN-LINT-02",
+			Detail: fmt.Sprintf("шаг предписывает самописное/прямое управление (%s) для %s, хотя PLAN объявляет штатные SDK/CLI/API; нужен доказанный gap и решение ЛПР",
+				match, strings.Join(related, ", ")),
+		})
 	}
 	return warnings
 }

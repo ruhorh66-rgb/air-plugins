@@ -91,3 +91,41 @@ func TestPlanLintWarnsOnHomemadeControlWhenReadyToolExists(t *testing.T) {
 		t.Fatalf("homemade client was not named by lint: %#v", report.Warnings)
 	}
 }
+
+func TestPlanLintHomemadeWarningRequiresDeclaredToolRelation(t *testing.T) {
+	root := writeReadyToolsFixture(t, true, true)
+	path := filepath.Join(root, "PLAN.md")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unrelated := strings.Replace(string(raw),
+		"Написать свой HTTP-клиент RAGFlow через curl",
+		"Написать свой HTTP-клиент OtherService через curl", 1)
+	if err := os.WriteFile(path, []byte(unrelated), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report, err := planLint(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, warning := range report.Warnings {
+		if warning.Rule == "AW-PLAN-LINT-02" {
+			t.Fatalf("unrelated homemade client was tied to declared ready tool: %#v", warning)
+		}
+	}
+}
+
+func TestReadyToolMatchUsesDeclaredMeansWithoutTechnologyHardcode(t *testing.T) {
+	entry := readyToolEntry{Tool: "ExamplePlatform", Means: "official examplectl CLI"}
+	if !readyToolMatchesStep(entry, "Use curl against ExamplePlatform instead of examplectl") {
+		t.Fatal("declared tool relation not detected")
+	}
+	entry = readyToolEntry{Tool: "DifferentPlatform", Means: "official special-sdk API"}
+	if !readyToolMatchesStep(entry, "Write urllib wrapper around special-sdk") {
+		t.Fatal("declared means relation not detected")
+	}
+	if readyToolMatchesStep(entry, "Use curl for unrelated OtherService") {
+		t.Fatal("unrelated technology was matched without declared tool/means relation")
+	}
+}
