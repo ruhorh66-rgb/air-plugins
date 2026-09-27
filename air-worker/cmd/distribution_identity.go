@@ -431,7 +431,7 @@ func selfcheckSummaryLines(report selfcheckReport) []string {
 	lines := []string{fmt.Sprintf("Live identity: %s · version=%s · revision=%s · sha256=%s",
 		report.Live.Path, verOrDash(report.Live.Version), verOrDash(report.Live.Revision), report.Live.SHA256)}
 	for _, p := range report.Profiles {
-		state := "нет air-worker state"
+		state := "no air-worker state"
 		if p.HasState {
 			state = fmt.Sprintf("version=%s revision=%s payload=%s canonical=%t",
 				verOrDash(p.Version), verOrDash(p.Revision), p.PayloadSHA256, p.Canonical)

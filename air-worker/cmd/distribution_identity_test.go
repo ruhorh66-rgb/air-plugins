@@ -218,3 +218,17 @@ func TestInstallStatusUsesSelfcheckSummary(t *testing.T) {
 		t.Fatalf("install identity summary does not reuse selfcheck facts:\n%s", text)
 	}
 }
+
+func TestSelfcheckSummaryUsesStableEnglishNoStateText(t *testing.T) {
+	report := selfcheckReport{
+		Live:     distributionBinaryIdentity{Path: "live", Version: "0.10.13", Revision: "rev", SHA256: "sha"},
+		Profiles: []distributionProfile{{Host: "codex", ConfigDir: "cfg", Active: false, HasState: false}},
+	}
+	text := strings.Join(selfcheckSummaryLines(report), "\n")
+	if !strings.Contains(text, "no air-worker state") {
+		t.Fatalf("no-state summary is not stable English text: %s", text)
+	}
+	if strings.Contains(text, "нет air-worker state") {
+		t.Fatalf("legacy mixed-language text leaked: %s", text)
+	}
+}
