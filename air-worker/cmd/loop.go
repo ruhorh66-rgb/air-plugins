@@ -408,6 +408,23 @@ func cmdLoop(argv []string) int {
 		return 0
 	}
 
+	// SEMANTIC PLAN REVIEW — отдельный слой после детерминированной проверки и ДО первой
+	// рабочей итерации. Повторный дорогой вызов зависит только от composition_sha256:
+	// add/remove/reorder/tier. Текст шага и отметка Done не меняют состав и не вызывают
+	// reviewer заново. Сохранённый DRIFT/NOT_PROVEN того же composition не оплачивается
+	// повторно; человек может явно повторить командой plan-review -force.
+	if state, reviewCode := ensurePlanReview(c, planPath, steps); reviewCode != 0 {
+		switch reviewCode {
+		case 1:
+			line("СТОП: semantic plan review обнаружил DRIFT. Сначала исправить разбивку PLAN.")
+		default:
+			line("СТОП: semantic plan review NOT_PROVEN. Самооценкой исполнителя не заменяется.")
+		}
+		return reviewCode
+	} else if state == "COMMENTS" {
+		line("plan review: COMMENTS — разбивка не блокируется; замечания сохранены в receipt")
+	}
+
 	lastCode := code
 	lastSig := verdictSignature(code, text)
 

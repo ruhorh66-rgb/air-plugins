@@ -64,6 +64,9 @@ func usage() {
   air-worker semantic -product <корень> -step <N> [-executor claude|codex|chatgpt|router] [-claim "..."]
         Независимый read-only Semantic Judge текущего шага без запуска executor loop.
         Factual scope ограничен критериями шага; общий verdict продукта показывается отдельно.
+  air-worker plan-review -product <корень> [-executor auto|claude|codex|chatgpt|router] [-force] [-json]
+        Read-only Semantic Plan Review текущей разбивки. Повторный model-call делается только
+        при изменении composition (добавление/удаление/порядок/ступень), не при text/done edit.
 
   air-worker plan   -product <корень> [-apply] [-model M] [-dry-run] [-use-answer <файл>]
         Планировщик: разбивка цели на шаги ОДНИМ дорогим вызовом. Предлагает в
@@ -200,6 +203,8 @@ func run(argv []string) int {
 		return cmdOrchestrate(argv[1:])
 	case "semantic", "review":
 		return cmdSemantic(argv[1:])
+	case "plan-review":
+		return cmdPlanReview(argv[1:])
 	case "plan":
 		return cmdPlan(argv[1:])
 	case "plan-lint":
