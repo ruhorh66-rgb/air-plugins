@@ -1,5 +1,18 @@
 # CHANGELOG — air-worker
 
+## 0.10.13 — in development
+
+### Portfolio measurement across real AIR product layouts
+
+- `air-worker.products/v1` now separates `root` (work/runtime) from optional `control_root` (PLAN, run-config, machine verdict and learning state), so products such as AirSync can be measured without moving either tree.
+- `report -all` exposes `effective_distance` and `distance_source`. Source precedence is native AirWorker judge, explicit external JSON numeric metric, then a clearly labelled plan-milestone fallback; unknown is never coerced to zero.
+- Added deterministic `status-table` plan adapter with optional heading scope, row prefix, column mapping and explicit done/gate status sets. This supports legacy/current Wiki backlogs such as AirLegal and multi-release documents such as AirWorker_Wiki without product-name heuristics.
+- Added explicit `refresh_judge` registry opt-in. It runs the product's declared AirWorker judge, refuses to race an active loop, publishes the fresh machine verdict, and leaves the default read-only/no-refresh.
+- Added `air-worker drift -all` with per-product history. Distance decrease or closed-step increase is forward movement; distance increase or reopened steps are regression; source/plan-contract changes start a new baseline rather than comparing unlike measurements.
+- `curator digest -all` now shows effective distance and its source.
+
+Real SRVLM01 smoke during development: AirSync measured through its Wiki control plane; AirLegal measured through both scoped status-table and fresh deterministic `goal_metrics.py` JSON; AirWorker_Wiki scoped to the current `PORTFOLIO-DRIFT-1` section; ASW explicit judge refresh produced a fresh machine verdict with distance 2.
+
 ## 0.10.12 — 28.09.2026
 
 ### AirCurator block + LPR-gated self-learning

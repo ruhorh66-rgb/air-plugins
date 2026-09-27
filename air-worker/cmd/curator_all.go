@@ -75,8 +75,8 @@ func printCuratorPortfolioDigest(s curatorPortfolioSnapshot) {
 	fmt.Println()
 	fmt.Println("## Вехи")
 	fmt.Println()
-	fmt.Println("| продукт | до вехи | до цели | гейты | следующий | ограничения |")
-	fmt.Println("|---|---:|---:|---:|---|---|")
+	fmt.Println("| продукт | distance | источник | до вехи | до цели | гейты | следующий | ограничения |")
+	fmt.Println("|---|---:|---|---:|---:|---:|---|---|")
 	for _, row := range s.Portfolio.Rows {
 		next := "-"
 		if row.Next.Found {
@@ -88,8 +88,13 @@ func printCuratorPortfolioDigest(s curatorPortfolioSnapshot) {
 		if limits == "" {
 			limits = "-"
 		}
-		fmt.Printf("| %s | %s | %s | %s | %s | %s |\n",
-			row.Name, portfolioInt(row.DistanceToMilestone), portfolioInt(row.DistanceToGoal),
+		source := row.DistanceSource
+		if source == "" {
+			source = "-"
+		}
+		fmt.Printf("| %s | %s | %s | %s | %s | %s | %s | %s |\n",
+			row.Name, portfolioInt(row.EffectiveDistance), markdownCell(source),
+			portfolioInt(row.DistanceToMilestone), portfolioInt(row.DistanceToGoal),
 			portfolioInt(row.OpenGates), markdownCell(next), markdownCell(limits))
 	}
 	fmt.Println()

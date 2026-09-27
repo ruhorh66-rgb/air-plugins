@@ -69,28 +69,28 @@ func harden(cur, cand string) string {
 }
 
 type driftMeasure struct {
-	At                 string `json:"at"`
-	Distance           *int   `json:"distance"`
-	DistanceRule       string `json:"distance_rule"`
-	JudgeDistance      *int   `json:"judge_distance"`
-	JudgeCode          *int   `json:"judge_code"`
-	PlanOpenSteps      *int   `json:"plan_open_steps"`
-	PlanClosedSteps    *int   `json:"plan_closed_steps"`
-	PlanGates          int    `json:"plan_gates"`
+	At              string `json:"at"`
+	Distance        *int   `json:"distance"`
+	DistanceRule    string `json:"distance_rule"`
+	JudgeDistance   *int   `json:"judge_distance"`
+	JudgeCode       *int   `json:"judge_code"`
+	PlanOpenSteps   *int   `json:"plan_open_steps"`
+	PlanClosedSteps *int   `json:"plan_closed_steps"`
+	PlanGates       int    `json:"plan_gates"`
 	// LPRGates/CriteriaGated — К40: то же PlanState, что и у судьи, взятое из ОДНОГО и того
 	// же machineVerdict (.goal-verdict.json), а не пересчитанное здесь заново. GATED здесь
 	// не входит ни в JudgeDistance (судья уже исключил гейты из distance), ни в PlanOpenSteps.
-	LPRGates           int      `json:"lpr_gates"`
-	CriteriaGated      []string `json:"criteria_gated,omitempty"`
+	LPRGates      int      `json:"lpr_gates"`
+	CriteriaGated []string `json:"criteria_gated,omitempty"`
 	// CriteriaUnknown/FactsOverlap — К59: technical unknowns и предупреждение о legacy
 	// overlap, тем же machineVerdict, что и LPRGates выше.
 	CriteriaUnknown    []string `json:"criteria_unknown,omitempty"`
 	FactsOverlap       []string `json:"facts_overlap,omitempty"`
-	StallMoves         int    `json:"stall_moves"`
-	UnverifiableStreak int    `json:"unverifiable_streak"`
-	Verdict            string `json:"verdict"`
-	Note               string `json:"note"`
-	By                 string `json:"by"`
+	StallMoves         int      `json:"stall_moves"`
+	UnverifiableStreak int      `json:"unverifiable_streak"`
+	Verdict            string   `json:"verdict"`
+	Note               string   `json:"note"`
+	By                 string   `json:"by"`
 }
 
 // driftPoint — один замер в том виде, в каком по нему судится движение.
@@ -533,12 +533,18 @@ func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 func cmdDrift(argv []string) int {
 	fs := flag.NewFlagSet("drift", flag.ContinueOnError)
 	product := fs.String("product", ".", "корень продукта")
+	all := fs.Bool("all", false, "замер по всем продуктам из portfolio registry")
+	registry := fs.String("registry", "", "air-worker.products/v1 registry")
+	history := fs.String("history", "", "portfolio drift history path; default рядом с registry")
 	record := fs.Bool("record", false, "дописать замер в историю")
 	note := fs.String("note", "", "чем был ход")
 	asJSON := fs.Bool("json", false, "машинный вывод")
 	quiet := fs.Bool("quiet", false, "молча, только код возврата")
 	if err := fs.Parse(argv); err != nil {
 		return 2
+	}
+	if *all {
+		return cmdPortfolioDrift(*registry, *history, *note, *record, *asJSON, *quiet)
 	}
 	root, err := filepath.Abs(*product)
 	if err != nil {

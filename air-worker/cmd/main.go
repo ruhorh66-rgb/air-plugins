@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.10.12"
+	version = "0.10.13"
 )
 
 func usage() {
@@ -49,6 +49,9 @@ func usage() {
 
   air-worker drift  -product <корень> [-record] [-note "..."] [-json] [-quiet]
         Двигатель цели. Коды: 0 ALLOW, 1 THROTTLE, 2 ESCALATE, 3 ЖДЁТ ЛПР.
+  air-worker drift -all [-registry <air-worker.products/v1.json>] [-record] [-history <path>] [-json]
+        Portfolio drift по effective-distance каждого зарегистрированного продукта.
+        Сравнивает только одинаковый distance_source; смена источника начинает новый baseline.
 
   air-worker loop   -product <корень> [-config <путь>] [-plan-only] [-whatif] [-orchestrate] [-subagents N]
         Петля: следующий незакрытый шаг плана на назначенной ступени, до вердикта
