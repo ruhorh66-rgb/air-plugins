@@ -109,3 +109,31 @@ func TestCodexOrchestrationHelperProcess(t *testing.T) {
 	fmt.Println(`{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}`)
 	os.Exit(0)
 }
+
+func TestCodexOrchestrationMarksStartedFailureAborted(t *testing.T) {
+	old := runnerCommand
+	t.Cleanup(func() { runnerCommand = old })
+	t.Setenv("AW_CODEX_ORCH_FAIL_HELPER", "1")
+	runnerCommand = func(_ string, _ ...string) *exec.Cmd {
+		return exec.Command(os.Args[0], "-test.run=TestCodexOrchestrationFailHelperProcess")
+	}
+	ctx := loopCtx{Root: t.TempDir(), Subagents: 1}
+	res := ctx.invokeCodexOrchestrated("codex", "review task", runnerSpec{Kind: "codex", Model: "gpt-5.6-luna"}, "88")
+	if res.AgentRequested != 1 || res.AgentStarted != 1 || res.AgentCompleted != 0 ||
+		res.AgentAborted != 1 || res.AgentOrphan != 0 || res.AgentLive != 0 {
+		t.Fatalf("started failed subagent must be terminal aborted: %+v", res)
+	}
+	if res.Subtype != "orchestration_not_proven" {
+		t.Fatalf("unexpected subtype: %+v", res)
+	}
+}
+
+func TestCodexOrchestrationFailHelperProcess(t *testing.T) {
+	if os.Getenv("AW_CODEX_ORCH_FAIL_HELPER") != "1" {
+		return
+	}
+	fmt.Println("{\"type\":\"thread.started\",\"thread_id\":\"failed-agent\"}")
+	fmt.Println("{\"type\":\"turn.started\"}")
+	fmt.Println("{\"type\":\"turn.failed\",\"error\":{\"message\":\"fixture failure\"}}")
+	os.Exit(1)
+}

@@ -30,6 +30,9 @@ type stepResult struct {
 	AgentRequested int
 	AgentStarted   int
 	AgentCompleted int
+	AgentAborted   int
+	AgentOrphan    int
+	AgentLive      int
 	AgentIDs       []string
 	AgentIssue     string
 }
@@ -556,15 +559,16 @@ func cmdLoop(argv []string) int {
 			}
 			if r.Subtype == "vendor_limit" {
 				nextIndex, nextTier, ok := nextTierAfterVendorLimit(c.Ladder, tierIndex)
-				c.addStep(map[string]any{
+				row := map[string]any{
 					"event": "vendor_limit_fallback", "step": step.Index, "title": step.Title,
 					"tier": tier, "iteration": c.iter, "runner": runner.Kind,
 					"provider": runnerProvider(runner.Kind), "model": runner.Model, "effort": runner.Effort,
-					"executor_cost_usd": r.Cost, "spent_usd": round4(c.spent),
-					"runner_said": nullIfEmpty(r.Detail), "fallback_to": nullIfEmpty(nextTier),
-					"orchestration": c.Orchestrate, "agents_requested": r.AgentRequested,
-					"agents_started": r.AgentStarted, "agents_completed": r.AgentCompleted,
-				})
+					"total_cost_usd": r.Cost, "executor_cost_usd": r.Cost, "num_turns": r.Turns,
+					"spent_usd": round4(c.spent), "runner_said": nullIfEmpty(r.Detail),
+					"fallback_to": nullIfEmpty(nextTier), "orchestration": c.Orchestrate,
+				}
+				addAgentLifecycleFields(row, r)
+				c.addStep(row)
 				if !ok {
 					closeWoody("ничего: vendor limit на последней ступени",
 						fmt.Sprintf("ступень %s исчерпала лимит, следующей разрешённой ступени нет", tier), 2)
@@ -651,7 +655,7 @@ func cmdLoop(argv []string) int {
 				}
 			}
 
-			c.addStep(map[string]any{
+			row := map[string]any{
 				"step": step.Index, "title": step.Title, "tier": tier,
 				"iteration": c.iter, "code": code,
 				"total_cost_usd": iterCost, "executor_cost_usd": r.Cost, "num_turns": r.Turns,
@@ -669,10 +673,9 @@ func cmdLoop(argv []string) int {
 				// цена и ходы были, а что сказал исполнитель — нигде.
 				"runner_said":   nullIfEmpty(r.Detail),
 				"orchestration": c.Orchestrate, "subagents": c.subagentsInLog(),
-				"agents_requested": r.AgentRequested, "agents_started": r.AgentStarted,
-				"agents_completed": r.AgentCompleted, "agent_ids": r.AgentIDs,
-				"agent_issue": nullIfEmpty(r.AgentIssue),
-			})
+			}
+			addAgentLifecycleFields(row, r)
+			c.addStep(row)
 
 			state := "судья не пропустил"
 			switch code {

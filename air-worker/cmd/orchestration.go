@@ -9,12 +9,15 @@ import (
 )
 
 type agentLifecycle struct {
-	Requested  int
-	Started    int
-	Completed  int
-	Background int
-	IDs        []string
-	Problems   []string
+	Requested     int
+	Started       int
+	Completed     int
+	Aborted       int
+	OrphanResults int
+	Live          int
+	Background    int
+	IDs           []string
+	Problems      []string
 }
 
 type claudeStreamEvent struct {
@@ -74,6 +77,8 @@ func orchestrationInstructions(n int) []string {
 
 func parseClaudeStream(raw string, requested int) (*claudeResult, agentLifecycle) {
 	stats := agentLifecycle{Requested: requested}
+	allAgent := map[string]bool{}
+	countedStart := map[string]bool{}
 	syncAgent := map[string]bool{}
 	completed := map[string]bool{}
 	var result *claudeResult
@@ -103,7 +108,12 @@ func parseClaudeStream(raw string, requested int) (*claudeResult, agentLifecycle
 			if json.Unmarshal(rawBlock, &block) != nil {
 				continue
 			}
-			if block.Type == "tool_use" && block.Name == "Agent" && ev.ParentToolUseID == "" {
+			if block.Type == "tool_use" && block.Name == "Agent" {
+				allAgent[block.ID] = true
+				if ev.ParentToolUseID != "" {
+					continue
+				}
+				countedStart[block.ID] = true
 				stats.Started++
 				stats.IDs = append(stats.IDs, block.ID)
 				var input struct {
@@ -116,24 +126,61 @@ func parseClaudeStream(raw string, requested int) (*claudeResult, agentLifecycle
 				} else {
 					syncAgent[block.ID] = true
 				}
+				continue
 			}
-			if block.Type == "tool_result" && syncAgent[block.ToolUseID] && !completed[block.ToolUseID] {
+			if block.Type != "tool_result" || block.ToolUseID == "" {
+				continue
+			}
+			if syncAgent[block.ToolUseID] && !completed[block.ToolUseID] {
 				completed[block.ToolUseID] = true
 				stats.Completed++
+				continue
+			}
+			// A result for a nested Agent has no counted top-level start. Name it instead
+			// of silently treating starts/stops as balanced.
+			if allAgent[block.ToolUseID] && !countedStart[block.ToolUseID] {
+				stats.OrphanResults++
 			}
 		}
 	}
+
+	// parseClaudeStream is called after the parent process/stream has terminated. A
+	// synchronous Agent that started but never produced its tool_result is therefore
+	// aborted, not "still live". Background Agents are unsupported and may outlive the
+	// parent, so they remain explicitly live/unsafe.
+	for id := range syncAgent {
+		if !completed[id] {
+			stats.Aborted++
+		}
+	}
+	stats.Live = stats.Background
+
 	if stats.Started != requested {
 		stats.Problems = append(stats.Problems, fmt.Sprintf("requested %d agents, observed %d starts", requested, stats.Started))
 	}
 	if stats.Completed != requested {
 		stats.Problems = append(stats.Problems, fmt.Sprintf("requested %d agents, observed %d completed synchronous results", requested, stats.Completed))
 	}
+	if stats.Aborted > 0 {
+		stats.Problems = append(stats.Problems, fmt.Sprintf("%d synchronous agents ended without a result", stats.Aborted))
+	}
+	if stats.OrphanResults > 0 {
+		stats.Problems = append(stats.Problems, fmt.Sprintf("%d agent results had no counted top-level start", stats.OrphanResults))
+	}
+	if stats.Live > 0 {
+		stats.Problems = append(stats.Problems, fmt.Sprintf("%d background agents may still be live", stats.Live))
+	}
 	return result, stats
 }
 
 func orchestrationProven(stats agentLifecycle) bool {
-	return stats.Requested > 0 && stats.Started == stats.Requested && stats.Completed == stats.Requested && stats.Background == 0
+	return stats.Requested > 0 &&
+		stats.Started == stats.Requested &&
+		stats.Completed == stats.Requested &&
+		stats.Aborted == 0 &&
+		stats.OrphanResults == 0 &&
+		stats.Live == 0 &&
+		stats.Background == 0
 }
 
 func orchestrationProblem(stats agentLifecycle) string {
@@ -141,6 +188,31 @@ func orchestrationProblem(stats agentLifecycle) string {
 		return "orchestration evidence incomplete"
 	}
 	return strings.Join(stats.Problems, "; ")
+}
+
+func applyAgentLifecycle(r stepResult, stats agentLifecycle) stepResult {
+	r.AgentRequested = stats.Requested
+	r.AgentStarted = stats.Started
+	r.AgentCompleted = stats.Completed
+	r.AgentAborted = stats.Aborted
+	r.AgentOrphan = stats.OrphanResults
+	r.AgentLive = stats.Live
+	r.AgentIDs = append([]string(nil), stats.IDs...)
+	if !orchestrationProven(stats) {
+		r.AgentIssue = orchestrationProblem(stats)
+	}
+	return r
+}
+
+func addAgentLifecycleFields(row map[string]any, r stepResult) {
+	row["agents_requested"] = r.AgentRequested
+	row["agents_started"] = r.AgentStarted
+	row["agents_completed"] = r.AgentCompleted
+	row["agents_aborted"] = r.AgentAborted
+	row["agent_orphan_results"] = r.AgentOrphan
+	row["agents_live"] = r.AgentLive
+	row["agent_ids"] = r.AgentIDs
+	row["agent_issue"] = nullIfEmpty(r.AgentIssue)
 }
 
 func (c *loopCtx) invokeClaudeOrchestrated(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
@@ -171,11 +243,10 @@ func (c *loopCtx) invokeClaudeOrchestrated(exePath, prompt string, runner runner
 	res, agents := parseClaudeStream(raw, c.Subagents)
 	if res == nil {
 		if isVendorLimit(raw) {
-			return stepResult{Subtype: "vendor_limit", Detail: strings.TrimSpace(raw), AgentRequested: agents.Requested,
-				AgentStarted: agents.Started, AgentCompleted: agents.Completed, AgentIDs: agents.IDs, AgentIssue: orchestrationProblem(agents)}
+			return applyAgentLifecycle(stepResult{Subtype: "vendor_limit", Detail: strings.TrimSpace(raw)}, agents)
 		}
 		line("  claude orchestration stream не вернул разбираемый result")
-		return stepResult{Subtype: "unparsed_orchestration", AgentRequested: agents.Requested, AgentStarted: agents.Started, AgentCompleted: agents.Completed, AgentIDs: agents.IDs, AgentIssue: orchestrationProblem(agents)}
+		return applyAgentLifecycle(stepResult{Subtype: "unparsed_orchestration"}, agents)
 	}
 	sub := res.Subtype
 	if res.IsError {
@@ -185,22 +256,19 @@ func (c *loopCtx) invokeClaudeOrchestrated(exePath, prompt string, runner runner
 		}
 	}
 	if sub == "vendor_limit" {
-		return stepResult{Ok: false, Cost: res.TotalCostUSD, Turns: res.NumTurns, Session: res.SessionID, Subtype: sub,
-			ApiMs: res.DurationAPI, Detail: strings.TrimSpace(res.Result), AgentRequested: agents.Requested,
-			AgentStarted: agents.Started, AgentCompleted: agents.Completed, AgentIDs: agents.IDs, AgentIssue: orchestrationProblem(agents)}
+		return applyAgentLifecycle(stepResult{Ok: false, Cost: res.TotalCostUSD, Turns: res.NumTurns, Session: res.SessionID, Subtype: sub,
+			ApiMs: res.DurationAPI, Detail: strings.TrimSpace(res.Result)}, agents)
 	}
 	if !orchestrationProven(agents) {
 		sub = "orchestration_not_proven"
-		return stepResult{Ok: false, Cost: res.TotalCostUSD, Turns: res.NumTurns, Session: res.SessionID, Subtype: sub,
-			ApiMs: res.DurationAPI, Detail: strings.TrimSpace(res.Result), AgentRequested: agents.Requested,
-			AgentStarted: agents.Started, AgentCompleted: agents.Completed, AgentIDs: agents.IDs, AgentIssue: orchestrationProblem(agents)}
+		return applyAgentLifecycle(stepResult{Ok: false, Cost: res.TotalCostUSD, Turns: res.NumTurns, Session: res.SessionID, Subtype: sub,
+			ApiMs: res.DurationAPI, Detail: strings.TrimSpace(res.Result)}, agents)
 	}
 	if !res.IsError && reNeedsPermission.MatchString(res.Result) && !c.treeChanged() {
 		sub = "needs_permission"
 	}
-	return stepResult{Ok: !res.IsError, Cost: res.TotalCostUSD, Turns: res.NumTurns, Session: res.SessionID, Subtype: sub,
-		ApiMs: res.DurationAPI, Detail: strings.TrimSpace(res.Result), AgentRequested: agents.Requested,
-		AgentStarted: agents.Started, AgentCompleted: agents.Completed, AgentIDs: agents.IDs}
+	return applyAgentLifecycle(stepResult{Ok: !res.IsError, Cost: res.TotalCostUSD, Turns: res.NumTurns, Session: res.SessionID, Subtype: sub,
+		ApiMs: res.DurationAPI, Detail: strings.TrimSpace(res.Result)}, agents)
 }
 
 func cmdOrchestrate(argv []string) int {

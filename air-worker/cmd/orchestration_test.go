@@ -70,3 +70,43 @@ func TestOrchestrationRejectsOverFanout(t *testing.T) {
 		t.Fatalf("over-fanout must be rejected: %+v", stats)
 	}
 }
+
+func TestOrchestrationMarksMissingSyncResultAbortedNotLive(t *testing.T) {
+	raw := strings.Join([]string{
+		"{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"agent-cut\",\"name\":\"Agent\",\"input\":{\"run_in_background\":false}}]}}",
+		"{\"type\":\"result\",\"subtype\":\"error_max_turns\",\"is_error\":true,\"result\":\"turn limit\"}",
+	}, "\n")
+	_, stats := parseClaudeStream(raw, 1)
+	if orchestrationProven(stats) {
+		t.Fatalf("unfinished synchronous Agent must not prove orchestration: %+v", stats)
+	}
+	if stats.Started != 1 || stats.Completed != 0 || stats.Aborted != 1 || stats.Live != 0 {
+		t.Fatalf("terminal parent must convert unfinished sync Agent to aborted, not live: %+v", stats)
+	}
+}
+
+func TestOrchestrationNamesNestedAgentResultAsOrphan(t *testing.T) {
+	raw := strings.Join([]string{
+		"{\"type\":\"assistant\",\"parent_tool_use_id\":\"agent-parent\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"nested-1\",\"name\":\"Agent\",\"input\":{\"run_in_background\":false}}]}}",
+		"{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"nested-1\",\"content\":\"nested done\"}]}}",
+		"{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"leader done\"}",
+	}, "\n")
+	_, stats := parseClaudeStream(raw, 0)
+	if stats.Started != 0 || stats.Completed != 0 || stats.OrphanResults != 1 {
+		t.Fatalf("nested Agent must not be counted as a top-level start/completion: %+v", stats)
+	}
+	if orchestrationProven(stats) {
+		t.Fatalf("orphan nested result cannot prove orchestration: %+v", stats)
+	}
+}
+
+func TestOrchestrationBackgroundAgentRemainsExplicitlyLive(t *testing.T) {
+	raw := strings.Join([]string{
+		"{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"agent-bg-live\",\"name\":\"Agent\",\"input\":{\"run_in_background\":true}}]}}",
+		"{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"leader done\"}",
+	}, "\n")
+	_, stats := parseClaudeStream(raw, 1)
+	if stats.Background != 1 || stats.Live != 1 || stats.Aborted != 0 {
+		t.Fatalf("background Agent must remain explicit live/unsupported state: %+v", stats)
+	}
+}

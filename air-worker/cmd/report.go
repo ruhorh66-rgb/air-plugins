@@ -61,9 +61,19 @@ type reportSpend struct {
 	// RunSpent — расход последнего прогона: `spent_usd` его последней строки. Потолок
 	// бюджета действует на прогон, и сравнивать с ним сумму всего журнала неверно.
 	RunSpent *float64 `json:"run_spent"`
-	// DryRuns — строк сухого прогона. Итерациями они не считаются: работы не было.
-	DryRuns int     `json:"dry_runs"`
-	Budget  float64 `json:"budget"`
+	// DryRuns и NoWorkRuns отделяют «не запускали работу» от нулевой стоимости/нулевых ходов.
+	DryRuns            int     `json:"dry_runs"`
+	NoWorkRuns         int     `json:"no_work_runs"`
+	LeaderTurnsTotal   int     `json:"leader_turns_total"`
+	LeaderTurnsKnown   int     `json:"leader_turns_known"`
+	LeaderTurnsUnknown int     `json:"leader_turns_unknown"`
+	AgentsRequested    int     `json:"agents_requested"`
+	AgentsStarted      int     `json:"agents_started"`
+	AgentsCompleted    int     `json:"agents_completed"`
+	AgentsAborted      int     `json:"agents_aborted"`
+	AgentOrphanResults int     `json:"agent_orphan_results"`
+	AgentsLive         int     `json:"agents_live"`
+	Budget             float64 `json:"budget"`
 }
 
 type reportStep struct {
@@ -74,19 +84,20 @@ type reportStep struct {
 }
 
 type productReport struct {
-	Product                 string        `json:"product"`
-	JudgeCode               int           `json:"judge_code"`
-	JudgeText               string        `json:"judge_text"`
-	JudgeCached             bool          `json:"judge_cached"`
-	JudgeInputFingerprint   string        `json:"judge_input_fingerprint,omitempty"`
-	JudgeCurrentFingerprint string        `json:"judge_current_fingerprint,omitempty"`
-	JudgeStale              bool          `json:"judge_stale,omitempty"`
-	Measure                 driftMeasure  `json:"measure"`
-	Reasons                 []driftReason `json:"reasons"`
-	Limits                  []string      `json:"limits"`
-	Tree                    reportTree    `json:"tree"`
-	Spend                   reportSpend   `json:"spend"`
-	Next                    reportStep    `json:"next"`
+	Product                 string         `json:"product"`
+	JudgeCode               int            `json:"judge_code"`
+	JudgeText               string         `json:"judge_text"`
+	JudgeCached             bool           `json:"judge_cached"`
+	JudgeInputFingerprint   string         `json:"judge_input_fingerprint,omitempty"`
+	JudgeCurrentFingerprint string         `json:"judge_current_fingerprint,omitempty"`
+	JudgeStale              bool           `json:"judge_stale,omitempty"`
+	Measure                 driftMeasure   `json:"measure"`
+	Reasons                 []driftReason  `json:"reasons"`
+	Limits                  []string       `json:"limits"`
+	Tree                    reportTree     `json:"tree"`
+	Spend                   reportSpend    `json:"spend"`
+	Next                    reportStep     `json:"next"`
+	Topology                reportTopology `json:"topology"`
 	// LoopRunning — по продукту идёт петля в другом процессе: дерево и вердикт меняются
 	// под её работой, и судья отчётом не прогоняется (см. buildReport).
 	LoopRunning bool `json:"loop_running"`
@@ -140,35 +151,53 @@ func readSpend(root string, budget float64) reportSpend {
 	defer f.Close()
 	sc := bufio.NewScanner(f)
 	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
+	seenIterations := map[int]bool{}
 	for sc.Scan() {
 		ln := strings.TrimSpace(sc.Text())
 		if ln == "" {
 			continue
 		}
 		var row struct {
-			Cost      *float64 `json:"total_cost_usd"`
-			Turns     *int     `json:"num_turns"`
-			Iteration *int     `json:"iteration"`
-			Spent     *float64 `json:"spent_usd"`
-			WhatIf    bool     `json:"whatif"`
+			Cost               *float64 `json:"total_cost_usd"`
+			Turns              *int     `json:"num_turns"`
+			Iteration          *int     `json:"iteration"`
+			Tier               string   `json:"tier"`
+			Spent              *float64 `json:"spent_usd"`
+			WhatIf             bool     `json:"whatif"`
+			AgentsRequested    int      `json:"agents_requested"`
+			AgentsStarted      int      `json:"agents_started"`
+			AgentsCompleted    int      `json:"agents_completed"`
+			AgentsAborted      int      `json:"agents_aborted"`
+			AgentOrphanResults int      `json:"agent_orphan_results"`
+			AgentsLive         int      `json:"agents_live"`
 		}
 		if json.Unmarshal([]byte(strings.TrimPrefix(ln, string(utf8BOM))), &row) != nil {
 			continue
 		}
-		// СУХОЙ ПРОГОН — НЕ ИТЕРАЦИЯ. Его строки помечены, и до 0.9.5 отчёт всё равно
-		// считал их: журнал из строк сухого прогона давал «итераций N» и «расход последней
-		// итерации НЕ ПРИШЁЛ» — как будто работа шла, а замер потерялся.
+		// СУХОЙ ПРОГОН — НЕ ИТЕРАЦИЯ. Его строки помечены отдельно и не доказывают
+		// работу/стоимость, даже если содержат служебный iteration.
 		if row.WhatIf {
 			s.DryRuns++
 			continue
 		}
-		s.RunSpent = row.Spent
-		// Нулевая строка — запись «план пройден, делать нечего», а не работа. Расход
-		// прогона она несёт, итерацией не считается.
+		if row.Spent != nil {
+			s.RunSpent = row.Spent
+		}
+		// Нулевая итерация — двигатель запускался, но исполняемой работы не было.
 		if row.Iteration != nil && *row.Iteration == 0 {
+			s.NoWorkRuns++
 			continue
 		}
-		s.Iterations++
+		// Vendor-limit fallback и итоговая строка могут принадлежать одной iteration:
+		// итерацию считаем один раз, а turns/cost/Agent events — по каждой попытке.
+		if row.Iteration != nil && !seenIterations[*row.Iteration] {
+			seenIterations[*row.Iteration] = true
+			s.Iterations++
+		}
+		if row.Iteration == nil {
+			// Legacy journal row: это была рабочая запись до явного номера iteration.
+			s.Iterations++
+		}
 		if row.Cost != nil {
 			s.Total += *row.Cost
 			s.LastCost = row.Cost
@@ -176,6 +205,18 @@ func readSpend(root string, budget float64) reportSpend {
 			s.LastCost = nil
 		}
 		s.LastTurns = row.Turns
+		if row.Turns != nil {
+			s.LeaderTurnsTotal += *row.Turns
+			s.LeaderTurnsKnown++
+		} else if strings.TrimSpace(row.Tier) != "" && tierName(row.Tier) != "script" {
+			s.LeaderTurnsUnknown++
+		}
+		s.AgentsRequested += row.AgentsRequested
+		s.AgentsStarted += row.AgentsStarted
+		s.AgentsCompleted += row.AgentsCompleted
+		s.AgentsAborted += row.AgentsAborted
+		s.AgentOrphanResults += row.AgentOrphanResults
+		s.AgentsLive += row.AgentsLive
 	}
 	return s
 }
@@ -306,6 +347,7 @@ func buildReportMode(root string, noJudge bool) productReport {
 	}
 	r.Spend = readSpend(root, budget)
 	r.Next = nextOpenStep(root, cfg.Plan)
+	r.Topology = buildReportTopology(cfg, r.Next)
 	return r
 }
 
@@ -357,11 +399,15 @@ func (r productReport) text() string {
 
 	spend := "Потрачено  : "
 	switch {
+	case r.Spend.Iterations == 0 && r.Spend.NoWorkRuns > 0:
+		spend += fmt.Sprintf("двигатель запускался, исполняемой работы не было · no-work прогонов %d", r.Spend.NoWorkRuns)
+		if r.Spend.DryRuns > 0 {
+			spend += fmt.Sprintf(" · dry-run %d", r.Spend.DryRuns)
+		}
+	case r.Spend.Iterations == 0 && r.Spend.DryRuns > 0:
+		spend += fmt.Sprintf("рабочих итераций 0 · dry-run %d (работы в них не было)", r.Spend.DryRuns)
 	case r.Spend.Iterations == 0:
 		spend += "петля не заводилась"
-		if r.Spend.DryRuns > 0 {
-			spend += fmt.Sprintf(" (сухих итераций %d — работы в них не было)", r.Spend.DryRuns)
-		}
 	case r.Spend.LastCost == nil:
 		spend += "расход последней итерации НЕ ПРИШЁЛ"
 	default:
@@ -384,6 +430,14 @@ func (r productReport) text() string {
 		spend += fmt.Sprintf(" · всего по журналу $%.2f · итераций %d", r.Spend.Total, r.Spend.Iterations)
 	}
 	w("%s", spend)
+	w("Исполнение : итераций %d · ходы ведущей known=%d total=%d unknown=%d · agents req/start/done/abort/orphan/live=%d/%d/%d/%d/%d/%d · dry-run=%d · no-work=%d",
+		r.Spend.Iterations, r.Spend.LeaderTurnsKnown, r.Spend.LeaderTurnsTotal, r.Spend.LeaderTurnsUnknown,
+		r.Spend.AgentsRequested, r.Spend.AgentsStarted, r.Spend.AgentsCompleted, r.Spend.AgentsAborted,
+		r.Spend.AgentOrphanResults, r.Spend.AgentsLive, r.Spend.DryRuns, r.Spend.NoWorkRuns)
+	w("Topology    : orchestrator=%s / executor=%s / factual-judge=%s / semantic-judge=%s / engine=%s / planner=%s / guard=%s / current-tier=%s / runner=%s / provider=%s / model=%s / effort=%s",
+		r.Topology.Orchestrator, r.Topology.Executor, r.Topology.FactualJudge, r.Topology.SemanticJudge,
+		r.Topology.Engine, r.Topology.Planner, r.Topology.Guard, r.Topology.CurrentTier,
+		r.Topology.CurrentRunner, r.Topology.CurrentProvider, r.Topology.CurrentModel, r.Topology.CurrentEffort)
 
 	if r.Tree.Known {
 		w("Дерево     : изменено файлов %d, из них новых %d", r.Tree.Changed, r.Tree.New)

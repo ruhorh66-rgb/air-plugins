@@ -120,8 +120,9 @@ func TestСтрокаРасходаНазываетПотолокПрогона(
 		t.Errorf("сумма журнала снова сравнивается с потолком прогона:\n%s", txt)
 	}
 	dry := productReport{Product: "X", Spend: reportSpend{DryRuns: 2, Budget: 20}}.text()
-	if !strings.Contains(dry, "петля не заводилась") || strings.Contains(dry, "потолк") {
-		t.Errorf("журнал из одних сухих строк:\n%s", dry)
+	if !strings.Contains(dry, "рабочих итераций 0 · dry-run 2") ||
+		strings.Contains(dry, "петля не заводилась") || strings.Contains(dry, "потолк") {
+		t.Errorf("журнал из одних сухих строк должен отличаться от never-started:\n%s", dry)
 	}
 }
 

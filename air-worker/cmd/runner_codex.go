@@ -153,7 +153,7 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 	close(results)
 
 	ordered := make([]stepResult, requested)
-	started, completed := 0, 0
+	started, completed, aborted, orphan := 0, 0, 0, 0
 	ids := make([]string, 0, requested)
 	var problems []string
 	var vendorLimit string
@@ -165,23 +165,34 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 		if run.result.Session != "" {
 			ids = append(ids, run.result.Session)
 		}
-		if run.result.Ok {
+		switch {
+		case run.started && run.result.Ok:
 			completed++
-		} else {
+		case run.started && !run.result.Ok:
+			aborted++
 			problems = append(problems, fmt.Sprintf("subagent %d failed: %s %s", run.index, run.result.Subtype, run.result.Detail))
-			if run.result.Subtype == "vendor_limit" && vendorLimit == "" {
-				vendorLimit = run.result.Detail
-			}
+		case !run.started && run.result.Ok:
+			orphan++
+			problems = append(problems, fmt.Sprintf("subagent %d returned success without a proven process start", run.index))
+		default:
+			problems = append(problems, fmt.Sprintf("subagent %d did not start: %s %s", run.index, run.result.Subtype, run.result.Detail))
+		}
+		if run.result.Subtype == "vendor_limit" && vendorLimit == "" {
+			vendorLimit = run.result.Detail
 		}
 	}
-	if vendorLimit != "" {
-		return stepResult{Subtype: "vendor_limit", Detail: vendorLimit, AgentRequested: requested,
-			AgentStarted: started, AgentCompleted: completed, AgentIDs: ids, AgentIssue: strings.Join(problems, "; ")}
+	stats := agentLifecycle{
+		Requested: requested, Started: started, Completed: completed, Aborted: aborted,
+		OrphanResults: orphan, Live: 0, IDs: ids, Problems: problems,
 	}
-	if completed != requested {
-		problems = append(problems, fmt.Sprintf("requested %d subagents, completed %d", requested, completed))
-		return stepResult{Subtype: "orchestration_not_proven", AgentRequested: requested, AgentStarted: started,
-			AgentCompleted: completed, AgentIDs: ids, AgentIssue: strings.Join(problems, "; ")}
+	if vendorLimit != "" {
+		return applyAgentLifecycle(stepResult{Subtype: "vendor_limit", Detail: vendorLimit}, stats)
+	}
+	if !orchestrationProven(stats) {
+		if completed != requested {
+			stats.Problems = append(stats.Problems, fmt.Sprintf("requested %d subagents, completed %d", requested, completed))
+		}
+		return applyAgentLifecycle(stepResult{Subtype: "orchestration_not_proven"}, stats)
 	}
 
 	var evidence strings.Builder
@@ -194,11 +205,7 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 		fmt.Fprintf(&evidence, "\nSUBAGENT %d/%d (%s):\n%s\n", i+1, requested, runner.Model, detail)
 	}
 	leader := c.invokeCodex(exePath, prompt+evidence.String(), runner, stepID)
-	leader.AgentRequested = requested
-	leader.AgentStarted = started
-	leader.AgentCompleted = completed
-	leader.AgentIDs = ids
-	return leader
+	return applyAgentLifecycle(leader, stats)
 }
 
 func parseCodexResult(raw string, runErr error) stepResult {
