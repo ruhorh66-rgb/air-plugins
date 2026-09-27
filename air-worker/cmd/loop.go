@@ -984,6 +984,7 @@ func (c *loopCtx) judge() (int, string) {
 func (c *loopCtx) judgeDetailed() (int, string, *judgeResult) {
 	if c.JudgePath == "" {
 		res := runJudge(c.Root, c.Cfg, -1, c.scope())
+		res.InputFingerprint = judgeInputFingerprint(c.Root, c.Cfg, c.CfgPath, nativePlanPath(c.Root, c.Cfg))
 		code, text := verdict(res)
 		publishVerdict(c.Root, code, text, res)
 		c.verdictFresh = true

@@ -177,14 +177,15 @@ func (c *checklistFile) UnmarshalJSON(data []byte) error {
 // перестаёт расти, когда причину переписывают: этот отказ был найден у Goal/Drift Loop
 // ВЕРЫ и описан там дословно. Текст остаётся человеку, числа — машине.
 type machineVerdict struct {
-	At             string   `json:"at"`
-	Code           int      `json:"code"`
-	Distance       *int     `json:"distance"`
-	ChecksPassed   int      `json:"checks_passed"`
-	ChecksFailed   int      `json:"checks_failed"`
-	ChecksUnknown  int      `json:"checks_unknown"`
-	CriteriaPassed []string `json:"criteria_passed,omitempty"`
-	CriteriaFailed []string `json:"criteria_failed,omitempty"`
+	At               string   `json:"at"`
+	Code             int      `json:"code"`
+	Distance         *int     `json:"distance"`
+	InputFingerprint string   `json:"input_fingerprint,omitempty"`
+	ChecksPassed     int      `json:"checks_passed"`
+	ChecksFailed     int      `json:"checks_failed"`
+	ChecksUnknown    int      `json:"checks_unknown"`
+	CriteriaPassed   []string `json:"criteria_passed,omitempty"`
+	CriteriaFailed   []string `json:"criteria_failed,omitempty"`
 	// CriteriaGated — К40: критерии, ждущие решения ЛПР, отдельно от CriteriaUnknown
 	// («нечем измерить»). Закрытые gate-факты сюда не попадают: они уже в CriteriaPassed.
 	CriteriaGated   []string `json:"criteria_gated,omitempty"`
@@ -231,6 +232,10 @@ type judgeResult struct {
 	Failed  []string
 	Unknown []string
 
+	CheckObservations     []judgeCheckObservation
+	CriterionObservations []judgeCriterionObservation
+	InputFingerprint      string
+
 	CriteriaPassed  []string
 	CriteriaFailed  []string
 	CriteriaGated   []string
@@ -253,6 +258,7 @@ func cmdJudge(argv []string) int {
 	product := fs.String("product", ".", "корень продукта")
 	configPath := fs.String("config", "", "путь к run-config.json")
 	minFacts := fs.Int("min-facts", -1, "перекрыть требуемое число фактов")
+	asJSON := fs.Bool("json", false, "структурированный factual result без второго прогона")
 	if err := fs.Parse(argv); err != nil {
 		return 2
 	}
@@ -277,9 +283,15 @@ func cmdJudge(argv []string) int {
 		return code
 	}
 	res := runJudge(root, cfg, *minFacts, legacyScope(root))
+	planPath := nativePlanPath(root, cfg)
+	res.InputFingerprint = judgeInputFingerprint(root, cfg, cfgPath, planPath)
 	code, text := verdict(res)
-	publishVerdict(root, code, text, res)
-	fmt.Print(text + lineEnding)
+	mv := publishVerdict(root, code, text, res)
+	if *asJSON {
+		fmt.Println(string(marshalJudgeJSON(buildJudgeJSONReport(root, mv, res))))
+	} else {
+		fmt.Print(text + lineEnding)
+	}
 	return code
 }
 
@@ -291,6 +303,7 @@ func runJudge(root string, cfg runConfig, minFactsOverride int, scope sessionSco
 		if name == "" {
 			name = "проверка без имени"
 		}
+		started := time.Now()
 		switch {
 		case chk.Script != "":
 			runScriptCheck(root, chk, name, scope, &r)
@@ -299,6 +312,11 @@ func runJudge(root string, cfg runConfig, minFactsOverride int, scope sessionSco
 		default:
 			r.Unknown = append(r.Unknown, name+" — нечем: в проверке не задан ни script, ни command")
 		}
+		state, reason := judgeCheckState(r, name)
+		r.CheckObservations = append(r.CheckObservations, judgeCheckObservation{
+			Name: name, State: state, Reason: reason, DurationMS: time.Since(started).Milliseconds(),
+			Script: chk.Script, Command: chk.Command, Args: append([]string(nil), chk.Args...), Select: chk.Select,
+		})
 	}
 
 	// КРИТЕРИЙ ПЛАНА БЕЗ МЕРЫ — «НЕЧЕМ ПРОВЕРИТЬ» (этап 0.10, К3). Судья отвечает не только
@@ -314,6 +332,7 @@ func runJudge(root string, cfg runConfig, minFactsOverride int, scope sessionSco
 		planName = "PLAN.md"
 	}
 	planPath := filepath.Join(root, planName)
+	r.InputFingerprint = judgeInputFingerprint(root, cfg, filepath.Join(root, "run-config.json"), planPath)
 	g := readPlanGoals(planPath)
 
 	// К59 — факты, уже являющиеся мерой критерия, размечаются ДО подсчёта legacy min_facts,
@@ -342,6 +361,7 @@ func runJudge(root string, cfg runConfig, minFactsOverride int, scope sessionSco
 		} else {
 			ps := buildPlanState(root, cfg, planPath, r)
 			r.CriteriaPassed, r.CriteriaFailed, r.CriteriaGated, r.CriteriaUnknown = ps.CriteriaPassed, ps.CriteriaFailed, ps.CriteriaGated, ps.CriteriaUnknown
+			r.CriterionObservations = append([]judgeCriterionObservation(nil), ps.CriterionObservations...)
 			r.PlanGates = ps.PlanGates
 		}
 	} else {
@@ -600,7 +620,7 @@ func distanceOf(code int, r judgeResult) *int {
 	return &d
 }
 
-func publishVerdict(root string, code int, text string, r judgeResult) {
+func publishVerdict(root string, code int, text string, r judgeResult) machineVerdict {
 	// ЗАВЕРШАЮЩИЙ ПЕРЕВОД СТРОКИ — КАК У СКРИПТА (CRLF на Windows).
 	// Найдено AIR-ENV-002 13.09.2026 побайтовой сверкой: 105 байт против 104, diff
 	// расхождение видит, глаз нет. Её же довод и решил вопрос: всё, что сравнивает файл
@@ -613,43 +633,9 @@ func publishVerdict(root string, code int, text string, r judgeResult) {
 	// читатель может застать файл усечённым, и «вердикта нет» станет неотличимо от
 	// «вердикт пуст». Замок здесь не нужен: атомарная запись дешевле и надёжнее.
 	_ = writeFileAtomic(filepath.Join(root, ".goal-verdict"), []byte(text+lineEnding))
-	passed := len(r.Passed)
-	failed := len(r.Failed)
-	if r.FactsLine != "" {
-		for _, p := range r.Passed {
-			if p == r.FactsLine {
-				passed--
-				break
-			}
-		}
-		for _, f := range r.Failed {
-			if f == r.FactsLine {
-				failed--
-				break
-			}
-		}
-	}
-	mv := machineVerdict{
-		At:              time.Now().Format("2006-01-02T15:04:05"),
-		Code:            code,
-		Distance:        distanceOf(code, r),
-		ChecksPassed:    passed,
-		ChecksFailed:    failed,
-		ChecksUnknown:   len(r.Unknown),
-		CriteriaPassed:  r.CriteriaPassed,
-		CriteriaFailed:  r.CriteriaFailed,
-		CriteriaGated:   r.CriteriaGated,
-		CriteriaUnknown: r.CriteriaUnknown,
-		CriteriaTotal:   len(r.CriteriaPassed) + len(r.CriteriaFailed) + len(r.CriteriaGated) + len(r.CriteriaUnknown),
-		LPRGates:        r.PlanGates + len(r.CriteriaGated),
-		FactsClosed:     r.FactsClosed,
-		FactsGated:      r.FactsGated,
-		FactsRequired:   r.FactsRequired,
-		FactsOverlap:    r.FactsOverlap,
-		VerdictText:     text,
-		By:              appName + " " + version,
-	}
+	mv := machineVerdictFromResult(root, code, text, r)
 	if b, err := json.MarshalIndent(mv, "", "  "); err == nil {
 		_ = writeFileAtomic(filepath.Join(root, ".goal-verdict.json"), b)
 	}
+	return mv
 }

@@ -44,8 +44,9 @@ const (
 func usage() {
 	fmt.Fprint(os.Stderr, `air-worker — механизм гарантированного результата
 
-  air-worker judge  -product <корень> [-config <путь>] [-min-facts N]
+  air-worker judge  -product <корень> [-config <путь>] [-min-facts N] [-json]
         Судья цели. Коды: 0 достигнута, 1 не достигнута, 2 нечем проверить.
+        -json отдаёт тот же factual run структурой: checks/criteria/state/reason/duration/selector.
 
   air-worker drift  -product <корень> [-record] [-note "..."] [-json] [-quiet]
         Двигатель цели. Коды: 0 ALLOW, 1 THROTTLE, 2 ESCALATE, 3 ЖДЁТ ЛПР.
@@ -87,11 +88,11 @@ func usage() {
         права. Зовётся хуком при каждой записи файла, чтобы правило исполнялось,
         а не помнилось.
 
-  air-worker report -product <корень> [-json]
-        Числа хода одним замером: вердикт судьи ПРОГОНОМ, расстояние, застой, расход,
-        изменения в дереве и следующий шаг плана. Вставляется в ход дословно; -json
-        сверяет страж. Поля, которые прежде требовались от модели словами, здесь
-        нельзя ни забыть, ни сочинить.
+  air-worker report -product <корень> [-json] [-cached|-no-judge] [-informational|-no-fail]
+        Числа хода одним замером. По умолчанию factual judge запускается и обновляет
+        fingerprinted verdict. -cached/-no-judge только читает свежий machine verdict;
+        stale/missing = NOT_PROVEN. -informational/-no-fail меняет только process exit на 0,
+        factual judge_code внутри данных не переписывается.
   air-worker report -all [-registry <air-worker.products/v1.json>] [-json]
         Сводка экосистемы без LLM: у каждого продукта явные root+plan, расстояние до
         ближайшей плановой вехи, native goal-distance если доказуем, иначе NOT_PROVEN/limits.

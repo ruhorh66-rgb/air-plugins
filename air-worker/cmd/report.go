@@ -3,12 +3,14 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // ОТЧЁТ — ЭТО ЧИСЛА, КОТОРЫЕ ПЕЧАТАЕТ ПРОГРАММА, А НЕ МОДЕЛЬ.
@@ -72,15 +74,19 @@ type reportStep struct {
 }
 
 type productReport struct {
-	Product   string        `json:"product"`
-	JudgeCode int           `json:"judge_code"`
-	JudgeText string        `json:"judge_text"`
-	Measure   driftMeasure  `json:"measure"`
-	Reasons   []driftReason `json:"reasons"`
-	Limits    []string      `json:"limits"`
-	Tree      reportTree    `json:"tree"`
-	Spend     reportSpend   `json:"spend"`
-	Next      reportStep    `json:"next"`
+	Product                 string        `json:"product"`
+	JudgeCode               int           `json:"judge_code"`
+	JudgeText               string        `json:"judge_text"`
+	JudgeCached             bool          `json:"judge_cached"`
+	JudgeInputFingerprint   string        `json:"judge_input_fingerprint,omitempty"`
+	JudgeCurrentFingerprint string        `json:"judge_current_fingerprint,omitempty"`
+	JudgeStale              bool          `json:"judge_stale,omitempty"`
+	Measure                 driftMeasure  `json:"measure"`
+	Reasons                 []driftReason `json:"reasons"`
+	Limits                  []string      `json:"limits"`
+	Tree                    reportTree    `json:"tree"`
+	Spend                   reportSpend   `json:"spend"`
+	Next                    reportStep    `json:"next"`
 	// LoopRunning — по продукту идёт петля в другом процессе: дерево и вердикт меняются
 	// под её работой, и судья отчётом не прогоняется (см. buildReport).
 	LoopRunning bool `json:"loop_running"`
@@ -192,7 +198,43 @@ func nextOpenStep(root, planPath string) reportStep {
 	return reportStep{}
 }
 
+func cachedUnknownMeasure(root string, cfg runConfig, note string) driftMeasure {
+	planPath := nativePlanPath(root, cfg)
+	plan := parsePlan(planPath)
+	return driftMeasure{
+		At:              time.Now().Format("2006-01-02T15:04:05"),
+		DistanceRule:    distanceRule,
+		JudgeCode:       intPtr(2),
+		PlanOpenSteps:   intPtr(plan.OpenWork()),
+		PlanClosedSteps: intPtr(plan.ClosedSteps()),
+		PlanGates:       plan.Gates(),
+		Verdict:         "NOT_PROVEN",
+		Note:            note,
+		By:              appName + " " + version,
+	}
+}
+
+func readFreshCachedVerdict(root string, cfg runConfig) (machineVerdict, string, error) {
+	path := filepath.Join(root, ".goal-verdict.json")
+	var mv machineVerdict
+	if err := readJSON(path, &mv); err != nil {
+		return mv, "", fmt.Errorf("cached machine verdict unavailable: %w", err)
+	}
+	current := judgeInputFingerprint(root, cfg, filepath.Join(root, "run-config.json"), nativePlanPath(root, cfg))
+	if strings.TrimSpace(mv.InputFingerprint) == "" {
+		return mv, current, errors.New("cached machine verdict has no input_fingerprint")
+	}
+	if !strings.EqualFold(mv.InputFingerprint, current) {
+		return mv, current, fmt.Errorf("cached machine verdict is stale: fingerprint %s != current %s", mv.InputFingerprint, current)
+	}
+	return mv, current, nil
+}
+
 func buildReport(root string) productReport {
+	return buildReportMode(root, false)
+}
+
+func buildReportMode(root string, noJudge bool) productReport {
 	r := productReport{Product: root}
 
 	var cfg runConfig
@@ -206,31 +248,57 @@ func buildReport(root string) productReport {
 	// Поэтому при идущей петле отчёт берёт ЕЁ последний вердикт и прямо говорит, чей он и
 	// когда записан.
 	r.LoopRunning = lockHeld(lockName("loop", root))
+	measureReady := false
 
 	switch {
 	case cfgErr != nil:
 		r.JudgeCode = 2
 		r.JudgeText = "НЕ ПРОВЕРЕНО: нет конфигурации run-config.json"
+	case noJudge:
+		r.JudgeCached = true
+		mv, current, err := readFreshCachedVerdict(root, cfg)
+		r.JudgeInputFingerprint = mv.InputFingerprint
+		r.JudgeCurrentFingerprint = current
+		if err != nil {
+			r.JudgeCode = 2
+			r.JudgeText = "НЕ ПРОВЕРЕНО: " + err.Error()
+			r.JudgeStale = true
+			r.Measure = cachedUnknownMeasure(root, cfg, err.Error())
+			r.Limits = append(r.Limits, err.Error())
+			measureReady = true
+		} else {
+			r.JudgeCode = mv.Code
+			r.JudgeText = fmt.Sprintf("%s [cached verdict от %s; судья не запускался]", firstLine(mv.VerdictText), mv.At)
+			r.JudgeInputFingerprint = mv.InputFingerprint
+			r.JudgeCurrentFingerprint = current
+		}
 	case r.LoopRunning:
+		r.JudgeCached = true
 		var mv machineVerdict
 		if err := readJSON(filepath.Join(root, ".goal-verdict.json"), &mv); err != nil {
 			r.JudgeCode = 2
 			r.JudgeText = "НЕ ПРОВЕРЕНО: петля идёт, а машинного вердикта ещё нет"
 		} else {
 			r.JudgeCode = mv.Code
+			r.JudgeInputFingerprint = mv.InputFingerprint
 			r.JudgeText = fmt.Sprintf("%s [вердикт петли от %s; отчёт судью не прогонял — петля идёт]",
 				firstLine(mv.VerdictText), mv.At)
 		}
 	default:
 		// Судья — прогоном. См. шапку о том, почему не из файла.
 		res := runJudge(root, cfg, -1, legacyScope(root))
+		res.InputFingerprint = judgeInputFingerprint(root, cfg, filepath.Join(root, "run-config.json"), nativePlanPath(root, cfg))
 		r.JudgeCode, r.JudgeText = verdict(res)
 		// Запись вердикта нужна следующему замеру расстояния: без неё drift скажет
 		// «машинного вердикта нет» на продукте, судью которого только что прогнали.
-		publishVerdict(root, r.JudgeCode, r.JudgeText, res)
+		mv := publishVerdict(root, r.JudgeCode, r.JudgeText, res)
+		r.JudgeInputFingerprint = mv.InputFingerprint
+		r.JudgeCurrentFingerprint = mv.InputFingerprint
 	}
 
-	r.Measure, r.Reasons, r.Limits = measureDrift(root, "")
+	if !measureReady {
+		r.Measure, r.Reasons, r.Limits = measureDrift(root, "")
+	}
 	r.Tree = measureTree(root)
 	budget := 0.0
 	if cfgErr == nil {
@@ -351,11 +419,25 @@ func cmdReport(argv []string) int {
 	all := fs.Bool("all", false, "сводка по всем продуктам из единого registry root/plan")
 	registry := fs.String("registry", "", "air-worker.products/v1; default: AIR_WORKER_PRODUCTS_FILE или state/air-worker-products.json")
 	asJSON := fs.Bool("json", false, "машинный вывод для сверки стражем")
+	cached := fs.Bool("cached", false, "не запускать judge; использовать только свежий fingerprinted machine verdict")
+	noJudge := fs.Bool("no-judge", false, "синоним -cached")
+	informational := fs.Bool("informational", false, "печатать factual code в данных, но вернуть process exit 0")
+	noFail := fs.Bool("no-fail", false, "синоним -informational")
 	if err := fs.Parse(argv); err != nil {
 		return 2
 	}
+	cachedMode := *cached || *noJudge
+	informationalMode := *informational || *noFail
 	if *all {
-		return cmdReportAll(*registry, *asJSON)
+		if cachedMode {
+			fmt.Fprint(os.Stderr, "report -all: -cached/-no-judge не поддержан; настрой refresh_judge=false в registry"+lineEnding)
+			return 2
+		}
+		code := cmdReportAll(*registry, *asJSON)
+		if informationalMode {
+			return 0
+		}
+		return code
 	}
 	root, err := filepath.Abs(*product)
 	if err != nil {
@@ -377,7 +459,7 @@ func cmdReport(argv []string) int {
 		return code
 	}
 
-	r := buildReport(root)
+	r := buildReportMode(root, cachedMode)
 	if *asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -386,6 +468,11 @@ func cmdReport(argv []string) int {
 		fmt.Print(r.text())
 	}
 
+	// Informational/no-fail меняет только process exit для command-chain. Factual code
+	// остаётся в JSON/тексте и не превращается в PASS.
+	if informationalMode {
+		return 0
+	}
 	// Код возврата — код судьи. Отчёт не заводит своего мнения о готовности.
 	return r.JudgeCode
 }

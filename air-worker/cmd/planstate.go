@@ -17,10 +17,11 @@ type PlanState struct {
 	Steps []planStep
 	Goals planGoals
 
-	CriteriaPassed  []string
-	CriteriaFailed  []string
-	CriteriaGated   []string
-	CriteriaUnknown []string
+	CriteriaPassed        []string
+	CriteriaFailed        []string
+	CriteriaGated         []string
+	CriteriaUnknown       []string
+	CriterionObservations []judgeCriterionObservation
 
 	// PlanGates — открытые гейты САМОГО ПЛАНА (шаги, закрываемые человеком).
 	PlanGates int
@@ -51,7 +52,8 @@ func buildPlanState(root string, cfg runConfig, planPath string, base judgeResul
 		ExecutableWork: plan.OpenWork(),
 	}
 	if len(g.Criteria) > 0 {
-		ps.CriteriaPassed, ps.CriteriaFailed, ps.CriteriaGated, ps.CriteriaUnknown = evaluatePlanCriteria(root, cfg, g, base)
+		ps.CriteriaPassed, ps.CriteriaFailed, ps.CriteriaGated, ps.CriteriaUnknown, ps.CriterionObservations =
+			evaluatePlanCriteriaObserved(root, cfg, g, base)
 	}
 	ps.LPRGates = ps.PlanGates + len(ps.CriteriaGated)
 	ps.TechnicalUnknowns = len(ps.CriteriaUnknown)

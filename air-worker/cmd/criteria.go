@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type criterionMeasure struct {
@@ -216,14 +217,23 @@ func measureRank(s measureState) int {
 	}
 }
 
-func evaluateCriterion(root string, cfg runConfig, c planCriterion, base judgeResult) criterionState {
+func evaluateCriterionObserved(root string, cfg runConfig, c planCriterion, base judgeResult) (criterionState, judgeCriterionObservation) {
+	started := time.Now()
+	obs := judgeCriterionObservation{
+		ID: c.ID, Goal: c.Goal, Sign: c.Sign, Measure: c.Measure,
+		Measures: []judgeMeasureObservation{},
+	}
 	measures, err := parseCriterionMeasures(c.Measure)
 	if err != nil {
-		return criterionState{ID: c.ID, State: measureUnknown, Detail: err.Error()}
+		cr := criterionState{ID: c.ID, State: measureUnknown, Detail: err.Error()}
+		obs.State, obs.Reason = measureStateText(cr.State), cr.Detail
+		obs.DurationMS = time.Since(started).Milliseconds()
+		return cr, obs
 	}
 	state := measurePass
 	var details []string
 	for _, m := range measures {
+		measureStarted := time.Now()
 		var mr measureResult
 		switch m.Kind {
 		case "check":
@@ -240,21 +250,35 @@ func evaluateCriterion(root string, cfg runConfig, c planCriterion, base judgeRe
 		default:
 			mr = measureResult{State: measureUnknown, Detail: "неизвестный вид меры"}
 		}
+		obs.Measures = append(obs.Measures, judgeMeasureObservation{
+			Kind: m.Kind, Name: m.Name, Selector: m.Selector,
+			State: measureStateText(mr.State), Reason: mr.Detail,
+			DurationMS: time.Since(measureStarted).Milliseconds(),
+		})
 		details = append(details, mr.Detail)
 		if measureRank(mr.State) > measureRank(state) {
 			state = mr.State
 		}
 	}
-	return criterionState{ID: c.ID, State: state, Detail: strings.Join(details, "; ")}
+	cr := criterionState{ID: c.ID, State: state, Detail: strings.Join(details, "; ")}
+	obs.State, obs.Reason = measureStateText(state), cr.Detail
+	obs.DurationMS = time.Since(started).Milliseconds()
+	return cr, obs
+}
+
+func evaluateCriterion(root string, cfg runConfig, c planCriterion, base judgeResult) criterionState {
+	cr, _ := evaluateCriterionObserved(root, cfg, c, base)
+	return cr
 }
 
 // evaluatePlanCriteria — К40: GATED отделён от UNKNOWN. Критерий, чья мера объявлена
 // решением ЛПР (факт со статусом gated), попадает в gated, а не в unknown — иначе двум
 // разным причинам «не считать работой» — «нечем измерить» и «ждём человека» — отвечало бы
 // одно и то же число, и отчёт не смог бы сказать, что именно чинить.
-func evaluatePlanCriteria(root string, cfg runConfig, g planGoals, base judgeResult) (passed, failed, gated, unknown []string) {
+func evaluatePlanCriteriaObserved(root string, cfg runConfig, g planGoals, base judgeResult) (passed, failed, gated, unknown []string, observations []judgeCriterionObservation) {
 	for _, c := range g.Criteria {
-		cr := evaluateCriterion(root, cfg, c, base)
+		cr, obs := evaluateCriterionObserved(root, cfg, c, base)
+		observations = append(observations, obs)
 		switch cr.State {
 		case measurePass:
 			passed = append(passed, c.ID)
@@ -266,6 +290,11 @@ func evaluatePlanCriteria(root string, cfg runConfig, g planGoals, base judgeRes
 			unknown = append(unknown, fmt.Sprintf("%s — %s", c.ID, cr.Detail))
 		}
 	}
+	return
+}
+
+func evaluatePlanCriteria(root string, cfg runConfig, g planGoals, base judgeResult) (passed, failed, gated, unknown []string) {
+	passed, failed, gated, unknown, _ = evaluatePlanCriteriaObserved(root, cfg, g, base)
 	return
 }
 
