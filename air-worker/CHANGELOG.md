@@ -1,6 +1,20 @@
 # CHANGELOG — air-worker
 
-## 0.11.0 — in development
+## 0.11.1 — release candidate 28.09.2026
+
+### L11-1 + L11-4 — canonical learning journal and first executable rule
+
+- `learn migrate-legacy` now imports the full AirCurator legacy journal into canonical `learn/events.jsonl` without changing the source. Import IDs are deterministic and a second run is idempotent.
+- Legacy `what/rule/mechanism/mechanism_needed/repeat/links` evidence is preserved in the canonical event envelope instead of being silently dropped.
+- The approval digest now binds executable `trigger/check_type/check_spec/test_case`, so a proposal cannot be altered after exact `да <id>` and reuse the same grant.
+- Added the first grant-gated executable L11-4 rule: `sgt-commit-added-lines-within-10m`. It is dormant until an APPLIED typed manifest exists in `learn/rules/`.
+- On active sessions, the PreToolUse commit gate checks staged added lines for `HH:MM SGT`; a timestamp more than 10 minutes from current SGT blocks the commit and points to `curator-check`. Midnight wrap is handled explicitly.
+- `learn apply` can activate this executable rule only after a real UserPromptSubmit grant and only after built-in mutation cases pass. The generated typed manifest carries approval and verification receipts and supports rollback.
+- Real AirCurator migration: 73 legacy events imported over the existing 13 plan-node events; rerun imported 0; source SHA stayed unchanged. AC7 proposal `LP-20260928T133444Z-31d4ca9c` is pending LPR approval through curator node N-014.
+
+Release control: full Go/vet, plugin/Hermes/binary/boundary/shell/reproducibility/selftest, exact-tree semantic review, then tag/GitHub Release/marketplace/install. Activation of AC7 remains separately gated by exact `да LP-20260928T133444Z-31d4ca9c`.
+
+## 0.11.0 — 28.09.2026
 
 ### L11-7 — PLAN thread and durable nodes
 
