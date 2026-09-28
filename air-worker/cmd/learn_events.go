@@ -54,16 +54,18 @@ func validateLearnEvent(row learnJournalRecord) error {
 }
 
 type legacyCuratorEvent struct {
-	TS        string   `json:"ts"`
-	Situation string   `json:"situation"`
-	Curator   string   `json:"curator"`
-	LPR       string   `json:"lpr"`
-	Class     string   `json:"class"`
-	Lesson    string   `json:"lesson"`
-	What      string   `json:"what"`
-	Rule      string   `json:"rule"`
-	Mechanism string   `json:"mechanism"`
-	Links     []string `json:"links"`
+	TS              string   `json:"ts"`
+	Situation       string   `json:"situation"`
+	Curator         string   `json:"curator"`
+	LPR             string   `json:"lpr"`
+	Class           string   `json:"class"`
+	Lesson          string   `json:"lesson"`
+	What            string   `json:"what"`
+	Rule            string   `json:"rule"`
+	Mechanism       string   `json:"mechanism"`
+	MechanismNeeded string   `json:"mechanism_needed"`
+	Repeat          int      `json:"repeat"`
+	Links           []string `json:"links"`
 }
 
 func stableImportedEvent(shape string, lineNumber int, line []byte, created, sourceTimestamp, class, observed, evidence, actor, reference, source string) learnJournalRecord {
@@ -96,6 +98,12 @@ func legacyCuratorObservedEvidence(old legacyCuratorEvent) (string, string) {
 	var extras []string
 	if strings.TrimSpace(old.Mechanism) != "" {
 		extras = append(extras, "mechanism="+strings.TrimSpace(old.Mechanism))
+	}
+	if strings.TrimSpace(old.MechanismNeeded) != "" {
+		extras = append(extras, "mechanism_needed="+strings.TrimSpace(old.MechanismNeeded))
+	}
+	if old.Repeat != 0 {
+		extras = append(extras, fmt.Sprintf("repeat=%d", old.Repeat))
 	}
 	if len(old.Links) > 0 {
 		extras = append(extras, "links="+strings.Join(old.Links, ","))

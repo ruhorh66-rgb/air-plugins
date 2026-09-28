@@ -92,7 +92,7 @@ func TestAirCuratorImportIsStableLosslessAndReadOnly(t *testing.T) {
 func TestAirCuratorImportPreservesExtendedLegacyFields(t *testing.T) {
 	product := t.TempDir()
 	source := filepath.Join(t.TempDir(), "journal.jsonl")
-	line := `{"ts":"2026-09-28T19:15+08:00","class":"verify-before-claim","what":"clock guessed","rule":"use curator-check","mechanism":"commit-hook","links":["PLAN.md","receipt.json"]}`
+	line := `{"ts":"2026-09-28T19:15+08:00","class":"verify-before-claim","what":"clock guessed","rule":"use curator-check","mechanism":"commit-hook","mechanism_needed":"block stale SGT labels","repeat":2,"links":["PLAN.md","receipt.json"]}`
 	if err := os.WriteFile(source, []byte(line+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestAirCuratorImportPreservesExtendedLegacyFields(t *testing.T) {
 	if rows[0].Observed != "use curator-check" {
 		t.Fatalf("observed=%q want rule fallback", rows[0].Observed)
 	}
-	wantEvidence := "clock guessed | mechanism=commit-hook | links=PLAN.md,receipt.json"
+	wantEvidence := "clock guessed | mechanism=commit-hook | mechanism_needed=block stale SGT labels | repeat=2 | links=PLAN.md,receipt.json"
 	if rows[0].Evidence != wantEvidence {
 		t.Fatalf("evidence=%q want=%q", rows[0].Evidence, wantEvidence)
 	}
