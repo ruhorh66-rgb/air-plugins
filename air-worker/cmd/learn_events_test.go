@@ -245,3 +245,23 @@ func TestLegacyProposalMigrationAndConflict(t *testing.T) {
 		t.Fatal("proposal conflict mutated canonical registry")
 	}
 }
+
+func TestAirCuratorImportPreservesPatternsOnlyRows(t *testing.T) {
+	product := t.TempDir()
+	source := filepath.Join(t.TempDir(), "journal.jsonl")
+	line := `{"ts":"2026-09-29T01:24+08:00","class":"lpr-push-pattern","patterns":["P8 load AirWorker","P9 verify hooks"]}`
+	if err := os.WriteFile(source, []byte(line+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	added, err := importLegacyEvents(learnPaths(product).Journal, source, "aircurator")
+	if err != nil || added != 1 {
+		t.Fatalf("patterns-only import added=%d err=%v", added, err)
+	}
+	rows, err := readLearnEventsNoMigration(learnPaths(product).Journal)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("rows=%#v err=%v", rows, err)
+	}
+	if rows[0].Observed != "P8 load AirWorker | P9 verify hooks" {
+		t.Fatalf("patterns lost: %#v", rows[0])
+	}
+}

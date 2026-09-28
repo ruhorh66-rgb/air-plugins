@@ -85,42 +85,15 @@ func verifySGTCommitCheck() (string, error) {
 	return "builtin:" + learnCheckSGTCommitFreshness + ":v1 cases=4/4", nil
 }
 
-func supportsExecutableLearnProposal(p learnProposal) error {
-	if strings.ToLower(strings.TrimSpace(p.CheckType)) != "hook" {
-		return fmt.Errorf("unsupported executable check_type %q", p.CheckType)
-	}
-	if strings.TrimSpace(p.CheckSpec) != learnCheckSGTCommitFreshness {
-		return fmt.Errorf("unsupported executable check_spec %q", p.CheckSpec)
-	}
-	if strings.TrimSpace(p.Class) != learnRuleVerifyBeforeClaim {
-		return fmt.Errorf("check_spec %s requires class %s", learnCheckSGTCommitFreshness, learnRuleVerifyBeforeClaim)
-	}
-	return nil
-}
-
-func verifiedExecutableRule(p learnProposal, grant learnApprovalGrant, now time.Time) (learnRuleRecord, error) {
-	if err := supportsExecutableLearnProposal(p); err != nil {
-		return learnRuleRecord{}, err
-	}
-	receipt, err := verifySGTCommitCheck()
-	if err != nil {
-		return learnRuleRecord{}, err
-	}
-	return learnRuleRecord{
-		Schema:              learnRuleSchemaVersion,
-		ProposalID:          p.ID,
-		Class:               p.Class,
-		Rule:                p.Rule,
-		Trigger:             p.Trigger,
-		CheckType:           p.CheckType,
-		CheckSpec:           p.CheckSpec,
-		TestCase:            p.TestCase,
-		Status:              learnApplied,
-		ApprovedAt:          now.UTC().Format(time.RFC3339Nano),
-		Approval:            "grant:" + grant.ID,
-		VerifiedAt:          now.UTC().Format(time.RFC3339Nano),
-		VerificationReceipt: receipt,
-	}, nil
+func init() {
+	registerExecutableLearnCheck(executableLearnCheck{
+		CheckType: "hook",
+		CheckSpec: learnCheckSGTCommitFreshness,
+		Verify: func(learnProposal) (string, error) {
+			return verifySGTCommitCheck()
+		},
+		PreTool: enforceSGTCommitRuleRecord,
+	})
 }
 
 func executableRulePath(paths learnPathsSet, proposalID string) string {
@@ -246,15 +219,8 @@ func addedLinesForCommit(product string, includeTrackedWorktree bool) ([]string,
 	return lines, sc.Err()
 }
 
-func enforceSGTCommitRule(product, command string, now time.Time) (bool, string, error) {
+func enforceSGTCommitRuleRecord(product string, rule learnRuleRecord, command string, now time.Time) (bool, string, error) {
 	if !gitCommitPattern.MatchString(command) {
-		return false, "", nil
-	}
-	rule, err := activeSGTCommitRule(product)
-	if err != nil {
-		return false, "", err
-	}
-	if rule == nil {
 		return false, "", nil
 	}
 	lines, err := addedLinesForCommit(product, gitCommitAllPattern.MatchString(command))
@@ -264,14 +230,24 @@ func enforceSGTCommitRule(product, command string, now time.Time) (bool, string,
 	violations := staleSGTLabels(lines, now)
 	evidence := fmt.Sprintf("check_spec=%s added_lines=%d violations=%d", rule.CheckSpec, len(lines), len(violations))
 	if len(violations) == 0 {
-		if err := recordLearnRuleUse(product, *rule, "pass", evidence, now); err != nil {
+		if err := recordLearnRuleUse(product, rule, "pass", evidence, now); err != nil {
 			return false, "", fmt.Errorf("record rule use: %w", err)
 		}
 		return false, "", nil
 	}
 	v := violations[0]
-	if err := recordLearnRuleUse(product, *rule, "block", evidence, now); err != nil {
+	if err := recordLearnRuleUse(product, rule, "block", evidence, now); err != nil {
 		return false, "", fmt.Errorf("record rule use: %w", err)
 	}
 	return true, fmt.Sprintf("%s: метка %s расходится с текущим SGT на %d мин (> %d); возьми время из curator-check перед коммитом", rule.ProposalID, v.Label, v.Delta, learnSGTMaxDeltaMinutes), nil
+}
+
+// Compatibility helper for focused tests and callers that ask specifically for the SGT rule.
+// The live hook path dispatches every registered hook through enforceExecutableLearnHooks.
+func enforceSGTCommitRule(product, command string, now time.Time) (bool, string, error) {
+	rule, err := activeSGTCommitRule(product)
+	if err != nil || rule == nil {
+		return false, "", err
+	}
+	return enforceSGTCommitRuleRecord(product, *rule, command, now)
 }

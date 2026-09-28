@@ -217,7 +217,7 @@ func handlePreToolUseBypassGuard(in hookInput) (hookResult, error) {
 		}
 	}
 	if product, ok := productForLearningHookInput(in); ok {
-		blocked, reason, err := enforceSGTCommitRule(product, params.Command, time.Now())
+		blocked, reason, err := enforceExecutableLearnHooks(product, params.Command, time.Now())
 		if err != nil {
 			return hookResult{}, err
 		}

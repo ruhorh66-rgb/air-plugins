@@ -66,6 +66,7 @@ type legacyCuratorEvent struct {
 	MechanismNeeded string   `json:"mechanism_needed"`
 	Repeat          int      `json:"repeat"`
 	Links           []string `json:"links"`
+	Patterns        []string `json:"patterns"`
 }
 
 func stableImportedEvent(shape string, lineNumber int, line []byte, created, sourceTimestamp, class, observed, evidence, actor, reference, source string) learnJournalRecord {
@@ -89,6 +90,9 @@ func legacyCuratorObservedEvidence(old legacyCuratorEvent) (string, string) {
 	}
 	if observed == "" {
 		observed = strings.TrimSpace(old.Situation)
+	}
+	if observed == "" && len(old.Patterns) > 0 {
+		observed = strings.Join(old.Patterns, " | ")
 	}
 
 	evidence := strings.TrimSpace(old.Situation)
@@ -119,6 +123,12 @@ func legacyCuratorObservedEvidence(old legacyCuratorEvent) (string, string) {
 	}
 	if len(old.Links) > 0 {
 		extras = append(extras, "links="+strings.Join(old.Links, ","))
+	}
+	if len(old.Patterns) > 0 {
+		patterns := strings.Join(old.Patterns, " | ")
+		if patterns != observed && patterns != evidence {
+			extras = append(extras, "patterns="+patterns)
+		}
 	}
 	if len(extras) > 0 {
 		if evidence != "" {
