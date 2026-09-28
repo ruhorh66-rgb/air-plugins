@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260928T162916Z-ed3e1538",
+  "created_at": "2026-09-28T16:29:16.4162452Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.11.1",
+  "type": "defect",
+  "severity": "P1",
+  "observed": "PRODUCT_INSTRUCTION requires canonical F:\\-7-\\air-worker, but that tree is main ahead 1 / behind 60 while installed/released 0.11.1 source is at origin/main 7666706; startup contract therefore points a new GPT operator at a non-canonical tree.",
+  "expected": "New session startup resolves a clean source tree matching origin/main/released revision, or fails with a machine-readable canonical-source error and safe recovery path.",
+  "evidence": "SRVLM01 startup 2026-09-29; git status showed ## main...origin/main [ahead 1, behind 60].",
+  "reproduction": "On SRVLM01 run git -C F:\\-7- fetch; git -C F:\\-7- status -sb -- air-worker after reading PRODUCT_INSTRUCTION.md.",
+  "workaround": "Use the existing clean worktree F:\\-7-\\_worktrees\\air-worker-learn-0.11-20260928 at origin/main 7666706; do not reset the stale monorepo tree blindly.",
+  "proposed_outcome": "AirWorker startup command resolves/verifies canonical source automatically and surfaces drift before any product mutation."
+}

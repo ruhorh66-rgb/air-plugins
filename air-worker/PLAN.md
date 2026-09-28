@@ -545,6 +545,7 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 Текущий статус кандидата — в его строке ниже. Evidence-файл в `.air-worker/feedback/` — неизменяемая запись приёма: его `status` остаётся тем, каким был при приёме.
 
 <!-- air-worker:feedback-candidates -->
+- feedback `FB-20260928T162916Z-ed3e1538` · status=`candidate` · type=`defect` · severity=`P1` · source=`0.11.1` · observed=PRODUCT_INSTRUCTION requires canonical F:\-7-\air-worker, but that tree is main ahead 1 / behind 60 while installed/released 0.11.1 source is at origin/main 7666706; startup contract therefore points a new GPT operator a... · evidence=`.air-worker/feedback/FB-20260928T162916Z-ed3e1538.json`
 - feedback `FB-20260919T060538Z-05e824fb` · status=`candidate` · type=`defect` · severity=`P2` · source=`0.10.9` · observed=Судья продукта (air-worker judge -product F:\-7-\air-worker) на каноническом дереве 0.10.9 (eef79b6), 19.09.2026, прогон 422 с: код 1. Кроме check-binary (FB-20260919T044427Z-5a14b9d6) красны три проверки run-config: «дв... · evidence=`.air-worker/feedback/FB-20260919T060538Z-05e824fb.json`
 - feedback `FB-20260919T054925Z-03d8b601` · status=`candidate` · type=`defect` · severity=`P1` · source=`0.10.9` · observed=Указание ЛПР 19.09.2026: «штатным запуском планировщика тоже должен заниматься ядро Airworker. Если это не реализовано, либо мы нарушили, то нужно это прописать явно и зафиксировать это в фидбэк для следующего релиза». Ф... · evidence=`.air-worker/feedback/FB-20260919T054925Z-03d8b601.json`
 - feedback `FB-20260919T053702Z-23872bd7` · status=`candidate` · type=`friction` · severity=`P3` · source=`0.10.9` · observed=skills/run-worker-task/SKILL.md (раздел «Current release gate») и README отсылают к docs/GOAL.md за блокером llm-queue (run-job/show-job-json), а docs/GOAL.md с 0.10.x описывает multi-session kernel и о llm-queue ничего ... · evidence=`.air-worker/feedback/FB-20260919T053702Z-23872bd7.json`
@@ -563,3 +564,10 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - feedback `FB-20260918T054102Z-d17c2752` · status=`candidate` · type=`defect` · severity=`P1` · source=`0.10.9` · observed=Шаг ступени script с командой, обёрнутой в обратные кавычки после «::», исполняется с кавычками: закрывающая кавычка уходит в последний аргумент. Продукт srvlm01-airenv002-storage-order-0109, шаг 2: «pwsh -NoProfile -Fil... · evidence=`.air-worker/feedback/FB-20260918T054102Z-d17c2752.json`
 - feedback `FB-20260917T170402Z-51e49c4b` · status=`closed` · type=`defect` · severity=`P0` · source=`0.10.8` · observed=PowerShell judge selector template -Select {} was quoted as a positional string; DevSpace checks received literal -Select and every selected criterion stayed red. · evidence=`.air-worker/feedback/FB-20260917T170402Z-51e49c4b.json` · closed_by=`шаг ~~91~~, выпуск 0.10.9`
 - feedback `FB-20260917T165016Z-7d54dd40` · status=`closed` · type=`defect` · severity=`P0` · source=`0.10.8` · observed=Эксплуатирующая сессия остановила DevSpace: приняла read-only планировщика/аудиторов за режим Codex executor, потому что console/receipt не показывали роль и effective sandbox. · evidence=`.air-worker/feedback/FB-20260917T165016Z-7d54dd40.json` · closed_by=`шаг ~~91~~, выпуск 0.10.9`
+
+## План: нить и узлы
+
+<!-- air-worker-plan-nodes -->
+- [open] 0.11.2 urgent: LEARN + GPT parity · owner:AC·DEV·AirWorker · [[N-001_0-11-2-complete-self-learning-loop]] · 0.11.2: complete self-learning loop
+- [open] 0.11.2 urgent: LEARN + GPT parity · owner:AC·DEV·AirWorker · [[N-002_0-11-2-first-class-gpt-worker-operations]] · 0.11.2: first-class GPT worker operations
+- [open] 0.11.2 urgent: LEARN + GPT parity · owner:AC·DEV·AirWorker · [[N-003_0-11-2-gpt-lifecycle-hooks-parity]] · 0.11.2: GPT lifecycle hooks parity
