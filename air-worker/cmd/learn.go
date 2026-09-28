@@ -21,6 +21,8 @@ const (
 	learnPending       = "PENDING_LPR"
 	learnApplied       = "APPLIED"
 	learnRevoked       = "REVOKED"
+	learnRuleStale     = "STALE"
+	learnRuleArchived  = "ARCHIVED"
 	learnRolledBack    = "ROLLED_BACK" // accepted on read from 0.10
 	learnRulesHeader   = "# AirWorker learned rules\n\n<!-- Active only after explicit LPR approval: да <proposal-id>. -->\n"
 )
@@ -362,7 +364,7 @@ func findLearnLedger(rows []learnLedgerRecord, id string) *learnLedgerRecord {
 
 func cmdLearn(argv []string) int {
 	if len(argv) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: air-worker learn add|event|migrate-legacy|propose|pending|apply|effect|context|rollback ...")
+		fmt.Fprintln(os.Stderr, "usage: air-worker learn add|event|migrate-legacy|propose|pending|apply|effect|usage|weekly|context|rollback ...")
 		return 2
 	}
 	switch argv[0] {
@@ -380,6 +382,10 @@ func cmdLearn(argv []string) int {
 		return cmdLearnApply(argv[1:])
 	case "effect":
 		return cmdLearnEffect(argv[1:])
+	case "usage":
+		return cmdLearnUsage(argv[1:])
+	case "weekly":
+		return cmdLearnWeekly(argv[1:])
 	case "context":
 		return cmdLearnContext(argv[1:])
 	case "rollback":

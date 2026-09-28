@@ -81,8 +81,10 @@ func validateLearnRuleRecord(r learnRuleRecord) error {
 	}); err != nil {
 		return err
 	}
-	if r.Status != learnApplied {
-		return fmt.Errorf("rule %s status=%q is not APPLIED", r.ProposalID, r.Status)
+	switch r.Status {
+	case learnApplied, learnRuleStale, learnRuleArchived:
+	default:
+		return fmt.Errorf("rule %s has invalid lifecycle status %q", r.ProposalID, r.Status)
 	}
 	if _, err := time.Parse(time.RFC3339Nano, r.ApprovedAt); err != nil {
 		return fmt.Errorf("rule %s invalid approved_at: %w", r.ProposalID, err)
@@ -99,7 +101,7 @@ func validateLearnRuleRecord(r learnRuleRecord) error {
 	return nil
 }
 
-func readActiveLearnRuleRecords(paths learnPathsSet) ([]learnRuleRecord, bool, error) {
+func readLearnRuleRecords(paths learnPathsSet) ([]learnRuleRecord, bool, error) {
 	entries, err := os.ReadDir(paths.RulesDir)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, false, nil
@@ -129,6 +131,20 @@ func readActiveLearnRuleRecords(paths learnPathsSet) ([]learnRuleRecord, bool, e
 		out = append(out, rule)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ProposalID < out[j].ProposalID })
+	return out, found, nil
+}
+
+func readActiveLearnRuleRecords(paths learnPathsSet) ([]learnRuleRecord, bool, error) {
+	rows, found, err := readLearnRuleRecords(paths)
+	if err != nil {
+		return nil, found, err
+	}
+	out := rows[:0]
+	for _, row := range rows {
+		if row.Status == learnApplied {
+			out = append(out, row)
+		}
+	}
 	return out, found, nil
 }
 

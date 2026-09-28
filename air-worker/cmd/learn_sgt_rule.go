@@ -262,9 +262,16 @@ func enforceSGTCommitRule(product, command string, now time.Time) (bool, string,
 		return false, "", err
 	}
 	violations := staleSGTLabels(lines, now)
+	evidence := fmt.Sprintf("check_spec=%s added_lines=%d violations=%d", rule.CheckSpec, len(lines), len(violations))
 	if len(violations) == 0 {
+		if err := recordLearnRuleUse(product, *rule, "pass", evidence, now); err != nil {
+			return false, "", fmt.Errorf("record rule use: %w", err)
+		}
 		return false, "", nil
 	}
 	v := violations[0]
+	if err := recordLearnRuleUse(product, *rule, "block", evidence, now); err != nil {
+		return false, "", fmt.Errorf("record rule use: %w", err)
+	}
 	return true, fmt.Sprintf("%s: метка %s расходится с текущим SGT на %d мин (> %d); возьми время из curator-check перед коммитом", rule.ProposalID, v.Label, v.Delta, learnSGTMaxDeltaMinutes), nil
 }
