@@ -96,6 +96,18 @@ func legacyCuratorObservedEvidence(old legacyCuratorEvent) (string, string) {
 		evidence = strings.TrimSpace(old.What)
 	}
 	var extras []string
+	for _, item := range []struct {
+		name  string
+		value string
+	}{
+		{name: "rule", value: old.Rule},
+		{name: "what", value: old.What},
+	} {
+		value := strings.TrimSpace(item.value)
+		if value != "" && value != observed && value != evidence {
+			extras = append(extras, item.name+"="+value)
+		}
+	}
 	if strings.TrimSpace(old.Mechanism) != "" {
 		extras = append(extras, "mechanism="+strings.TrimSpace(old.Mechanism))
 	}
