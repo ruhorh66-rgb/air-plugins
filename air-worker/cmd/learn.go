@@ -40,16 +40,21 @@ type learnJournalRecord struct {
 }
 
 type learnProposal struct {
-	Schema    string   `json:"schema"`
-	ID        string   `json:"id"`
-	CreatedAt string   `json:"created_at"`
-	Status    string   `json:"status"`
-	Class     string   `json:"class"`
-	Rule      string   `json:"rule"`
-	SourceIDs []string `json:"source_ids,omitempty"`
-	AppliedAt string   `json:"applied_at,omitempty"`
-	LedgerID  string   `json:"ledger_id,omitempty"`
-	Approval  string   `json:"approval,omitempty"`
+	Schema     string   `json:"schema"`
+	ID         string   `json:"id"`
+	CreatedAt  string   `json:"created_at"`
+	Status     string   `json:"status"`
+	Class      string   `json:"class"`
+	Rule       string   `json:"rule"`
+	Trigger    string   `json:"trigger,omitempty"`
+	CheckType  string   `json:"check_type,omitempty"`
+	CheckSpec  string   `json:"check_spec,omitempty"`
+	TestCase   string   `json:"test_case,omitempty"`
+	SourceIDs  []string `json:"source_ids,omitempty"`
+	AppliedAt  string   `json:"applied_at,omitempty"`
+	ApprovedAt string   `json:"approved_at,omitempty"`
+	LedgerID   string   `json:"ledger_id,omitempty"`
+	Approval   string   `json:"approval,omitempty"`
 }
 
 type learnLedgerRecord struct {
@@ -74,6 +79,7 @@ type learnPathsSet struct {
 	Root      string
 	Durable   string
 	Rules     string
+	RulesDir  string
 	Journal   string
 	Proposals string
 	Ledger    string
@@ -85,6 +91,7 @@ func learnPaths(product string) learnPathsSet {
 	durable := filepath.Join(product, "learn")
 	return learnPathsSet{
 		Root: root, Durable: durable, Rules: filepath.Join(root, "RULES.md"),
+		RulesDir:  filepath.Join(durable, "rules"),
 		Journal:   filepath.Join(durable, "events.jsonl"),
 		Proposals: filepath.Join(durable, "proposals.jsonl"),
 		Ledger:    filepath.Join(root, "ledger.jsonl"),
@@ -308,29 +315,6 @@ func learnSHA(data []byte) string {
 
 var errLearnRulesUnapproved = errors.New("active RULES.md has no matching apply/rollback ledger evidence")
 
-func approvedLearnRules(product string) ([]byte, error) {
-	paths := learnPaths(product)
-	rules, err := os.ReadFile(paths.Rules)
-	if err != nil {
-		return nil, err
-	}
-	ledger, err := readLearnLedger(paths.Ledger)
-	if err != nil {
-		return nil, err
-	}
-	var last *learnLedgerRecord
-	for i := len(ledger) - 1; i >= 0; i-- {
-		if ledger[i].Action == "apply" || ledger[i].Action == "rollback" {
-			last = &ledger[i]
-			break
-		}
-	}
-	if last == nil || last.AfterSHA256 == "" || last.AfterSHA256 != learnSHA(rules) {
-		return nil, errLearnRulesUnapproved
-	}
-	return rules, nil
-}
-
 func saveLearnBlob(paths learnPathsSet, data []byte) (string, error) {
 	if err := os.MkdirAll(paths.Blobs, 0o755); err != nil {
 		return "", err
@@ -471,6 +455,10 @@ func cmdLearnPropose(argv []string) int {
 	product := fs.String("product", "", "managed product root")
 	class := fs.String("class", "", "generalized lesson class")
 	rule := fs.String("rule", "", "proposed active rule")
+	trigger := fs.String("trigger", "", "event/condition that should invoke the check")
+	checkType := fs.String("check-type", "", "hook, gate, or script")
+	checkSpec := fs.String("check-spec", "", "machine-checkable specification")
+	testCase := fs.String("test-case", "", "violation -> expected block testcase")
 	source := fs.String("source", "", "comma-separated learning record ids")
 	if err := fs.Parse(argv); err != nil {
 		return 2
@@ -502,7 +490,17 @@ func cmdLearnPropose(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	row := learnProposal{Schema: learnSchemaVersion, ID: id, CreatedAt: now.Format(time.RFC3339Nano), Status: learnPending, Class: c, Rule: r, SourceIDs: sources}
+	row := learnProposal{
+		Schema: learnSchemaVersion, ID: id, CreatedAt: now.Format(time.RFC3339Nano),
+		Status: learnPending, Class: c, Rule: r,
+		Trigger: strings.TrimSpace(*trigger), CheckType: strings.ToLower(strings.TrimSpace(*checkType)),
+		CheckSpec: strings.TrimSpace(*checkSpec), TestCase: strings.TrimSpace(*testCase),
+		SourceIDs: sources,
+	}
+	if err := validateLearnProposalSpec(row); err != nil {
+		fmt.Fprintln(os.Stderr, "learn propose:", err)
+		return 2
+	}
 	proposalPath := learnPaths(root).Proposals
 	if _, err := readLearnProposals(proposalPath); err != nil {
 		fmt.Fprintln(os.Stderr, "learn propose:", err)
@@ -590,6 +588,18 @@ func cmdLearnApply(argv []string) int {
 		fmt.Fprintf(os.Stderr, "proposal %s is %s, not %s\n", proposalID, proposal.Status, learnPending)
 		return 2
 	}
+	hasExecutableSpec := strings.TrimSpace(proposal.Trigger) != "" ||
+		strings.TrimSpace(proposal.CheckType) != "" ||
+		strings.TrimSpace(proposal.CheckSpec) != "" ||
+		strings.TrimSpace(proposal.TestCase) != ""
+	if hasExecutableSpec {
+		if err := validateLearnProposalSpec(*proposal); err != nil {
+			fmt.Fprintln(os.Stderr, "learn apply: invalid executable rule spec:", err)
+			return 2
+		}
+		fmt.Fprintln(os.Stderr, "learn apply: executable 0.11 rule remains PENDING_LPR until L11-4 generates its check and its testcase passes")
+		return 2
+	}
 	grant, grantClaimPath, grantPath, err := claimLearnApprovalGrant(root, *proposal)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "learn apply: approval gate:", err)
@@ -650,6 +660,7 @@ func cmdLearnApply(argv []string) int {
 	}
 	proposals[idx].Status = learnApplied
 	proposals[idx].AppliedAt = now.Format(time.RFC3339Nano)
+	proposals[idx].ApprovedAt = now.Format(time.RFC3339Nano)
 	proposals[idx].LedgerID = ledgerID
 	proposals[idx].Approval = "grant:" + grant.ID
 	proposalBytes, err := marshalLearnJSONL(proposals)

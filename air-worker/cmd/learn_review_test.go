@@ -102,6 +102,9 @@ func TestBackgroundReviewCanOnlyCreatePendingProposal(t *testing.T) {
 		return []learnReviewCandidate{{
 			Class: "plan-first", Rule: "Read the canonical PLAN before starting implementation.",
 			Evidence: "repeated correction",
+			Trigger:  "before implementation starts", CheckType: "hook",
+			CheckSpec: "block implementation start until canonical PLAN read is evidenced",
+			TestCase:  "implementation start without PLAN read -> block",
 		}}, nil
 	}
 
@@ -136,7 +139,12 @@ func TestBackgroundReviewDeduplicatesExistingPendingRule(t *testing.T) {
 	oldModel := learnReviewModel
 	defer func() { learnReviewModel = oldModel }()
 	learnReviewModel = func(product, packetPath string) ([]learnReviewCandidate, error) {
-		return []learnReviewCandidate{{Class: "scope", Rule: "Stay inside the assigned product."}}, nil
+		return []learnReviewCandidate{{
+			Class: "scope", Rule: "Stay inside the assigned product.",
+			Trigger: "before write", CheckType: "hook",
+			CheckSpec: "block write outside assigned product",
+			TestCase:  "outside write -> block",
+		}}, nil
 	}
 	if code := runLearnReview(product, transcript, "session-a", "RV-dedupe"); code != 0 {
 		t.Fatalf("background review failed: %d", code)

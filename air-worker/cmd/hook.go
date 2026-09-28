@@ -150,7 +150,9 @@ func learningStatePathMention(value string) bool {
 	return strings.Contains(normalized, ".air-worker/learn/") ||
 		strings.HasSuffix(normalized, ".air-worker/learn") ||
 		strings.Contains(normalized, "learn/events.jsonl") ||
-		strings.Contains(normalized, "learn/proposals.jsonl")
+		strings.Contains(normalized, "learn/proposals.jsonl") ||
+		strings.Contains(normalized, "learn/rules/") ||
+		strings.HasSuffix(normalized, "learn/rules")
 }
 
 func learningApprovalBypass(in hookInput) (bool, string) {
