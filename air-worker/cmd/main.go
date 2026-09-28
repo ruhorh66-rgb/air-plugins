@@ -110,10 +110,10 @@ func usage() {
         Capture operational feedback as immutable product evidence plus a non-executable
         candidate in the canonical PLAN. Full success or explicit PARTIAL with nonzero exit.
 
-  air-worker learn add|propose|pending|apply|effect|context|rollback ...
+  air-worker learn add|event|migrate-legacy|propose|pending|apply|effect|context|rollback ...
         Петля самообучения AirCurator. Фоновый разбор может только предложить правило.
         "да <id>" принимается только из доверенного UserPromptSubmit активной сессии и создаёт
-        одноразовый grant; apply потребляет grant. Прямая запись в .air-worker/learn блокируется.
+        одноразовый grant; apply потребляет grant. Прямая запись в runtime и durable learn блокируется.
         Каждая мутация имеет digest-ledger и обратимый blob.
 
   air-worker curator patrol|digest -product <root> [-state-dir <dir>] [-json]

@@ -148,7 +148,9 @@ func handlerFor(event string) hookHandler {
 func learningStatePathMention(value string) bool {
 	normalized := strings.ToLower(filepath.ToSlash(strings.TrimSpace(value)))
 	return strings.Contains(normalized, ".air-worker/learn/") ||
-		strings.HasSuffix(normalized, ".air-worker/learn")
+		strings.HasSuffix(normalized, ".air-worker/learn") ||
+		strings.Contains(normalized, "learn/events.jsonl") ||
+		strings.Contains(normalized, "learn/proposals.jsonl")
 }
 
 func learningApprovalBypass(in hookInput) (bool, string) {
@@ -159,7 +161,7 @@ func learningApprovalBypass(in hookInput) (bool, string) {
 	if tool == "write" || tool == "edit" || tool == "notebookedit" {
 		for _, key := range []string{"path", "file_path", "target_path", "output_path", "notebook_path"} {
 			if value, ok := input[key].(string); ok && learningStatePathMention(value) {
-				return true, "прямая запись в .air-worker/learn запрещена: состояние самообучения меняет только air-worker learn"
+				return true, "прямая запись в состояние learn запрещена: состояние самообучения меняет только air-worker learn"
 			}
 		}
 		return false, ""
@@ -173,7 +175,7 @@ func learningApprovalBypass(in hookInput) (bool, string) {
 		return true, "UserPromptSubmit — доверенное событие хоста; сессия не может выписать себе LPR approval вызовом air-worker hook"
 	}
 	if learningStatePathMention(command) {
-		return true, "прямой доступ shell к .air-worker/learn запрещён: используй штатные air-worker learn add|propose|pending|apply|effect|context|rollback"
+		return true, "прямой доступ shell к состоянию learn запрещён: используй штатные air-worker learn add|event|propose|pending|apply|effect|context|rollback"
 	}
 	return false, ""
 }

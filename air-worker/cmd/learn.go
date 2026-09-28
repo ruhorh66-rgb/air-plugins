@@ -20,7 +20,8 @@ const (
 	learnSchemaVersion = "air-worker.learn/v1"
 	learnPending       = "PENDING_LPR"
 	learnApplied       = "APPLIED"
-	learnRolledBack    = "ROLLED_BACK"
+	learnRevoked       = "REVOKED"
+	learnRolledBack    = "ROLLED_BACK" // accepted on read from 0.10
 	learnRulesHeader   = "# AirWorker learned rules\n\n<!-- Active only after explicit LPR approval: да <proposal-id>. -->\n"
 )
 
@@ -31,6 +32,11 @@ type learnJournalRecord struct {
 	Class     string `json:"class"`
 	Observed  string `json:"observed"`
 	Evidence  string `json:"evidence,omitempty"`
+	Kind      string `json:"kind"`
+	Source    string `json:"source"`
+	Actor     string `json:"actor,omitempty"`
+	Reference string `json:"reference,omitempty"`
+	ImportID  string `json:"import_id,omitempty"`
 }
 
 type learnProposal struct {
@@ -66,6 +72,7 @@ type learnLedgerRecord struct {
 
 type learnPathsSet struct {
 	Root      string
+	Durable   string
 	Rules     string
 	Journal   string
 	Proposals string
@@ -75,10 +82,11 @@ type learnPathsSet struct {
 
 func learnPaths(product string) learnPathsSet {
 	root := filepath.Join(product, ".air-worker", "learn")
+	durable := filepath.Join(product, "learn")
 	return learnPathsSet{
-		Root: root, Rules: filepath.Join(root, "RULES.md"),
-		Journal:   filepath.Join(root, "journal.jsonl"),
-		Proposals: filepath.Join(root, "proposals.jsonl"),
+		Root: root, Durable: durable, Rules: filepath.Join(root, "RULES.md"),
+		Journal:   filepath.Join(durable, "events.jsonl"),
+		Proposals: filepath.Join(durable, "proposals.jsonl"),
 		Ledger:    filepath.Join(root, "ledger.jsonl"),
 		Blobs:     filepath.Join(root, "blobs"),
 	}
@@ -139,11 +147,30 @@ func appendLearnJSON(path string, v any) error {
 }
 
 func readLearnJournal(path string) ([]learnJournalRecord, error) {
-	var out []learnJournalRecord
+	product := filepath.Dir(filepath.Dir(filepath.Clean(path)))
+	if err := migrateProductJournal(product); err != nil {
+		return nil, err
+	}
+	return readLearnEventsNoMigration(path)
+}
+
+func readLearnProposals(path string) ([]learnProposal, error) {
+	product := filepath.Dir(filepath.Dir(filepath.Clean(path)))
+	if err := migrateLegacyProposals(path, filepath.Join(product, ".air-worker", "learn", "proposals.jsonl")); err != nil {
+		return nil, err
+	}
+	return readLearnProposalsNoMigration(path)
+}
+
+func readLearnProposalsNoMigration(path string) ([]learnProposal, error) {
+	var out []learnProposal
 	err := scanLearnJSONL(path, func(b []byte) error {
-		var row learnJournalRecord
+		var row learnProposal
 		if err := json.Unmarshal(b, &row); err != nil {
 			return err
+		}
+		if row.Status == learnRolledBack {
+			row.Status = learnRevoked
 		}
 		out = append(out, row)
 		return nil
@@ -151,17 +178,66 @@ func readLearnJournal(path string) ([]learnJournalRecord, error) {
 	return out, err
 }
 
-func readLearnProposals(path string) ([]learnProposal, error) {
-	var out []learnProposal
-	err := scanLearnJSONL(path, func(b []byte) error {
-		var row learnProposal
-		if err := json.Unmarshal(b, &row); err != nil {
-			return err
-		}
-		out = append(out, row)
+func migrateLegacyProposals(target, legacy string) error {
+	info, err := os.Stat(legacy)
+	if errors.Is(err, os.ErrNotExist) {
 		return nil
-	})
-	return out, err
+	}
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("legacy proposals is not a regular file: %s", legacy)
+	}
+	canonical, err := readLearnProposalsNoMigration(target)
+	if err != nil {
+		return err
+	}
+	old, err := readLearnProposalsNoMigration(legacy)
+	if err != nil {
+		return err
+	}
+	byID := make(map[string]learnProposal, len(canonical))
+	for _, row := range canonical {
+		if previous, ok := byID[row.ID]; ok && !sameLearnProposal(previous, row) {
+			return fmt.Errorf("canonical proposal id conflict: %s", row.ID)
+		}
+		byID[row.ID] = row
+	}
+	added := false
+	for _, row := range old {
+		if previous, ok := byID[row.ID]; ok {
+			if !sameLearnProposal(previous, row) && !learnProposalSupersedes(previous, row) {
+				return fmt.Errorf("legacy/canonical proposal id conflict: %s", row.ID)
+			}
+			continue
+		}
+		canonical = append(canonical, row)
+		byID[row.ID] = row
+		added = true
+	}
+	if !added {
+		return nil
+	}
+	b, err := marshalLearnJSONL(canonical)
+	if err != nil {
+		return err
+	}
+	return writeLearnAtomic(target, b)
+}
+
+func sameLearnProposal(a, b learnProposal) bool {
+	aJSON, _ := json.Marshal(a)
+	bJSON, _ := json.Marshal(b)
+	return string(aJSON) == string(bJSON)
+}
+
+func learnProposalSupersedes(canonical, legacy learnProposal) bool {
+	if canonical.Schema != legacy.Schema || learnProposalSHA(canonical) != learnProposalSHA(legacy) {
+		return false
+	}
+	rank := map[string]int{learnPending: 1, learnApplied: 2, learnRevoked: 3}
+	return rank[canonical.Status] > rank[legacy.Status]
 }
 
 func readLearnLedger(path string) ([]learnLedgerRecord, error) {
@@ -178,6 +254,10 @@ func readLearnLedger(path string) ([]learnLedgerRecord, error) {
 }
 
 func scanLearnJSONL(path string, accept func([]byte) error) error {
+	return scanLearnJSONLIndexed(path, func(_ int, raw []byte) error { return accept(raw) })
+}
+
+func scanLearnJSONLIndexed(path string, accept func(int, []byte) error) error {
 	f, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
@@ -191,11 +271,11 @@ func scanLearnJSONL(path string, accept func([]byte) error) error {
 	line := 0
 	for s.Scan() {
 		line++
-		raw := strings.TrimSpace(s.Text())
-		if raw == "" {
+		raw := append([]byte(nil), s.Bytes()...)
+		if strings.TrimSpace(string(raw)) == "" {
 			continue
 		}
-		if err := accept([]byte(raw)); err != nil {
+		if err := accept(line, raw); err != nil {
 			return fmt.Errorf("%s:%d: %w", path, line, err)
 		}
 	}
@@ -297,12 +377,16 @@ func findLearnLedger(rows []learnLedgerRecord, id string) *learnLedgerRecord {
 
 func cmdLearn(argv []string) int {
 	if len(argv) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: air-worker learn add|propose|pending|apply|effect|context|rollback ...")
+		fmt.Fprintln(os.Stderr, "usage: air-worker learn add|event|migrate-legacy|propose|pending|apply|effect|context|rollback ...")
 		return 2
 	}
 	switch argv[0] {
 	case "add":
 		return cmdLearnAdd(argv[1:])
+	case "event":
+		return cmdLearnEvent(argv[1:])
+	case "migrate-legacy":
+		return cmdLearnMigrateLegacy(argv[1:])
 	case "propose":
 		return cmdLearnPropose(argv[1:])
 	case "pending":
@@ -324,11 +408,23 @@ func cmdLearn(argv []string) int {
 }
 
 func cmdLearnAdd(argv []string) int {
-	fs := flag.NewFlagSet("learn add", flag.ContinueOnError)
+	return cmdLearnEventWithName("learn add", argv)
+}
+
+func cmdLearnEvent(argv []string) int {
+	return cmdLearnEventWithName("learn event", argv)
+}
+
+func cmdLearnEventWithName(name string, argv []string) int {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	product := fs.String("product", "", "managed product root")
 	class := fs.String("class", "", "generalized lesson class")
 	observed := fs.String("observed", "", "what happened")
 	evidence := fs.String("evidence", "", "optional evidence reference")
+	kind := fs.String("kind", "lesson", "lesson, correction, violation, check, or judge_result")
+	source := fs.String("source", "worker", "event source")
+	actor := fs.String("actor", "", "optional actor")
+	reference := fs.String("reference", "", "optional related event or artifact reference")
 	if err := fs.Parse(argv); err != nil {
 		return 2
 	}
@@ -353,9 +449,17 @@ func cmdLearnAdd(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	row := learnJournalRecord{Schema: learnSchemaVersion, ID: id, CreatedAt: now.Format(time.RFC3339Nano), Class: c, Observed: o, Evidence: strings.TrimSpace(*evidence)}
+	row := learnJournalRecord{Schema: learnSchemaVersion, ID: id, CreatedAt: now.Format(time.RFC3339Nano), Class: c, Observed: o, Evidence: strings.TrimSpace(*evidence), Kind: strings.TrimSpace(*kind), Source: strings.TrimSpace(*source), Actor: strings.TrimSpace(*actor), Reference: strings.TrimSpace(*reference)}
+	if err := validateLearnEvent(row); err != nil {
+		fmt.Fprintln(os.Stderr, name+":", err)
+		return 2
+	}
+	if err := migrateProductJournal(root); err != nil {
+		fmt.Fprintln(os.Stderr, name+":", err)
+		return 2
+	}
 	if err := appendLearnJSON(learnPaths(root).Journal, row); err != nil {
-		fmt.Fprintln(os.Stderr, "learn add:", err)
+		fmt.Fprintln(os.Stderr, name+":", err)
 		return 2
 	}
 	fmt.Println(id)
@@ -399,7 +503,12 @@ func cmdLearnPropose(argv []string) int {
 		return 2
 	}
 	row := learnProposal{Schema: learnSchemaVersion, ID: id, CreatedAt: now.Format(time.RFC3339Nano), Status: learnPending, Class: c, Rule: r, SourceIDs: sources}
-	if err := appendLearnJSON(learnPaths(root).Proposals, row); err != nil {
+	proposalPath := learnPaths(root).Proposals
+	if _, err := readLearnProposals(proposalPath); err != nil {
+		fmt.Fprintln(os.Stderr, "learn propose:", err)
+		return 2
+	}
+	if err := appendLearnJSON(proposalPath, row); err != nil {
 		fmt.Fprintln(os.Stderr, "learn propose:", err)
 		return 2
 	}
@@ -715,6 +824,11 @@ func cmdLearnRollback(argv []string) int {
 		fmt.Fprintln(os.Stderr, "apply ledger entry not found:", *id)
 		return 2
 	}
+	proposals, err := readLearnProposals(paths.Proposals)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "learn rollback:", err)
+		return 2
+	}
 	current, err := os.ReadFile(paths.Rules)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "learn rollback:", err)
@@ -739,13 +853,8 @@ func cmdLearnRollback(argv []string) int {
 		fmt.Fprintln(os.Stderr, "learn rollback:", err)
 		return 2
 	}
-	proposals, err := readLearnProposals(paths.Proposals)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "learn rollback:", err)
-		return 2
-	}
 	if idx, p := findLearnProposal(proposals, target.ProposalID); p != nil {
-		proposals[idx].Status = learnRolledBack
+		proposals[idx].Status = learnRevoked
 		pb, err := marshalLearnJSONL(proposals)
 		if err != nil || writeLearnAtomic(paths.Proposals, pb) != nil {
 			fmt.Fprintln(os.Stderr, "learn rollback: proposal status update failed")
@@ -774,6 +883,6 @@ func cmdLearnRollback(argv []string) int {
 		fmt.Fprintln(os.Stderr, "learn rollback: ledger append failed:", err)
 		return 2
 	}
-	fmt.Printf("%s ROLLED_BACK target=%s\n", target.ProposalID, target.ID)
+	fmt.Printf("%s REVOKED target=%s\n", target.ProposalID, target.ID)
 	return 0
 }

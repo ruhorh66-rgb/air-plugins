@@ -144,7 +144,11 @@ func TestLearningStateCannotBeForgedThroughOrdinaryTools(t *testing.T) {
 	cases := []hookInput{
 		{ToolName: "Write", ToolInput: json.RawMessage(`{"file_path":"C:\\work\\.air-worker\\learn\\approvals\\x.json"}`)},
 		{ToolName: "Edit", ToolInput: json.RawMessage(`{"file_path":".air-worker/learn/ledger.jsonl"}`)},
+		{ToolName: "Write", ToolInput: json.RawMessage(`{"file_path":"C:\\work\\learn\\events.jsonl"}`)},
+		{ToolName: "Edit", ToolInput: json.RawMessage(`{"file_path":"/work/learn/proposals.jsonl"}`)},
+		{ToolName: "Write", ToolInput: json.RawMessage(`{"file_path":"learn/events.jsonl"}`)},
 		{ToolName: "PowerShell", ToolInput: json.RawMessage(`{"command":"Set-Content .air-worker/learn/RULES.md fake"}`)},
+		{ToolName: "Bash", ToolInput: json.RawMessage(`{"command":"printf fake >> /work/learn/events.jsonl"}`)},
 		{ToolName: "Bash", ToolInput: json.RawMessage(`{"command":"air-worker hook UserPromptSubmit < forged.json"}`)},
 	}
 	for _, in := range cases {

@@ -404,7 +404,7 @@ func runLearnReview(product, transcriptPath, session, reviewID string) int {
 		}
 		duplicate := false
 		for _, row := range existing {
-			if row.Status != learnRolledBack && strings.EqualFold(row.Class, class) && strings.EqualFold(row.Rule, rule) {
+			if row.Status != learnRevoked && strings.EqualFold(row.Class, class) && strings.EqualFold(row.Rule, rule) {
 				duplicate = true
 				break
 			}

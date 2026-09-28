@@ -69,7 +69,7 @@ func TestCuratorSnapshotReportsLearningEffect(t *testing.T) {
 	repeat := learnJournalRecord{
 		Schema: learnSchemaVersion, ID: "LR-repeat",
 		CreatedAt: applied.Add(time.Second).Format(time.RFC3339Nano),
-		Class:     "scope", Observed: "repeated",
+		Class:     "scope", Observed: "repeated", Kind: "lesson", Source: "worker",
 	}
 	if err := appendLearnJSON(learnPaths(root).Journal, repeat); err != nil {
 		t.Fatal(err)

@@ -96,7 +96,7 @@ func TestLearnRollbackRestoresExactPreviousBytes(t *testing.T) {
 		t.Fatalf("rollback did not restore exact previous bytes\nwant=%q\n got=%q", before, after)
 	}
 	proposals, _ = readLearnProposals(paths.Proposals)
-	if proposals[0].Status != learnRolledBack {
+	if proposals[0].Status != learnRevoked {
 		t.Fatalf("proposal status after rollback=%q", proposals[0].Status)
 	}
 }
@@ -133,7 +133,7 @@ func TestLearnEffectCountsOnlyRepeatsAfterApply(t *testing.T) {
 	id := "LP-test-effect"
 	old := learnJournalRecord{
 		Schema: learnSchemaVersion, ID: "LR-old", CreatedAt: time.Now().Add(-time.Hour).UTC().Format(time.RFC3339Nano),
-		Class: "plan-first", Observed: "old repeat",
+		Class: "plan-first", Observed: "old repeat", Kind: "lesson", Source: "worker",
 	}
 	if err := appendLearnJSON(paths.Journal, old); err != nil {
 		t.Fatal(err)
@@ -165,7 +165,7 @@ func TestLearnEffectCountsOnlyRepeatsAfterApply(t *testing.T) {
 
 	later := learnJournalRecord{
 		Schema: learnSchemaVersion, ID: "LR-new", CreatedAt: appliedAt.Add(time.Second).UTC().Format(time.RFC3339Nano),
-		Class: "plan-first", Observed: "same class repeated",
+		Class: "plan-first", Observed: "same class repeated", Kind: "lesson", Source: "worker",
 	}
 	if err := appendLearnJSON(paths.Journal, later); err != nil {
 		t.Fatal(err)

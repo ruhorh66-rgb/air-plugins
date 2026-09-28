@@ -1,0 +1,195 @@
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+)
+
+var learnEventKinds = map[string]bool{
+	"lesson": true, "correction": true, "violation": true, "check": true, "judge_result": true,
+}
+
+func validateLearnEvent(row learnJournalRecord) error {
+	if row.Schema != learnSchemaVersion {
+		return fmt.Errorf("invalid event schema %q", row.Schema)
+	}
+	if strings.TrimSpace(row.ID) == "" {
+		return errors.New("event id is required")
+	}
+	if _, err := time.Parse(time.RFC3339Nano, row.CreatedAt); err != nil {
+		return fmt.Errorf("invalid event created_at: %w", err)
+	}
+	if !learnEventKinds[row.Kind] {
+		return fmt.Errorf("invalid event kind %q", row.Kind)
+	}
+	if _, err := cleanLearnText("source", row.Source); err != nil {
+		return err
+	}
+	if _, err := cleanLearnText("class", row.Class); err != nil {
+		return err
+	}
+	if _, err := cleanLearnText("observed", row.Observed); err != nil {
+		return err
+	}
+	for name, value := range map[string]string{"evidence": row.Evidence, "actor": row.Actor, "reference": row.Reference} {
+		if len([]rune(value)) > 2000 {
+			return fmt.Errorf("-%s is too long", name)
+		}
+	}
+	return nil
+}
+
+type legacyCuratorEvent struct {
+	TS        string `json:"ts"`
+	Situation string `json:"situation"`
+	Curator   string `json:"curator"`
+	LPR       string `json:"lpr"`
+	Class     string `json:"class"`
+	Lesson    string `json:"lesson"`
+}
+
+func stableImportedEvent(shape string, lineNumber int, line []byte, created, class, observed, evidence, actor, reference, source string) learnJournalRecord {
+	identity := append([]byte(shape+"\n"+strconv.Itoa(lineNumber)+"\n"), line...)
+	fingerprint := learnSHA(identity)
+	return learnJournalRecord{
+		Schema: learnSchemaVersion, ID: "LE-" + fingerprint[:20], CreatedAt: created,
+		Kind: "lesson", Source: source, Actor: actor, Reference: reference,
+		Class: class, Observed: observed, Evidence: evidence, ImportID: fingerprint,
+	}
+}
+
+func importLegacyEvents(target, sourcePath, shape string) (int, error) {
+	info, err := os.Stat(sourcePath)
+	if err != nil {
+		return 0, err
+	}
+	if !info.Mode().IsRegular() {
+		return 0, fmt.Errorf("source is not a regular file: %s", sourcePath)
+	}
+	var candidates []learnJournalRecord
+	err = scanLearnJSONLIndexed(sourcePath, func(lineNumber int, line []byte) error {
+		switch shape {
+		case "product":
+			var old learnJournalRecord
+			if err := json.Unmarshal(line, &old); err != nil {
+				return err
+			}
+			created, err := normalizeLegacyTimestamp(old.CreatedAt)
+			if err != nil {
+				return err
+			}
+			candidates = append(candidates, stableImportedEvent(shape, lineNumber, line, created, old.Class, old.Observed, old.Evidence, "", old.ID, "air-worker-0.10"))
+		case "aircurator":
+			var old legacyCuratorEvent
+			if err := json.Unmarshal(line, &old); err != nil {
+				return err
+			}
+			created, err := normalizeLegacyTimestamp(old.TS)
+			if err != nil {
+				return err
+			}
+			candidates = append(candidates, stableImportedEvent(shape, lineNumber, line, created, old.Class, old.Lesson, old.Situation, old.Curator, old.LPR, "aircurator"))
+		default:
+			return fmt.Errorf("unknown legacy event shape %q", shape)
+		}
+		return validateLearnEvent(candidates[len(candidates)-1])
+	})
+	if err != nil {
+		return 0, err
+	}
+	existing, err := readLearnEventsNoMigration(target)
+	if err != nil {
+		return 0, err
+	}
+	seen := make(map[string]bool, len(existing))
+	for _, row := range existing {
+		seen[row.ImportID] = true
+		seen[row.ID] = true
+	}
+	added := 0
+	for _, row := range candidates {
+		if seen[row.ImportID] || seen[row.ID] {
+			continue
+		}
+		if err := appendLearnJSON(target, row); err != nil {
+			return added, err
+		}
+		seen[row.ImportID], seen[row.ID] = true, true
+		added++
+	}
+	return added, nil
+}
+
+// AirCurator historically emitted YYYY-MM-DD. Midnight UTC is the deterministic
+// instant for that date; RFC3339 timestamps retain their instant and normalize to UTC.
+func normalizeLegacyTimestamp(value string) (string, error) {
+	if t, err := time.Parse(time.RFC3339Nano, value); err == nil {
+		return t.UTC().Format(time.RFC3339Nano), nil
+	}
+	t, err := time.Parse("2006-01-02", value)
+	if err != nil {
+		return "", fmt.Errorf("invalid legacy timestamp %q", value)
+	}
+	return t.UTC().Format(time.RFC3339Nano), nil
+}
+
+func readLearnEventsNoMigration(path string) ([]learnJournalRecord, error) {
+	var out []learnJournalRecord
+	err := scanLearnJSONL(path, func(b []byte) error {
+		var row learnJournalRecord
+		if err := json.Unmarshal(b, &row); err != nil {
+			return err
+		}
+		if err := validateLearnEvent(row); err != nil {
+			return err
+		}
+		out = append(out, row)
+		return nil
+	})
+	return out, err
+}
+
+func migrateProductJournal(product string) error {
+	paths := learnPaths(product)
+	legacy := filepath.Join(paths.Root, "journal.jsonl")
+	if _, err := os.Stat(legacy); errors.Is(err, os.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	_, err := importLegacyEvents(paths.Journal, legacy, "product")
+	return err
+}
+
+func cmdLearnMigrateLegacy(argv []string) int {
+	fs := flag.NewFlagSet("learn migrate-legacy", flag.ContinueOnError)
+	product := fs.String("product", "", "managed product root")
+	source := fs.String("source", "", "read-only AirCurator journal.jsonl path")
+	if err := fs.Parse(argv); err != nil {
+		return 2
+	}
+	root, err := normalizeLearnProduct(*product)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	absSource, err := filepath.Abs(strings.TrimSpace(*source))
+	if err != nil || strings.TrimSpace(*source) == "" {
+		fmt.Fprintln(os.Stderr, "-source is required")
+		return 2
+	}
+	added, err := importLegacyEvents(learnPaths(root).Journal, absSource, "aircurator")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "learn migrate-legacy:", err)
+		return 2
+	}
+	fmt.Printf("IMPORTED %d\n", added)
+	return 0
+}

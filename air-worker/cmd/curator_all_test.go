@@ -37,7 +37,7 @@ func TestCuratorPortfolioDigestAggregatesPendingAndEffects(t *testing.T) {
 	if err := appendLearnJSON(learnPaths(p2).Journal, learnJournalRecord{
 		Schema: learnSchemaVersion, ID: "LR-repeat",
 		CreatedAt: appliedAt.Add(time.Second).Format(time.RFC3339Nano),
-		Class:     "delivery", Observed: "repeated",
+		Class:     "delivery", Observed: "repeated", Kind: "lesson", Source: "worker",
 	}); err != nil {
 		t.Fatal(err)
 	}
