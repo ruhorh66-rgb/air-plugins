@@ -34,6 +34,16 @@ type goalFile struct {
 }
 
 func cmdPlan(argv []string) int {
+	if len(argv) > 0 {
+		switch argv[0] {
+		case "node":
+			return cmdPlanNode(argv[1:])
+		case "spine":
+			return cmdPlanSpine(argv[1:])
+		case "migrate":
+			return cmdPlanMigrate(argv[1:])
+		}
+	}
 	fs := flag.NewFlagSet("plan", flag.ContinueOnError)
 	product := fs.String("product", ".", "корень продукта")
 	apply := fs.Bool("apply", false, "записать PLAN.md, если его НЕТ; существующий не трогается никогда")

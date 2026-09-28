@@ -72,6 +72,12 @@ func usage() {
   air-worker plan   -product <корень> [-apply] [-model M] [-dry-run] [-use-answer <файл>]
         Планировщик: разбивка цели на шаги ОДНИМ дорогим вызовом. Предлагает в
         PLAN.proposed.md; существующий PLAN.md не трогается никогда.
+  air-worker plan node new -product <корень> -title <...> -parent <этап> -owner <окно> -done-when <...>
+  air-worker plan node close <id> -product <корень> -receipt <ref>
+  air-worker plan node list -product <корень> [-open] [-stale 24h] [-no-owner] [-json]
+  air-worker plan spine -product <корень> [-json]
+        L11-7: PLAN.md остаётся нитью, подробности живут в plan/N-*.md; запись узлов
+        выполняется только ядром, закрытый узел остаётся в истории со статусом closed.
   air-worker plan-lint -product <корень> [-json]
         Неблокирующая формальная подсказка: разведочный model-step, уже измеряемый
         существующей проверкой и без mutation/file target, возможно должен быть script.
