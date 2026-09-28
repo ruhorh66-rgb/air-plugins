@@ -824,6 +824,9 @@ func cmdLearnEffect(argv []string) int {
 func cmdLearnContext(argv []string) int {
 	fs := flag.NewFlagSet("learn context", flag.ContinueOnError)
 	product := fs.String("product", "", "managed product root")
+	id := fs.String("id", "", "load one active learned skill body by proposal id")
+	class := fs.String("class", "", "load active learned skill body/bodies by class")
+	legacy := fs.Bool("legacy", false, "load ledger-verified legacy rules body")
 	if err := fs.Parse(argv); err != nil {
 		return 2
 	}
@@ -832,7 +835,29 @@ func cmdLearnContext(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	b, err := approvedLearnRules(root)
+	selectors := 0
+	if strings.TrimSpace(*id) != "" {
+		selectors++
+	}
+	if strings.TrimSpace(*class) != "" {
+		selectors++
+	}
+	if *legacy {
+		selectors++
+	}
+	if selectors > 1 {
+		fmt.Fprintln(os.Stderr, "learn context: use only one of -id, -class, or -legacy")
+		return 2
+	}
+	var b []byte
+	switch {
+	case strings.TrimSpace(*id) != "" || strings.TrimSpace(*class) != "":
+		b, err = approvedLearnSkillBodies(root, *id, *class)
+	case *legacy:
+		b, err = approvedLegacyLearnRules(root)
+	default:
+		b, err = approvedLearnSkillIndex(root)
+	}
 	if errors.Is(err, os.ErrNotExist) {
 		return 0
 	}

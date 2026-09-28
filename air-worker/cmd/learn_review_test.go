@@ -170,8 +170,11 @@ func TestLearningContextLoadsOnlyLedgerVerifiedRules(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(res.Context, "ledger-verified") || !strings.Contains(res.Context, "Run the declared judge") {
-		t.Fatalf("approved rule was not injected: %q", res.Context)
+	if !strings.Contains(res.Context, "ledger-verified") || !strings.Contains(res.Context, "legacy-ledger") {
+		t.Fatalf("approved legacy rule index was not injected: %q", res.Context)
+	}
+	if strings.Contains(res.Context, "Run the declared judge before reporting success") {
+		t.Fatalf("full legacy rule body leaked into per-turn index: %q", res.Context)
 	}
 
 	f, err := os.OpenFile(learnPaths(product).Rules, os.O_APPEND|os.O_WRONLY, 0o644)

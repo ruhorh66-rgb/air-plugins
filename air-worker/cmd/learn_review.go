@@ -190,14 +190,14 @@ func handleLearningContext(in hookInput) (hookResult, error) {
 	if !ok {
 		return hookResult{}, nil
 	}
-	rules, err := approvedLearnRules(product)
+	index, err := approvedLearnSkillIndex(product)
 	if errors.Is(err, os.ErrNotExist) {
 		return hookResult{}, nil
 	}
 	if err != nil {
 		return hookResult{}, err
 	}
-	text := strings.TrimSpace(string(rules))
+	text := strings.TrimSpace(string(index))
 	if text == "" {
 		return hookResult{}, nil
 	}
@@ -206,7 +206,7 @@ func handleLearningContext(in hookInput) (hookResult, error) {
 		runes = runes[:7500]
 		text = string(runes) + "\n[TRUNCATED BY AIR-WORKER]"
 	}
-	return hookResult{Context: "APPROVED AIRCURATOR RULES (ledger-verified):\n" + text}, nil
+	return hookResult{Context: "APPROVED AIRCURATOR SKILL INDEX (ledger-verified; load body on demand):\n" + text}, nil
 }
 
 // handleStopLearning is deliberately proposal-only. It never calls apply and the
