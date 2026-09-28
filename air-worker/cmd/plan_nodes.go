@@ -949,11 +949,7 @@ func renderMigratedSpine(preamble string, nodes []planNode) []byte {
 	return []byte(b.String())
 }
 
-func calculatePlanNodeStats(root string, now time.Time) (planNodeStats, error) {
-	nodes, err := listPlanNodes(root)
-	if err != nil {
-		return planNodeStats{}, err
-	}
+func calculatePlanNodeStatsFromNodes(nodes []planNode, now time.Time) (planNodeStats, error) {
 	var stats planNodeStats
 	for _, n := range nodes {
 		if n.Status == "closed" {
@@ -972,4 +968,12 @@ func calculatePlanNodeStats(root string, now time.Time) (planNodeStats, error) {
 		}
 	}
 	return stats, nil
+}
+
+func calculatePlanNodeStats(root string, now time.Time) (planNodeStats, error) {
+	nodes, err := listPlanNodes(root)
+	if err != nil {
+		return planNodeStats{}, err
+	}
+	return calculatePlanNodeStatsFromNodes(nodes, now)
 }

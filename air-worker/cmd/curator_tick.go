@@ -30,7 +30,12 @@ func cmdCuratorTick(argv []string) int {
 			return 2
 		}
 	}
-	stats, err := calculatePlanNodeStats(root, now)
+	nodes, err := listPlanNodes(root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "curator tick:", err)
+		return 2
+	}
+	stats, err := calculatePlanNodeStatsFromNodes(nodes, now)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "curator tick:", err)
 		return 2
@@ -40,18 +45,24 @@ func cmdCuratorTick(argv []string) int {
 		fmt.Fprintln(os.Stderr, "curator tick patrol:", err)
 		return 3
 	}
+	course, err := buildCuratorCourseFromNodes(root, now, nodes, patrol, hasPatrol)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "curator tick course:", err)
+		return 3
+	}
 	rc := 0
 	if hasPatrol && !patrol.Complete {
 		rc = 3
 	}
 	if *asJSON {
 		doc := map[string]any{
-			"schema":       "air-worker.curator.tick/v2",
+			"schema":       "air-worker.curator.tick/v3",
 			"generated_at": now.UTC().Format(time.RFC3339Nano),
 			"product":      root,
 			"open_nodes":   stats.Open,
 			"no_owner":     stats.NoOwner,
 			"stale_24h":    stats.Stale24h,
+			"course":       course,
 		}
 		if hasPatrol {
 			doc["patrol"] = patrol
@@ -65,6 +76,11 @@ func cmdCuratorTick(argv []string) int {
 
 	fmt.Printf("открытых узлов %d, без владельца %d, без движения >24 ч %d%s",
 		stats.Open, stats.NoOwner, stats.Stale24h, lineEnding)
+	fmt.Printf("курс %s | тормозов >1ч %d | idle окон %d | гейтов %d | действий %d%s",
+		course.Progress, len(course.Stalls1h), len(course.IdleWindows), len(course.PendingGates), len(course.Actions), lineEnding)
+	for _, action := range course.Actions {
+		fmt.Printf("action=%s target=%s reason=%s%s", action.Kind, action.Target, action.Reason, lineEnding)
+	}
 	if hasPatrol {
 		for _, row := range patrol.Rows {
 			files := "-"
