@@ -1,6 +1,18 @@
 # CHANGELOG — air-worker
 
-## 0.10.13 — in development
+## 0.10.14 — in development
+
+### Deterministic curator control core
+
+- Added a durable curator peer registry with provider/model/enabled/max-active identity and fail-closed validation of stored state.
+- Curator assignment now uses the full product/profile/session/run scope, enforces one active curator per scope and per-peer concurrency limits, and releases capacity on revoke.
+- Added an append-only, SHA-256 chained decision journal. Records are explicitly `audit-only` / `executable=false`; journal text cannot act as a learning approval or close a gate.
+- Added `curator wake --dry-run` with deterministic machine/session/LPR cards, provider reset waiting, max three machine restarts per hour, and escalation after repeated no-progress reasons. No transport, SendMessage, tool execution, or resume command launch is present in this slice.
+- `curator patrol|digest` now emits peer/assignment counts, audit decision count, and the same deterministic wake snapshot alongside plan/learning state.
+
+Release control: factual regression and opposite-vendor exact-tree semantic review are required before the candidate is called ready. Tag, GitHub Release, marketplace publication and installation remain a separate LPR gate.
+
+## 0.10.13 — release candidate 28.09.2026
 
 ### Portfolio measurement across real AIR product layouts
 

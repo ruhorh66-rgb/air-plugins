@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.10.13",
-  "description": "AirWorker 0.10.13: plan hygiene and semantic plan review, structured observability, execution metrics/topology, distribution selfcheck, and multi-root portfolio drift.",
+  "version": "0.10.14",
+  "description": "AirWorker 0.10.14: deterministic curator peer/assignment control, audit-only decision journal, dry-run wake cards, and restart/repetition limits.",
   "author": {
     "name": "AIR OS"
   },
