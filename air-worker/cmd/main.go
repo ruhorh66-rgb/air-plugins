@@ -197,8 +197,10 @@ func usage() {
         Возврат сессии в работу тем же правилом; продукт объявляется заново.
 
   air-worker hook <событие>
-        Вход хуков Claude Code: событие (JSON, protocol харнесса) читается со stdin,
-        решение целиком принимает бинарник. До включения Air Worker для сессии — no-op;
+        Host-neutral lifecycle/control entrypoint: событие читается JSON со stdin.
+        Поле principal опционально: отсутствие означает claude для совместимости;
+        GPT/Codex adapters передают свой principal явно. Решение целиком принимает бинарник.
+        До включения Air Worker для сессии — no-op;
         telemetry/lifecycle (Stop, SubagentStart/Stop, SessionStart, PostToolUse,
         UserPromptSubmit) при активной сессии — fail-open с записью в след; control
         (PreToolUse) при активной сессии — fail-closed с причиной в stderr, код 2;

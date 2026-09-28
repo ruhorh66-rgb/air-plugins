@@ -34,9 +34,14 @@ func writeNativeJudgeFixture(t *testing.T, root string, distance int) {
 	if err := os.WriteFile(filepath.Join(root, "run-config.json"), []byte("{\"plan\":\"PLAN.md\"}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	cfg := runConfig{Plan: "PLAN.md"}
 	mv := machineVerdict{
-		At:   time.Now().Format("2006-01-02T15:04:05"),
-		Code: 1, Distance: intPtr(distance), VerdictText: "fixture", By: "test",
+		At:               time.Now().Format(time.RFC3339Nano),
+		Code:             1,
+		Distance:         intPtr(distance),
+		VerdictText:      "fixture",
+		By:               "test",
+		InputFingerprint: judgeInputFingerprint(root, cfg, filepath.Join(root, "run-config.json"), filepath.Join(root, "PLAN.md")),
 	}
 	raw, _ := json.Marshal(mv)
 	if err := os.WriteFile(filepath.Join(root, ".goal-verdict.json"), raw, 0o644); err != nil {

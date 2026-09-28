@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Тесты проверяют ПРАВИЛА, а не прогон на живом продукте. Прогон доказывает, что сегодня
@@ -214,7 +216,15 @@ const planFixture = "| № | Шаг | Ступень | Судья |\n" +
 func fixtureProduct(t *testing.T, verdict, plan string) string {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".goal-verdict.json"), []byte(verdict), 0o644); err != nil {
+	var mv machineVerdict
+	if err := json.Unmarshal([]byte(verdict), &mv); err != nil {
+		t.Fatal(err)
+	}
+	if mv.At == "" {
+		mv.At = time.Now().Format(time.RFC3339Nano)
+	}
+	raw, _ := json.Marshal(mv)
+	if err := os.WriteFile(filepath.Join(dir, ".goal-verdict.json"), raw, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if plan != "" {

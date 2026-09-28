@@ -178,6 +178,7 @@ func (c *checklistFile) UnmarshalJSON(data []byte) error {
 // ВЕРЫ и описан там дословно. Текст остаётся человеку, числа — машине.
 type machineVerdict struct {
 	At               string   `json:"at"`
+	GitHead          string   `json:"git_head,omitempty"`
 	Code             int      `json:"code"`
 	Distance         *int     `json:"distance"`
 	InputFingerprint string   `json:"input_fingerprint,omitempty"`

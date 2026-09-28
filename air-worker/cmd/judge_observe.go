@@ -48,6 +48,7 @@ type judgeJSONReport struct {
 	Schema           string                      `json:"schema"`
 	Product          string                      `json:"product"`
 	At               string                      `json:"at"`
+	GitHead          string                      `json:"git_head,omitempty"`
 	Code             int                         `json:"code"`
 	VerdictText      string                      `json:"verdict_text"`
 	Distance         *int                        `json:"distance"`
@@ -150,6 +151,7 @@ func machineVerdictFromResult(root string, code int, text string, r judgeResult)
 	}
 	return machineVerdict{
 		At:               nowLocalMachineVerdict(),
+		GitHead:          currentGitHead(root),
 		Code:             code,
 		Distance:         distanceOf(code, r),
 		InputFingerprint: r.InputFingerprint,
@@ -172,12 +174,12 @@ func machineVerdictFromResult(root string, code int, text string, r judgeResult)
 }
 
 func nowLocalMachineVerdict() string {
-	return time.Now().Format("2006-01-02T15:04:05")
+	return time.Now().Format(time.RFC3339Nano)
 }
 
 func buildJudgeJSONReport(root string, mv machineVerdict, r judgeResult) judgeJSONReport {
 	return judgeJSONReport{
-		Schema: judgeObservationSchema, Product: root, At: mv.At,
+		Schema: judgeObservationSchema, Product: root, At: mv.At, GitHead: mv.GitHead,
 		Code: mv.Code, VerdictText: mv.VerdictText, Distance: mv.Distance,
 		InputFingerprint: mv.InputFingerprint,
 		Checks:           append([]judgeCheckObservation(nil), r.CheckObservations...),

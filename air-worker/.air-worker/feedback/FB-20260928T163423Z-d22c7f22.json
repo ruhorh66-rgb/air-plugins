@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260928T163423Z-d22c7f22",
+  "created_at": "2026-09-28T16:34:23.6430985Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.11.1",
+  "type": "defect",
+  "severity": "P1",
+  "observed": "plan spine reports three open 0.11.2 nodes created by the core, but report -cached still selects legacy PLAN step 93 Hermes as next work. The node thread and report.Next disagree.",
+  "expected": "When open plan nodes exist, report/curator status exposes the active node thread as current machine-readable work instead of an unrelated legacy markdown step.",
+  "evidence": "SRVLM01 2026-09-29: open nodes N-001/N-002/N-003; report.next=93 Hermes.",
+  "reproduction": "Create open nodes with air-worker plan node new, then compare plan spine -json with report -product \u003croot\u003e -cached -json next.",
+  "workaround": "Use plan spine/node list explicitly and do not trust report.next while node thread is non-empty.",
+  "proposed_outcome": "Unify report.Next with plan-node spine and preserve legacy PLAN fallback only when no open nodes exist."
+}

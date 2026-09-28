@@ -147,6 +147,8 @@ func TestLearningStateCannotBeForgedThroughOrdinaryTools(t *testing.T) {
 		{ToolName: "Write", ToolInput: json.RawMessage(`{"file_path":"C:\\work\\learn\\events.jsonl"}`)},
 		{ToolName: "Edit", ToolInput: json.RawMessage(`{"file_path":"/work/learn/proposals.jsonl"}`)},
 		{ToolName: "Write", ToolInput: json.RawMessage(`{"file_path":"learn/events.jsonl"}`)},
+		{ToolName: "Write", ToolInput: json.RawMessage(`{"file_path":"F:\\-5-\\011_Plugins\\AirCurator_Wiki\\learn\\journal.jsonl"}`)},
+		{ToolName: "PowerShell", ToolInput: json.RawMessage(`{"command":"Add-Content F:/-5-/011_Plugins/AirCurator_Wiki/learn/journal.jsonl '{x}'"}`)},
 		{ToolName: "Write", ToolInput: json.RawMessage(`{"file_path":"C:\\work\\learn\\rules\\LP-x.json"}`)},
 		{ToolName: "PowerShell", ToolInput: json.RawMessage(`{"command":"Set-Content .air-worker/learn/RULES.md fake"}`)},
 		{ToolName: "Bash", ToolInput: json.RawMessage(`{"command":"printf fake >> /work/learn/events.jsonl"}`)},
@@ -162,6 +164,7 @@ func TestLearningStateCannotBeForgedThroughOrdinaryTools(t *testing.T) {
 	for _, in := range []hookInput{
 		{ToolName: "PowerShell", ToolInput: json.RawMessage(`{"command":"air-worker learn pending -product C:\\work"}`)},
 		{ToolName: "Bash", ToolInput: json.RawMessage(`{"command":"air-worker learn apply -product /work -id LP-x"}`)},
+		{ToolName: "PowerShell", ToolInput: json.RawMessage(`{"command":"air-worker learn migrate-legacy -product C:\\work -source F:/-5-/011_Plugins/AirCurator_Wiki/learn/journal.jsonl"}`)},
 	} {
 		blocked, reason := learningApprovalBypass(in)
 		if blocked {

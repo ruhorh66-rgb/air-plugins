@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -433,23 +434,40 @@ func recordMeasure(root string, m driftMeasure) {
 func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 	lim := defaultLimits()
 	var cfg runConfig
-	if readJSON(filepath.Join(root, "run-config.json"), &cfg) == nil {
+	cfgOK := readJSON(filepath.Join(root, "run-config.json"), &cfg) == nil
+	if cfgOK {
 		lim = lim.withConfig(cfg.GoalDrift)
 	}
 
 	var limits []string
 	var judgeDistance, judgeCode *int
 	var mv machineVerdict
+	verdictFresh := false
 	vPath := filepath.Join(root, ".goal-verdict.json")
 	if err := readJSON(vPath, &mv); err != nil {
 		limits = append(limits, fmt.Sprintf(
 			"машинного вердикта нет (%s): расстояние по судье не измеряется. Судья должен быть прогнан хотя бы раз.", vPath))
 	} else {
-		judgeCode = intPtr(mv.Code)
-		if mv.Distance != nil {
-			judgeDistance = intPtr(*mv.Distance)
+		staleErr := machineVerdictFreshness(root, mv, time.Now())
+		if staleErr == nil && cfgOK {
+			current := judgeInputFingerprint(root, cfg, filepath.Join(root, "run-config.json"), nativePlanPath(root, cfg))
+			switch {
+			case strings.TrimSpace(mv.InputFingerprint) == "":
+				staleErr = errors.New("cached machine verdict has no input_fingerprint")
+			case !strings.EqualFold(mv.InputFingerprint, current):
+				staleErr = fmt.Errorf("cached machine verdict is stale: fingerprint %s != current %s", mv.InputFingerprint, current)
+			}
+		}
+		if staleErr != nil {
+			limits = append(limits, "машинный вердикт устарел: "+staleErr.Error()+"; расстояние по судье не измеряется")
 		} else {
-			limits = append(limits, "судья вернул «нечем проверить»: расстояние неизвестно, а не ноль")
+			verdictFresh = true
+			judgeCode = intPtr(mv.Code)
+			if mv.Distance != nil {
+				judgeDistance = intPtr(*mv.Distance)
+			} else {
+				limits = append(limits, "судья вернул «нечем проверить»: расстояние неизвестно, а не ноль")
+			}
 		}
 	}
 
@@ -465,7 +483,7 @@ func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 			"плана нет (%s): шаги плана не измеряются, движение судится только остатком по судье", planPath))
 	} else {
 		planOpen = intPtr(plan.OpenWork())
-		if mv.CriteriaTotal > 0 {
+		if verdictFresh && mv.CriteriaTotal > 0 {
 			planClosed = intPtr(confirmedClosedSteps(planPath, mv.CriteriaPassed))
 		} else {
 			planClosed = intPtr(plan.ClosedSteps())
@@ -508,6 +526,14 @@ func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 	history := readHistory(filepath.Join(root, ".woody", "goal-drift.jsonl"))
 	v, reasons := evaluate(cur, judgeCode, planOpen, history, lim)
 	stall, unverifiable := countStreaks(history, cur)
+	lprGates := 0
+	var criteriaGated, criteriaUnknown, factsOverlap []string
+	if verdictFresh {
+		lprGates = mv.LPRGates
+		criteriaGated = mv.CriteriaGated
+		criteriaUnknown = mv.CriteriaUnknown
+		factsOverlap = mv.FactsOverlap
+	}
 
 	return driftMeasure{
 		At:                 time.Now().Format("2006-01-02T15:04:05"),
@@ -518,10 +544,10 @@ func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 		PlanOpenSteps:      planOpen,
 		PlanClosedSteps:    planClosed,
 		PlanGates:          plan.Gates(),
-		LPRGates:           mv.LPRGates,
-		CriteriaGated:      mv.CriteriaGated,
-		CriteriaUnknown:    mv.CriteriaUnknown,
-		FactsOverlap:       mv.FactsOverlap,
+		LPRGates:           lprGates,
+		CriteriaGated:      criteriaGated,
+		CriteriaUnknown:    criteriaUnknown,
+		FactsOverlap:       factsOverlap,
 		StallMoves:         stall,
 		UnverifiableStreak: unverifiable,
 		Verdict:            v,

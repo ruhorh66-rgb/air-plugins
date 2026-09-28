@@ -167,7 +167,7 @@ func handlePostToolUsePlanLint(in hookInput) (hookResult, error) {
 	if tool != "write" && tool != "edit" && tool != "notebookedit" {
 		return hookResult{}, nil
 	}
-	product, ok := productForLearningHook(in.SessionID)
+	product, ok := productForLearningHookInput(in)
 	if !ok {
 		return hookResult{}, nil
 	}

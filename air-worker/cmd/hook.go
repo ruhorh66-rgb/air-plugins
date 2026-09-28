@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// ВХОД БИНАРНИКА ДЛЯ ХУКОВ CLAUDE CODE. План air-worker, шаг 38.
+// ВХОД БИНАРНИКА ДЛЯ HOST LIFECYCLE HOOKS. План air-worker, шаг 38 + GPT parity 0.11.2.
 //
 // Архитектура утверждена ЛПР: «Манифест подключает. Хук доставляет. Бинарник решает. Скил
 // объясняет.» Хук (обёртка под hooks.json) — только адаптер: получил событие харнесса,
@@ -39,9 +39,10 @@ import (
 //
 // АКТИВНОСТЬ ПРОВЕРЯЕТСЯ ДО КЛАССА И ДЕРЖИТ СТАРШИНСТВО НАД НИМ. До явного включения Air
 // Worker для сессии — no-op: пропуск ВСЕХ событий БЕЗ единого решения, unknown в том числе.
-// Активность — та же identity и то же состояние, что пишет `air-worker session declare`
-// (session.go, шаг 39): principal "claude" (адаптер, который зовёт хуки Claude Code) плюс
-// session-key = session_id события. Второй модели активности здесь не заводится — иначе
+// Активность — та же identity и то же состояние, что пишет `air-worker session declare`.
+// Адаптер может передать principal в JSON; отсутствие principal сохраняет совместимость
+// Claude Code и означает "claude". session-key = session_id события. Второй модели
+// активности здесь не заводится — иначе
 // `session declare/off/on` и хук расходились бы в вопросе «включён ли Air Worker».
 //
 // Если JSON события не разобрался, если в нём нет session_id, или если session_id не
@@ -100,6 +101,7 @@ func classifyHookEvent(event string) hookClass {
 // читают его же: заводить второй разбор JSON под каждый обработчик значило бы разойтись с
 // протоколом по частям, а не сразу.
 type hookInput struct {
+	Principal            string          `json:"principal,omitempty"`
 	SessionID            string          `json:"session_id"`
 	TranscriptPath       string          `json:"transcript_path"`
 	Cwd                  string          `json:"cwd"`
@@ -150,6 +152,7 @@ func learningStatePathMention(value string) bool {
 	return strings.Contains(normalized, ".air-worker/learn/") ||
 		strings.HasSuffix(normalized, ".air-worker/learn") ||
 		strings.Contains(normalized, "learn/events.jsonl") ||
+		strings.Contains(normalized, "learn/journal.jsonl") ||
 		strings.Contains(normalized, "learn/proposals.jsonl") ||
 		strings.Contains(normalized, "learn/rules/") ||
 		strings.HasSuffix(normalized, "learn/rules")
@@ -177,7 +180,10 @@ func learningApprovalBypass(in hookInput) (bool, string) {
 		return true, "UserPromptSubmit — доверенное событие хоста; сессия не может выписать себе LPR approval вызовом air-worker hook"
 	}
 	if learningStatePathMention(command) {
-		return true, "прямой доступ shell к состоянию learn запрещён: используй штатные air-worker learn add|event|propose|pending|apply|effect|context|rollback"
+		if strings.Contains(low, "air-worker") && strings.Contains(low, "learn migrate-legacy") {
+			return false, ""
+		}
+		return true, "прямой доступ shell к состоянию learn запрещён: используй штатные air-worker learn add|event|migrate-legacy|propose|pending|apply|effect|context|rollback"
 	}
 	return false, ""
 }
@@ -209,7 +215,7 @@ func handlePreToolUseBypassGuard(in hookInput) (hookResult, error) {
 			return hookResult{}, fmt.Errorf("не разобран tool_input PreToolUse: %v", err)
 		}
 	}
-	if product, ok := productForLearningHook(in.SessionID); ok {
+	if product, ok := productForLearningHookInput(in); ok {
 		blocked, reason, err := enforceSGTCommitRule(product, params.Command, time.Now())
 		if err != nil {
 			return hookResult{}, err
@@ -237,25 +243,36 @@ func hookStateDir() string {
 	return sessionStateDir()
 }
 
-// hookSessionIdentity — identity хук-события: principal "claude" (адаптер Claude Code,
-// единственный, что зовёт `air-worker hook` на этом шаге), session-key = session_id
-// события. sanitizeIdentityPart (session.go) решает, годится ли строка session_id как
-// session-key: не годится — активность проверить нечем, событие считается неактивной
-// сессией (см. комментарий у cmdHook).
-func hookSessionIdentity(sessionID string) (sessionIdentity, bool) {
-	id, err := parseIdentity("claude", sessionID)
+// hook identity — host-neutral: principal приходит от адаптера; старый Claude protocol
+// не передаёт его и поэтому получает совместимый default "claude". session-key = session_id.
+// sanitizeIdentityPart (session.go) решает, годится ли пара как namespace сессии.
+func hookPrincipal(in hookInput) string {
+	principal := strings.TrimSpace(in.Principal)
+	if principal == "" {
+		return "claude"
+	}
+	return principal
+}
+
+func hookInputIdentity(in hookInput) (sessionIdentity, bool) {
+	id, err := parseIdentity(hookPrincipal(in), in.SessionID)
 	if err != nil {
 		return sessionIdentity{}, false
 	}
 	return id, true
 }
 
+// hookSessionIdentity preserves the Claude adapter default for the existing plugin hooks.
+func hookSessionIdentity(sessionID string) (sessionIdentity, bool) {
+	return hookInputIdentity(hookInput{SessionID: sessionID})
+}
+
 // sessionActive — включён ли Air Worker для этой сессии. Та же identity и то же состояние,
 // что читает/пишет `air-worker session declare|off|on` (session.go, К44): второй модели
 // активности здесь нет. Файла режима нет, режим выключен, либо сессия выключена словом
 // ЛПР (`session off`) — во всех трёх случаях неактивна.
-func sessionActive(sessionID string) bool {
-	id, ok := hookSessionIdentity(sessionID)
+func sessionActiveInput(in hookInput) bool {
+	id, ok := hookInputIdentity(in)
 	if !ok {
 		return false
 	}
@@ -268,6 +285,10 @@ func sessionActive(sessionID string) bool {
 		return false
 	}
 	return mode.Enabled
+}
+
+func sessionActive(sessionID string) bool {
+	return sessionActiveInput(hookInput{SessionID: sessionID})
 }
 
 // hookTraceRecord — одна строка следа: время, событие, сессия, класс, что случилось, какое
@@ -382,7 +403,7 @@ func cmdHook(argv []string) (code int) {
 		return 0
 	}
 
-	if !sessionActive(sessionID) {
+	if !sessionActiveInput(in) {
 		// Рутинный путь для подавляющего большинства вызовов: Air Worker для этой сессии
 		// не включён. НИКАКИХ решений, включая след, — ровно так и названо в шаге: «no-op:
 		// пропуск всех событий без решений», unknown в том числе.

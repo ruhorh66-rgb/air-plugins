@@ -34,6 +34,12 @@ func buildReportTopology(cfg runConfig, next reportStep) reportTopology {
 	if !next.Found {
 		return out
 	}
+	if next.Source == "plan-node" {
+		out.Executor = "session"
+		out.CurrentTier = "node"
+		out.CurrentRunner = strings.TrimSpace(next.Owner)
+		return out
+	}
 	out.CurrentTier = strings.TrimSpace(next.Tier)
 	if tierName(next.Tier) == "script" {
 		out.Executor = "script"

@@ -77,10 +77,12 @@ type reportSpend struct {
 }
 
 type reportStep struct {
-	Num   string `json:"num"`
-	Title string `json:"title"`
-	Tier  string `json:"tier"`
-	Found bool   `json:"found"`
+	Num    string `json:"num"`
+	Title  string `json:"title"`
+	Tier   string `json:"tier"`
+	Source string `json:"source,omitempty"`
+	Owner  string `json:"owner,omitempty"`
+	Found  bool   `json:"found"`
 }
 
 type productReport struct {
@@ -225,6 +227,13 @@ func readSpend(root string, budget float64) reportSpend {
 // его исполняет человек, и называть его «следующим шагом модели» значило бы обещать
 // работу, которой модель сделать не может.
 func nextOpenStep(root, planPath string) reportStep {
+	if nodes, err := listPlanNodes(root); err == nil {
+		for _, node := range nodes {
+			if node.Status == "open" {
+				return reportStep{Num: node.ID, Title: node.Title, Tier: "node", Source: "plan-node", Owner: node.Owner, Found: true}
+			}
+		}
+	}
 	if planPath == "" {
 		planPath = filepath.Join(root, "PLAN.md")
 	} else if !filepath.IsAbs(planPath) {
@@ -262,6 +271,9 @@ func readFreshCachedVerdict(root string, cfg runConfig) (machineVerdict, string,
 		return mv, "", fmt.Errorf("cached machine verdict unavailable: %w", err)
 	}
 	current := judgeInputFingerprint(root, cfg, filepath.Join(root, "run-config.json"), nativePlanPath(root, cfg))
+	if err := machineVerdictFreshness(root, mv, time.Now()); err != nil {
+		return mv, current, err
+	}
 	if strings.TrimSpace(mv.InputFingerprint) == "" {
 		return mv, current, errors.New("cached machine verdict has no input_fingerprint")
 	}
@@ -315,14 +327,16 @@ func buildReportMode(root string, noJudge bool) productReport {
 		}
 	case r.LoopRunning:
 		r.JudgeCached = true
-		var mv machineVerdict
-		if err := readJSON(filepath.Join(root, ".goal-verdict.json"), &mv); err != nil {
+		mv, current, err := readFreshCachedVerdict(root, cfg)
+		r.JudgeInputFingerprint = mv.InputFingerprint
+		r.JudgeCurrentFingerprint = current
+		if err != nil {
 			r.JudgeCode = 2
-			r.JudgeText = "НЕ ПРОВЕРЕНО: петля идёт, а машинного вердикта ещё нет"
+			r.JudgeStale = true
+			r.JudgeText = "НЕ ПРОВЕРЕНО: петля идёт, но её последний вердикт устарел: " + err.Error()
 		} else {
 			r.JudgeCode = mv.Code
-			r.JudgeInputFingerprint = mv.InputFingerprint
-			r.JudgeText = fmt.Sprintf("%s [вердикт петли от %s; отчёт судью не прогонял — петля идёт]",
+			r.JudgeText = fmt.Sprintf("%s [вердикт петли от %s; судья не запускался повторно — петля идёт]",
 				firstLine(mv.VerdictText), mv.At)
 		}
 	default:
@@ -446,7 +460,11 @@ func (r productReport) text() string {
 	}
 
 	if r.Next.Found {
-		w("Шаг        : %s · %s · ступень %s", r.Next.Num, r.Next.Title, r.Next.Tier)
+		if r.Next.Source == "plan-node" {
+			w("Узел       : %s · %s · владелец %s", r.Next.Num, r.Next.Title, r.Next.Owner)
+		} else {
+			w("Шаг        : %s · %s · ступень %s", r.Next.Num, r.Next.Title, r.Next.Tier)
+		}
 	} else {
 		w("Шаг        : открытых исполняемых шагов в плане нет")
 	}
