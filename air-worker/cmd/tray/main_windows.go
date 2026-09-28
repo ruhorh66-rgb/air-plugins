@@ -48,10 +48,15 @@ const (
 	className = "AirWorkerTrayWnd"
 	trayID    = 1
 
-	idRefresh = 1000
-	idState   = 1001
-	idQuit    = 1002
-	idProduct = 2000
+	idRefresh           = 1000
+	idState             = 1001
+	idQuit              = 1002
+	idCheckUpdate       = 1003
+	idInstallUpdate     = 1004
+	idUpdateLog         = 1005
+	idChannelStable     = 1006
+	idChannelPrerelease = 1007
+	idProduct           = 2000
 
 	refreshEvery = 60 * time.Second
 )
@@ -62,20 +67,40 @@ var (
 	curIcon  syscall.Handle
 	wmTaskba uint32
 
-	stateMu  sync.Mutex
-	products []productState
-	lastErr  string
+	stateMu      sync.Mutex
+	products     []productState
+	workerVer    string
+	updateStatus trayUpdateState
+	lastErr      string
 )
 
 type productState struct {
-	Path     string
-	Name     string
-	Session  string
-	Distance *int
-	Verdict  string
-	Stall    int
-	JudgeAt  string
-	Err      string
+	Path           string
+	Name           string
+	Session        string
+	Principal      string
+	Distance       *int
+	Verdict        string
+	Stall          int
+	JudgeAt        string
+	Outcome        string
+	CurrentStep    string
+	NextAction     string
+	StopReason     string
+	ProgressClosed int
+	ProgressTotal  int
+	Worker         string
+	Err            string
+}
+
+type trayUpdateState struct {
+	CurrentVersion  string `json:"current_version"`
+	Channel         string `json:"channel"`
+	UpdateAvailable bool   `json:"update_available"`
+	LatestVersion   string `json:"latest_version"`
+	CheckedAt       string `json:"checked_at"`
+	Phase           string `json:"phase"`
+	Error           string `json:"error"`
 }
 
 func stateDir() string {
@@ -116,7 +141,9 @@ func declaredProducts() []productState {
 			continue
 		}
 		var body struct {
-			Path string `json:"path"`
+			Path       string `json:"path"`
+			Principal  string `json:"principal"`
+			SessionKey string `json:"session_key"`
 		}
 		// BOM ОТРЕЗАЕТСЯ ПЕРЕД РАЗБОРОМ. Правило продукта запрещает BOM у .json, и
 		// mode.ps1 с 0.8.4 его не пишет — но файлы, записанные прежними версиями, уже
@@ -129,12 +156,18 @@ func declaredProducts() []productState {
 		if st, err := os.Stat(body.Path); err != nil || !st.IsDir() {
 			continue
 		}
-		session := strings.TrimSuffix(strings.TrimPrefix(n, "woody-product-"), ".json")
+		session := strings.TrimSpace(body.SessionKey)
+		if session == "" {
+			session = strings.TrimSuffix(strings.TrimPrefix(n, "woody-product-"), ".json")
+		}
 		key := strings.ToLower(body.Path)
 		// Один продукт, объявленный двумя сессиями, — это ОДИН продукт. Показать его
 		// дважды значило бы удвоить и число в подсказке.
 		if _, ok := seen[key]; !ok {
-			seen[key] = productState{Path: body.Path, Name: filepath.Base(body.Path), Session: session}
+			seen[key] = productState{
+				Path: body.Path, Name: filepath.Base(body.Path),
+				Session: session, Principal: strings.TrimSpace(body.Principal),
+			}
 		}
 	}
 	out := make([]productState, 0, len(seen))
@@ -169,6 +202,50 @@ func measure(p productState) productState {
 		return p
 	}
 	p.Distance, p.Verdict, p.Stall, p.JudgeAt = d.Distance, d.Verdict, d.Stall, d.At
+
+	// Текущий шаг/воркер берутся из штатного adapter status. Значок не читает PLAN
+	// и jobs сам: иначе рядом с ядром возник бы второй парсер состояния.
+	statusCmd := exec.Command(exe, "adapter", "-action", "status", "-product", p.Path)
+	statusCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	statusOut, _ := statusCmd.Output()
+	if len(statusOut) != 0 {
+		var a struct {
+			Outcome     string `json:"outcome"`
+			CurrentStep string `json:"current_step"`
+			NextAction  string `json:"next_action"`
+			StopReason  string `json:"stop_reason"`
+			Progress    struct {
+				Closed int `json:"closed"`
+				Total  int `json:"total"`
+			} `json:"progress"`
+			Workers []struct {
+				Runner   string `json:"runner"`
+				Provider string `json:"provider"`
+				Model    string `json:"model"`
+				Role     string `json:"role"`
+			} `json:"workers"`
+		}
+		if json.Unmarshal(statusOut, &a) == nil {
+			p.Outcome, p.CurrentStep, p.NextAction, p.StopReason = a.Outcome, a.CurrentStep, a.NextAction, a.StopReason
+			p.ProgressClosed, p.ProgressTotal = a.Progress.Closed, a.Progress.Total
+			if len(a.Workers) != 0 {
+				w := a.Workers[0]
+				parts := []string{}
+				if w.Role != "" {
+					parts = append(parts, w.Role)
+				}
+				if w.Provider != "" {
+					parts = append(parts, w.Provider)
+				} else if w.Runner != "" {
+					parts = append(parts, w.Runner)
+				}
+				if w.Model != "" {
+					parts = append(parts, w.Model)
+				}
+				p.Worker = strings.Join(parts, " ")
+			}
+		}
+	}
 	return p
 }
 

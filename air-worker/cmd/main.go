@@ -137,6 +137,12 @@ func usage() {
         marketplace cache version/revision/payload snapshot, active config dirs and profile ambiguity.
         Same-version revision/SHA drift is a violation, not "already latest".
 
+  air-worker update status|check|download|install|channel [stable|prerelease]
+        Штатное обновление через GitHub: подписанный Ed25519 channel manifest, immutable
+        Release assets CLI+tray, SHA-256+size, запрет downgrade, синхронизация известных
+        Claude/Codex plugin caches штатными командами, транзакционная замена и rollback.
+        install никогда не выполняется фоном: запуск — только явным действием пользователя.
+
   air-worker install [-dir <куда>] [-autostart] [-no-start] [-status] [-uninstall]
         Ставит продукт в пользовательскую область и вешает значок в трее. ПОВЫШЕНИЕ ПРАВ
         НЕ ТРЕБУЕТСЯ ни на одном шаге: файлы идут в %LOCALAPPDATA%\air-worker. Значок
@@ -244,6 +250,8 @@ func run(argv []string) int {
 		return cmdCurator(argv[1:])
 	case "selfcheck":
 		return cmdSelfcheck(argv[1:])
+	case "update":
+		return cmdUpdate(argv[1:])
 	case "install":
 		return cmdInstall(argv[1:])
 	case "tray":

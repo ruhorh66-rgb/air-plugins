@@ -348,6 +348,11 @@ func compareDistributionIdentity(live distributionBinaryIdentity, profiles []dis
 			violations = appendUnique(violations, fmt.Sprintf("%s cache binary has vcs.modified=true: %s", p.Host, p.CacheBinary.Path))
 		}
 		if live.Readable && p.CacheBinary.Readable {
+			if live.Version != "" && p.Version != "" && live.Version != p.Version {
+				violations = appendUnique(violations,
+					fmt.Sprintf("VERSION MISMATCH: live %s@%s != %s cache %s; use canonical GitHub update",
+						appName, live.Version, p.Host, p.Version))
+			}
 			if live.Version != "" && p.Version != "" && live.Version == p.Version &&
 				live.Revision != "" && p.Revision != "" && !strings.EqualFold(live.Revision, p.Revision) {
 				violations = appendUnique(violations,
@@ -365,7 +370,12 @@ func compareDistributionIdentity(live distributionBinaryIdentity, profiles []dis
 	for i := 0; i < len(installed); i++ {
 		for j := i + 1; j < len(installed); j++ {
 			a, b := installed[i], installed[j]
-			if a.Version == "" || b.Version == "" || a.Version != b.Version {
+			if a.Version == "" || b.Version == "" {
+				continue
+			}
+			if a.Version != b.Version {
+				violations = appendUnique(violations,
+					fmt.Sprintf("CACHE VERSION MISMATCH: %s %s != %s %s", a.Host, a.Version, b.Host, b.Version))
 				continue
 			}
 			if a.Revision != "" && b.Revision != "" && !strings.EqualFold(a.Revision, b.Revision) {

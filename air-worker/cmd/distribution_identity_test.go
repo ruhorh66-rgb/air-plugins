@@ -112,6 +112,30 @@ func TestCompareDistributionIdentityNamesSameVersionRevisionMismatch(t *testing.
 	}
 }
 
+func TestCompareDistributionIdentityRejectsDifferentVersions(t *testing.T) {
+	modified := false
+	live := distributionBinaryIdentity{
+		Path: "live", Version: "0.10.14", Revision: strings.Repeat("a", 40),
+		SHA256: "live-sha", Readable: true, Executable: true, Modified: &modified,
+	}
+	cacheID := distributionBinaryIdentity{
+		Path: "cache", Version: "0.10.13", Revision: strings.Repeat("b", 40),
+		SHA256: "cache-sha", Readable: true, Executable: true, Modified: &modified,
+	}
+	profile := distributionProfile{
+		Host: "claude", ConfigDir: "cfg", HasState: true, Canonical: true, PluginEnabled: true,
+		InstallPath: "cache-root", Version: "0.10.13", Revision: cacheID.Revision,
+		PayloadSHA256: "payload", CacheBinary: cacheID,
+	}
+	_, violations, notProven := compareDistributionIdentity(live, []distributionProfile{profile})
+	if len(notProven) != 0 {
+		t.Fatalf("unexpected not-proven: %v", notProven)
+	}
+	if !strings.Contains(strings.Join(violations, "\n"), "VERSION MISMATCH") {
+		t.Fatalf("different versions must be a violation: %v", violations)
+	}
+}
+
 func TestBuildSelfcheckWorksWithoutSourceCheckoutAndWarnsMultipleProfiles(t *testing.T) {
 	user := t.TempDir()
 	t.Setenv("USERPROFILE", user)
