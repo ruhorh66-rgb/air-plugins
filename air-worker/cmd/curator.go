@@ -47,7 +47,7 @@ type curatorSnapshot struct {
 
 func cmdCurator(argv []string) int {
 	if len(argv) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: air-worker curator patrol|digest|peer|assignment|decision|wake ...")
+		fmt.Fprintln(os.Stderr, "usage: air-worker curator patrol|digest|tick|peer|assignment|decision|wake ...")
 		return 2
 	}
 	switch argv[0] {
@@ -55,6 +55,8 @@ func cmdCurator(argv []string) int {
 		return cmdCuratorSnapshot(argv[1:], false)
 	case "digest":
 		return cmdCuratorSnapshot(argv[1:], true)
+	case "tick":
+		return cmdCuratorTick(argv[1:])
 	case "peer":
 		return cmdCuratorPeer(argv[1:])
 	case "assignment":

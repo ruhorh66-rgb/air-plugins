@@ -118,7 +118,7 @@ func yamlScalar(v string) string {
 	return strconv.Quote(strings.TrimSpace(v))
 }
 
-func renderPlanNode(n planNode) []byte {
+func renderPlanNodeWithBody(n planNode, body string) []byte {
 	var b strings.Builder
 	b.WriteString("---\n")
 	for _, kv := range [][2]string{
@@ -133,11 +133,20 @@ func renderPlanNode(n planNode) []byte {
 		fmt.Fprintf(&b, "  - %s\n", yamlScalar(receipt))
 	}
 	b.WriteString("---\n\n")
-	fmt.Fprintf(&b, "# %s\n\n", n.Title)
-	fmt.Fprintf(&b, "- Родитель нити: %s\n", n.Parent)
-	fmt.Fprintf(&b, "- Владелец: %s\n", n.Owner)
-	fmt.Fprintf(&b, "- Готово когда: %s\n", n.DoneWhen)
+	b.WriteString(body)
+	if !strings.HasSuffix(body, "\n") {
+		b.WriteString("\n")
+	}
 	return []byte(b.String())
+}
+
+func renderPlanNode(n planNode) []byte {
+	var body strings.Builder
+	fmt.Fprintf(&body, "# %s\n\n", n.Title)
+	fmt.Fprintf(&body, "- Родитель нити: %s\n", n.Parent)
+	fmt.Fprintf(&body, "- Владелец: %s\n", n.Owner)
+	fmt.Fprintf(&body, "- Готово когда: %s\n", n.DoneWhen)
+	return renderPlanNodeWithBody(n, body.String())
 }
 
 func parseYAMLScalar(v string) string {
@@ -213,6 +222,27 @@ func readPlanNode(path string) (planNode, error) {
 	return n, nil
 }
 
+func readPlanNodeBody(path string) (string, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	text := strings.ReplaceAll(string(raw), "\r\n", "\n")
+	lines := strings.Split(text, "\n")
+	if len(lines) < 3 || strings.TrimSpace(lines[0]) != "---" {
+		return "", fmt.Errorf("node has no YAML header: %s", path)
+	}
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			start := i + 1
+			if start < len(lines) && lines[start] == "" {
+				start++
+			}
+			return strings.Join(lines[start:], "\n"), nil
+		}
+	}
+	return "", fmt.Errorf("node YAML header is not closed: %s", path)
+}
 func validatePlanNode(n planNode) error {
 	if planNodeIDRE.FindStringSubmatch(strings.TrimSpace(n.ID)) == nil {
 		return fmt.Errorf("invalid node id %q", n.ID)
@@ -366,6 +396,18 @@ func cmdPlanNodeNew(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
+	lock, ok := acquireLock(lockName("plan-nodes", root))
+	if !ok {
+		fmt.Fprintln(os.Stderr, "plan node mutation is already running for this product")
+		return 1
+	}
+	defer lock.release()
+	planPath := filepath.Join(root, "PLAN.md")
+	planBefore, err := os.ReadFile(planPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
 	for name, value := range map[string]string{"title": *title, "parent": *parent, "owner": *owner, "done-when": *doneWhen} {
 		if strings.TrimSpace(value) == "" {
 			fmt.Fprintf(os.Stderr, "-%s is required%s", name, lineEnding)
@@ -377,7 +419,8 @@ func cmdPlanNodeNew(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	now := planNodeNow().UTC().Format(time.RFC3339Nano)
+	nowTime := planNodeNow().UTC()
+	now := nowTime.Format(time.RFC3339Nano)
 	trig := strings.TrimSpace(*trigger)
 	if trig == "" {
 		trig = strings.TrimSpace(*title) + " @ " + now
@@ -408,9 +451,16 @@ func cmdPlanNodeNew(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	if err := addNodeToSpine(filepath.Join(root, "PLAN.md"), n); err != nil {
+	if err := addNodeToSpine(planPath, n); err != nil {
 		_ = os.Remove(nodePath)
 		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	event := planNodeEventRow(n, "created", filepath.ToSlash(filepath.Join(planNodeDirName, n.ID+".md")), "plan-node", nowTime)
+	if err := appendPlanNodeEvents(root, []map[string]any{event}); err != nil {
+		_ = writeFileAtomic(planPath, planBefore)
+		_ = os.Remove(nodePath)
+		fmt.Fprintln(os.Stderr, "plan node event write failed:", err)
 		return 2
 	}
 	fmt.Printf("%s %s%s", n.ID, nodePath, lineEnding)
@@ -438,6 +488,12 @@ func cmdPlanNodeClose(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
+	lock, ok := acquireLock(lockName("plan-nodes", root))
+	if !ok {
+		fmt.Fprintln(os.Stderr, "plan node mutation is already running for this product")
+		return 1
+	}
+	defer lock.release()
 	path, err := planNodePathByID(root, id)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -459,6 +515,11 @@ func cmdPlanNodeClose(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
+	body, err := readPlanNodeBody(path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
 	if !strings.Contains(string(planBefore), "[["+n.ID+"]]") {
 		fmt.Fprintln(os.Stderr, "PLAN.md has no node link:", n.ID)
 		return 2
@@ -467,8 +528,9 @@ func cmdPlanNodeClose(argv []string) int {
 		fmt.Printf("%s already closed%s", n.ID, lineEnding)
 		return 0
 	}
+	closedAt := planNodeNow().UTC()
 	n.Status = "closed"
-	n.UpdatedAt = planNodeNow().UTC().Format(time.RFC3339Nano)
+	n.UpdatedAt = closedAt.Format(time.RFC3339Nano)
 	foundReceipt := false
 	for _, existing := range n.Receipts {
 		if existing == strings.TrimSpace(*receipt) {
@@ -478,7 +540,7 @@ func cmdPlanNodeClose(argv []string) int {
 	if !foundReceipt {
 		n.Receipts = append(n.Receipts, strings.TrimSpace(*receipt))
 	}
-	if err := writeFileAtomic(path, renderPlanNode(n)); err != nil {
+	if err := writeFileAtomic(path, renderPlanNodeWithBody(n, body)); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
@@ -486,6 +548,13 @@ func cmdPlanNodeClose(argv []string) int {
 		_ = writeFileAtomic(path, nodeBefore)
 		_ = writeFileAtomic(planPath, planBefore)
 		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	event := planNodeEventRow(n, "closed", strings.TrimSpace(*receipt), "plan-node", closedAt)
+	if err := appendPlanNodeEvents(root, []map[string]any{event}); err != nil {
+		_ = writeFileAtomic(path, nodeBefore)
+		_ = writeFileAtomic(planPath, planBefore)
+		fmt.Fprintln(os.Stderr, "plan node event write failed:", err)
 		return 2
 	}
 	fmt.Printf("%s closed -> %s%s", n.ID, n.ReturnTo, lineEnding)
@@ -593,8 +662,278 @@ func cmdPlanSpine(argv []string) int {
 }
 
 func cmdPlanMigrate(argv []string) int {
-	fmt.Fprintln(os.Stderr, "plan migrate is not implemented in this intermediate slice")
-	return 2
+	fs := flag.NewFlagSet("plan migrate", flag.ContinueOnError)
+	product := fs.String("product", ".", "product root")
+	owner := fs.String("owner", "", "default owner for migrated nodes")
+	trigger := fs.String("trigger", "", "migration trigger / LPR wording")
+	if err := fs.Parse(argv); err != nil {
+		return 2
+	}
+	root, err := normalizePlanNodeProduct(*product)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	lock, ok := acquireLock(lockName("plan-nodes", root))
+	if !ok {
+		fmt.Fprintln(os.Stderr, "plan node mutation is already running for this product")
+		return 1
+	}
+	defer lock.release()
+
+	planPath := filepath.Join(root, "PLAN.md")
+	planBefore, err := os.ReadFile(planPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if strings.Contains(string(planBefore), planNodeMarker) {
+		fmt.Fprintln(os.Stderr, "PLAN.md is already migrated to node spine")
+		return 2
+	}
+	if entries, readErr := os.ReadDir(planNodeDir(root)); readErr == nil {
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasPrefix(e.Name(), "N-") && strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
+				fmt.Fprintln(os.Stderr, "plan node directory already contains nodes; migration refuses to guess ownership")
+				return 2
+			}
+		}
+	} else if !os.IsNotExist(readErr) {
+		fmt.Fprintln(os.Stderr, readErr)
+		return 2
+	}
+
+	preamble, sections, err := splitPlanForMigration(planBefore)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	now := planNodeNow().UTC()
+	nowText := now.Format(time.RFC3339Nano)
+	trig := strings.TrimSpace(*trigger)
+	if trig == "" {
+		trig = "plan migrate @ " + nowText
+	}
+	nodes := make([]planNode, 0, len(sections))
+	for i, section := range sections {
+		id := fmt.Sprintf("N-%03d_%s", i+1, planNodeSlug(section.Title))
+		n := planNode{
+			ID: id, Title: section.Title, Parent: section.Title, Trigger: trig,
+			Owner:    strings.TrimSpace(*owner),
+			DoneWhen: "review migrated section and close with receipt",
+			Status:   "open", ReturnTo: section.Title, Receipts: []string{},
+			CreatedAt: nowText, UpdatedAt: nowText,
+		}
+		if err := validatePlanNode(n); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+		nodes = append(nodes, n)
+	}
+
+	if err := os.MkdirAll(planNodeDir(root), 0o755); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	var created []string
+	cleanup := func() {
+		for _, path := range created {
+			_ = os.Remove(path)
+		}
+		_ = os.Remove(planNodeDir(root))
+	}
+	for i, n := range nodes {
+		path := filepath.Join(planNodeDir(root), n.ID+".md")
+		if err := writeFileAtomic(path, renderPlanNodeWithBody(n, sections[i].Body)); err != nil {
+			cleanup()
+			fmt.Fprintln(os.Stderr, "write migrated node:", err)
+			return 2
+		}
+		created = append(created, path)
+	}
+	if err := writeFileAtomic(planPath, renderMigratedSpine(preamble, nodes)); err != nil {
+		cleanup()
+		fmt.Fprintln(os.Stderr, "write migrated PLAN.md:", err)
+		return 2
+	}
+
+	events := make([]map[string]any, 0, len(nodes))
+	for i, n := range nodes {
+		events = append(events, planNodeEventRow(
+			n, "migrated", sections[i].Title, "plan-migrate", now,
+		))
+	}
+	if err := appendPlanNodeEvents(root, events); err != nil {
+		restoreErr := writeFileAtomic(planPath, planBefore)
+		cleanup()
+		if restoreErr != nil {
+			fmt.Fprintf(os.Stderr, "plan migrate event write failed: %v; PLAN restore also failed: %v%s", err, restoreErr, lineEnding)
+			return 2
+		}
+		fmt.Fprintln(os.Stderr, "plan migrate event write failed:", err)
+		return 2
+	}
+
+	fmt.Printf("MIGRATED %d sections -> %s%s", len(nodes), planNodeDir(root), lineEnding)
+	return 0
 }
 
 var errPlanNodeNotFound = errors.New("plan node not found")
+
+type planMigrationSection struct {
+	Title string
+	Body  string
+}
+
+type planNodeStats struct {
+	Open     int
+	NoOwner  int
+	Stale24h int
+}
+
+func planNodeEventsPath(root string) string {
+	return filepath.Join(root, "learn", "events.jsonl")
+}
+
+func planNodeEventRow(n planNode, action, evidence, source string, at time.Time) map[string]any {
+	if strings.TrimSpace(source) == "" {
+		source = "plan-node"
+	}
+	created := at.UTC().Format(time.RFC3339Nano)
+	identity := action + "\n" + n.ID + "\n" + created + "\n" + evidence
+	digest := learnSHA([]byte(identity))
+	return map[string]any{
+		"schema":     learnSchemaVersion,
+		"id":         "LE-" + digest[:20],
+		"created_at": created,
+		"kind":       "check",
+		"source":     source,
+		"actor":      strings.TrimSpace(n.Owner),
+		"reference":  n.ID,
+		"class":      "plan-node",
+		"observed":   strings.TrimSpace(action + " " + n.ID),
+		"evidence":   strings.TrimSpace(evidence),
+	}
+}
+
+func appendPlanNodeEvents(root string, rows []map[string]any) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	path := planNodeEventsPath(root)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	existing, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if len(existing) > 0 {
+		for i, line := range strings.Split(strings.ReplaceAll(string(existing), "\r\n", "\n"), "\n") {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			var envelope map[string]any
+			if err := json.Unmarshal([]byte(line), &envelope); err != nil {
+				return fmt.Errorf("learn/events.jsonl line %d is invalid: %w", i+1, err)
+			}
+			if schema, _ := envelope["schema"].(string); schema != learnSchemaVersion {
+				return fmt.Errorf("learn/events.jsonl line %d has schema %q", i+1, schema)
+			}
+		}
+	}
+	out := append([]byte(nil), existing...)
+	if len(out) > 0 && out[len(out)-1] != '\n' {
+		out = append(out, '\n')
+	}
+	for _, row := range rows {
+		raw, err := json.Marshal(row)
+		if err != nil {
+			return err
+		}
+		out = append(out, raw...)
+		out = append(out, '\n')
+	}
+	return writeFileAtomic(path, out)
+}
+
+func splitPlanForMigration(raw []byte) (string, []planMigrationSection, error) {
+	text := strings.ReplaceAll(string(raw), "\r\n", "\n")
+	lines := strings.SplitAfter(text, "\n")
+	var preamble strings.Builder
+	var sections []planMigrationSection
+	var current *planMigrationSection
+	inFence := false
+	flush := func() {
+		if current != nil {
+			sections = append(sections, *current)
+			current = nil
+		}
+	}
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, string([]byte{96, 96, 96})) {
+			inFence = !inFence
+		}
+		if !inFence && strings.HasPrefix(line, "## ") && !strings.HasPrefix(line, "### ") {
+			flush()
+			title := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, "## "), "\n"))
+			if title == "" {
+				return "", nil, errors.New("PLAN.md has an empty level-2 heading")
+			}
+			current = &planMigrationSection{Title: title, Body: line}
+			continue
+		}
+		if current == nil {
+			preamble.WriteString(line)
+		} else {
+			current.Body += line
+		}
+	}
+	flush()
+	if len(sections) == 0 {
+		return "", nil, errors.New("PLAN.md has no level-2 sections to migrate")
+	}
+	return preamble.String(), sections, nil
+}
+
+func renderMigratedSpine(preamble string, nodes []planNode) []byte {
+	var b strings.Builder
+	b.WriteString(strings.TrimRight(preamble, "\n"))
+	if b.Len() > 0 {
+		b.WriteString("\n\n")
+	}
+	b.WriteString("## План: нить и узлы\n\n")
+	b.WriteString(planNodeMarker)
+	b.WriteByte('\n')
+	for _, n := range nodes {
+		b.WriteString(spineNodeLine(n))
+		b.WriteByte('\n')
+	}
+	return []byte(b.String())
+}
+
+func calculatePlanNodeStats(root string, now time.Time) (planNodeStats, error) {
+	nodes, err := listPlanNodes(root)
+	if err != nil {
+		return planNodeStats{}, err
+	}
+	var stats planNodeStats
+	for _, n := range nodes {
+		if n.Status == "closed" {
+			continue
+		}
+		stats.Open++
+		if strings.TrimSpace(n.Owner) == "" {
+			stats.NoOwner++
+		}
+		updated, err := time.Parse(time.RFC3339Nano, n.UpdatedAt)
+		if err != nil {
+			return planNodeStats{}, err
+		}
+		if now.UTC().Sub(updated) >= 24*time.Hour {
+			stats.Stale24h++
+		}
+	}
+	return stats, nil
+}
