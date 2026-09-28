@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "channel": "stable",
+  "version": "0.10.14",
+  "published_at": "2026-09-28T08:26:05Z",
+  "vcs_revision": "a90618a5dedfc075e259457a90f1cab47c7f205d",
+  "payload_sha256": "04f10acc14d1fb5fe7838624fe0fb2b4ab5c025e660fb60d3ac3472dcebe8e39",
+  "cli": {
+    "name": "air-worker-0.10.14-windows-x64.exe",
+    "url": "https://github.com/ruhorh66-rgb/air-plugins/releases/download/air-worker--v0.10.14/air-worker-0.10.14-windows-x64.exe",
+    "sha256": "c4dde11a470284452d2c1436fb740338fa14eacd17d33d3c45e7aba0147da5d6",
+    "size": 8530944
+  },
+  "tray": {
+    "name": "air-worker-tray-0.10.14-windows-x64.exe",
+    "url": "https://github.com/ruhorh66-rgb/air-plugins/releases/download/air-worker--v0.10.14/air-worker-tray-0.10.14-windows-x64.exe",
+    "sha256": "4743158cffaaec5a2d00c430ded9a481f8c26267ba75ceed078eec3b18ff75a7",
+    "size": 2502656
+  },
+  "signing_key_id": "air-worker-update-2026-01",
+  "manifest_signature": "V9DUZvDubvs26+xg5yz/N53As+5J25/yu661rgrb7Oj7TTGQl6umYn1F6koNtWwMth3Szc+lVMwtTrCltx5vAA==",
+  "release_notes_url": "https://github.com/ruhorh66-rgb/air-plugins/releases/tag/air-worker--v0.10.14"
+}
