@@ -29,21 +29,25 @@ type curatorEffectView struct {
 }
 
 type curatorSnapshot struct {
-	Schema      string              `json:"schema"`
-	GeneratedAt string              `json:"generated_at"`
-	Product     string              `json:"product"`
-	Plan        string              `json:"plan"`
-	OpenSteps   int                 `json:"open_steps"`
-	NextStep    *curatorStepView    `json:"next_step,omitempty"`
-	NextGate    *curatorStepView    `json:"next_gate,omitempty"`
-	StepsToGate int                 `json:"steps_to_gate"`
-	PendingLPR  []learnProposal     `json:"pending_lpr,omitempty"`
-	Learning    []curatorEffectView `json:"learning,omitempty"`
+	Schema        string              `json:"schema"`
+	GeneratedAt   string              `json:"generated_at"`
+	Product       string              `json:"product"`
+	Plan          string              `json:"plan"`
+	OpenSteps     int                 `json:"open_steps"`
+	NextStep      *curatorStepView    `json:"next_step,omitempty"`
+	NextGate      *curatorStepView    `json:"next_gate,omitempty"`
+	StepsToGate   int                 `json:"steps_to_gate"`
+	PendingLPR    []learnProposal     `json:"pending_lpr,omitempty"`
+	Learning      []curatorEffectView `json:"learning,omitempty"`
+	Peers         []curatorPeer       `json:"peers,omitempty"`
+	Assignments   []curatorAssignment `json:"assignments,omitempty"`
+	DecisionCount int                 `json:"decision_count,omitempty"`
+	Wake          *curatorWakeCard    `json:"wake,omitempty"`
 }
 
 func cmdCurator(argv []string) int {
 	if len(argv) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: air-worker curator patrol|digest -product <root> [-json]")
+		fmt.Fprintln(os.Stderr, "usage: air-worker curator patrol|digest|peer|assignment|decision|wake ...")
 		return 2
 	}
 	switch argv[0] {
@@ -51,6 +55,14 @@ func cmdCurator(argv []string) int {
 		return cmdCuratorSnapshot(argv[1:], false)
 	case "digest":
 		return cmdCuratorSnapshot(argv[1:], true)
+	case "peer":
+		return cmdCuratorPeer(argv[1:])
+	case "assignment":
+		return cmdCuratorAssignment(argv[1:])
+	case "decision":
+		return cmdCuratorDecision(argv[1:])
+	case "wake":
+		return cmdCuratorWake(argv[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown curator action %q\n", argv[0])
 		return 2
@@ -160,6 +172,56 @@ func buildCuratorSnapshot(root string) (curatorSnapshot, error) {
 	return snapshot, nil
 }
 
+func buildCuratorSnapshotWithControl(root, stateDir string, now time.Time) (curatorSnapshot, error) {
+	snapshot, err := buildCuratorSnapshot(root)
+	if err != nil {
+		return curatorSnapshot{}, err
+	}
+	snapshot.GeneratedAt = now.UTC().Format(time.RFC3339Nano)
+
+	controlDir := curatorControlDir(stateDir)
+	control, err := readCuratorControl(controlDir)
+	if err != nil {
+		return curatorSnapshot{}, fmt.Errorf("curator control: %w", err)
+	}
+	snapshot.Peers = append(snapshot.Peers, control.Peers...)
+	snapshot.Assignments = append(snapshot.Assignments, control.Assignments...)
+
+	decisions, err := readCuratorDecisions(curatorDecisionPath(controlDir))
+	if err != nil {
+		return curatorSnapshot{}, fmt.Errorf("curator decisions: %w", err)
+	}
+	if err := verifyCuratorDecisions(decisions); err != nil {
+		return curatorSnapshot{}, fmt.Errorf("curator decisions: %w", err)
+	}
+	snapshot.DecisionCount = len(decisions)
+
+	statePath := orchestrationWakeStatePath(root)
+	var wakeState orchestrationWakeState
+	if err := readJSON(statePath, &wakeState); err != nil {
+		if !os.IsNotExist(err) {
+			return curatorSnapshot{}, fmt.Errorf("curator wake state: %w", err)
+		}
+	} else {
+		card, err := deriveWakeCard(root, statePath, wakeState, now)
+		if err != nil {
+			return curatorSnapshot{}, fmt.Errorf("curator wake: %w", err)
+		}
+		snapshot.Wake = &card
+	}
+	return snapshot, nil
+}
+
+func activeCuratorAssignmentCount(assignments []curatorAssignment) int {
+	count := 0
+	for _, assignment := range assignments {
+		if curatorAssignmentActive(assignment) {
+			count++
+		}
+	}
+	return count
+}
+
 func printCuratorPatrol(snapshot curatorSnapshot) {
 	if snapshot.NextStep != nil {
 		fmt.Printf("Веха: до ближайшего гейта %d исполняемых шагов; следующий %s | %s | %s\n",
@@ -172,6 +234,12 @@ func printCuratorPatrol(snapshot curatorSnapshot) {
 	}
 	if snapshot.NextGate != nil {
 		fmt.Printf("Гейт: %s | %s\n", snapshot.NextGate.Num, snapshot.NextGate.Title)
+	}
+	fmt.Printf("Curator control: peers=%d assignments=%d active=%d decisions=%d\n",
+		len(snapshot.Peers), len(snapshot.Assignments), activeCuratorAssignmentCount(snapshot.Assignments), snapshot.DecisionCount)
+	if snapshot.Wake != nil {
+		fmt.Printf("Wake: target=%s ready=%t action=%s reason=%s\n",
+			snapshot.Wake.WakeTarget, snapshot.Wake.Ready, snapshot.Wake.Action, snapshot.Wake.Reason)
 	}
 	fmt.Printf("ЖДЁТ ДА: %d\n", len(snapshot.PendingLPR))
 	for _, proposal := range snapshot.PendingLPR {
@@ -193,6 +261,18 @@ func printCuratorDigest(snapshot curatorSnapshot) {
 	}
 	if snapshot.NextGate != nil {
 		fmt.Printf("- gate: %s | %s | judge=%s\n", snapshot.NextGate.Num, snapshot.NextGate.Title, snapshot.NextGate.Judge)
+	}
+	fmt.Println()
+	fmt.Println("## Curator control")
+	fmt.Println()
+	fmt.Printf("- peers: %d\n", len(snapshot.Peers))
+	fmt.Printf("- assignments: %d (active/paused/degraded: %d)\n", len(snapshot.Assignments), activeCuratorAssignmentCount(snapshot.Assignments))
+	fmt.Printf("- audit decisions: %d\n", snapshot.DecisionCount)
+	if snapshot.Wake == nil {
+		fmt.Println("- wake: no orchestration state")
+	} else {
+		fmt.Printf("- wake: target=%s ready=%t action=%s reason=%s\n",
+			snapshot.Wake.WakeTarget, snapshot.Wake.Ready, snapshot.Wake.Action, snapshot.Wake.Reason)
 	}
 	fmt.Println()
 	fmt.Println("## Ждёт да")
@@ -229,6 +309,8 @@ func cmdCuratorSnapshot(argv []string, digest bool) int {
 	product := fs.String("product", "", "managed product root")
 	all := fs.Bool("all", false, "ecosystem digest from air-worker.products/v1 registry")
 	registry := fs.String("registry", "", "portfolio registry path")
+	stateDir := fs.String("state-dir", "", "override machine curator state dir")
+	nowRaw := fs.String("now", "", "override current time RFC3339 for deterministic wake calculation")
 	asJSON := fs.Bool("json", false, "machine-readable output")
 	if err := fs.Parse(argv); err != nil {
 		return 2
@@ -241,7 +323,15 @@ func cmdCuratorSnapshot(argv []string, digest bool) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	snapshot, err := buildCuratorSnapshot(root)
+	now := time.Now().UTC()
+	if strings.TrimSpace(*nowRaw) != "" {
+		now, err = time.Parse(time.RFC3339, strings.TrimSpace(*nowRaw))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, name+" -now:", err)
+			return 2
+		}
+	}
+	snapshot, err := buildCuratorSnapshotWithControl(root, *stateDir, now)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, name+":", err)
 		return 2

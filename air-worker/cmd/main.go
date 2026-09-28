@@ -116,9 +116,18 @@ func usage() {
         одноразовый grant; apply потребляет grant. Прямая запись в .air-worker/learn блокируется.
         Каждая мутация имеет digest-ledger и обратимый blob.
 
-  air-worker curator patrol|digest -product <root> [-json]
+  air-worker curator patrol|digest -product <root> [-state-dir <dir>] [-json]
         Одноразовый обход/сводка встроенного AirCurator: ближайшая веха, шаг/гейт,
-        очередь PENDING_LPR и эффект уже применённых правил.
+        очередь PENDING_LPR, эффект обучения, peer/assignment state, audit decision count
+        и deterministic wake-card из orchestration state.
+  air-worker curator peer register|list ...
+        Durable registry внешних curator peers: provider/model/enabled/max_active.
+  air-worker curator assignment assign|list|revoke ...
+        Scope product/profile/session/run; один активный curator на scope и лимит peer.
+  air-worker curator decision record|list|verify ...
+        Append-only tamper-evident audit journal. Запись никогда не является approval/grant.
+  air-worker curator wake -product <root> [-dry-run=true] [-json]
+        Только расчёт wake-card; transport, SendMessage и запуск resume_cmd не выполняются.
   air-worker curator digest -all [-registry <air-worker.products/v1.json>] [-json]
         Сводка 10:00 SGT по экосистеме: вехи из report -all, ЖДЁТ ДА и эффект обучения.
         Планировщик ОС может звать эту команду; отдельного AirCurator runtime нет.

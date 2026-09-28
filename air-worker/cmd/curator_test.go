@@ -109,3 +109,56 @@ func TestCuratorSnapshotJSONContract(t *testing.T) {
 		t.Fatalf("product=%v", decoded["product"])
 	}
 }
+
+func TestCuratorSnapshotWithControlAggregatesPeerAssignmentDecisionAndWake(t *testing.T) {
+	root := seedCuratorProduct(t)
+	stateDir := t.TempDir()
+	if code := cmdCuratorPeerRegister([]string{
+		"-id", "astra", "-provider", "claude", "-model", "sonnet", "-max-active", "1", "-state-dir", stateDir,
+	}); code != 0 {
+		t.Fatalf("register code=%d", code)
+	}
+	if code := cmdCuratorAssign([]string{
+		"-peer", "astra", "-profile", "p1", "-session", "s1", "-run", "r1",
+		"-product", root, "-state-dir", stateDir,
+	}); code != 0 {
+		t.Fatalf("assign code=%d", code)
+	}
+	if code := cmdCuratorDecisionRecord([]string{
+		"-principal", "user", "-profile", "p1", "-session", "s1", "-run", "r1",
+		"-kind", "lpr-note", "-subject", "release", "-decision", "hold", "-state-dir", stateDir,
+	}); code != 0 {
+		t.Fatalf("decision code=%d", code)
+	}
+	wakeDir := filepath.Join(root, ".woody")
+	if err := os.MkdirAll(wakeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	wakeRaw, _ := json.Marshal(orchestrationWakeState{
+		Phase: "gate", StopReason: "gate", WakeTarget: "lpr",
+	})
+	if err := os.WriteFile(filepath.Join(wakeDir, "orchestration.state.json"), wakeRaw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Date(2026, 9, 28, 4, 30, 0, 0, time.UTC)
+	snapshot, err := buildCuratorSnapshotWithControl(root, stateDir, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.GeneratedAt != now.Format(time.RFC3339Nano) {
+		t.Fatalf("generated_at=%q", snapshot.GeneratedAt)
+	}
+	if len(snapshot.Peers) != 1 || snapshot.Peers[0].ID != "astra" {
+		t.Fatalf("peers=%#v", snapshot.Peers)
+	}
+	if len(snapshot.Assignments) != 1 || snapshot.Assignments[0].Product != root {
+		t.Fatalf("assignments=%#v", snapshot.Assignments)
+	}
+	if snapshot.DecisionCount != 1 {
+		t.Fatalf("decision_count=%d", snapshot.DecisionCount)
+	}
+	if snapshot.Wake == nil || snapshot.Wake.WakeTarget != "lpr" || snapshot.Wake.Action != "card_only" {
+		t.Fatalf("wake=%#v", snapshot.Wake)
+	}
+}
