@@ -577,4 +577,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-006_0-11-2-enforce-canonical-learn-journal]] · 0.11.2: enforce canonical learn journal
 - [closed] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-007_0-11-2-complete-curator-tick-course-control]] · 0.11.2: complete curator tick course control
 - [closed] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-008_0-11-2-schedule-weekly-learning-maintenance]] · 0.11.2: schedule weekly learning maintenance
-- [open] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-009_0-11-2-refresh-factual-judge-on-commit-and-tick]] · 0.11.2: refresh factual judge on commit and tick
+- [closed] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-009_0-11-2-refresh-factual-judge-on-commit-and-tick]] · 0.11.2: refresh factual judge on commit and tick
