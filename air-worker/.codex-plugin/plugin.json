@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.10.14",
-  "description": "AirWorker 0.10.14: deterministic curator peer/assignment control, audit-only decision journal, dry-run wake cards, and restart/repetition limits.",
+  "version": "0.10.15",
+  "description": "AirWorker 0.10.15: signed GitHub self-update, visible version/update state in tray, and human-readable session/step status.",
   "author": {
     "name": "AIR OS"
   },

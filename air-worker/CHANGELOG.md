@@ -1,6 +1,20 @@
 # CHANGELOG — air-worker
 
-## 0.10.14 — in development
+## 0.10.15 — in development
+
+### Signed GitHub self-update and informative tray
+
+- Added one native update path through signed GitHub channel manifests (`stable` / `prerelease`) and immutable version-specific Release assets; `latest/download` is rejected.
+- Update trust is independent from GitHub: Ed25519 manifest verification, HTTPS-only URLs, SemVer/channel policy, downgrade prevention, SHA-256 and size checks for both CLI and tray.
+- Update install stages both binaries, synchronizes known Claude/Codex plugin caches through their native plugin commands, snapshots the live pair, replaces them transactionally, runs post-install identity/selfcheck, and rolls back on failure.
+- `selfcheck` now treats live/cache and cache/cache SemVer disagreement as a violation; host-generated `__pycache__` is excluded from immutable plugin payload identity.
+- Tray now shows the running AirWorker version, update channel/state/latest version, provides check/install/channel controls and the update log, and requires an explicit confirmation before install.
+- Product rows in tray use the core `adapter status` snapshot: session/principal, current step/progress, human-readable running/gate/stopped state and last judge time. Legacy and host-neutral declarations for the same product are deduplicated in favor of the richer declaration.
+- Background tray refresh invokes `update check -if-stale`; the core owns the check interval, so the tray does not implement a second freshness policy.
+
+Release control: full factual/package regression, signed-manifest mutation tests, transactional install/rollback fixture, exact-tree semantic review, then separate tag/GitHub Release/feed/install gate.
+
+## 0.10.14 — 28.09.2026
 
 ### Deterministic curator control core
 
