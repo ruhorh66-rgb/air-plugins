@@ -87,3 +87,28 @@ func TestCuratorTickJSONCarriesCourseV1(t *testing.T) {
 		t.Fatalf("course missing from tick: %s", out)
 	}
 }
+
+func TestCuratorTickRunsWeeklyMaintenanceOnceUntilDue(t *testing.T) {
+	root := seedPlanNodeProduct(t)
+	now := "2026-09-28T12:00:00Z"
+
+	code, first := captureLoopOutput(t, func() int {
+		return cmdCuratorTick([]string{"-product", root, "-json", "-now", now})
+	})
+	if code != 0 {
+		t.Fatalf("first tick code=%d out=%s", code, first)
+	}
+	if !strings.Contains(first, "\"weekly\":{\"schema\":\"air-worker.curator.weekly/v1\",\"due\":true,\"ran\":true") {
+		t.Fatalf("first tick did not run weekly maintenance: %s", first)
+	}
+
+	code, second := captureLoopOutput(t, func() int {
+		return cmdCuratorTick([]string{"-product", root, "-json", "-now", "2026-09-29T12:00:00Z"})
+	})
+	if code != 0 {
+		t.Fatalf("second tick code=%d out=%s", code, second)
+	}
+	if !strings.Contains(second, "\"due\":false,\"ran\":false") {
+		t.Fatalf("weekly maintenance reran before 7d: %s", second)
+	}
+}

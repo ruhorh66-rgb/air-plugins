@@ -45,6 +45,11 @@ func cmdCuratorTick(argv []string) int {
 		fmt.Fprintln(os.Stderr, "curator tick patrol:", err)
 		return 3
 	}
+	weekly, err := runDueLearnWeekly(root, now)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "curator tick weekly:", err)
+		return 3
+	}
 	course, err := buildCuratorCourseFromNodes(root, now, nodes, patrol, hasPatrol)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "curator tick course:", err)
@@ -52,6 +57,9 @@ func cmdCuratorTick(argv []string) int {
 	}
 	rc := 0
 	if hasPatrol && !patrol.Complete {
+		rc = 3
+	}
+	if weekly.Error != "" {
 		rc = 3
 	}
 	if *asJSON {
@@ -62,6 +70,7 @@ func cmdCuratorTick(argv []string) int {
 			"open_nodes":   stats.Open,
 			"no_owner":     stats.NoOwner,
 			"stale_24h":    stats.Stale24h,
+			"weekly":       weekly,
 			"course":       course,
 		}
 		if hasPatrol {
@@ -76,6 +85,11 @@ func cmdCuratorTick(argv []string) int {
 
 	fmt.Printf("открытых узлов %d, без владельца %d, без движения >24 ч %d%s",
 		stats.Open, stats.NoOwner, stats.Stale24h, lineEnding)
+	fmt.Printf("weekly due=%t ran=%t last=%s run=%s transitions=%d merge=%d%s",
+		weekly.Due, weekly.Ran, weekly.LastRunID, weekly.RunID, weekly.Transitions, weekly.MergeCount, lineEnding)
+	if weekly.Error != "" {
+		fmt.Printf("weekly error=%s%s", weekly.Error, lineEnding)
+	}
 	fmt.Printf("курс %s | тормозов >1ч %d | idle окон %d | гейтов %d | действий %d%s",
 		course.Progress, len(course.Stalls1h), len(course.IdleWindows), len(course.PendingGates), len(course.Actions), lineEnding)
 	for _, action := range course.Actions {

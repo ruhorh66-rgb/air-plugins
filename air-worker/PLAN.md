@@ -576,3 +576,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-005_0-11-2-generic-executable-learned-rules]] · 0.11.2: generic executable learned rules
 - [open] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-006_0-11-2-enforce-canonical-learn-journal]] · 0.11.2: enforce canonical learn journal
 - [closed] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-007_0-11-2-complete-curator-tick-course-control]] · 0.11.2: complete curator tick course control
+- [open] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-008_0-11-2-schedule-weekly-learning-maintenance]] · 0.11.2: schedule weekly learning maintenance

@@ -128,3 +128,33 @@ func TestWeeklyMergeReviewCreatesPendingProposalOnly(t *testing.T) {
 		t.Fatalf("merge review mutated active source rules: active=%#v err=%v", active, err)
 	}
 }
+
+func TestLearnWeeklyScheduleRunsImmediatelyThenWaitsSevenDays(t *testing.T) {
+	product := t.TempDir()
+	now := time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)
+
+	due, last, _, err := learnWeeklyDue(product, now)
+	if err != nil || !due || last != nil {
+		t.Fatalf("first due=%v last=%#v err=%v", due, last, err)
+	}
+	first, err := runDueLearnWeekly(product, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !first.Due || !first.Ran || first.RunID == "" || first.Report == "" {
+		t.Fatalf("first weekly view=%#v", first)
+	}
+
+	early, err := runDueLearnWeekly(product, now.Add(6*24*time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if early.Due || early.Ran || early.LastRunID != first.RunID {
+		t.Fatalf("weekly reran too early: first=%#v early=%#v", first, early)
+	}
+
+	dueAgain, _, _, err := learnWeeklyDue(product, now.Add(7*24*time.Hour))
+	if err != nil || !dueAgain {
+		t.Fatalf("weekly not due at 7d: due=%v err=%v", dueAgain, err)
+	}
+}
