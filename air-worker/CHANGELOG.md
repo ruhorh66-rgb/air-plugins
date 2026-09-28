@@ -11,6 +11,9 @@
 - On active sessions, the PreToolUse commit gate checks staged added lines for `HH:MM SGT`; a timestamp more than 10 minutes from current SGT blocks the commit and points to `curator-check`. Midnight wrap is handled explicitly.
 - `learn apply` can activate this executable rule only after a real UserPromptSubmit grant and only after built-in mutation cases pass. The generated typed manifest carries approval and verification receipts and supports rollback.
 - Real AirCurator migration: 73 legacy events imported over the existing 13 plan-node events; rerun imported 0; source SHA stayed unchanged. AC7 proposal `LP-20260928T133444Z-31d4ca9c` is pending LPR approval through curator node N-014.
+- L11-8 adds non-interactive GPT-window identity to `plan node new|close` and `learn add|event`, with JSON mutation output and `actor=gpt-window:<window>` stored in the canonical event stream.
+- `curator tick` now builds patrol coverage from AirCurator node N-012: one row per registered window with latest commit, files changed in the last 30 minutes and state, ending with `проверено N из N`. Any unresolved window makes the judge `REJECT` and returns exit code 3.
+- Real SRVLM01 patrol smoke covered 8/8 N-012 windows with PASS. A GPT-window acceptance through AIR Commander created a typed plan-node event and learn event and proved `node list -stale` sees the node.
 
 Release control: full Go/vet, plugin/Hermes/binary/boundary/shell/reproducibility/selftest, exact-tree semantic review, then tag/GitHub Release/marketplace/install. Activation of AC7 remains separately gated by exact `да LP-20260928T133444Z-31d4ca9c`.
 
