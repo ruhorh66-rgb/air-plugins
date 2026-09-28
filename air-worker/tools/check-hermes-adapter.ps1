@@ -6,9 +6,17 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $profileRoot = Join-Path $repoRoot '.hermes\profiles'
 $pluginManifest = Join-Path $repoRoot '.hermes\plugins\air-worker\plugin.yaml'
+$canonicalManifest = Join-Path $repoRoot '.claude-plugin\plugin.json'
 $profileNames = @('airworker-hermes-v1-shadow', 'airworker-hermes-v1-enforce')
 $failures = [System.Collections.Generic.List[string]]::new()
 $passes = [System.Collections.Generic.List[string]]::new()
+$expectedVersion = ''
+try {
+    $canonicalPlugin = Get-Content -LiteralPath $canonicalManifest -Raw -Encoding UTF8 | ConvertFrom-Json
+    $expectedVersion = [string]$canonicalPlugin.version
+} catch {
+    $failures.Add("cannot read canonical Claude plugin version: $($_.Exception.Message)")
+}
 
 function Pass([string]$Message) { $passes.Add($Message) }
 function Fail([string]$Message) { $failures.Add($Message) }
@@ -79,7 +87,7 @@ foreach ($name in $profileNames) {
     if ($contract.schema_version -ne 'air-worker.hermes-profile/v1' -or $contract.contract_version -ne '1.0.0') { Fail "$name profile contract version mismatch" }
     if ($contract.profile.name -ne $name -or $contract.profile.mode -ne ($name -replace '^airworker-hermes-v1-', '')) { Fail "$name profile identity mismatch" }
     if ([bool]$contract.profile.enforcement -ne $name.EndsWith('-enforce')) { Fail "$name enforcement mismatch" }
-    if ($contract.plugin.name -ne 'air-worker' -or $contract.plugin.version -ne '0.10.13') { Fail "$name plugin identity mismatch" }
+    if ($contract.plugin.name -ne 'air-worker' -or -not $expectedVersion -or $contract.plugin.version -ne $expectedVersion) { Fail "$name plugin identity mismatch" }
     if ($contract.tool.name -ne 'air_worker' -or $contract.tool.schema_version -ne 'air-worker.tool/v1') { Fail "$name tool schema mismatch" }
     $caps = $contract.capability_requirements
     $acceptedTransports = @($caps.safe_prompt_transport.accepted | ForEach-Object { [string]$_ } | Sort-Object)
@@ -92,8 +100,11 @@ foreach ($name in $profileNames) {
 
 $plugin = Read-Utf8NoBom $pluginManifest
 if ($null -ne $plugin) {
-    if ((Yaml-Scalar $plugin 'name') -ne 'air-worker' -or (Yaml-Scalar $plugin 'version') -ne '0.10.13') { Fail 'canonical plugin manifest is not air-worker 0.10.13' }
-    else { Pass 'canonical plugin manifest air-worker 0.10.13' }
+    $hermesVersion = Yaml-Scalar $plugin 'version'
+    if ((Yaml-Scalar $plugin 'name') -ne 'air-worker' -or -not $expectedVersion -or $hermesVersion -ne $expectedVersion) {
+        Fail "canonical Hermes plugin manifest identity mismatch: expected air-worker $expectedVersion, got air-worker $hermesVersion"
+    }
+    else { Pass "canonical plugin manifest air-worker $expectedVersion" }
 }
 
 $hermes = Get-Command hermes -ErrorAction SilentlyContinue
