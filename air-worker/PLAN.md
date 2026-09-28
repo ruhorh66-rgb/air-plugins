@@ -574,6 +574,6 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] 0.11.2 urgent: LEARN + GPT parity · owner:AC·DEV·AirWorker · [[N-003_0-11-2-gpt-lifecycle-hooks-parity]] · 0.11.2: GPT lifecycle hooks parity
 - [open] 0.11.2 urgent: LEARN + GPT parity · owner:AC·DEV·AirWorker · [[N-004_0-11-2-chatgpt-host-hook-transport-gap]] · 0.11.2: ChatGPT host hook transport gap
 - [closed] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-005_0-11-2-generic-executable-learned-rules]] · 0.11.2: generic executable learned rules
-- [open] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-006_0-11-2-enforce-canonical-learn-journal]] · 0.11.2: enforce canonical learn journal
+- [closed] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-006_0-11-2-enforce-canonical-learn-journal]] · 0.11.2: enforce canonical learn journal
 - [closed] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-007_0-11-2-complete-curator-tick-course-control]] · 0.11.2: complete curator tick course control
 - [closed] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-008_0-11-2-schedule-weekly-learning-maintenance]] · 0.11.2: schedule weekly learning maintenance
