@@ -35,22 +35,54 @@ func cmdCuratorTick(argv []string) int {
 		fmt.Fprintln(os.Stderr, "curator tick:", err)
 		return 2
 	}
+	patrol, hasPatrol, err := buildCuratorPatrolCoverage(root, now)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "curator tick patrol:", err)
+		return 3
+	}
+	rc := 0
+	if hasPatrol && !patrol.Complete {
+		rc = 3
+	}
 	if *asJSON {
 		doc := map[string]any{
-			"schema":       "air-worker.curator.tick/v1",
+			"schema":       "air-worker.curator.tick/v2",
 			"generated_at": now.UTC().Format(time.RFC3339Nano),
 			"product":      root,
 			"open_nodes":   stats.Open,
 			"no_owner":     stats.NoOwner,
 			"stale_24h":    stats.Stale24h,
 		}
+		if hasPatrol {
+			doc["patrol"] = patrol
+		}
 		if err := json.NewEncoder(os.Stdout).Encode(doc); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}
-		return 0
+		return rc
 	}
+
 	fmt.Printf("открытых узлов %d, без владельца %d, без движения >24 ч %d%s",
 		stats.Open, stats.NoOwner, stats.Stale24h, lineEnding)
-	return 0
+	if hasPatrol {
+		for _, row := range patrol.Rows {
+			files := "-"
+			if len(row.Files30m) > 0 {
+				files = strings.Join(row.Files30m, ",")
+			}
+			commit := row.Commit
+			if commit == "" {
+				commit = "-"
+			}
+			commitAt := row.CommitAt
+			if commitAt == "" {
+				commitAt = "-"
+			}
+			fmt.Printf("%s | commit=%s @ %s | files30m=%d [%s] | state=%s%s",
+				row.Window, commit, commitAt, len(row.Files30m), files, row.State, lineEnding)
+		}
+		fmt.Printf("%s | judge=%s%s", patrol.Summary, patrol.Judge, lineEnding)
+	}
+	return rc
 }

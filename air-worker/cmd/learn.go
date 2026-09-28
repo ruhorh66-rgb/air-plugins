@@ -408,8 +408,10 @@ func cmdLearnEventWithName(name string, argv []string) int {
 	evidence := fs.String("evidence", "", "optional evidence reference")
 	kind := fs.String("kind", "lesson", "lesson, correction, violation, check, or judge_result")
 	source := fs.String("source", "worker", "event source")
-	actor := fs.String("actor", "", "optional actor")
+	actor := fs.String("actor", "", "actor/session name")
+	actorKind := fs.String("actor-kind", "", "gpt-window or claude-session")
 	reference := fs.String("reference", "", "optional related event or artifact reference")
+	asJSON := fs.Bool("json", false, "JSON output")
 	if err := fs.Parse(argv); err != nil {
 		return 2
 	}
@@ -428,13 +430,18 @@ func cmdLearnEventWithName(name string, argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
+	resolvedActor, err := resolveMutationActor(*actorKind, *actor, "")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, name+":", err)
+		return 2
+	}
 	now := time.Now().UTC()
 	id, err := newLearnID("LR", now)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	row := learnJournalRecord{Schema: learnSchemaVersion, ID: id, CreatedAt: now.Format(time.RFC3339Nano), Class: c, Observed: o, Evidence: strings.TrimSpace(*evidence), Kind: strings.TrimSpace(*kind), Source: strings.TrimSpace(*source), Actor: strings.TrimSpace(*actor), Reference: strings.TrimSpace(*reference)}
+	row := learnJournalRecord{Schema: learnSchemaVersion, ID: id, CreatedAt: now.Format(time.RFC3339Nano), Class: c, Observed: o, Evidence: strings.TrimSpace(*evidence), Kind: strings.TrimSpace(*kind), Source: strings.TrimSpace(*source), Actor: resolvedActor, Reference: strings.TrimSpace(*reference)}
 	if err := validateLearnEvent(row); err != nil {
 		fmt.Fprintln(os.Stderr, name+":", err)
 		return 2
@@ -447,7 +454,14 @@ func cmdLearnEventWithName(name string, argv []string) int {
 		fmt.Fprintln(os.Stderr, name+":", err)
 		return 2
 	}
-	fmt.Println(id)
+	if *asJSON {
+		if err := json.NewEncoder(os.Stdout).Encode(row); err != nil {
+			fmt.Fprintln(os.Stderr, name+":", err)
+			return 2
+		}
+	} else {
+		fmt.Println(id)
+	}
 	return 0
 }
 

@@ -388,6 +388,9 @@ func cmdPlanNodeNew(argv []string) int {
 	doneWhen := fs.String("done-when", "", "closure criterion")
 	trigger := fs.String("trigger", "", "LPR wording / trigger")
 	returnTo := fs.String("return-to", "", "where to return in the spine")
+	actor := fs.String("actor", "", "actor/session name")
+	actorKind := fs.String("actor-kind", "", "gpt-window or claude-session")
+	asJSON := fs.Bool("json", false, "machine-readable JSON")
 	if err := fs.Parse(argv); err != nil {
 		return 2
 	}
@@ -413,6 +416,11 @@ func cmdPlanNodeNew(argv []string) int {
 			fmt.Fprintf(os.Stderr, "-%s is required%s", name, lineEnding)
 			return 2
 		}
+	}
+	eventActor, err := resolveMutationActor(*actorKind, *actor, *owner)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "plan node new:", err)
+		return 2
 	}
 	id, err := nextPlanNodeID(root, *title)
 	if err != nil {
@@ -456,14 +464,22 @@ func cmdPlanNodeNew(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	event := planNodeEventRow(n, "created", filepath.ToSlash(filepath.Join(planNodeDirName, n.ID+".md")), "plan-node", nowTime)
+	event := planNodeEventRowWithActor(n, "created", filepath.ToSlash(filepath.Join(planNodeDirName, n.ID+".md")), "plan-node", nowTime, eventActor)
 	if err := appendPlanNodeEvents(root, []map[string]any{event}); err != nil {
 		_ = writeFileAtomic(planPath, planBefore)
 		_ = os.Remove(nodePath)
 		fmt.Fprintln(os.Stderr, "plan node event write failed:", err)
 		return 2
 	}
-	fmt.Printf("%s %s%s", n.ID, nodePath, lineEnding)
+	if *asJSON {
+		doc := map[string]any{"schema": "air-worker.plan.node.mutation/v1", "action": "created", "actor": eventActor, "node": n, "path": nodePath}
+		if err := json.NewEncoder(os.Stdout).Encode(doc); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+	} else {
+		fmt.Printf("%s %s%s", n.ID, nodePath, lineEnding)
+	}
 	return 0
 }
 
@@ -476,6 +492,9 @@ func cmdPlanNodeClose(argv []string) int {
 	fs := flag.NewFlagSet("plan node close", flag.ContinueOnError)
 	product := fs.String("product", ".", "product root")
 	receipt := fs.String("receipt", "", "receipt path/ref")
+	actor := fs.String("actor", "", "actor/session name")
+	actorKind := fs.String("actor-kind", "", "gpt-window or claude-session")
+	asJSON := fs.Bool("json", false, "machine-readable JSON")
 	if err := fs.Parse(argv[1:]); err != nil {
 		return 2
 	}
@@ -524,6 +543,11 @@ func cmdPlanNodeClose(argv []string) int {
 		fmt.Fprintln(os.Stderr, "PLAN.md has no node link:", n.ID)
 		return 2
 	}
+	eventActor, err := resolveMutationActor(*actorKind, *actor, n.Owner)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "plan node close:", err)
+		return 2
+	}
 	if n.Status == "closed" {
 		fmt.Printf("%s already closed%s", n.ID, lineEnding)
 		return 0
@@ -550,14 +574,22 @@ func cmdPlanNodeClose(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	event := planNodeEventRow(n, "closed", strings.TrimSpace(*receipt), "plan-node", closedAt)
+	event := planNodeEventRowWithActor(n, "closed", strings.TrimSpace(*receipt), "plan-node", closedAt, eventActor)
 	if err := appendPlanNodeEvents(root, []map[string]any{event}); err != nil {
 		_ = writeFileAtomic(path, nodeBefore)
 		_ = writeFileAtomic(planPath, planBefore)
 		fmt.Fprintln(os.Stderr, "plan node event write failed:", err)
 		return 2
 	}
-	fmt.Printf("%s closed -> %s%s", n.ID, n.ReturnTo, lineEnding)
+	if *asJSON {
+		doc := map[string]any{"schema": "air-worker.plan.node.mutation/v1", "action": "closed", "actor": eventActor, "node": n, "path": path}
+		if err := json.NewEncoder(os.Stdout).Encode(doc); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+	} else {
+		fmt.Printf("%s closed -> %s%s", n.ID, n.ReturnTo, lineEnding)
+	}
 	return 0
 }
 
@@ -796,6 +828,10 @@ func planNodeEventsPath(root string) string {
 }
 
 func planNodeEventRow(n planNode, action, evidence, source string, at time.Time) map[string]any {
+	return planNodeEventRowWithActor(n, action, evidence, source, at, strings.TrimSpace(n.Owner))
+}
+
+func planNodeEventRowWithActor(n planNode, action, evidence, source string, at time.Time, actor string) map[string]any {
 	if strings.TrimSpace(source) == "" {
 		source = "plan-node"
 	}
@@ -808,7 +844,7 @@ func planNodeEventRow(n planNode, action, evidence, source string, at time.Time)
 		"created_at": created,
 		"kind":       "check",
 		"source":     source,
-		"actor":      strings.TrimSpace(n.Owner),
+		"actor":      strings.TrimSpace(actor),
 		"reference":  n.ID,
 		"class":      "plan-node",
 		"observed":   strings.TrimSpace(action + " " + n.ID),
