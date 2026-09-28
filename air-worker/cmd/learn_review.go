@@ -224,13 +224,11 @@ func handleStopLearning(in hookInput) (hookResult, error) {
 		return hookResult{}, nil
 	}
 	transcriptPath := strings.TrimSpace(in.TranscriptPath)
-	if transcriptPath == "" && strings.EqualFold(hookPrincipal(in), "claude") {
+	if transcriptPath == "" {
 		return hookResult{}, nil
 	}
-	if transcriptPath != "" {
-		if st, err := os.Stat(transcriptPath); err != nil || st.IsDir() {
-			return hookResult{}, nil
-		}
+	if st, err := os.Stat(transcriptPath); err != nil || st.IsDir() {
+		return hookResult{}, nil
 	}
 	statePath := learnReviewStatePath(product, in.SessionID)
 	state := readLearnReviewState(statePath)

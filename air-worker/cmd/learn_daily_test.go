@@ -96,7 +96,7 @@ func TestReviewPacketContainsOnlyRecentCanonicalEventsAndClasses(t *testing.T) {
 	}
 }
 
-func TestGPTStopRunsDailyReviewWithoutTranscript(t *testing.T) {
+func TestGPTStopWithoutTranscriptDoesNotReview(t *testing.T) {
 	product := t.TempDir()
 	session := "gpt-daily-no-transcript"
 	hookTestStateForPrincipal(t, "chatgpt", session, product)
@@ -104,13 +104,8 @@ func TestGPTStopRunsDailyReviewWithoutTranscript(t *testing.T) {
 	oldSpawn := spawnLearnReviewProcess
 	defer func() { spawnLearnReviewProcess = oldSpawn }()
 	calls := 0
-	gotTranscript := "not-called"
-	spawnLearnReviewProcess = func(gotProduct, transcript, gotSession, reviewID string) error {
+	spawnLearnReviewProcess = func(_, _, _, _ string) error {
 		calls++
-		gotTranscript = transcript
-		if gotProduct != product || gotSession != session {
-			t.Fatalf("wrong GPT review identity: product=%q session=%q", gotProduct, gotSession)
-		}
 		return nil
 	}
 
@@ -118,7 +113,10 @@ func TestGPTStopRunsDailyReviewWithoutTranscript(t *testing.T) {
 	if _, err := handleStopLearning(in); err != nil {
 		t.Fatal(err)
 	}
-	if calls != 1 || gotTranscript != "" {
-		t.Fatalf("GPT daily review should start from canonical events without transcript: calls=%d transcript=%q", calls, gotTranscript)
+	if calls != 0 {
+		t.Fatalf("GPT Stop without transcript must not start a background review, calls=%d", calls)
+	}
+	if _, err := os.Stat(learnReviewStatePath(product, session)); !os.IsNotExist(err) {
+		t.Fatalf("GPT Stop without transcript must not create review state: %v", err)
 	}
 }
