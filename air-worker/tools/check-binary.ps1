@@ -134,12 +134,24 @@ try {
                 $script:fail += "судья, $case : поле $k расходится — скрипт «$($psVerdict.$k)», бинарник «$($goVerdict.$k)»"
             }
         }
-        # Набор полей тоже сверяется: поле, появившееся у одной реализации и не у другой,
-        # и есть начало молчаливого расхождения.
-        $psKeys = @($psVerdict.PSObject.Properties.Name | Sort-Object) -join ','
-        $goKeys = @($goVerdict.PSObject.Properties.Name | Sort-Object) -join ','
-        if ($psKeys -ne $goKeys) {
-            $script:fail += "судья, $case : наборы полей вердикта различаются — скрипт «$psKeys», бинарник «$goKeys»"
+        # Legacy-совместимость сверяет все поля старого судьи, но Go 0.10.13 имеет
+        # один канонический binary-only observability field: input_fingerprint. Он нужен
+        # report --cached для доказательства, что машинный вердикт относится к текущим
+        # PLAN/run-config/judge/checklist/scripts. Legacy PowerShell judge больше не
+        # канонический и этот fingerprint не вычисляет.
+        #
+        # Whitelist намеренно точечный: любое ДРУГОЕ поле только у Go по-прежнему FAIL,
+        # как и пропажа любого legacy-поля из Go.
+        $psNames = @($psVerdict.PSObject.Properties.Name)
+        $goNames = @($goVerdict.PSObject.Properties.Name)
+        $binaryOnlyAllowed = @('input_fingerprint')
+        $missingInGo = @($psNames | Where-Object { $_ -notin $goNames })
+        $unexpectedInGo = @($goNames | Where-Object { $_ -notin $psNames -and $_ -notin $binaryOnlyAllowed })
+        if ($missingInGo.Count -gt 0 -or $unexpectedInGo.Count -gt 0) {
+            $script:fail += "судья, $case : несовместимый набор полей — нет в binary «$($missingInGo -join ',')», неожиданные binary-only «$($unexpectedInGo -join ',')»"
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$goVerdict.input_fingerprint)) {
+            $script:fail += "судья, $case : binary verdict не содержит обязательный input_fingerprint"
         }
         if ($script:fail.Count -eq 0 -or -not ($script:fail[-1] -like "судья, $case*")) {
             $script:ok += "судья согласен, $case : код, текст и все числа вердикта"
