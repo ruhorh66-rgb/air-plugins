@@ -557,12 +557,104 @@ func printUpdateState(st updateState, asJSON bool) {
 	fmt.Print(lineEnding)
 }
 
+func updateCheckFresh(st updateState, cfg updateConfig, now time.Time) bool {
+	if st.Phase == "" || st.Phase == "unchecked" || st.Phase == "error" {
+		return false
+	}
+	if st.CurrentVersion != version || !strings.EqualFold(st.Channel, cfg.Channel) {
+		return false
+	}
+	at, err := time.Parse(time.RFC3339Nano, st.CheckedAt)
+	if err != nil {
+		return false
+	}
+	interval := time.Duration(cfg.CheckIntervalHours) * time.Hour
+	if interval <= 0 {
+		interval = 6 * time.Hour
+	}
+	return now.Sub(at) >= 0 && now.Sub(at) < interval
+}
+
 func cmdUpdate(argv []string) int {
 	if len(argv) == 0 {
 		fmt.Fprint(os.Stderr, "usage: air-worker update <status|check|download|install|channel>"+lineEnding)
 		return 2
 	}
 	switch strings.ToLower(argv[0]) {
+	case "payload":
+		fs := flag.NewFlagSet("update payload", flag.ContinueOnError)
+		root := fs.String("root", "", "plugin payload root")
+		asJSON := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(argv[1:]); err != nil {
+			return 2
+		}
+		if strings.TrimSpace(*root) == "" {
+			fmt.Fprintln(os.Stderr, "update payload: -root is required")
+			return 2
+		}
+		digest, count, err := payloadSnapshot(*root)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+		if *asJSON {
+			raw, _ := json.Marshal(map[string]any{"payload_sha256": digest, "file_count": count})
+			fmt.Println(string(raw))
+		} else {
+			fmt.Println(digest)
+		}
+		return 0
+
+	case "verify":
+		fs := flag.NewFlagSet("update verify", flag.ContinueOnError)
+		manifestPath := fs.String("manifest", "", "signed manifest path")
+		current := fs.String("current", "0.0.0", "version to compare against")
+		channel := fs.String("channel", "stable", "selected update channel")
+		assetDir := fs.String("asset-dir", "", "optional directory containing manifest assets")
+		asJSON := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(argv[1:]); err != nil {
+			return 2
+		}
+		if strings.TrimSpace(*manifestPath) == "" {
+			fmt.Fprintln(os.Stderr, "update verify: -manifest is required")
+			return 2
+		}
+		raw, err := os.ReadFile(*manifestPath)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+		var m updateManifest
+		if err := json.Unmarshal(stripUTF8BOM(raw), &m); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+		available, err := verifyUpdateManifest(m, *current, *channel)
+		if err == nil && strings.TrimSpace(*assetDir) != "" {
+			if e := verifyDownloadedArtifact(filepath.Join(*assetDir, m.CLI.Name), m.CLI); e != nil {
+				err = fmt.Errorf("cli asset: %w", e)
+			} else if e := verifyDownloadedArtifact(filepath.Join(*assetDir, m.Tray.Name), m.Tray); e != nil {
+				err = fmt.Errorf("tray asset: %w", e)
+			}
+		}
+		if *asJSON {
+			result := map[string]any{"verified": err == nil, "available": available, "version": m.Version, "channel": m.Channel}
+			if err != nil {
+				result["error"] = err.Error()
+			}
+			out, _ := json.Marshal(result)
+			fmt.Println(string(out))
+		} else if err == nil {
+			fmt.Printf("verified: %s %s%s", m.Channel, m.Version, lineEnding)
+		}
+		if err != nil {
+			if !*asJSON {
+				fmt.Fprintln(os.Stderr, err)
+			}
+			return 1
+		}
+		return 0
+
 	case "channel":
 		cfg, err := loadUpdateConfig()
 		if err != nil {
@@ -609,8 +701,19 @@ func cmdUpdate(argv []string) int {
 	case "check":
 		fs := flag.NewFlagSet("update check", flag.ContinueOnError)
 		asJSON := fs.Bool("json", false, "JSON")
+		ifStale := fs.Bool("if-stale", false, "skip network when the recorded check is still fresh")
 		if err := fs.Parse(argv[1:]); err != nil {
 			return 2
+		}
+		if *ifStale {
+			cfg, cfgErr := loadUpdateConfig()
+			if cfgErr == nil {
+				if st, readErr := readUpdateState(); readErr == nil && updateCheckFresh(st, cfg, time.Now().UTC()) {
+					st.CurrentVersion = version
+					printUpdateState(st, *asJSON)
+					return 0
+				}
+			}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 		defer cancel()

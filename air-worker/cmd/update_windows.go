@@ -142,6 +142,41 @@ func runUpdateSelfcheck(livePath string) error {
 	}
 }
 
+func replaceUpdatePairTransactional(
+	snapshotDir, home, stagedCLI, stagedTray string,
+	m updateManifest,
+	accept func(liveCLI string) error,
+) error {
+	binDir := filepath.Join(home, "bin")
+	dstCLI := filepath.Join(binDir, "air-worker.exe")
+	dstTray := filepath.Join(binDir, "air-worker-tray.exe")
+	fail := func(cause error) error {
+		if restoreErr := restoreUpdateSnapshot(snapshotDir, home); restoreErr != nil {
+			return fmt.Errorf("%v; %w", cause, restoreErr)
+		}
+		return cause
+	}
+
+	if err := copyFile(stagedCLI, dstCLI); err != nil {
+		return fail(fmt.Errorf("replace CLI: %w", err))
+	}
+	if err := copyFile(stagedTray, dstTray); err != nil {
+		return fail(fmt.Errorf("replace tray: %w", err))
+	}
+	if err := verifyDownloadedArtifact(dstCLI, m.CLI); err != nil {
+		return fail(fmt.Errorf("verify installed CLI: %w", err))
+	}
+	if err := verifyDownloadedArtifact(dstTray, m.Tray); err != nil {
+		return fail(fmt.Errorf("verify installed tray: %w", err))
+	}
+	if accept != nil {
+		if err := accept(dstCLI); err != nil {
+			return fail(err)
+		}
+	}
+	return nil
+}
+
 func cmdUpdateApply(argv []string) int {
 	fs := flag.NewFlagSet("update _apply", flag.ContinueOnError)
 	manifestPath := fs.String("manifest", "", "signed manifest path")
@@ -272,22 +307,15 @@ func cmdUpdateApply(argv []string) int {
 		return 1
 	}
 
-	if err := copyFile(stagedCLI, dstCLI); err != nil {
-		return rollback(fmt.Errorf("replace CLI: %w", err))
-	}
-	if err := copyFile(stagedTray, dstTray); err != nil {
-		return rollback(fmt.Errorf("replace tray: %w", err))
-	}
-	if err := verifyDownloadedArtifact(dstCLI, m.CLI); err != nil {
-		return rollback(fmt.Errorf("verify installed CLI: %w", err))
-	}
-	if err := verifyDownloadedArtifact(dstTray, m.Tray); err != nil {
-		return rollback(fmt.Errorf("verify installed tray: %w", err))
-	}
-	if err := verifyUpdateLiveIdentity(m, dstCLI); err != nil {
-		return rollback(fmt.Errorf("distribution identity: %w", err))
-	}
-	if err := runUpdateSelfcheck(dstCLI); err != nil {
+	if err := replaceUpdatePairTransactional(
+		snapshotDir, *home, stagedCLI, stagedTray, m,
+		func(liveCLI string) error {
+			if err := verifyUpdateLiveIdentity(m, liveCLI); err != nil {
+				return fmt.Errorf("distribution identity: %w", err)
+			}
+			return runUpdateSelfcheck(liveCLI)
+		},
+	); err != nil {
 		return rollback(err)
 	}
 

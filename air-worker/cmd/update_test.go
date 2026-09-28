@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"strings"
 	"testing"
+	"time"
 )
 
 func signedUpdateManifestForTest(t *testing.T, versionText, channel string) (updateManifest, string) {
@@ -118,5 +119,37 @@ func TestUpdateSemverNumericPrereleaseOrdering(t *testing.T) {
 	stable, _ := parseUpdateSemVersion("0.11.0")
 	if compareUpdateSemVersion(stable, a) <= 0 {
 		t.Fatal("stable 0.11.0 must be newer than its prerelease")
+	}
+}
+
+func TestUpdateCheckFresh(t *testing.T) {
+	now := time.Date(2026, 9, 28, 10, 0, 0, 0, time.UTC)
+	cfg := updateConfig{Schema: updateSchema, Channel: "stable", CheckIntervalHours: 6}
+	fresh := updateState{
+		Schema: updateSchema, CurrentVersion: version, Channel: "stable",
+		Phase: "current", CheckedAt: now.Add(-5 * time.Hour).Format(time.RFC3339Nano),
+	}
+	if !updateCheckFresh(fresh, cfg, now) {
+		t.Fatal("fresh successful check should skip network")
+	}
+	stale := fresh
+	stale.CheckedAt = now.Add(-7 * time.Hour).Format(time.RFC3339Nano)
+	if updateCheckFresh(stale, cfg, now) {
+		t.Fatal("stale check should hit network")
+	}
+	failed := fresh
+	failed.Phase = "error"
+	if updateCheckFresh(failed, cfg, now) {
+		t.Fatal("error state must retry")
+	}
+	wrongChannel := fresh
+	wrongChannel.Channel = "prerelease"
+	if updateCheckFresh(wrongChannel, cfg, now) {
+		t.Fatal("channel change must force a check")
+	}
+	wrongVersion := fresh
+	wrongVersion.CurrentVersion = "0.10.13"
+	if updateCheckFresh(wrongVersion, cfg, now) {
+		t.Fatal("binary version change must force a check")
 	}
 }

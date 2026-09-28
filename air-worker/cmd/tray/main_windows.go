@@ -121,6 +121,122 @@ func workerExe() string {
 	return filepath.Join(filepath.Dir(self), "air-worker.exe")
 }
 
+func runWorkerHidden(args ...string) ([]byte, error) {
+	cmd := exec.Command(workerExe(), args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return cmd.Output()
+}
+
+func readWorkerVersion() string {
+	out, err := runWorkerHidden("version")
+	if err != nil {
+		return ""
+	}
+	fields := strings.Fields(strings.TrimSpace(string(out)))
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[len(fields)-1]
+}
+
+func readTrayUpdateStatus(checkIfStale bool) trayUpdateState {
+	args := []string{"update", "status", "-json"}
+	if checkIfStale {
+		args = []string{"update", "check", "-if-stale", "-json"}
+	}
+	out, err := runWorkerHidden(args...)
+	if err != nil && len(out) == 0 {
+		return trayUpdateState{Phase: "error", Error: "update status не ответил"}
+	}
+	var st trayUpdateState
+	if json.Unmarshal(bytes.TrimPrefix(out, utf8BOM), &st) != nil {
+		return trayUpdateState{Phase: "error", Error: "update status не разобран"}
+	}
+	return st
+}
+
+func updateDir() string {
+	return filepath.Join(filepath.Dir(filepath.Dir(workerExe())), "update")
+}
+
+func updateStatusLine(st trayUpdateState) string {
+	channel := strings.TrimSpace(st.Channel)
+	if channel == "" {
+		channel = "stable"
+	}
+	switch {
+	case st.Error != "":
+		return fmt.Sprintf("Обновления · %s · ошибка: %s", channel, st.Error)
+	case st.UpdateAvailable && st.LatestVersion != "":
+		return fmt.Sprintf("Обновления · %s · доступно %s", channel, st.LatestVersion)
+	case st.Phase == "unchecked" || st.Phase == "":
+		return fmt.Sprintf("Обновления · %s · ещё не проверялись", channel)
+	default:
+		return fmt.Sprintf("Обновления · %s · актуально", channel)
+	}
+}
+
+func productMenuLine(p productState) string {
+	session := strings.TrimSpace(p.Session)
+	if len(session) > 22 {
+		session = session[:8] + "…"
+	}
+	if session == "" {
+		session = "сессия ?"
+	}
+	if principal := strings.TrimSpace(p.Principal); principal != "" {
+		session = principal + "/" + session
+	}
+	step := ""
+	if p.CurrentStep != "" {
+		step = " · шаг " + p.CurrentStep
+		if p.ProgressTotal > 0 {
+			step += fmt.Sprintf(" (%d/%d)", p.ProgressClosed, p.ProgressTotal)
+		}
+	}
+	state := ""
+	switch {
+	case p.Err != "":
+		state = p.Err
+	case p.Outcome == "running":
+		state = "работает"
+		if p.Worker != "" {
+			state += ": " + p.Worker
+		}
+	case p.StopReason == "lpr_gate" || p.NextAction == "approve_lpr":
+		state = "ждёт вашего слова"
+	case p.Outcome == "completed" || p.Outcome == "done":
+		state = "цель достигнута"
+	case p.StopReason == "no_live_worker":
+		state = "стоит: нет живого воркера"
+	case p.StopReason == "limit":
+		state = "стоит: лимит модели"
+	case p.StopReason == "not_proven":
+		state = "стоит: судья не подтвердил"
+	case p.StopReason != "":
+		state = "стоит: " + p.StopReason
+	case p.Verdict == "THROTTLE":
+		state = "сузьте шаг"
+	case p.Verdict == "ESCALATE":
+		state = "остановлено: нужен человек"
+	case p.Verdict == "ЖДЁТ ЛПР":
+		state = "ждёт вашего слова"
+	case p.Distance == nil:
+		state = "нечем измерить"
+	default:
+		state = fmt.Sprintf("расстояние %d", *p.Distance)
+	}
+	stamp := ""
+	if strings.TrimSpace(p.JudgeAt) != "" {
+		if t, err := time.Parse(time.RFC3339Nano, p.JudgeAt); err == nil {
+			stamp = " · замер " + t.Local().Format("15:04")
+		} else {
+			stamp = " · замер " + p.JudgeAt
+		}
+	}
+	return fmt.Sprintf("%s · %s%s · %s%s", session, p.Name, step, state, stamp)
+}
+
 // declaredProducts читает продукты, ОБЪЯВЛЕННЫЕ сессиями. Угадывания здесь нет
 // намеренно: один раз угадывание по рабочему каталогу поймало каталог, мимо которого
 // сессия проходила, и двигатель считал расстояние по чужому состоянию.
@@ -161,13 +277,16 @@ func declaredProducts() []productState {
 			session = strings.TrimSuffix(strings.TrimPrefix(n, "woody-product-"), ".json")
 		}
 		key := strings.ToLower(body.Path)
-		// Один продукт, объявленный двумя сессиями, — это ОДИН продукт. Показать его
-		// дважды значило бы удвоить и число в подсказке.
-		if _, ok := seen[key]; !ok {
-			seen[key] = productState{
-				Path: body.Path, Name: filepath.Base(body.Path),
-				Session: session, Principal: strings.TrimSpace(body.Principal),
-			}
+		candidate := productState{
+			Path: body.Path, Name: filepath.Base(body.Path),
+			Session: session, Principal: strings.TrimSpace(body.Principal),
+		}
+		// Один продукт, объявленный двумя сессиями, — это ОДИН продукт. При миграции
+		// рядом могут лежать legacy-файл (только path) и новый host-neutral declaration.
+		// Предпочитаем запись с principal/session_key, иначе в меню снова останется
+		// бессмысленный UUID вместо владельца.
+		if old, ok := seen[key]; !ok || (old.Principal == "" && candidate.Principal != "") {
+			seen[key] = candidate
 		}
 	}
 	out := make([]productState, 0, len(seen))
@@ -249,6 +368,15 @@ func measure(p productState) productState {
 	return p
 }
 
+func runUpdateCommand(args ...string) {
+	go func() {
+		cmd := exec.Command(workerExe(), append([]string{"update"}, args...)...)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		_, _ = cmd.CombinedOutput()
+		refreshAsync()
+	}()
+}
+
 // shapeAndColor — единственное место, где состояние превращается в вид значка.
 func shapeAndColor(ps []productState) (iconShape, rgba) {
 	if len(ps) == 0 {
@@ -279,9 +407,13 @@ func shapeAndColor(ps []productState) (iconShape, rgba) {
 	}
 }
 
-func tooltip(ps []productState) string {
+func tooltip(ps []productState, ver string) string {
+	head := appName
+	if strings.TrimSpace(ver) != "" {
+		head += " " + strings.TrimSpace(ver)
+	}
 	if len(ps) == 0 {
-		return appName + " · продуктов не объявлено"
+		return head + " · продуктов не объявлено"
 	}
 	var parts []string
 	for _, p := range ps {
@@ -294,7 +426,7 @@ func tooltip(ps []productState) string {
 			parts = append(parts, fmt.Sprintf("%s: %d · %s", p.Name, *p.Distance, p.Verdict))
 		}
 	}
-	return appName + " · " + strings.Join(parts, " · ")
+	return head + " · " + strings.Join(parts, " · ")
 }
 
 func refreshAsync() {
@@ -303,8 +435,12 @@ func refreshAsync() {
 		for i := range ps {
 			ps[i] = measure(ps[i])
 		}
+		ver := readWorkerVersion()
+		upd := readTrayUpdateStatus(true)
 		stateMu.Lock()
 		products = ps
+		workerVer = ver
+		updateStatus = upd
 		stateMu.Unlock()
 		// В окно возвращаемся сообщением, а не прямым вызовом: Shell_NotifyIcon и меню
 		// обязаны жить в том потоке, который завёл окно.
@@ -320,6 +456,7 @@ const wmRefreshDone = 0x0400 + 2
 func applyState() {
 	stateMu.Lock()
 	ps := append([]productState(nil), products...)
+	ver := workerVer
 	stateMu.Unlock()
 
 	shape, color := shapeAndColor(ps)
@@ -333,7 +470,7 @@ func applyState() {
 		Flags: nifIcon | nifTip,
 		Icon:  next,
 	}
-	tip := tooltip(ps)
+	tip := tooltip(ps, ver)
 	copyTip(&nd.Tip, tip)
 	r, _, _ := procShellNotifyIconW.Call(nimModify, uintptr(unsafe.Pointer(&nd)))
 	writeProof(r != 0, tip)
@@ -346,6 +483,8 @@ func applyState() {
 func showMenu() {
 	stateMu.Lock()
 	ps := append([]productState(nil), products...)
+	ver := workerVer
+	upd := updateStatus
 	stateMu.Unlock()
 
 	m, _, _ := procCreatePopupMenu.Call()
@@ -354,28 +493,53 @@ func showMenu() {
 	}
 	defer procDestroyMenu.Call(m)
 
+	versionLine := "AirWorker"
+	if strings.TrimSpace(ver) != "" {
+		versionLine += " " + strings.TrimSpace(ver)
+	}
+	procAppendMenuW.Call(m, mfString|mfGrayed, 0,
+		uintptr(unsafe.Pointer(utf16(versionLine))))
+	procAppendMenuW.Call(m, mfString|mfGrayed, 0,
+		uintptr(unsafe.Pointer(utf16(updateStatusLine(upd)))))
+	procAppendMenuW.Call(m, mfSeparator, 0, 0)
+
 	if len(ps) == 0 {
 		procAppendMenuW.Call(m, mfString|mfGrayed, 0,
 			uintptr(unsafe.Pointer(utf16("продуктов не объявлено"))))
 	}
 	for i, p := range ps {
-		var line string
-		switch {
-		case p.Err != "":
-			line = fmt.Sprintf("%s — %s", p.Name, p.Err)
-		case p.Distance == nil:
-			line = fmt.Sprintf("%s — нечем измерить", p.Name)
-		default:
-			line = fmt.Sprintf("%s — расстояние %d · застой %d · %s",
-				p.Name, *p.Distance, p.Stall, p.Verdict)
-		}
 		procAppendMenuW.Call(m, mfString, uintptr(idProduct+i),
-			uintptr(unsafe.Pointer(utf16(line))))
+			uintptr(unsafe.Pointer(utf16(productMenuLine(p)))))
 	}
 
 	procAppendMenuW.Call(m, mfSeparator, 0, 0)
 	procAppendMenuW.Call(m, mfString, idRefresh, uintptr(unsafe.Pointer(utf16("Обновить замер"))))
 	procAppendMenuW.Call(m, mfString, idState, uintptr(unsafe.Pointer(utf16("Открыть каталог состояния"))))
+	procAppendMenuW.Call(m, mfString, idUpdateLog, uintptr(unsafe.Pointer(utf16("Открыть журнал обновления"))))
+
+	procAppendMenuW.Call(m, mfSeparator, 0, 0)
+	procAppendMenuW.Call(m, mfString, idCheckUpdate, uintptr(unsafe.Pointer(utf16("Проверить обновление"))))
+	installFlags := uintptr(mfString | mfGrayed)
+	installText := "Установить обновление — нет доступного"
+	if upd.UpdateAvailable {
+		installFlags = mfString
+		installText = "Установить обновление"
+		if strings.TrimSpace(upd.LatestVersion) != "" {
+			installText = "Установить " + strings.TrimSpace(upd.LatestVersion)
+		}
+	}
+	procAppendMenuW.Call(m, installFlags, idInstallUpdate, uintptr(unsafe.Pointer(utf16(installText))))
+
+	stableFlags := uintptr(mfString)
+	preFlags := uintptr(mfString)
+	if strings.EqualFold(strings.TrimSpace(upd.Channel), "prerelease") {
+		preFlags |= mfChecked
+	} else {
+		stableFlags |= mfChecked
+	}
+	procAppendMenuW.Call(m, stableFlags, idChannelStable, uintptr(unsafe.Pointer(utf16("Канал обновлений: stable"))))
+	procAppendMenuW.Call(m, preFlags, idChannelPrerelease, uintptr(unsafe.Pointer(utf16("Канал обновлений: prerelease"))))
+
 	procAppendMenuW.Call(m, mfSeparator, 0, 0)
 	procAppendMenuW.Call(m, mfString, idQuit, uintptr(unsafe.Pointer(utf16("Выход"))))
 
@@ -394,6 +558,26 @@ func openPath(p string) {
 		uintptr(unsafe.Pointer(utf16("open"))),
 		uintptr(unsafe.Pointer(utf16(p))),
 		0, 0, 5 /* SW_SHOW */)
+}
+
+func messageBox(title, text string, flags uintptr) uintptr {
+	r, _, _ := procMessageBoxW.Call(
+		uintptr(hwnd),
+		uintptr(unsafe.Pointer(utf16(text))),
+		uintptr(unsafe.Pointer(utf16(title))),
+		flags,
+	)
+	return r
+}
+
+func confirmUpdateInstall(latest string) bool {
+	if strings.TrimSpace(latest) == "" {
+		latest = "доступную версию"
+	}
+	text := "Установить AirWorker " + latest + " из подписанного GitHub Release?\n\n" +
+		"Перед заменой будут проверены подпись манифеста, SHA-256 и размер обоих файлов. " +
+		"При неуспешной post-install проверке выполняется откат."
+	return messageBox("AirWorker update", text, mbYesNo|mbIconQuestion) == idYes
 }
 
 func wndProc(h syscall.Handle, message uint32, wparam, lparam uintptr) uintptr {
@@ -426,6 +610,22 @@ func wndProc(h syscall.Handle, message uint32, wparam, lparam uintptr) uintptr {
 			refreshAsync()
 		case id == idState:
 			openPath(stateDir())
+		case id == idUpdateLog:
+			_ = os.MkdirAll(updateDir(), 0o755)
+			openPath(updateDir())
+		case id == idCheckUpdate:
+			runUpdateCommand("check")
+		case id == idInstallUpdate:
+			stateMu.Lock()
+			upd := updateStatus
+			stateMu.Unlock()
+			if upd.UpdateAvailable && confirmUpdateInstall(upd.LatestVersion) {
+				runUpdateCommand("install")
+			}
+		case id == idChannelStable:
+			runUpdateCommand("channel", "stable")
+		case id == idChannelPrerelease:
+			runUpdateCommand("channel", "prerelease")
 		case id == idQuit:
 			procPostMessageW.Call(uintptr(h), wmClose, 0, 0)
 		case id >= idProduct:

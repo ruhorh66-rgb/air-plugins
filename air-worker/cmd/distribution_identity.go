@@ -155,8 +155,10 @@ func payloadSnapshot(root string) (string, int, error) {
 		rel = filepath.ToSlash(rel)
 		if entry.IsDir() {
 			switch entry.Name() {
-			case ".git", ".woody", ".air-worker", ".in_use":
+			case ".git", ".woody", ".air-worker", ".in_use", "__pycache__":
 				// Host/cache runtime metadata is not part of the immutable plugin payload.
+				// Python bytecode is generated lazily by normal plugin use and differs by
+				// host/timing even when the released source payload is byte-identical.
 				return filepath.SkipDir
 			}
 			return nil

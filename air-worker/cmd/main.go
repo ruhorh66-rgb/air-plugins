@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.10.14"
+	version = "0.10.15"
 )
 
 func usage() {
@@ -141,7 +141,12 @@ func usage() {
         Штатное обновление через GitHub: подписанный Ed25519 channel manifest, immutable
         Release assets CLI+tray, SHA-256+size, запрет downgrade, синхронизация известных
         Claude/Codex plugin caches штатными командами, транзакционная замена и rollback.
+        check -if-stale использует интервал ядра и не создаёт второй таймер в трее.
         install никогда не выполняется фоном: запуск — только явным действием пользователя.
+  air-worker update payload -root <plugin-root> [-json]
+  air-worker update verify -manifest <file> [-asset-dir <dir>] [-channel stable|prerelease] [-json]
+        Release-only/read-only проверки тем же кодом клиента: canonical payload SHA и
+        подпись/URL/hash/size манифеста перед продвижением channel feed.
 
   air-worker install [-dir <куда>] [-autostart] [-no-start] [-status] [-uninstall]
         Ставит продукт в пользовательскую область и вешает значок в трее. ПОВЫШЕНИЕ ПРАВ
