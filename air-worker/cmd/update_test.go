@@ -153,3 +153,16 @@ func TestUpdateCheckFresh(t *testing.T) {
 		t.Fatal("binary version change must force a check")
 	}
 }
+
+func TestStampUpdateStateReturnsWrittenSchemaAndTime(t *testing.T) {
+	st := stampUpdateState(updateState{CurrentVersion: version, Channel: "stable", Phase: "current"})
+	if st.Schema != updateSchema {
+		t.Fatalf("schema=%d want=%d", st.Schema, updateSchema)
+	}
+	if st.CheckedAt == "" {
+		t.Fatal("checked_at was not stamped")
+	}
+	if _, err := time.Parse(time.RFC3339Nano, st.CheckedAt); err != nil {
+		t.Fatalf("checked_at is invalid: %q: %v", st.CheckedAt, err)
+	}
+}

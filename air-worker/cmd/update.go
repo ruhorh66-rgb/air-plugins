@@ -140,12 +140,16 @@ func writeUpdateConfig(cfg updateConfig) error {
 	return writeUpdateJSON(updateConfigPath(), cfg)
 }
 
-func writeUpdateState(st updateState) error {
+func stampUpdateState(st updateState) updateState {
 	st.Schema = updateSchema
 	if st.CheckedAt == "" {
 		st.CheckedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	}
-	return writeUpdateJSON(updateStatePath(), st)
+	return st
+}
+
+func writeUpdateState(st updateState) error {
+	return writeUpdateJSON(updateStatePath(), stampUpdateState(st))
 }
 
 func readUpdateState() (updateState, error) {
@@ -362,7 +366,7 @@ func fetchUpdateManifest(ctx context.Context, rawURL string) (updateManifest, er
 func checkForAirWorkerUpdate(ctx context.Context) (updateManifest, updateState, error) {
 	cfg, err := loadUpdateConfig()
 	if err != nil {
-		st := updateState{CurrentVersion: version, Phase: "error", Error: err.Error()}
+		st := stampUpdateState(updateState{CurrentVersion: version, Phase: "error", Error: err.Error()})
 		_ = writeUpdateState(st)
 		return updateManifest{}, st, err
 	}
@@ -389,12 +393,12 @@ func checkForAirWorkerUpdate(ctx context.Context) (updateManifest, updateState, 
 		if lastErr == nil {
 			lastErr = errors.New("no valid update manifest available")
 		}
-		st := updateState{
+		st := stampUpdateState(updateState{
 			CurrentVersion: version,
 			Channel:        cfg.Channel,
 			Phase:          "error",
 			Error:          lastErr.Error(),
-		}
+		})
 		_ = writeUpdateState(st)
 		return updateManifest{}, st, lastErr
 	}
@@ -409,6 +413,7 @@ func checkForAirWorkerUpdate(ctx context.Context) (updateManifest, updateState, 
 		ManifestURL:     bestURL,
 		ReleaseNotesURL: best.ReleaseNotesURL,
 	}
+	st = stampUpdateState(st)
 	if err != nil {
 		st.Phase, st.Error = "error", err.Error()
 		_ = writeUpdateState(st)
