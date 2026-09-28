@@ -32,9 +32,15 @@ func learnProposalSHA(p learnProposal) string {
 		CreatedAt string   `json:"created_at"`
 		Class     string   `json:"class"`
 		Rule      string   `json:"rule"`
+		Trigger   string   `json:"trigger,omitempty"`
+		CheckType string   `json:"check_type,omitempty"`
+		CheckSpec string   `json:"check_spec,omitempty"`
+		TestCase  string   `json:"test_case,omitempty"`
 		SourceIDs []string `json:"source_ids,omitempty"`
 	}{
-		ID: p.ID, CreatedAt: p.CreatedAt, Class: p.Class, Rule: p.Rule, SourceIDs: p.SourceIDs,
+		ID: p.ID, CreatedAt: p.CreatedAt, Class: p.Class, Rule: p.Rule,
+		Trigger: p.Trigger, CheckType: p.CheckType, CheckSpec: p.CheckSpec, TestCase: p.TestCase,
+		SourceIDs: p.SourceIDs,
 	}
 	b, _ := json.Marshal(stable)
 	return learnSHA(b)

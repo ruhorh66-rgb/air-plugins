@@ -209,6 +209,15 @@ func handlePreToolUseBypassGuard(in hookInput) (hookResult, error) {
 			return hookResult{}, fmt.Errorf("не разобран tool_input PreToolUse: %v", err)
 		}
 	}
+	if product, ok := productForLearningHook(in.SessionID); ok {
+		blocked, reason, err := enforceSGTCommitRule(product, params.Command, time.Now())
+		if err != nil {
+			return hookResult{}, err
+		}
+		if blocked {
+			return hookResult{Block: true, Reason: reason}, nil
+		}
+	}
 	if blocked, reason := classifyBypass(params.Command, []string{hookInstallHome()}); blocked {
 		return hookResult{Block: true, Reason: reason}, nil
 	}

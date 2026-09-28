@@ -598,8 +598,10 @@ func cmdLearnApply(argv []string) int {
 			fmt.Fprintln(os.Stderr, "learn apply: invalid executable rule spec:", err)
 			return 2
 		}
-		fmt.Fprintln(os.Stderr, "learn apply: executable 0.11 rule remains PENDING_LPR until L11-4 generates its check and its testcase passes")
-		return 2
+		if err := supportsExecutableLearnProposal(*proposal); err != nil {
+			fmt.Fprintln(os.Stderr, "learn apply: executable rule is not implemented:", err)
+			return 2
+		}
 	}
 	grant, grantClaimPath, grantPath, err := claimLearnApprovalGrant(root, *proposal)
 	if err != nil {
@@ -612,6 +614,15 @@ func cmdLearnApply(argv []string) int {
 			releaseLearnApprovalClaim(grantClaimPath, grantPath)
 		}
 	}()
+	if hasExecutableSpec {
+		committed, applyErr := applyVerifiedExecutableProposal(root, paths, proposals, idx, *proposal, grant, grantClaimPath, grantPath)
+		mutationCommitted = committed
+		if applyErr != nil {
+			fmt.Fprintln(os.Stderr, "learn apply:", applyErr)
+			return 2
+		}
+		return 0
+	}
 	originalProposals, err := os.ReadFile(paths.Proposals)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "learn apply:", err)
@@ -841,13 +852,18 @@ func cmdLearnRollback(argv []string) int {
 		fmt.Fprintln(os.Stderr, "learn rollback:", err)
 		return 2
 	}
-	current, err := os.ReadFile(paths.Rules)
+	ruleFile, err := ledgerRuleAbsolutePath(root, target.RulePath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "learn rollback:", err)
+		return 2
+	}
+	current, err := os.ReadFile(ruleFile)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "learn rollback:", err)
 		return 2
 	}
 	if learnSHA(current) != target.AfterSHA256 {
-		fmt.Fprintln(os.Stderr, "learn rollback: RULES.md changed since target apply; refusing to clobber newer state")
+		fmt.Fprintln(os.Stderr, "learn rollback: active rule changed since target apply; refusing to clobber newer state")
 		return 3
 	}
 	if target.BeforeExists {
@@ -857,11 +873,11 @@ func cmdLearnRollback(argv []string) int {
 			fmt.Fprintln(os.Stderr, "learn rollback: before blob missing or digest mismatch")
 			return 3
 		}
-		if err := writeLearnAtomic(paths.Rules, before); err != nil {
+		if err := writeLearnAtomic(ruleFile, before); err != nil {
 			fmt.Fprintln(os.Stderr, "learn rollback:", err)
 			return 2
 		}
-	} else if err := os.Remove(paths.Rules); err != nil && !errors.Is(err, os.ErrNotExist) {
+	} else if err := os.Remove(ruleFile); err != nil && !errors.Is(err, os.ErrNotExist) {
 		fmt.Fprintln(os.Stderr, "learn rollback:", err)
 		return 2
 	}
@@ -882,7 +898,7 @@ func cmdLearnRollback(argv []string) int {
 	afterExists := target.BeforeExists
 	afterSHA := ""
 	if afterExists {
-		b, _ := os.ReadFile(paths.Rules)
+		b, _ := os.ReadFile(ruleFile)
 		afterSHA = learnSHA(b)
 	}
 	row := learnLedgerRecord{
