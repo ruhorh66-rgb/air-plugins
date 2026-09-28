@@ -245,8 +245,17 @@ function Get-DeclaredHookCommands {
                             # поэтому подстановка делается сама — иначе Test-Path
                             # получит путь с фигурными скобками и скажет «недопустимые
                             # знаки», а человек прочитает это как «хука нет».
-                            $c = ([string]$h.command).Trim().Trim([char]34)
+                            $c = ([string]$h.command).Trim()
                             $c = $c.Replace('${CLAUDE_PLUGIN_ROOT}', $pluginRoot).Replace('/', [char]92)
+                            # hooks.json stores a command line, not always a bare file path.
+                            # For existence proof we need only argv[0]; passing the whole
+                            # quoted command plus arguments to Test-Path creates an illegal
+                            # Windows path (e.g. air-worker.exe" hook Stop).
+                            if ($c -match '^"([^"]+)"(?:\s|$)') {
+                                $c = $Matches[1]
+                            } elseif ($c -match '^(\S+)') {
+                                $c = $Matches[1]
+                            }
                             $cmds += $c
                         }
                     }
