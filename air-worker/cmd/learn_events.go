@@ -54,12 +54,16 @@ func validateLearnEvent(row learnJournalRecord) error {
 }
 
 type legacyCuratorEvent struct {
-	TS        string `json:"ts"`
-	Situation string `json:"situation"`
-	Curator   string `json:"curator"`
-	LPR       string `json:"lpr"`
-	Class     string `json:"class"`
-	Lesson    string `json:"lesson"`
+	TS        string   `json:"ts"`
+	Situation string   `json:"situation"`
+	Curator   string   `json:"curator"`
+	LPR       string   `json:"lpr"`
+	Class     string   `json:"class"`
+	Lesson    string   `json:"lesson"`
+	What      string   `json:"what"`
+	Rule      string   `json:"rule"`
+	Mechanism string   `json:"mechanism"`
+	Links     []string `json:"links"`
 }
 
 func stableImportedEvent(shape string, lineNumber int, line []byte, created, sourceTimestamp, class, observed, evidence, actor, reference, source string) learnJournalRecord {
@@ -71,6 +75,38 @@ func stableImportedEvent(shape string, lineNumber int, line []byte, created, sou
 		Class: class, Observed: observed, Evidence: evidence, ImportID: fingerprint,
 		SourceTimestamp: sourceTimestamp,
 	}
+}
+
+func legacyCuratorObservedEvidence(old legacyCuratorEvent) (string, string) {
+	observed := strings.TrimSpace(old.Lesson)
+	if observed == "" {
+		observed = strings.TrimSpace(old.Rule)
+	}
+	if observed == "" {
+		observed = strings.TrimSpace(old.What)
+	}
+	if observed == "" {
+		observed = strings.TrimSpace(old.Situation)
+	}
+
+	evidence := strings.TrimSpace(old.Situation)
+	if evidence == "" {
+		evidence = strings.TrimSpace(old.What)
+	}
+	var extras []string
+	if strings.TrimSpace(old.Mechanism) != "" {
+		extras = append(extras, "mechanism="+strings.TrimSpace(old.Mechanism))
+	}
+	if len(old.Links) > 0 {
+		extras = append(extras, "links="+strings.Join(old.Links, ","))
+	}
+	if len(extras) > 0 {
+		if evidence != "" {
+			evidence += " | "
+		}
+		evidence += strings.Join(extras, " | ")
+	}
+	return observed, evidence
 }
 
 func importLegacyEvents(target, sourcePath, shape string) (int, error) {
@@ -103,7 +139,8 @@ func importLegacyEvents(target, sourcePath, shape string) (int, error) {
 			if err != nil {
 				return err
 			}
-			candidates = append(candidates, stableImportedEvent(shape, lineNumber, line, created, old.TS, old.Class, old.Lesson, old.Situation, old.Curator, old.LPR, "aircurator"))
+			observed, evidence := legacyCuratorObservedEvidence(old)
+			candidates = append(candidates, stableImportedEvent(shape, lineNumber, line, created, old.TS, old.Class, observed, evidence, old.Curator, old.LPR, "aircurator"))
 		default:
 			return fmt.Errorf("unknown legacy event shape %q", shape)
 		}
