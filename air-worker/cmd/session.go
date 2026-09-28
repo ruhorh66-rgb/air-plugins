@@ -230,6 +230,7 @@ func cmdSessionDeclare(argv []string) int {
 // записаны, читаются здесь же — той же командой, что и пишет.
 func cmdSessionStatus(argv []string) int {
 	fs, principal, sessionKey, stateDir := sessionFlags("session status")
+	asJSON := fs.Bool("json", false, "machine-readable session state")
 	if err := fs.Parse(argv); err != nil {
 		return 2
 	}
@@ -240,24 +241,52 @@ func cmdSessionStatus(argv []string) int {
 	}
 	dir := resolveStateDir(*stateDir)
 
+	doc := map[string]any{
+		"schema":      "air-worker.session/v1",
+		"principal":   id.Principal,
+		"session_key": id.SessionKey,
+		"namespace":   id.namespace(),
+		"enabled":     false,
+	}
 	if off, err := readSessionOff(dir, id); err == nil {
-		fmt.Printf("сессия %s выключена словом ЛПР: «%s»; с %s"+lineEnding, id.namespace(), off.Words, off.At)
+		doc["off"] = true
+		doc["off_at"] = off.At
+		if *asJSON {
+			_ = json.NewEncoder(os.Stdout).Encode(doc)
+		} else {
+			fmt.Printf("сессия %s выключена словом ЛПР: «%s»; с %s"+lineEnding, id.namespace(), off.Words, off.At)
+		}
 		return 0
 	}
 
 	var mode sessionModeState
 	if readJSON(sessionModePath(dir, id), &mode) != nil {
-		fmt.Printf("режим выключен для сессии %s (файла состояния нет)"+lineEnding, id.namespace())
+		if *asJSON {
+			_ = json.NewEncoder(os.Stdout).Encode(doc)
+		} else {
+			fmt.Printf("режим выключен для сессии %s (файла состояния нет)"+lineEnding, id.namespace())
+		}
 		return 0
 	}
+	doc["enabled"] = mode.Enabled
+	doc["updated_at"] = mode.UpdatedAt
+
+	var prod sessionProductState
+	if readJSON(sessionProductPath(dir, id), &prod) == nil {
+		doc["product"] = prod.Path
+		doc["declared_at"] = prod.DeclaredAt
+	}
+	if *asJSON {
+		_ = json.NewEncoder(os.Stdout).Encode(doc)
+		return 0
+	}
+
 	state := "выключен"
 	if mode.Enabled {
 		state = "ВКЛЮЧЁН"
 	}
 	fmt.Printf("режим: %s; сессия %s; изменён %s"+lineEnding, state, id.namespace(), mode.UpdatedAt)
-
-	var prod sessionProductState
-	if readJSON(sessionProductPath(dir, id), &prod) == nil {
+	if prod.Path != "" {
 		fmt.Printf("продукт: %s; объявлен %s"+lineEnding, prod.Path, prod.DeclaredAt)
 	} else {
 		fmt.Print("продукт: НЕ ОБЪЯВЛЕН" + lineEnding)

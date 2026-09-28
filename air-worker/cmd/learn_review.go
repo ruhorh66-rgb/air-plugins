@@ -173,11 +173,12 @@ func handleUserPromptLearning(in hookInput) (hookResult, error) {
 	if !ok {
 		return hookResult{}, nil
 	}
-	// Claude's plugin hook is a trusted host-origin UserPromptSubmit event. External
-	// adapters such as ChatGPT may reuse the lifecycle handlers, but must not mint an
-	// LPR grant until their transport can prove the prompt came from the human host.
-	if hookPrincipal(in) == "claude" {
-		if _, err := captureLearnApprovalGrant(product, "claude", in.SessionID, in.Prompt); err != nil {
+	// Grant minting is allowed only after cmdHook has established trusted transport.
+	// Claude reaches this handler through its native plugin hook. External adapters such
+	// as ChatGPT must set host_trusted and pass the bridge-parent provenance check first.
+	principal := hookPrincipal(in)
+	if strings.EqualFold(principal, "claude") || in.HostTrusted {
+		if _, err := captureLearnApprovalGrant(product, principal, in.SessionID, in.Prompt); err != nil {
 			return hookResult{}, err
 		}
 	}
@@ -218,15 +219,18 @@ func handleStopLearning(in hookInput) (hookResult, error) {
 	if block, reason := judgeCuratorClaim(in.LastAssistantMessage); block {
 		return hookResult{Block: true, Reason: reason}, nil
 	}
-	if strings.TrimSpace(in.TranscriptPath) == "" {
-		return hookResult{}, nil
-	}
 	product, ok := productForLearningHookInput(in)
 	if !ok {
 		return hookResult{}, nil
 	}
-	if st, err := os.Stat(in.TranscriptPath); err != nil || st.IsDir() {
+	transcriptPath := strings.TrimSpace(in.TranscriptPath)
+	if transcriptPath == "" && strings.EqualFold(hookPrincipal(in), "claude") {
 		return hookResult{}, nil
+	}
+	if transcriptPath != "" {
+		if st, err := os.Stat(transcriptPath); err != nil || st.IsDir() {
+			return hookResult{}, nil
+		}
 	}
 	statePath := learnReviewStatePath(product, in.SessionID)
 	state := readLearnReviewState(statePath)
@@ -257,7 +261,7 @@ func handleStopLearning(in hookInput) (hookResult, error) {
 	if err := writeLearnReviewState(statePath, state); err != nil {
 		return hookResult{}, err
 	}
-	if err := spawnLearnReviewProcess(product, in.TranscriptPath, in.SessionID, reviewID); err != nil {
+	if err := spawnLearnReviewProcess(product, transcriptPath, in.SessionID, reviewID); err != nil {
 		state.Running = ""
 		if threshold > 0 {
 			state.Turns = threshold
@@ -312,7 +316,7 @@ func cmdLearnReview(argv []string) int {
 
 func readLearnTranscriptTail(path string) ([]byte, error) {
 	if path == "" {
-		return nil, errors.New("transcript path is empty")
+		return []byte{}, nil
 	}
 	f, err := os.Open(path)
 	if err != nil {

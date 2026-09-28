@@ -95,3 +95,30 @@ func TestReviewPacketContainsOnlyRecentCanonicalEventsAndClasses(t *testing.T) {
 		t.Fatalf("review packet leaked event older than 24h:\n%s", text)
 	}
 }
+
+func TestGPTStopRunsDailyReviewWithoutTranscript(t *testing.T) {
+	product := t.TempDir()
+	session := "gpt-daily-no-transcript"
+	hookTestStateForPrincipal(t, "chatgpt", session, product)
+
+	oldSpawn := spawnLearnReviewProcess
+	defer func() { spawnLearnReviewProcess = oldSpawn }()
+	calls := 0
+	gotTranscript := "not-called"
+	spawnLearnReviewProcess = func(gotProduct, transcript, gotSession, reviewID string) error {
+		calls++
+		gotTranscript = transcript
+		if gotProduct != product || gotSession != session {
+			t.Fatalf("wrong GPT review identity: product=%q session=%q", gotProduct, gotSession)
+		}
+		return nil
+	}
+
+	in := hookInput{Principal: "chatgpt", SessionID: session, HookEventName: "Stop"}
+	if _, err := handleStopLearning(in); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 || gotTranscript != "" {
+		t.Fatalf("GPT daily review should start from canonical events without transcript: calls=%d transcript=%q", calls, gotTranscript)
+	}
+}

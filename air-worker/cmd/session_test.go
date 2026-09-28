@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -138,5 +139,26 @@ func TestCriterion44Pending(t *testing.T) {
 	}
 	if strings.Contains(string(src), `os.Getenv("CLAUDE_CODE_SESSION_ID")`) {
 		t.Fatal("session.go обязан не читать CLAUDE_CODE_SESSION_ID: identity передаётся адаптером, не угадывается")
+	}
+}
+
+func TestSessionStatusJSON(t *testing.T) {
+	root := setupSessionProduct(t)
+	stateDir := t.TempDir()
+	if code := cmdSessionDeclare([]string{"-product", root, "-principal", "chatgpt", "-session-key", "sess-json", "-state-dir", stateDir}); code != 0 {
+		t.Fatalf("declare: code=%d", code)
+	}
+	out, code := captureStdout(t, func() int {
+		return cmdSessionStatus([]string{"-principal", "chatgpt", "-session-key", "sess-json", "-state-dir", stateDir, "-json"})
+	})
+	if code != 0 {
+		t.Fatalf("status -json: code=%d output=%s", code, out)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal([]byte(out), &doc); err != nil {
+		t.Fatalf("status JSON invalid: %v output=%s", err, out)
+	}
+	if doc["schema"] != "air-worker.session/v1" || doc["enabled"] != true || doc["principal"] != "chatgpt" || doc["product"] != root {
+		t.Fatalf("unexpected session JSON: %#v", doc)
 	}
 }

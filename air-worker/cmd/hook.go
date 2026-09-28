@@ -102,6 +102,7 @@ func classifyHookEvent(event string) hookClass {
 // протоколом по частям, а не сразу.
 type hookInput struct {
 	Principal            string          `json:"principal,omitempty"`
+	HostTrusted          bool            `json:"host_trusted,omitempty"`
 	SessionID            string          `json:"session_id"`
 	TranscriptPath       string          `json:"transcript_path"`
 	Cwd                  string          `json:"cwd"`
@@ -401,6 +402,16 @@ func cmdHook(argv []string) (code int) {
 		}
 		writeHookTrace(sessionID, event, class, "пропустил", detail)
 		return 0
+	}
+
+	if !strings.EqualFold(hookPrincipal(in), "claude") {
+		if !in.HostTrusted {
+			writeHookTrace(sessionID, event, class, "пропустил", "external adapter event has no trusted-host provenance")
+			return 0
+		}
+		if err := verifyTrustedHostApprovalSource(); err != nil {
+			return finishHook(class, event, sessionID, "untrusted external host transport: "+err.Error())
+		}
 	}
 
 	if !sessionActiveInput(in) {
