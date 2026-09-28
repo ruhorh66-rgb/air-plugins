@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.10.14"
+	version = "0.11.0"
 )
 
 func usage() {
@@ -72,6 +72,15 @@ func usage() {
   air-worker plan   -product <корень> [-apply] [-model M] [-dry-run] [-use-answer <файл>]
         Планировщик: разбивка цели на шаги ОДНИМ дорогим вызовом. Предлагает в
         PLAN.proposed.md; существующий PLAN.md не трогается никогда.
+  air-worker plan node new -product <корень> -title <...> -parent <этап> -owner <окно> -done-when <...>
+  air-worker plan node close <id> -product <корень> -receipt <ref>
+  air-worker plan node list -product <корень> [-open] [-stale 24h] [-no-owner] [-json]
+  air-worker plan spine -product <корень> [-json]
+  air-worker plan migrate -product <корень> [-owner <окно>] [-trigger <слово ЛПР>]
+        L11-7: PLAN.md остаётся нитью, подробности живут в plan/N-*.md; запись узлов
+        выполняется только ядром, закрытый узел остаётся в истории со статусом closed.
+        migrate раскладывает существующие ##-разделы дословно, не угадывая owner/status,
+        и пишет lifecycle-события узлов в learn/events.jsonl.
   air-worker plan-lint -product <корень> [-json]
         Неблокирующая формальная подсказка: разведочный model-step, уже измеряемый
         существующей проверкой и без mutation/file target, возможно должен быть script.
@@ -120,6 +129,8 @@ func usage() {
         Одноразовый обход/сводка встроенного AirCurator: ближайшая веха, шаг/гейт,
         очередь PENDING_LPR, эффект обучения, peer/assignment state, audit decision count
         и deterministic wake-card из orchestration state.
+  air-worker curator tick -product <root> [-now <RFC3339>] [-json]
+        L11-7: счётчики нити без модели — открытые узлы, без владельца, без движения >24 ч.
   air-worker curator peer register|list ...
         Durable registry внешних curator peers: provider/model/enabled/max_active.
   air-worker curator assignment assign|list|revoke ...
@@ -136,6 +147,17 @@ func usage() {
         Read-only distribution identity: live version/revision/SHA, Claude/Codex GitHub
         marketplace cache version/revision/payload snapshot, active config dirs and profile ambiguity.
         Same-version revision/SHA drift is a violation, not "already latest".
+
+  air-worker update status|check|download|install|channel [stable|prerelease]
+        Штатное обновление через GitHub: подписанный Ed25519 channel manifest, immutable
+        Release assets CLI+tray, SHA-256+size, запрет downgrade, синхронизация известных
+        Claude/Codex plugin caches штатными командами, транзакционная замена и rollback.
+        check -if-stale использует интервал ядра и не создаёт второй таймер в трее.
+        install никогда не выполняется фоном: запуск — только явным действием пользователя.
+  air-worker update payload -root <plugin-root> [-json]
+  air-worker update verify -manifest <file> [-asset-dir <dir>] [-channel stable|prerelease] [-json]
+        Release-only/read-only проверки тем же кодом клиента: canonical payload SHA и
+        подпись/URL/hash/size манифеста перед продвижением channel feed.
 
   air-worker install [-dir <куда>] [-autostart] [-no-start] [-status] [-uninstall]
         Ставит продукт в пользовательскую область и вешает значок в трее. ПОВЫШЕНИЕ ПРАВ
@@ -244,6 +266,8 @@ func run(argv []string) int {
 		return cmdCurator(argv[1:])
 	case "selfcheck":
 		return cmdSelfcheck(argv[1:])
+	case "update":
+		return cmdUpdate(argv[1:])
 	case "install":
 		return cmdInstall(argv[1:])
 	case "tray":

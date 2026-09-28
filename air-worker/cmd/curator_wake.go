@@ -235,7 +235,7 @@ func cmdCuratorWake(argv []string) int {
 		return 2
 	}
 	if !*dryRun {
-		fmt.Fprintln(os.Stderr, "curator wake: only --dry-run is implemented in 0.10.14 core slice")
+		fmt.Fprintln(os.Stderr, "curator wake: only --dry-run is implemented in the current core slice")
 		return 2
 	}
 	if strings.TrimSpace(*product) == "" {

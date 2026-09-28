@@ -1,6 +1,35 @@
 # CHANGELOG — air-worker
 
-## 0.10.14 — in development
+## 0.11.0 — in development
+
+### L11-7 — PLAN thread and durable nodes
+
+- Added the general AirWorker plan-node core for every product: `plan node new|close|list`, `plan spine`, and `plan migrate`.
+- `PLAN.md` becomes the compact thread; durable detail stays in `plan/N-<nnn>_<slug>.md` with validated YAML identity, trigger, owner, done_when, status, return_to and receipts. Closed nodes remain as history.
+- Node mutations are serialized by the existing product-scoped OS lock. `close` preserves the original/migrated Markdown body instead of regenerating it.
+- `plan migrate` is fail-closed and lossless: existing level-2 PLAN sections move verbatim into nodes, fenced headings are ignored, preamble remains in the thread, and existing node state blocks ambiguous migration.
+- Node lifecycle emits machine-readable `air-worker.learn/v1` events into `learn/events.jsonl`, compatible with the unified learning journal planned by L11-1.
+- Added `curator tick` node accounting: open nodes, ownerless nodes and nodes without movement for 24 hours, text and JSON.
+- Real pilot migrated AirCurator_Wiki: 13/13 original sections were byte-for-byte preserved in node bodies; 13 links/events were produced; canonical AirCurator main advanced by fast-forward commit `0c76b1a`.
+- Acceptance also proved that a new LPR input becomes a node with one core command; the test-only node was not merged into AirCurator canonical history.
+
+Base carried forward: accepted 0.10.15 signed GitHub updater + informative tray candidate.
+
+## 0.10.15 — release candidate 28.09.2026
+
+### Signed GitHub self-update and informative tray
+
+- Added one native update path through signed GitHub channel manifests (`stable` / `prerelease`) and immutable version-specific Release assets; `latest/download` is rejected.
+- Update trust is independent from GitHub: Ed25519 manifest verification, HTTPS-only URLs, SemVer/channel policy, downgrade prevention, SHA-256 and size checks for both CLI and tray.
+- Update install stages both binaries, synchronizes known Claude/Codex plugin caches through their native plugin commands, snapshots the live pair, replaces them transactionally, runs post-install identity/selfcheck, and rolls back on failure.
+- `selfcheck` now treats live/cache and cache/cache SemVer disagreement as a violation; host-generated `__pycache__` is excluded from immutable plugin payload identity.
+- Tray now shows the running AirWorker version, update channel/state/latest version, provides check/install/channel controls and the update log, and requires an explicit confirmation before install.
+- Product rows in tray use the core `adapter status` snapshot: session/principal, current step/progress, human-readable running/gate/stopped state and last judge time. Legacy and host-neutral declarations for the same product are deduplicated in favor of the richer declaration.
+- Background tray refresh invokes `update check -if-stale`; the core owns the check interval, so the tray does not implement a second freshness policy.
+
+Release control: full factual/package regression, signed-manifest mutation tests, transactional install/rollback fixture, exact-tree semantic review, then separate tag/GitHub Release/feed/install gate.
+
+## 0.10.14 — 28.09.2026
 
 ### Deterministic curator control core
 

@@ -45,6 +45,7 @@ var (
 	procPostMessageW        = user32.NewProc("PostMessageW")
 	procSetTimer            = user32.NewProc("SetTimer")
 	procRegisterWindowMsgW  = user32.NewProc("RegisterWindowMessageW")
+	procMessageBoxW         = user32.NewProc("MessageBoxW")
 	procCreateIconFromResEx = user32.NewProc("CreateIconFromResourceEx")
 	procDestroyIcon         = user32.NewProc("DestroyIcon")
 	procShellNotifyIconW    = shell32.NewProc("Shell_NotifyIconW")
@@ -77,9 +78,17 @@ const (
 	mfString    = 0x00000000
 	mfSeparator = 0x00000800
 	mfGrayed    = 0x00000001
+	mfChecked   = 0x00000008
 
 	tpmLeftAlign   = 0x0000
 	tpmRightButton = 0x0002
+
+	mbOK           = 0x00000000
+	mbYesNo        = 0x00000004
+	mbIconError    = 0x00000010
+	mbIconQuestion = 0x00000020
+	mbIconInfo     = 0x00000040
+	idYes          = 6
 
 	errAlreadyExists = 183
 )

@@ -150,11 +150,14 @@ func TestCopyTipAlwaysTerminates(t *testing.T) {
 
 // Подсказка называет КАЖДЫЙ объявленный продукт числом. Сводка «всё хорошо» без чисел
 // вернула бы нас к самоотчёту, от которого механизм и уходит.
-func TestTooltipNamesEveryProductWithNumbers(t *testing.T) {
+func TestTooltipNamesVersionAndEveryProductWithNumbers(t *testing.T) {
 	tip := tooltip([]productState{
 		{Name: "asw", Distance: ptr(24), Verdict: "ALLOW"},
 		{Name: "air-worker", Distance: nil},
-	})
+	}, "0.10.15")
+	if !strings.Contains(tip, "air-worker 0.10.15") {
+		t.Errorf("в подсказке нет версии: %q", tip)
+	}
 	if !strings.Contains(tip, "asw: 24") {
 		t.Errorf("в подсказке нет числа продукта asw: %q", tip)
 	}
@@ -163,5 +166,41 @@ func TestTooltipNamesEveryProductWithNumbers(t *testing.T) {
 	}
 	if strings.Contains(tip, "air-worker: 0") {
 		t.Errorf("неизмеренное выдано за ноль: %q", tip)
+	}
+}
+
+func TestProductMenuLineIsHumanReadable(t *testing.T) {
+	lpr := productState{
+		Name: "asw", Principal: "asw", Session: "release-0.5.0-loop",
+		CurrentStep: "150г", ProgressClosed: 132, ProgressTotal: 237,
+		StopReason: "lpr_gate", NextAction: "approve_lpr", Distance: ptr(2),
+	}
+	line := productMenuLine(lpr)
+	for _, want := range []string{"asw/release-0.5.0-loop", "шаг 150г", "132/237", "ждёт вашего слова"} {
+		if !strings.Contains(line, want) {
+			t.Fatalf("строка %q не содержит %q", line, want)
+		}
+	}
+
+	stopped := productState{
+		Name: "storage", Principal: "claude", Session: "12345678-abcdef",
+		CurrentStep: "14", ProgressClosed: 21, ProgressTotal: 64,
+		StopReason: "no_live_worker", Distance: ptr(21),
+	}
+	line = productMenuLine(stopped)
+	if !strings.Contains(line, "стоит: нет живого воркера") {
+		t.Fatalf("остановка не переведена в человеческое состояние: %q", line)
+	}
+}
+
+func TestUpdateStatusLineDistinguishesStates(t *testing.T) {
+	if got := updateStatusLine(trayUpdateState{Channel: "stable", Phase: "current"}); !strings.Contains(got, "актуально") {
+		t.Fatalf("current=%q", got)
+	}
+	if got := updateStatusLine(trayUpdateState{Channel: "stable", Phase: "available", UpdateAvailable: true, LatestVersion: "0.10.16"}); !strings.Contains(got, "доступно 0.10.16") {
+		t.Fatalf("available=%q", got)
+	}
+	if got := updateStatusLine(trayUpdateState{Channel: "prerelease", Phase: "error", Error: "bad signature"}); !strings.Contains(got, "ошибка") {
+		t.Fatalf("error=%q", got)
 	}
 }
