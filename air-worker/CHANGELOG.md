@@ -1,6 +1,21 @@
 # CHANGELOG — air-worker
 
-## 0.10.15 — in development
+## 0.11.0 — in development
+
+### L11-7 — PLAN thread and durable nodes
+
+- Added the general AirWorker plan-node core for every product: `plan node new|close|list`, `plan spine`, and `plan migrate`.
+- `PLAN.md` becomes the compact thread; durable detail stays in `plan/N-<nnn>_<slug>.md` with validated YAML identity, trigger, owner, done_when, status, return_to and receipts. Closed nodes remain as history.
+- Node mutations are serialized by the existing product-scoped OS lock. `close` preserves the original/migrated Markdown body instead of regenerating it.
+- `plan migrate` is fail-closed and lossless: existing level-2 PLAN sections move verbatim into nodes, fenced headings are ignored, preamble remains in the thread, and existing node state blocks ambiguous migration.
+- Node lifecycle emits machine-readable `air-worker.learn/v1` events into `learn/events.jsonl`, compatible with the unified learning journal planned by L11-1.
+- Added `curator tick` node accounting: open nodes, ownerless nodes and nodes without movement for 24 hours, text and JSON.
+- Real pilot migrated AirCurator_Wiki: 13/13 original sections were byte-for-byte preserved in node bodies; 13 links/events were produced; canonical AirCurator main advanced by fast-forward commit `0c76b1a`.
+- Acceptance also proved that a new LPR input becomes a node with one core command; the test-only node was not merged into AirCurator canonical history.
+
+Base carried forward: accepted 0.10.15 signed GitHub updater + informative tray candidate.
+
+## 0.10.15 — release candidate 28.09.2026
 
 ### Signed GitHub self-update and informative tray
 

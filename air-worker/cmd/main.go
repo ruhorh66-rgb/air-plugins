@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.10.15"
+	version = "0.11.0"
 )
 
 func usage() {
@@ -76,8 +76,11 @@ func usage() {
   air-worker plan node close <id> -product <корень> -receipt <ref>
   air-worker plan node list -product <корень> [-open] [-stale 24h] [-no-owner] [-json]
   air-worker plan spine -product <корень> [-json]
+  air-worker plan migrate -product <корень> [-owner <окно>] [-trigger <слово ЛПР>]
         L11-7: PLAN.md остаётся нитью, подробности живут в plan/N-*.md; запись узлов
         выполняется только ядром, закрытый узел остаётся в истории со статусом closed.
+        migrate раскладывает существующие ##-разделы дословно, не угадывая owner/status,
+        и пишет lifecycle-события узлов в learn/events.jsonl.
   air-worker plan-lint -product <корень> [-json]
         Неблокирующая формальная подсказка: разведочный model-step, уже измеряемый
         существующей проверкой и без mutation/file target, возможно должен быть script.
@@ -126,6 +129,8 @@ func usage() {
         Одноразовый обход/сводка встроенного AirCurator: ближайшая веха, шаг/гейт,
         очередь PENDING_LPR, эффект обучения, peer/assignment state, audit decision count
         и deterministic wake-card из orchestration state.
+  air-worker curator tick -product <root> [-now <RFC3339>] [-json]
+        L11-7: счётчики нити без модели — открытые узлы, без владельца, без движения >24 ч.
   air-worker curator peer register|list ...
         Durable registry внешних curator peers: provider/model/enabled/max_active.
   air-worker curator assignment assign|list|revoke ...

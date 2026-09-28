@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.10.15",
-  "description": "AirWorker 0.10.15: signed GitHub self-update, visible version/update state in tray, and human-readable session/step status.",
+  "version": "0.11.0",
+  "description": "AirWorker 0.11.0: plan thread/node core, lossless migration, curator node tick, plus signed GitHub updater and informative tray.",
   "author": {
     "name": "AIR OS"
   },
