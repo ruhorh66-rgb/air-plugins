@@ -26,17 +26,18 @@ const (
 )
 
 type learnJournalRecord struct {
-	Schema    string `json:"schema"`
-	ID        string `json:"id"`
-	CreatedAt string `json:"created_at"`
-	Class     string `json:"class"`
-	Observed  string `json:"observed"`
-	Evidence  string `json:"evidence,omitempty"`
-	Kind      string `json:"kind"`
-	Source    string `json:"source"`
-	Actor     string `json:"actor,omitempty"`
-	Reference string `json:"reference,omitempty"`
-	ImportID  string `json:"import_id,omitempty"`
+	Schema          string `json:"schema"`
+	ID              string `json:"id"`
+	CreatedAt       string `json:"created_at"`
+	Class           string `json:"class"`
+	Observed        string `json:"observed"`
+	Evidence        string `json:"evidence,omitempty"`
+	Kind            string `json:"kind"`
+	Source          string `json:"source"`
+	Actor           string `json:"actor,omitempty"`
+	Reference       string `json:"reference,omitempty"`
+	ImportID        string `json:"import_id,omitempty"`
+	SourceTimestamp string `json:"source_timestamp,omitempty"`
 }
 
 type learnProposal struct {

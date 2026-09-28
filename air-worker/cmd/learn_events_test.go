@@ -74,6 +74,9 @@ func TestAirCuratorImportIsStableLosslessAndReadOnly(t *testing.T) {
 	if len(rows) != 2 || rows[0].ID == rows[1].ID || rows[0].CreatedAt != "2026-09-25T00:00:00Z" || rows[1].CreatedAt != "2026-09-25T00:00:00Z" {
 		t.Fatalf("duplicate/date import lost identity: %#v", rows)
 	}
+	if rows[0].SourceTimestamp != "2026-09-25" || rows[1].SourceTimestamp != "2026-09-25" {
+		t.Fatalf("legacy source timestamp was not preserved: %#v", rows)
+	}
 	if added, err = importLegacyEvents(target, source, "aircurator"); err != nil || added != 0 {
 		t.Fatalf("second import added=%d err=%v", added, err)
 	}
@@ -83,6 +86,24 @@ func TestAirCuratorImportIsStableLosslessAndReadOnly(t *testing.T) {
 	}
 	if added, err = importLegacyEvents(target, copyAtAnotherPath, "aircurator"); err != nil || added != 0 {
 		t.Fatalf("source path changed import identity: added=%d err=%v", added, err)
+	}
+}
+
+func TestNormalizeLegacyTimestampMixedShapes(t *testing.T) {
+	cases := map[string]string{
+		"2026-09-25":                "2026-09-25T00:00:00Z",
+		"2026-09-27T13:02:11":       "2026-09-27T13:02:11Z",
+		"2026-09-28T11:45+08:00":    "2026-09-28T03:45:00Z",
+		"2026-09-28T11:45:12+08:00": "2026-09-28T03:45:12Z",
+	}
+	for input, want := range cases {
+		got, err := normalizeLegacyTimestamp(input)
+		if err != nil || got != want {
+			t.Fatalf("normalize %q=%q err=%v want=%q", input, got, err, want)
+		}
+	}
+	if _, err := normalizeLegacyTimestamp("not-a-time"); err == nil {
+		t.Fatal("invalid legacy timestamp was accepted")
 	}
 }
 

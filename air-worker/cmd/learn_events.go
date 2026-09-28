@@ -38,8 +38,15 @@ func validateLearnEvent(row learnJournalRecord) error {
 	if _, err := cleanLearnText("observed", row.Observed); err != nil {
 		return err
 	}
-	for name, value := range map[string]string{"evidence": row.Evidence, "actor": row.Actor, "reference": row.Reference} {
-		if len([]rune(value)) > 2000 {
+	for name, value := range map[string]string{
+		"evidence": row.Evidence, "actor": row.Actor, "reference": row.Reference,
+		"source_timestamp": row.SourceTimestamp,
+	} {
+		limit := 2000
+		if name == "source_timestamp" {
+			limit = 200
+		}
+		if len([]rune(value)) > limit {
 			return fmt.Errorf("-%s is too long", name)
 		}
 	}
@@ -55,13 +62,14 @@ type legacyCuratorEvent struct {
 	Lesson    string `json:"lesson"`
 }
 
-func stableImportedEvent(shape string, lineNumber int, line []byte, created, class, observed, evidence, actor, reference, source string) learnJournalRecord {
+func stableImportedEvent(shape string, lineNumber int, line []byte, created, sourceTimestamp, class, observed, evidence, actor, reference, source string) learnJournalRecord {
 	identity := append([]byte(shape+"\n"+strconv.Itoa(lineNumber)+"\n"), line...)
 	fingerprint := learnSHA(identity)
 	return learnJournalRecord{
 		Schema: learnSchemaVersion, ID: "LE-" + fingerprint[:20], CreatedAt: created,
 		Kind: "lesson", Source: source, Actor: actor, Reference: reference,
 		Class: class, Observed: observed, Evidence: evidence, ImportID: fingerprint,
+		SourceTimestamp: sourceTimestamp,
 	}
 }
 
@@ -85,7 +93,7 @@ func importLegacyEvents(target, sourcePath, shape string) (int, error) {
 			if err != nil {
 				return err
 			}
-			candidates = append(candidates, stableImportedEvent(shape, lineNumber, line, created, old.Class, old.Observed, old.Evidence, "", old.ID, "air-worker-0.10"))
+			candidates = append(candidates, stableImportedEvent(shape, lineNumber, line, created, old.CreatedAt, old.Class, old.Observed, old.Evidence, "", old.ID, "air-worker-0.10"))
 		case "aircurator":
 			var old legacyCuratorEvent
 			if err := json.Unmarshal(line, &old); err != nil {
@@ -95,7 +103,7 @@ func importLegacyEvents(target, sourcePath, shape string) (int, error) {
 			if err != nil {
 				return err
 			}
-			candidates = append(candidates, stableImportedEvent(shape, lineNumber, line, created, old.Class, old.Lesson, old.Situation, old.Curator, old.LPR, "aircurator"))
+			candidates = append(candidates, stableImportedEvent(shape, lineNumber, line, created, old.TS, old.Class, old.Lesson, old.Situation, old.Curator, old.LPR, "aircurator"))
 		default:
 			return fmt.Errorf("unknown legacy event shape %q", shape)
 		}
@@ -127,17 +135,32 @@ func importLegacyEvents(target, sourcePath, shape string) (int, error) {
 	return added, nil
 }
 
-// AirCurator historically emitted YYYY-MM-DD. Midnight UTC is the deterministic
-// instant for that date; RFC3339 timestamps retain their instant and normalize to UTC.
+// Legacy journals used several timestamp shapes over the same two days. Some rows
+// carry an explicit offset, while others are floating wall-clock values written under
+// different machine timezones. A single inferred timezone would therefore fabricate
+// history. The original value is preserved separately in source_timestamp; created_at
+// is only a deterministic machine-ordering projection:
+//   - explicit offsets retain their instant and normalize to UTC;
+//   - date-only values become midnight UTC;
+//   - floating local values keep their wall-clock fields and are projected onto UTC.
 func normalizeLegacyTimestamp(value string) (string, error) {
+	value = strings.TrimSpace(value)
 	if t, err := time.Parse(time.RFC3339Nano, value); err == nil {
 		return t.UTC().Format(time.RFC3339Nano), nil
 	}
-	t, err := time.Parse("2006-01-02", value)
-	if err != nil {
-		return "", fmt.Errorf("invalid legacy timestamp %q", value)
+	if t, err := time.Parse("2006-01-02T15:04Z07:00", value); err == nil {
+		return t.UTC().Format(time.RFC3339Nano), nil
 	}
-	return t.UTC().Format(time.RFC3339Nano), nil
+	for _, layout := range []string{
+		"2006-01-02T15:04:05.999999999",
+		"2006-01-02T15:04",
+		"2006-01-02",
+	} {
+		if t, err := time.ParseInLocation(layout, value, time.UTC); err == nil {
+			return t.UTC().Format(time.RFC3339Nano), nil
+		}
+	}
+	return "", fmt.Errorf("invalid legacy timestamp %q", value)
 }
 
 func readLearnEventsNoMigration(path string) ([]learnJournalRecord, error) {
