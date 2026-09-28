@@ -30,6 +30,11 @@ func cmdCuratorTick(argv []string) int {
 			return 2
 		}
 	}
+	judgeRefresh, err := ensureFreshMachineVerdict(root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "curator tick judge:", err)
+		return 3
+	}
 	nodes, err := listPlanNodes(root)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "curator tick:", err)
@@ -62,6 +67,9 @@ func cmdCuratorTick(argv []string) int {
 	if weekly.Error != "" {
 		rc = 3
 	}
+	if judgeRefresh.Code == 2 {
+		rc = 3
+	}
 	if *asJSON {
 		doc := map[string]any{
 			"schema":       "air-worker.curator.tick/v3",
@@ -70,6 +78,7 @@ func cmdCuratorTick(argv []string) int {
 			"open_nodes":   stats.Open,
 			"no_owner":     stats.NoOwner,
 			"stale_24h":    stats.Stale24h,
+			"judge":        judgeRefresh,
 			"weekly":       weekly,
 			"course":       course,
 		}
@@ -85,6 +94,7 @@ func cmdCuratorTick(argv []string) int {
 
 	fmt.Printf("открытых узлов %d, без владельца %d, без движения >24 ч %d%s",
 		stats.Open, stats.NoOwner, stats.Stale24h, lineEnding)
+	fmt.Printf("judge refreshed=%t code=%d reason=%s%s", judgeRefresh.Refreshed, judgeRefresh.Code, judgeRefresh.Reason, lineEnding)
 	fmt.Printf("weekly due=%t ran=%t last=%s run=%s transitions=%d merge=%d%s",
 		weekly.Due, weekly.Ran, weekly.LastRunID, weekly.RunID, weekly.Transitions, weekly.MergeCount, lineEnding)
 	if weekly.Error != "" {

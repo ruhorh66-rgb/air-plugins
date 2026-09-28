@@ -135,7 +135,7 @@ func defaultHookHandler(hookInput) (hookResult, error) { return hookResult{}, ni
 // на следующих шагах, без изменения диспетчера.
 var hookHandlers = map[string]hookHandler{
 	"PreToolUse":       handlePreToolUseBypassGuard,
-	"PostToolUse":      handlePostToolUsePlanLint,
+	"PostToolUse":      handlePostToolUse,
 	"Stop":             handleStopLearning,
 	"SessionStart":     handleLearningContext,
 	"UserPromptSubmit": handleUserPromptLearning,

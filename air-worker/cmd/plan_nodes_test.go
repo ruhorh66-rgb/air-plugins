@@ -12,7 +12,21 @@ import (
 func seedPlanNodeProduct(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "PLAN.md"), []byte("# Plan\n\nЦель → этапы.\n"), 0o644); err != nil {
+	plan := "# Plan\n\n**Ц1.** fixture remains machine-measurable\n\n" +
+		"| Критерий | Цель | Признак достижения | Чем меряется |\n|---|---|---|---|\n" +
+		"| К1 | Ц1 | fixture fact closed | факт `f01` |\n\n" +
+		"| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n" +
+		"| ~~1~~ | fixture baseline | `script` | К1: факт f01 |\n"
+	if err := os.WriteFile(filepath.Join(root, "PLAN.md"), []byte(plan), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "run-config.json"), []byte(`{"judge":{"checklist":"goal/checklist.json"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "goal"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "goal", "checklist.json"), []byte(`{"items":[{"id":"f01","status":"closed"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	return root
