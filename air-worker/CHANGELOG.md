@@ -1,5 +1,20 @@
 # CHANGELOG — air-worker
 
+## 0.11.2 — release candidate 29.09.2026
+
+### Complete self-learning loop + first-class ChatGPT lifecycle
+
+- Completed L11-1..L11-6: one canonical learning journal, 6h/git-HEAD verdict freshness, daily partner review, generic executable learned checks, course-aware curator tick, per-rule usage telemetry and automatic weekly maintenance.
+- Learned rules now behave as indexed on-demand skills: compact descriptions are injected on session events; full bodies load by proposal id/class and include when-to-apply, procedure, pitfalls and verification sections.
+- `learn apply` and `learn rollback` publish canonical lifecycle events in `learn/events.jsonl`; legacy AirCurator journal access is migration-only and blocked from ordinary active-session writes.
+- Generic learned-rule registry supports verified `hook|gate|script` transactions; active hook implementations fail closed when a registered executable handler is missing.
+- `curator tick` v3 reports milestone progress, >1h stalls, idle windows, pending gates, deterministic actions and weekly learning state alongside patrol coverage; first weekly maintenance runs immediately, then no more often than every 7 days.
+- GPT sessions use host-neutral session identity and lifecycle handlers. Trusted external hosts can deliver SessionStart/UserPromptSubmit/PreToolUse/PostToolUse/Stop while untrusted external events cannot mint approval grants.
+- GPT Stop review now requires transcript evidence; the AIR Commander integration provides a minimal session trace that excludes tool arguments.
+- Report/commit/tick paths reject stale factual verdicts and refresh judge evidence instead of reusing old numeric distance.
+
+Release control: clean build, full Go/vet and package gates, GitHub Release/marketplaces, then installed-binary GPT smoke on SRVLM01 and AIR-ENV-002. Rollback: `air-worker--v0.11.1`. AC7 proposal `LP-20260928T133444Z-31d4ca9c` remains separately PENDING_LPR until exact trusted approval.
+
 ## 0.11.1 — release candidate 28.09.2026
 
 ### L11-1 + L11-4 — canonical learning journal and first executable rule
