@@ -530,6 +530,9 @@ func runLearnReview(product, transcriptPath, session, reviewID string) int {
 }
 
 func invokeLearnReviewModel(product, packetPath string) ([]learnReviewCandidate, error) {
+	if err := requirePonytailSkill(); err != nil {
+		return nil, fmt.Errorf("Ponytail: %w", err)
+	}
 	exePath, err := resolveRunnerTool("codex")
 	if err != nil {
 		return nil, err

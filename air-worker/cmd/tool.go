@@ -156,7 +156,7 @@ func toolNamesForProduct(root string) []string {
 		return names
 	}
 	if cfg.ModelPolicy.Schema != "" {
-		names = append([]string{"headroom"}, names...)
+		names = append([]string{"ponytail", "headroom"}, names...)
 	}
 	for _, rung := range cfg.Ladder {
 		if resolveRunner(cfg, rung).Kind == "router" {
@@ -178,7 +178,7 @@ func toolNamesForProduct(root string) []string {
 // есть ровно той валютой, которую мы весь день отказывались принимать.
 func cmdTool(argv []string) int {
 	fs := flag.NewFlagSet("tool", flag.ContinueOnError)
-	which := fs.String("which", "", "какой исполнитель: claude, codex, opencode, router, headroom")
+	which := fs.String("which", "", "какой исполнитель: claude, codex, opencode, router, headroom, ponytail")
 	product := fs.String("product", ".", "корень продукта для активной ladder")
 	if err := fs.Parse(argv); err != nil {
 		return 2
@@ -209,6 +209,16 @@ func cmdTool(argv []string) int {
 				continue
 			}
 			fmt.Printf("headroom %s ready · version %s"+lineEnding, headroomBaseURL, doc.Version)
+			continue
+		}
+		if n == "ponytail" {
+			skill, err := loadPonytailSkill()
+			if err != nil {
+				fmt.Printf("ponytail НЕ ГОТОВ%s  %v"+lineEnding, lineEnding, err)
+				worst = 2
+				continue
+			}
+			fmt.Printf("ponytail plugin ready · version %s · skill %s"+lineEnding, skill.Version, skill.Path)
 			continue
 		}
 		path, why, err := resolveRunnerToolWhy(n)

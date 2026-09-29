@@ -31,6 +31,10 @@ func callPlannerRunner(root, prompt string, runner runnerSpec, answerPath string
 		line("ОТКАЗ: неизвестный вендор планировщика: " + runner.Kind)
 		return 2
 	}
+	if err := requirePonytailSkill(); err != nil {
+		line("ОТКАЗ: Ponytail: " + err.Error())
+		return 2
+	}
 	exe, err := resolveRunnerTool("codex")
 	if err != nil {
 		line("ОТКАЗ: " + err.Error())

@@ -241,6 +241,9 @@ Rules:
 }
 
 func invokePlanReviewCodex(req planReviewRequest, exePath string) (string, string, *float64, *int, error) {
+	if err := requirePonytailSkill(); err != nil {
+		return "", "", nil, nil, fmt.Errorf("Ponytail: %w", err)
+	}
 	schema, err := os.CreateTemp("", "air-worker-plan-review-schema-*.json")
 	if err != nil {
 		return "", "", nil, nil, err

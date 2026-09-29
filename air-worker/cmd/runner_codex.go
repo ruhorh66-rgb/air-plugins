@@ -97,6 +97,9 @@ func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID 
 	if err := validateCodexAddDirs(runner.AddDirs); err != nil {
 		return stepResult{Subtype: "invalid_runner_config", Detail: "codex add_dirs: " + err.Error()}
 	}
+	if err := requirePonytailSkill(); err != nil {
+		return stepResult{Subtype: "invalid_runner_config", Detail: "ponytail: " + err.Error()}
+	}
 	cmd := runnerCommand(exePath, codexArgs(c.Root, prompt, runner)...)
 	cmd.Dir = c.Root
 	cmd.Env = codexEnv(nil)
@@ -116,6 +119,9 @@ type codexSubagentRun struct {
 func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
 	if err := validateCodexAddDirs(runner.AddDirs); err != nil {
 		return stepResult{Subtype: "invalid_runner_config", Detail: "codex add_dirs: " + err.Error()}
+	}
+	if err := requirePonytailSkill(); err != nil {
+		return stepResult{Subtype: "invalid_runner_config", Detail: "ponytail: " + err.Error()}
 	}
 	requested := c.Subagents
 	if requested < 1 {

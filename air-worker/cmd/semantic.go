@@ -220,6 +220,9 @@ func semanticCodexCommand(exePath, root, prompt string, reviewer runnerSpec, sch
 
 func invokeSemanticCodex(scope sessionScope, exePath, prompt string, reviewer runnerSpec, step string) (string, string, *float64, *int, error) {
 	root := scope.Root
+	if err := requirePonytailSkill(); err != nil {
+		return "", "", nil, nil, fmt.Errorf("Ponytail: %w", err)
+	}
 	schema, err := os.CreateTemp("", "air-worker-semantic-schema-*.json")
 	if err != nil {
 		return "", "", nil, nil, fmt.Errorf("create semantic output schema: %w", err)
