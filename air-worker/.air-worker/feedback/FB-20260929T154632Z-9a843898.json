@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260929T154632Z-9a843898",
+  "created_at": "2026-09-29T15:46:32.4227827Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.11.3",
+  "type": "defect",
+  "severity": "P0",
+  "observed": "AG7B factual receipt was DONE by 2026-09-29T14:05:33Z, then about 95 minutes had no new AirWorker .woody writes or commits while the owning chat remained occupied; terminal result was not automatically reattached/consumed.",
+  "expected": "Same owned scope reattaches terminal receipt after chat/transport pause and returns terminal output/next action before any new paid dispatch.",
+  "evidence": "AirGuard .woody receipts: AG7B executor DONE ~14:04:40Z, factual DONE ~14:05:33Z; no .woody writes/commits 14:05-15:40Z.",
+  "reproduction": "Let a durable job finish after caller/host pause, then resume the same session/scope.",
+  "workaround": "Manually inspect .woody/jobs receipt and output_path.",
+  "proposed_outcome": "Exactly-once terminal replay/reattach and workflow resume after caller restart; no duplicate model call."
+}

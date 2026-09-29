@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "step": "AIRWORKER_STALL_FORENSIC_BACKLOG",
+  "status": "BACKLOG_PREPARED_PLAN_DUALWRITE_BLOCKED",
+  "checked_at": "2026-09-29T15:46:40Z",
+  "product": "air-worker",
+  "source_version": "0.11.3",
+  "forensic": {
+    "ag6_executor_seconds": 108.685,
+    "ag6_factual_judge_seconds": 12.601,
+    "semantic_reviewer_seconds": 9.529,
+    "ag7b_executor_seconds": 66.241,
+    "ag7b_factual_judge_seconds": 5.147,
+    "no_new_airworker_woody_writes_or_commits_after_ag7b_minutes": 94.43,
+    "conclusion": "The >1.5h perceived hang was not one continuously running AirWorker executor/judge job. Durable AirWorker jobs completed in seconds/minutes; the controlling workflow failed to return/reattach/continue after terminal state, and AirWorker lacks hard caller wait bounds/heartbeat/automatic terminal replay to force recovery."
+  },
+  "code_findings": {
+    "unbounded_wait": "0.11.3 Codex executor, factual judge, semantic reviewer and planner call runReceipted with context.Background",
+    "receipt_gap": "jobReceipt has started_at/status/PID/output_path but no completed_at/duration_ms/exit_code/terminal_reason/last_output_at",
+    "reattach_gap": "durable receipt contract exists, but terminal replay/automatic same-scope continuation after host/chat pause is not guaranteed",
+    "judge_policy_gap": "model_policy.judges/judgeLaneRunner exists, while semantic.go uses hard-coded oppositeSemanticReviewer",
+    "context_bloat": {
+      "ag6_input_tokens": 435288,
+      "ag6_cached_input_tokens": 401664,
+      "ag7b_input_tokens": 154664,
+      "ag7b_cached_input_tokens": 121728
+    },
+    "plan_writer_blocker": "plan node new and feedback dual-write repeatedly fail atomic .PLAN.md.<pid>.tmp -> PLAN.md rename with Access is denied on canonical and clean F: worktrees despite non-readonly PLAN and Modify ACL; Windows writer retries for 2s in 0.11.3"
+  },
+  "feedback_backlog": [
+    {"id":"FB-20260929T154533Z-3ddaf3d8","severity":"P0","title":"Windows PLAN atomic replace under reader contention"},
+    {"id":"FB-20260929T154630Z-0b1c7eb3","severity":"P0","title":"Bounded wait for executor/judge/semantic/planner jobs"},
+    {"id":"FB-20260929T154632Z-9a843898","severity":"P0","title":"Terminal job reattach after chat/transport pause"},
+    {"id":"FB-20260929T154634Z-b2bb9823","severity":"P0","title":"Durable receipt completion/heartbeat/duration telemetry"},
+    {"id":"FB-20260929T154636Z-085875af","severity":"P1","title":"Stalled-job watchdog and user-visible progress"},
+    {"id":"FB-20260929T154638Z-928e269a","severity":"P1","title":"model_policy Anthropic judge lanes authoritative"},
+    {"id":"FB-20260929T154640Z-e7f27bd9","severity":"P1","title":"Executor context/token budget guard"}
+  ],
+  "plan_mutation": {
+    "attempted_via_core": true,
+    "result": "FAILED_ACCESS_DENIED",
+    "manual_plan_edit": false,
+    "workaround": "immutable feedback records committed on dedicated branch; PLAN nodes remain pending until writer is fixed"
+  }
+}

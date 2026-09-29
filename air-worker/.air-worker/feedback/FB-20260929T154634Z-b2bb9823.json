@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260929T154634Z-b2bb9823",
+  "created_at": "2026-09-29T15:46:34.4419295Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.11.3",
+  "type": "defect",
+  "severity": "P0",
+  "observed": "Durable receipts have started_at/status/PID/output_path but no completed_at, duration_ms, exit_code, terminal_reason, output_bytes or last_output_at; forensic duration required filesystem mtime.",
+  "expected": "Receipt alone is sufficient to distinguish healthy RUNNING, stalled, DONE and FAILED and to calculate duration.",
+  "evidence": "air-worker--v0.11.3 cmd/job_receipt.go jobReceipt struct and 29.09 AG6/AG7B receipts.",
+  "reproduction": "Run executor/judge to DONE and inspect receipt JSON.",
+  "workaround": "Infer terminal time from receipt/output file mtime, which is not a durable contract.",
+  "proposed_outcome": "Add atomic completion/progress telemetry fields and backward-compatible report/adapter interpretation."
+}

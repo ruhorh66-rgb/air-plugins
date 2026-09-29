@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260929T154640Z-e7f27bd9",
+  "created_at": "2026-09-29T15:46:40.5212777Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.11.3",
+  "type": "friction",
+  "severity": "P1",
+  "observed": "Bounded one-file executor tasks consumed very large context: AG6 435288 input tokens (401664 cached), AG7B 154664 input tokens (121728 cached).",
+  "expected": "Bounded task dispatch limits context/file-read/output budgets and exposes expansion reason.",
+  "evidence": "29.09 AirGuard executor .out turn.completed usage for AG6 and AG7B.",
+  "reproduction": "Dispatch one-file portability tasks through gpt6-sol low; executor reads broad repo/plugin context.",
+  "workaround": "Manually constrain task text and file scope; still not enforced by core.",
+  "proposed_outcome": "Task packet/file/context/output budgets with receipt metrics; same factual result at materially smaller context."
+}

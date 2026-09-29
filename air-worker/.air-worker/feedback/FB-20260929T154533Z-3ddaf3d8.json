@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260929T154533Z-3ddaf3d8",
+  "created_at": "2026-09-29T15:45:33.6471538Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.11.3",
+  "type": "defect",
+  "severity": "P0",
+  "observed": "plan node new on both canonical F:/-7-/air-worker and clean v0.11.3 worktree repeatedly fails atomic rename .PLAN.md.\u003cpid\u003e.tmp -\u003e PLAN.md with Access is denied; PLAN.md is not read-only and ACL grants Modify; 2-second retry still fails",
+  "expected": "PLAN/node/LEARN mutations succeed atomically on supported Windows/F: worktrees under transient reader/sharing contention without manual PLAN edits",
+  "evidence": "live reproduction 2026-09-29; existing FB-20260929T063408Z-74d2eef5 shows same class on AirLegal",
+  "reproduction": "Run air-worker 0.11.3 plan node new against F:/-7-/air-worker or clean v0.11.3 worktree after normal plan reads; observe rename Access is denied after bounded retry",
+  "workaround": "Do not edit PLAN/node manually; use separate clean evidence/backlog record and leave plan mutation pending",
+  "proposed_outcome": "Harden Windows atomic replace semantics/retry and regression on F: with concurrent readers; no partial PLAN/node/event state"
+}

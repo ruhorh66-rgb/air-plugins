@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260929T154638Z-928e269a",
+  "created_at": "2026-09-29T15:46:38.4927039Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.11.3",
+  "type": "defect",
+  "severity": "P1",
+  "observed": "model_policy.judges and judgeLaneRunner exist in 0.11.3, but semantic.go selects hard-coded oppositeSemanticReviewer; configured default/complex/arbitration Anthropic lanes are not the runtime source of truth.",
+  "expected": "OpenAI executor semantic review uses configured Anthropic judge lane/model/effort with factual judge authoritative.",
+  "evidence": "air-worker--v0.11.3 cmd/model_policy.go judgeLaneRunner has no runtime callers; cmd/semantic.go oppositeSemanticReviewer hard-codes Claude Sonnet medium for Codex/ChatGPT executors.",
+  "reproduction": "Configure model_policy.judges to a different valid Anthropic model/effort and run semantic review after Codex executor.",
+  "workaround": "Rely on hard-coded Sonnet semantic reviewer and treat policy config as non-authoritative.",
+  "proposed_outcome": "Wire semantic review to model_policy judge lanes; explicit low/medium/high fallback receipts; no max/ultra."
+}

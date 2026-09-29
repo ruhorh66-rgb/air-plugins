@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260929T154630Z-0b1c7eb3",
+  "created_at": "2026-09-29T15:46:30.3977827Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.11.3",
+  "type": "defect",
+  "severity": "P0",
+  "observed": "Long-running Codex executor, factual judge, semantic reviewer and planner paths use runReceipted with context.Background; a hung child can block the caller indefinitely. User observed a \u003e1.5h apparent hang during AirGuard work.",
+  "expected": "Caller wait is bounded; on wait expiry AirWorker returns RUNNING with receipt/output identity while durable child may continue; later poll resumes without duplicate model call.",
+  "evidence": "air-worker--v0.11.3 cmd/runner_codex.go, judge.go, semantic.go, planner.go use context.Background with runReceipted",
+  "reproduction": "Use a child command/model process that never returns through executor/judge/semantic path; caller has no timeout.",
+  "workaround": "Manually inspect receipt/PID/output and stop only owned process if necessary.",
+  "proposed_outcome": "Configurable per-role caller wait bound with durable RUNNING return and poll/resume semantics."
+}

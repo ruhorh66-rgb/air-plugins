@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20260929T154636Z-085875af",
+  "created_at": "2026-09-29T15:46:36.4648925Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.11.3",
+  "type": "friction",
+  "severity": "P1",
+  "observed": "During long workflows the user has no bounded progress surface: no elapsed/last-progress age/output growth/stall classification in the normal compact status, so active vs stranded work looks identical.",
+  "expected": "AirWorker compact status reports elapsed time and last progress age and names STALLED only after a defined threshold.",
+  "evidence": "29.09 user reported \u003e1.5h hang; durable receipts existed but required manual file/process inspection.",
+  "reproduction": "Start a slow or detached durable job and inspect normal adapter/report output.",
+  "workaround": "Manual PID/receipt/output checks.",
+  "proposed_outcome": "One-minute-or-slower watchdog/status surface; no process killing by default; actionable wake-card on stall."
+}
