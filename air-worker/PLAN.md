@@ -590,7 +590,7 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] N-014 vendor model ladder · owner:AC·DEV·AirWorker · [[N-019_0-11-3-release-regression-rollback-and-github-in]] · 0.11.3 release regression rollback and GitHub install gate
 - [closed] N-018 GPT executor core commands · owner:AC·DEV·AirWorker · [[N-020_0-11-3-ponytail-noninteractive-task-consumption-f]] · 0.11.3 Ponytail noninteractive task-consumption fix
 - [closed] N-020 Ponytail noninteractive task-consumption fix · owner:AC·DEV·AirWorker · [[N-021_0-11-3-codex-multiline-prompt-transport-via-stdi]] · 0.11.3 Codex multiline prompt transport via stdin
-- [open] N-019 0.11.3 release regression · owner:AC·DEV·AirWorker · [[N-022_0-11-3-remove-stale-llm-queue-release-check]] · 0.11.3 remove stale llm-queue release check
-- [open] N-019 0.11.3 release regression · owner:AC·DEV·AirWorker · [[N-023_0-11-3-align-engine-release-check-with-judgedeta]] · 0.11.3 align engine release check with judgeDetailed loop
+- [closed] N-019 0.11.3 release regression · owner:AC·DEV·AirWorker · [[N-022_0-11-3-remove-stale-llm-queue-release-check]] · 0.11.3 remove stale llm-queue release check
+- [closed] N-019 0.11.3 release regression · owner:AC·DEV·AirWorker · [[N-023_0-11-3-align-engine-release-check-with-judgedeta]] · 0.11.3 align engine release check with judgeDetailed loop
 - [closed] N-004 ChatGPT host hook transport gap · owner:AC·DEV·AirWorker · [[N-024_n-004-refresh-chatgpt-hook-cutover-on-air-comman]] · N-004 refresh ChatGPT hook cutover on AIR Commander r3.1
-- [open] N-019 0.11.3 release regression · owner:AC·DEV·AirWorker · [[N-025_0-11-3-align-planner-release-check-with-canonica]] · 0.11.3 align planner release check with canonical plan thread
+- [closed] N-019 0.11.3 release regression · owner:AC·DEV·AirWorker · [[N-025_0-11-3-align-planner-release-check-with-canonica]] · 0.11.3 align planner release check with canonical plan thread
