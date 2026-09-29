@@ -591,3 +591,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-018 GPT executor core commands · owner:AC·DEV·AirWorker · [[N-020_0-11-3-ponytail-noninteractive-task-consumption-f]] · 0.11.3 Ponytail noninteractive task-consumption fix
 - [closed] N-020 Ponytail noninteractive task-consumption fix · owner:AC·DEV·AirWorker · [[N-021_0-11-3-codex-multiline-prompt-transport-via-stdi]] · 0.11.3 Codex multiline prompt transport via stdin
 - [open] N-019 0.11.3 release regression · owner:AC·DEV·AirWorker · [[N-022_0-11-3-remove-stale-llm-queue-release-check]] · 0.11.3 remove stale llm-queue release check
+- [open] N-019 0.11.3 release regression · owner:AC·DEV·AirWorker · [[N-023_0-11-3-align-engine-release-check-with-judgedeta]] · 0.11.3 align engine release check with judgeDetailed loop

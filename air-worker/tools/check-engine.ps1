@@ -202,11 +202,26 @@ if (-not $engineSrcPath) {
     Assert-That "двигатель крутится в собственном цикле внутри одного процесса ($engineLang)" {
         $engineSrc -match $loopPattern
     }.GetNewClosure()
-    $judgePattern = if ($engineLang -eq 'go') { '\bc\.judge\(\)' } else { 'Invoke-Judge\b' }
-    $judgeCalls = @([regex]::Matches($engineSrc, $judgePattern))
-    Assert-That 'двигатель зовёт судью больше одного раза за один запуск (петля, а не разовый вызов)' {
-        $judgeCalls.Count -ge 2
-    }.GetNewClosure()
+    if ($engineLang -eq 'go') {
+        # Current Go engine asks the factual judge once before work and then calls
+        # judgeDetailed() from inside the iteration loop so semantic review receives
+        # the same factual packet. Counting only the old c.judge() spelling made the
+        # release check stale after that refactor.
+        $initialJudge = [regex]::Match($engineSrc, '\bc\.judge\(\)')
+        $loopStart = [regex]::Match($engineSrc, '(?m)^\s*for\s*\{', [System.Text.RegularExpressions.RegexOptions]::None)
+        $iterationJudge = [regex]::Match($engineSrc, '\bc\.judgeDetailed\(\)')
+        Assert-That 'двигатель спрашивает factual judge до работы и повторно внутри итерационного цикла' {
+            $initialJudge.Success -and
+            $loopStart.Success -and
+            $iterationJudge.Success -and
+            ($iterationJudge.Index -gt $loopStart.Index)
+        }.GetNewClosure()
+    } else {
+        $judgeCalls = @([regex]::Matches($engineSrc, 'Invoke-Judge\b'))
+        Assert-That 'двигатель зовёт судью больше одного раза за один запуск (петля, а не разовый вызов)' {
+            $judgeCalls.Count -ge 2
+        }.GetNewClosure()
+    }
 }
 
 Write-Output ''
