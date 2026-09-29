@@ -230,6 +230,10 @@ func cmdLoop(argv []string) int {
 		line("ОТКАЗ: в конфигурации нет раздела judge. Без судьи Дятел не работает.")
 		return 3
 	}
+	if err := validateModelPolicy(cfg); err != nil {
+		line("ОТКАЗ: model_policy: " + err.Error())
+		return 2
+	}
 
 	c := &loopCtx{
 		Root: root, Cfg: cfg, CfgPath: cfgPath, WhatIf: *whatIf,
@@ -470,6 +474,8 @@ func cmdLoop(argv []string) int {
 		}
 		tierIndex := m.Index
 		c.regressStreak = 0
+		var fallbackTier string
+		var fallbackQueue []string
 
 		for pass := 0; ; pass++ {
 			if pass > 0 {
@@ -502,6 +508,9 @@ func cmdLoop(argv []string) int {
 			}
 			c.iter++
 			tier := c.Ladder[tierIndex]
+			if fallbackTier != "" {
+				tier = fallbackTier
+			}
 			runner := resolveRunner(cfg, tier)
 			who := runner.Kind
 			if runner.Kind == "script" {
@@ -558,7 +567,20 @@ func cmdLoop(argv []string) int {
 				c.spent += *r.Cost
 			}
 			if r.Subtype == "vendor_limit" {
-				nextIndex, nextTier, ok := nextTierAfterVendorLimit(c.Ladder, tierIndex)
+				if fallbackTier == "" && len(fallbackQueue) == 0 {
+					fallbackQueue = executorFallbackTiers(cfg, c.Ladder[tierIndex])
+				}
+				nextTier := ""
+				nextIndex := tierIndex
+				if len(fallbackQueue) > 0 {
+					nextTier = fallbackQueue[0]
+					fallbackQueue = fallbackQueue[1:]
+					fallbackTier = nextTier
+				} else if tierIndex < len(c.Ladder)-1 {
+					nextIndex = tierIndex + 1
+					nextTier = c.Ladder[nextIndex]
+					fallbackTier = ""
+				}
 				row := map[string]any{
 					"event": "vendor_limit_fallback", "step": step.Index, "title": step.Title,
 					"tier": tier, "iteration": c.iter, "runner": runner.Kind,
@@ -569,7 +591,7 @@ func cmdLoop(argv []string) int {
 				}
 				addAgentLifecycleFields(row, r)
 				c.addStep(row)
-				if !ok {
+				if nextTier == "" {
 					closeWoody("ничего: vendor limit на последней ступени",
 						fmt.Sprintf("ступень %s исчерпала лимит, следующей разрешённой ступени нет", tier), 2)
 				}
@@ -577,6 +599,8 @@ func cmdLoop(argv []string) int {
 				line("  vendor limit — немедленно перехожу на " + nextTier + ".")
 				continue
 			}
+			fallbackTier = ""
+			fallbackQueue = nil
 			// К31: ШАГ СО СВОЕЙ КОМАНДОЙ ЗАКРЫВАЕТСЯ КОДОМ ЭТОЙ КОМАНДЫ, А НЕ ДВИГАТЕЛЕМ ЦЕЛИ.
 			//
 			// Нашла AIR-ENV-002 14.09.2026: команда шага script отработала кодом 0, напечатала

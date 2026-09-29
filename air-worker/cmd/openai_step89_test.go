@@ -5,46 +5,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestOpenAILadderFallback(t *testing.T) {
-	var cfg runConfig
-	if err := readJSON(filepath.Join("..", "run-config.json"), &cfg); err != nil {
-		t.Fatal(err)
-	}
-	want := []string{"luna:medium", "luna:max", "terra:medium", "terra:ultra", "sol:medium", "sol:ultra"}
-	start := -1
-	for i, tier := range cfg.Ladder {
-		if tier == want[0] {
-			start = i
-			break
-		}
-	}
-	if start < 0 || start+len(want) > len(cfg.Ladder) || strings.Join(cfg.Ladder[start:start+len(want)], "|") != strings.Join(want, "|") {
-		t.Fatalf("OpenAI ladder must be contiguous and exact: %v", cfg.Ladder)
-	}
-	models := map[string]string{"luna": "gpt-5.6-luna", "terra": "gpt-5.6-terra", "sol": "gpt-5.6-sol"}
-	for name, model := range models {
-		r := cfg.Runners[name]
-		if r.Kind != "codex" || r.Model != model {
-			t.Fatalf("%s runner=%+v", name, r)
-		}
-	}
-	index := start
-	for _, expected := range want[1:] {
-		var ok bool
-		index, _, ok = nextTierAfterVendorLimit(cfg.Ladder, index)
-		if !ok || cfg.Ladder[index] != expected {
-			t.Fatalf("fallback stopped at %q, want %q", cfg.Ladder[index], expected)
-		}
-	}
-	if _, _, ok := nextTierAfterVendorLimit(cfg.Ladder, len(cfg.Ladder)-1); ok {
-		t.Fatal("last rung must exhaust the ladder")
-	}
-
+func TestVendorLimitClassification(t *testing.T) {
 	for _, msg := range []string{
 		"HTTP 429 rate limit",
 		"insufficient_quota",

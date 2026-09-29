@@ -116,6 +116,7 @@ type runConfig struct {
 	GoalDrift     driftThresholds       `json:"goal_drift"`
 	Ladder        []string              `json:"ladder"`
 	Runners       map[string]runnerSpec `json:"runners"`
+	ModelPolicy   modelPolicySpec       `json:"model_policy"`
 	Orchestration orchestrationSpec     `json:"orchestration"`
 	Learning      learningSpec          `json:"learning"`
 	Budget        budgetSpec            `json:"budget"`

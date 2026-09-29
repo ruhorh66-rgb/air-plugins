@@ -38,9 +38,13 @@ func TestSemanticReviewerOppositeVendor(t *testing.T) {
 	if err != nil || r.Kind != "codex" {
 		t.Fatalf("claude reviewer = %+v, %v", r, err)
 	}
-	r, err = oppositeSemanticReviewer(runnerSpec{Kind: "codex"})
-	if err != nil || r.Kind != "claude" {
+	r, err = oppositeSemanticReviewer(runnerSpec{Kind: "codex", Model: "gpt-6-sol"})
+	if err != nil || r.Kind != "claude" || r.Model != "claude-sonnet-5-5" || r.Effort != "low" {
 		t.Fatalf("codex reviewer = %+v, %v", r, err)
+	}
+	r, err = oppositeSemanticReviewer(runnerSpec{Kind: "codex", Model: "gpt-6-astra"})
+	if err != nil || r.Model != "claude-opus-5-5" || r.Effort != "low" {
+		t.Fatalf("astra reviewer = %+v, %v", r, err)
 	}
 	if _, err := oppositeSemanticReviewer(runnerSpec{Kind: "script"}); err == nil {
 		t.Fatal("script must not get semantic model reviewer")
@@ -189,36 +193,25 @@ func TestPublishSemanticWritesLatestAndHistory(t *testing.T) {
 	}
 }
 
-func TestRouterFirstReleaseProfileKeepsCodexJudge(t *testing.T) {
+func TestReleaseProfileUsesOpenAIExecutorsAndAnthropicJudges(t *testing.T) {
 	var cfg runConfig
 	if err := readJSON(filepath.Join("..", "run-config.json"), &cfg); err != nil {
 		t.Fatalf("read release run-config: %v", err)
 	}
-	if len(cfg.Ladder) < 2 || cfg.Ladder[0] != "script" || cfg.Ladder[1] != "haiku:medium" {
-		t.Fatalf("release ladder must start script -> haiku:medium: %v", cfg.Ladder)
-	}
-	haiku := resolveRunner(cfg, cfg.Ladder[1])
-	if haiku.Kind != "router" {
-		t.Fatalf("haiku tier must route through AirLLMRouter: %+v", haiku)
+	if err := validateModelPolicy(cfg); err != nil {
+		t.Fatalf("release model policy: %v", err)
 	}
 	for _, tier := range cfg.Ladder {
 		r := resolveRunner(cfg, tier)
 		if r.Kind == "script" {
 			continue
 		}
-		if r.Kind != "router" && r.Kind != "claude" && r.Kind != "codex" && r.Kind != "openai" {
-			t.Fatalf("release has unsupported executor at %s: %+v", tier, r)
+		if r.Kind != "codex" {
+			t.Fatalf("release executor at %s must be OpenAI/Codex: %+v", tier, r)
 		}
 		reviewer, err := oppositeSemanticReviewer(r)
-		wantReviewer := "codex"
-		if r.Kind == "codex" || r.Kind == "openai" {
-			wantReviewer = "claude"
-		}
-		if err != nil || reviewer.Kind != wantReviewer {
-			t.Fatalf("executor at %s is not judged by the opposite provider: %+v, %v", tier, reviewer, err)
+		if err != nil || reviewer.Kind != "claude" || reviewer.Effort != "low" {
+			t.Fatalf("executor at %s must start with Anthropic low-effort judge: %+v, %v", tier, reviewer, err)
 		}
 	}
 }
-
-// The inverse Codex->Claude path remains available for a future executor profile,
-// but the 0.10.5 resilience release keeps Codex out of the executor ladder.

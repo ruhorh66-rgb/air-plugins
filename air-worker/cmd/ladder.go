@@ -38,7 +38,20 @@ func resolveLadderTier(ladder []string, tier string) ladderMatch {
 			return ladderMatch{Found: true, Index: i, Kind: "exact"}
 		}
 	}
-	name := tierName(tier)
+	aliased := policyTierAlias(tier)
+	if aliased != tier {
+		for i, r := range ladder {
+			if r == aliased {
+				return ladderMatch{Found: true, Index: i, Kind: "policy-alias"}
+			}
+		}
+	}
+	// An explicitly named effort is a contract. If that exact effort is not in the
+	// approved ladder, do not silently collapse it to the first rung of the model.
+	if tierEffort(aliased) != "" {
+		return ladderMatch{Kind: "none", Index: -1}
+	}
+	name := tierName(aliased)
 	for i, r := range ladder {
 		if tierName(r) == name {
 			return ladderMatch{Found: true, Index: i, Kind: "model-prefix"}

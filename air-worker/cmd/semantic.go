@@ -166,13 +166,15 @@ func combinedAcceptance(factualCode int, semantic semanticVerdict) string {
 func oppositeSemanticReviewer(executor runnerSpec) (runnerSpec, error) {
 	switch executor.Kind {
 	case "claude", "router":
-		// Router is the development executor, not a semantic reviewer. Codex stays
-		// an independent read-only judge just as it does for the Anthropic path.
+		// Legacy non-OpenAI executors keep the independent Codex reviewer path.
 		return runnerSpec{Kind: "codex", Effort: "high"}, nil
-	case "codex":
-		return runnerSpec{Kind: "claude", Model: "sonnet", Effort: "medium"}, nil
+	case "codex", "openai":
+		if strings.EqualFold(strings.TrimSpace(executor.Model), "gpt-6-astra") {
+			return runnerSpec{Kind: "claude", Model: "claude-opus-5-5", Effort: "low"}, nil
+		}
+		return runnerSpec{Kind: "claude", Model: "claude-sonnet-5-5", Effort: "low"}, nil
 	case "chatgpt":
-		return runnerSpec{Kind: "claude", Model: "sonnet", Effort: "medium"}, nil
+		return runnerSpec{Kind: "claude", Model: "claude-sonnet-5-5", Effort: "low"}, nil
 	default:
 		return runnerSpec{}, fmt.Errorf("semantic judge requires model executor; got %q", executor.Kind)
 	}
