@@ -106,20 +106,34 @@ Assert-That 'офлайн-самотест ladder.py (demo) проходит ц�
     $LASTEXITCODE -eq 0
 }
 
-# 6. Сама очередь (llm-queue) — инфраструктура ступеней 1-3 — должна отвечать
-#    независимо от того, поднят ли backend под ней. Если ляжет ОНА САМА (а не
-#    llama-server/роутер/codex под ней), это уже обрыв: ступеням 1-3 не во что
-#    ставить задание.
-Assert-That 'llm-queue dispatcher отвечает на capabilities (есть куда ставить ступени 1-3)' {
-    if (-not $py) { throw 'интерпретатор не найден — это нечем проверить' }
-    $dispatcherPath = $env:LLM_QUEUE_DISPATCHER
-    if (-not $dispatcherPath) { $dispatcherPath = 'E:\-8-\llm-queue\llm-queue\dispatcher.py' }
-    if (-not (Test-Path -LiteralPath $dispatcherPath)) { throw "dispatcher.py не найден: $dispatcherPath" }
-    $out = & $py $dispatcherPath capabilities --format json 2>&1 | Out-String
-    ($out -match '"run-job"') -and ($out -match '"show-job-json"')
+# 6. Release 0.11.3 больше не использует llm-queue как transport лестницы.
+#    Утверждённый контракт ЛПР 29.09: OpenAI/Codex executor -> Ponytail full;
+#    Anthropic semantic judge -> Headroom; список исполнителей выдаёт ядро AirWorker.
+#    Проверяем именно packaged binary, который пойдёт в GitHub Release.
+$airWorkerExe = Join-Path $productRoot 'bin\air-worker.exe'
+Assert-That 'package binary подтверждает Ponytail transport' {
+    if (-not (Test-Path -LiteralPath $airWorkerExe -PathType Leaf)) { throw "нет $airWorkerExe" }
+    $out = & $airWorkerExe tool -which ponytail 2>&1 | Out-String
+    ($LASTEXITCODE -eq 0) -and ($out -match 'ponytail plugin ready')
+}
+Assert-That 'package binary подтверждает Headroom transport' {
+    if (-not (Test-Path -LiteralPath $airWorkerExe -PathType Leaf)) { throw "нет $airWorkerExe" }
+    $out = & $airWorkerExe tool -which headroom 2>&1 | Out-String
+    ($LASTEXITCODE -eq 0) -and ($out -match 'headroom .* ready')
+}
+Assert-That 'package binary публикует утверждённую OpenAI executor ladder' {
+    if (-not (Test-Path -LiteralPath $airWorkerExe -PathType Leaf)) { throw "нет $airWorkerExe" }
+    $raw = & $airWorkerExe executor list -product $productRoot -json 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { return $false }
+    $doc = $raw | ConvertFrom-Json
+    $models = @($doc.primary | ForEach-Object { $_.model })
+    ($models -contains 'gpt-6-luna') -and
+    ($models -contains 'gpt-6-sol') -and
+    ($models -contains 'gpt-6-astra') -and
+    (-not (@($doc.primary | Where-Object { $_.effort -in @('xhigh','max','ultra') }).Count))
 }
 
-# 7. Живая картина достижимости ступеней 1-5 — ИНФОРМАЦИОННО, не PASS/FAIL:
+# 7. Живая картина достижимости legacy-скриптов — ИНФОРМАЦИОННО, не PASS/FAIL:
 #    «инструмент не поднят/не авторизован» — законный исход (2а), а не провал
 #    ЭТОЙ проверки. Печатается, чтобы обрыв верха лестницы (как 12.09.2026)
 #    больше не читался как «100% закрыто на нулевом уровне» без объяснения.
