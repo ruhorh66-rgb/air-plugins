@@ -5,11 +5,12 @@ parent: "0.11.2 urgent: LEARN + GPT parity"
 trigger: "ЛПР 29.09: GPT-воркеры должны штатно работать с AirWorker."
 owner: "AC·DEV·AirWorker"
 done_when: "ChatGPT workers use AirWorker session/plan/learn/report paths directly with stable identity, JSON/exit codes and no Claude-specific assumptions; live two-node acceptance passes."
-status: "open"
+status: "closed"
 return_to: "0.11.2 release acceptance"
 created_at: "2026-09-28T16:29:16.5146553Z"
-updated_at: "2026-09-28T16:29:16.5146553Z"
+updated_at: "2026-09-29T02:32:46.0702091Z"
 receipts:
+  - "docs/receipts/AIRWORKER_0.11.2_RELEASE_TWO_NODE_GPT_ACCEPTANCE_20260929.md"
 ---
 
 # 0.11.2: first-class GPT worker operations
