@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.11.2",
-  "description": "AirWorker 0.11.2: complete self-learning loop and first-class ChatGPT lifecycle parity.",
+  "version": "0.11.3",
+  "description": "AirWorker 0.11.3: OpenAI executor ladder, Anthropic judges via Headroom, and GPT executor core.",
   "author": {
     "name": "AIR OS"
   },

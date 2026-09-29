@@ -1,5 +1,19 @@
 # CHANGELOG — air-worker
 
+## 0.11.3 — release candidate 29.09.2026
+
+### Vendor model ladder + Headroom judges + Ponytail GPT executors
+
+- Executor policy is OpenAI-only on the normal path: GPT-6 Luna → GPT-6 Sol → GPT-6 Astra, with effort restricted to low/medium/high. GPT-5.5 and GPT-5.6 models remain explicit vendor-limit fallbacks rather than normal escalation rungs.
+- Semantic judges are Anthropic: Sonnet 5.5 default, Opus 5.5 for complex review and Fable 5.1 only for exceptional arbitration; Sonnet 4.6 is the minimum accepted fallback. Judge effort is likewise capped at high.
+- Every Claude/Anthropic model call is forced through the local Headroom proxy at `http://localhost:8787` while preserving the existing user-level OAuth credential path.
+- Every Codex/OpenAI coding call requires the officially installed Ponytail vendor plugin and loads its exact vendor skill in full mode; missing or unapproved Ponytail fails closed.
+- Added GPT-safe binary core commands `executor list` and `executor dispatch`, reusing AirWorker session ownership, model policy, budgets and durable receipts instead of creating a second orchestration engine.
+- Fixed non-interactive Codex task loss on Windows by transporting the full Ponytail + AirWorker task payload through `codex exec -` stdin for executor, orchestration, planner and LEARN review paths.
+- AirWorker does not add token-usage telemetry for this release; usage accounting remains on vendor platforms.
+
+Release control: full source/package regression, clean checkout binaries with `vcs.modified=false`, GitHub tag/Release, then a separate explicit LPR gate before installing 0.11.3. Rollback target: `air-worker--v0.11.2`.
+
 ## 0.11.2 — release candidate 29.09.2026
 
 ### Complete self-learning loop + first-class ChatGPT lifecycle

@@ -66,6 +66,7 @@ func TestSemanticCodexIsReadOnly(t *testing.T) {
 }
 
 func TestCriterion56SemanticCodexUsesStdin(t *testing.T) {
+	withPonytailFixture(t, "VENDOR_CONTEXT")
 	prompt := strings.Repeat("semantic-packet-", 4096)
 	cmd := semanticCodexCommand("codex.cmd", `C:\product`, prompt, runnerSpec{Kind: "codex", Effort: "high"}, `C:\tmp\schema.json`)
 	joined := strings.Join(cmd.Args, " ")
@@ -76,8 +77,9 @@ func TestCriterion56SemanticCodexUsesStdin(t *testing.T) {
 		t.Fatalf("codex stdin sentinel missing: %v", cmd.Args)
 	}
 	raw, err := io.ReadAll(cmd.Stdin)
-	if err != nil || string(raw) != prompt {
-		t.Fatalf("semantic stdin mismatch: len=%d err=%v", len(raw), err)
+	body := string(raw)
+	if err != nil || !strings.Contains(body, "VENDOR_CONTEXT") || !strings.Contains(body, "AIRWORKER TASK:\n"+prompt) {
+		t.Fatalf("semantic stdin lost Ponytail or task: len=%d err=%v", len(raw), err)
 	}
 }
 
