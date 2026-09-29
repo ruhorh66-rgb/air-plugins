@@ -569,7 +569,7 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 ## План: нить и узлы
 
 <!-- air-worker-plan-nodes -->
-- [open] 0.11.2 urgent: LEARN + GPT parity · owner:AC·DEV·AirWorker · [[N-001_0-11-2-complete-self-learning-loop]] · 0.11.2: complete self-learning loop
+- [closed] 0.11.2 urgent: LEARN + GPT parity · owner:AC·DEV·AirWorker · [[N-001_0-11-2-complete-self-learning-loop]] · 0.11.2: complete self-learning loop
 - [open] 0.11.2 urgent: LEARN + GPT parity · owner:AC·DEV·AirWorker · [[N-002_0-11-2-first-class-gpt-worker-operations]] · 0.11.2: first-class GPT worker operations
 - [closed] 0.11.2 urgent: LEARN + GPT parity · owner:AC·DEV·AirWorker · [[N-003_0-11-2-gpt-lifecycle-hooks-parity]] · 0.11.2: GPT lifecycle hooks parity
 - [open] 0.11.2 urgent: LEARN + GPT parity · owner:AC·DEV·AirWorker · [[N-004_0-11-2-chatgpt-host-hook-transport-gap]] · 0.11.2: ChatGPT host hook transport gap
