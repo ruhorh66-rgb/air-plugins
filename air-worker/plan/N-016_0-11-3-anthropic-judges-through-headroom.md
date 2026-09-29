@@ -5,11 +5,12 @@ parent: "N-014 vendor model ladder"
 trigger: "LPR requires Headroom transport for Anthropic calls."
 owner: "AC·DEV·AirWorker"
 done_when: "Every AirWorker Claude semantic-judge/planner invocation routes through ANTHROPIC_BASE_URL=http://localhost:8787, preserves existing user OAuth credential handling, preflight verifies Headroom health plus one real Claude smoke, and direct bypass is rejected by regression tests."
-status: "open"
+status: "closed"
 return_to: "N-014 vendor model ladder"
 created_at: "2026-09-29T06:04:09.1315674Z"
-updated_at: "2026-09-29T06:04:09.1315674Z"
+updated_at: "2026-09-29T06:25:10.3490412Z"
 receipts:
+  - "docs/receipts/AIRWORKER_0.11.3_N016_HEADROOM_ACCEPTANCE_20260929.md"
 ---
 
 # 0.11.3 Anthropic judges through Headroom
