@@ -62,6 +62,12 @@ func usage() {
         Штатный chat orchestration entrypoint: эквивалент loop -orchestrate. AirWorker сам
         разрешает Agent tool и принимает успех только при доказанных Agent start/result.
 
+  air-worker executor list -product <корень> [-json]
+  air-worker executor dispatch -product <корень> -class bulk|standard|complex|hardest -task-file <путь>
+        -principal <p> -session-key <k> [-tier <approved-tier>] [-json]
+        GPT-safe вход к утверждённой OpenAI/Codex лестнице. Dispatch требует объявленную
+        активную сессию и durable receipt; vendor-limit использует только зарегистрированные fallback.
+
   air-worker semantic -product <корень> -step <N> [-executor claude|codex|chatgpt|router] [-claim "..."]
         Независимый read-only Semantic Judge текущего шага без запуска executor loop.
         Factual scope ограничен критериями шага; общий verdict продукта показывается отдельно.
@@ -240,6 +246,8 @@ func run(argv []string) int {
 		return cmdLoop(argv[1:])
 	case "orchestrate":
 		return cmdOrchestrate(argv[1:])
+	case "executor":
+		return cmdExecutor(argv[1:])
 	case "semantic", "review":
 		return cmdSemantic(argv[1:])
 	case "plan-review":
