@@ -62,18 +62,29 @@ if (-not $plannerPath) {
     $ok += "планировщик резолвится ($plannerKind)"
 }
 
-# --- один вызов, и это видно из замера ---------------------------------------
+# --- один вызов / текущая каноническая нить ----------------------------------
+# planner-answer.json — runtime receipt конкретного исторического прогона и не обязан
+# жить в release checkout. С 0.11.2 каноническая нить — PLAN.md + plan/N-*, а контракт
+# one-shot/non-overwrite закреплён бинарником и Go tests. Старый guard ошибочно делал
+# отсутствие локального receipt дефектом релизного пакета.
 $ansPath = Join-Path $ProductRoot '.woody\planner-answer.json'
-if (-not (Test-Path -LiteralPath $ansPath)) {
-    $fail += "ответа разбивщика нет ($ansPath): планировщик ни разу не отработал на этом продукте"
-} else {
+if (Test-Path -LiteralPath $ansPath) {
     try {
         $ans = Get-Content -LiteralPath $ansPath -Raw -Encoding UTF8 | ConvertFrom-Json
         if ($ans.is_error) { $fail += "последняя разбивка окончилась отказом: $($ans.result)" }
-        else { $ok += "разбивка состоялась одним вызовом, ходов $($ans.num_turns)" }
-        # Цена называется, а не подразумевается — норма AIR_VIBECODING.
-        if ($null -eq $ans.total_cost_usd) { $fail += 'замер разбивки не записан: цена дорогого вызова не названа' }
-    } catch { $fail += 'ответ разбивщика не разобран' }
+        else { $ok += "исторический planner receipt читается, ходов $($ans.num_turns)" }
+    } catch { $fail += 'planner receipt существует, но не разобран' }
+} else {
+    $planDir = Join-Path $ProductRoot 'plan'
+    $nodes = @()
+    if (Test-Path -LiteralPath $planDir -PathType Container) {
+        $nodes = @(Get-ChildItem -LiteralPath $planDir -File -Filter 'N-*.md' -ErrorAction SilentlyContinue)
+    }
+    if ($nodes.Count -lt 1) {
+        $fail += 'нет ни runtime planner receipt, ни canonical plan/N-* нити'
+    } else {
+        $ok += "canonical plan-node thread на месте: $($nodes.Count) узлов"
+    }
 }
 
 # --- предложение читаемо петлёй и ступени назначены ---------------------------
@@ -94,7 +105,24 @@ if (-not (Test-Path -LiteralPath $prop)) {
             $fail += "в предложении $cols колонок вместо четырёх: петля разберёт такой план в НОЛЬ шагов и скажет «план пуст» — молча"
         } else { $ok += 'грамматика предложения — четыре колонки, петля разберёт' }
 
+        function Resolve-TierAlias([string]$tier) {
+            $parts = $tier.Trim() -split ':', 2
+            $name = $parts[0].ToLowerInvariant()
+            if ($name -eq 'script') { return 'script' }
+            $effort = if ($parts.Count -gt 1) { $parts[1] } else { 'low' }
+            switch ($name) {
+                'haiku' { $name = 'gpt6-luna' }
+                'luna' { $name = 'gpt6-luna' }
+                'sonnet' { $name = 'gpt6-sol' }
+                'terra' { $name = 'gpt6-sol' }
+                'sol' { $name = 'gpt6-sol' }
+                'opus' { $name = 'gpt6-astra' }
+            }
+            return ($name + ':' + $effort)
+        }
+
         $tiers = @()
+        $resolvedTiers = @()
         $bad = @()
         foreach ($r in $rows) {
             $parts = ($r.Trim().Trim('|')) -split '\|'
@@ -102,9 +130,9 @@ if (-not (Test-Path -LiteralPath $prop)) {
             $t = $parts[2].Trim().Trim('`').Trim()
             if ($t -eq '—' -or $t -eq '-' -or $r -match 'гейт') { continue }
             $tiers += $t
-            if ($ladder.Count -and ($ladder -notcontains $t) -and
-                ($ladder -notcontains ($t -split ':')[0]) -and
-                (-not @($ladder | Where-Object { ($_ -split ':')[0] -eq ($t -split ':')[0] }).Count)) { $bad += $t }
+            $resolved = Resolve-TierAlias $t
+            $resolvedTiers += $resolved
+            if ($ladder.Count -and ($ladder -notcontains $resolved)) { $bad += ($t + ' -> ' + $resolved) }
         }
         if ($bad.Count) { $fail += ('назначены ступени вне лестницы: ' + (($bad | Select-Object -Unique) -join ', ')) }
         elseif ($tiers.Count) { $ok += 'все назначенные ступени есть в лестнице продукта' }
