@@ -258,8 +258,7 @@ func (c *loopCtx) invokeClaude(exePath, prompt string, runner runnerSpec, stepID
 	}
 	cmd := exec.Command(exePath, args...)
 	cmd.Dir = c.Root
-	if env, took := runnerEnv(); took {
-		cmd.Env = env
+	if took := applyClaudeRunnerEnv(cmd); took {
 		line("  токен взят из окружения пользователя (в процессе его не было)")
 	}
 	// К42 — durable job receipt пишется RUNNING ДО запуска исполнителя; ctx без дедлайна,

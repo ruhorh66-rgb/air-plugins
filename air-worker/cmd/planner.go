@@ -292,8 +292,7 @@ func callClaudePlanner(root, prompt, model, answerPath string, scope sessionScop
 	// пользователя, а разбивщик — нет, и 14.09.2026 сессия Vera получила «Not logged in» при
 	// том, что петля в тот же день на той же машине работала. Урок, живший в одном вызове, не
 	// сработал в соседнем.
-	if env, took := runnerEnv(); took {
-		cmd.Env = env
+	if took := applyClaudeRunnerEnv(cmd); took {
 		line("  токен взят из окружения пользователя (в процессе его не было)")
 	}
 	// К42 — durable job receipt пишется RUNNING ДО запуска разбивщика (один дорогой вызов).

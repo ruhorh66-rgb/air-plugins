@@ -298,9 +298,7 @@ func invokeSemanticCodex(scope sessionScope, exePath, prompt string, reviewer ru
 func invokeSemanticClaude(scope sessionScope, exePath, prompt string, reviewer runnerSpec, step string) (string, string, *float64, *int, error) {
 	root := scope.Root
 	cmd := semanticClaudeCommand(exePath, root, prompt, reviewer)
-	if env, took := runnerEnv(); took {
-		cmd.Env = env
-	}
+	_ = applyClaudeRunnerEnv(cmd)
 	out, runErr := runReceiptedWithMeta(context.Background(), scope, step, "semantic-reviewer", cmd, jobReceiptMeta{
 		Runner: reviewer.Kind, Provider: reviewer.Kind, Model: reviewer.Model, Effort: reviewer.Effort,
 		Role: "semantic-reviewer", Sandbox: "read-only",

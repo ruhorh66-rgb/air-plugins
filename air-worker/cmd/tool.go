@@ -155,6 +155,9 @@ func toolNamesForProduct(root string) []string {
 	if err := readJSON(filepath.Join(root, "run-config.json"), &cfg); err != nil {
 		return names
 	}
+	if cfg.ModelPolicy.Schema != "" {
+		names = append([]string{"headroom"}, names...)
+	}
 	for _, rung := range cfg.Ladder {
 		if resolveRunner(cfg, rung).Kind == "router" {
 			return append([]string{"router"}, names...)
@@ -175,7 +178,7 @@ func toolNamesForProduct(root string) []string {
 // есть ровно той валютой, которую мы весь день отказывались принимать.
 func cmdTool(argv []string) int {
 	fs := flag.NewFlagSet("tool", flag.ContinueOnError)
-	which := fs.String("which", "", "какой исполнитель: claude, codex, opencode, router")
+	which := fs.String("which", "", "какой исполнитель: claude, codex, opencode, router, headroom")
 	product := fs.String("product", ".", "корень продукта для активной ladder")
 	if err := fs.Parse(argv); err != nil {
 		return 2
@@ -198,6 +201,16 @@ func cmdTool(argv []string) int {
 			}
 			continue
 		}
+		if n == "headroom" {
+			doc, err := headroomPreflight()
+			if err != nil {
+				fmt.Printf("headroom НЕ ГОТОВ%s  %v"+lineEnding, lineEnding, err)
+				worst = 2
+				continue
+			}
+			fmt.Printf("headroom %s ready · version %s"+lineEnding, headroomBaseURL, doc.Version)
+			continue
+		}
 		path, why, err := resolveRunnerToolWhy(n)
 		if err != nil {
 			// «Нечем исполнить» — это код 2, а не 1: работой оно не лечится, нужен человек.
@@ -211,18 +224,41 @@ func cmdTool(argv []string) int {
 	return worst
 }
 
-// runnerEnv — окружение дочернего процесса, с токеном, который мог не доехать.
+const headroomBaseURL = "http://localhost:8787"
+
+// runnerEnv — каноническое окружение каждого дочернего Claude Code процесса.
 //
-// Подставляется ЯВНО, а не в надежде на наследование: процесс петли мог стартовать
-// раньше, чем переменную поставили, и своего окружения не перечитывает. Значение не
-// печатается и не логируется — диагностика говорит только «взят» или «не найден».
+// ЛПР 29.09.2026: Anthropic вызовы AirWorker идут через локальный Headroom. Поэтому
+// ANTHROPIC_BASE_URL принудительно задаётся здесь для ВСЕХ Claude launch-path, а не в
+// отдельных исполнителях. OAuth по-прежнему подхватывается из user env, если процесс
+// AirWorker стартовал раньше, чем токен появился. Значение токена не печатается.
 func runnerEnv() ([]string, bool) {
-	if os.Getenv("CLAUDE_CODE_OAUTH_TOKEN") != "" {
-		return nil, false
+	env := append([]string(nil), os.Environ()...)
+	tookToken := false
+	if os.Getenv("CLAUDE_CODE_OAUTH_TOKEN") == "" {
+		if v := userEnvVar("CLAUDE_CODE_OAUTH_TOKEN"); v != "" {
+			env = upsertEnv(env, "CLAUDE_CODE_OAUTH_TOKEN", v)
+			tookToken = true
+		}
 	}
-	v := userEnvVar("CLAUDE_CODE_OAUTH_TOKEN")
-	if v == "" {
-		return nil, false
+	env = upsertEnv(env, "ANTHROPIC_BASE_URL", headroomBaseURL)
+	return env, tookToken
+}
+
+func upsertEnv(env []string, key, value string) []string {
+	prefix := strings.ToUpper(key) + "="
+	out := make([]string, 0, len(env)+1)
+	for _, item := range env {
+		if strings.HasPrefix(strings.ToUpper(item), prefix) {
+			continue
+		}
+		out = append(out, item)
 	}
-	return append(os.Environ(), "CLAUDE_CODE_OAUTH_TOKEN="+v), true
+	return append(out, key+"="+value)
+}
+
+func applyClaudeRunnerEnv(cmd *exec.Cmd) bool {
+	env, tookToken := runnerEnv()
+	cmd.Env = env
+	return tookToken
 }
