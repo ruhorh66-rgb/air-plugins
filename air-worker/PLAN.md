@@ -594,3 +594,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-019 0.11.3 release regression · owner:AC·DEV·AirWorker · [[N-023_0-11-3-align-engine-release-check-with-judgedeta]] · 0.11.3 align engine release check with judgeDetailed loop
 - [closed] N-004 ChatGPT host hook transport gap · owner:AC·DEV·AirWorker · [[N-024_n-004-refresh-chatgpt-hook-cutover-on-air-comman]] · N-004 refresh ChatGPT hook cutover on AIR Commander r3.1
 - [closed] N-019 0.11.3 release regression · owner:AC·DEV·AirWorker · [[N-025_0-11-3-align-planner-release-check-with-canonica]] · 0.11.3 align planner release check with canonical plan thread
+- [open] N-019 0.11.3 release regression and install · owner:AC·DEV·AirWorker · [[N-026_0-11-3-air-env-002-plugin-profile-drift-repair]] · 0.11.3 AIR-ENV-002 plugin profile drift repair
