@@ -174,7 +174,12 @@ try {
     # ALLOW на всех восьми точках: проверка объявляла бы «согласен на всей лестнице застоя»,
     # ни разу не дойдя до торможения. Найдено при переводе двигателя на одну реализацию.
     Set-Facts -closed 4 -gated 0
-    & powershell -NoProfile -ExecutionPolicy Bypass -File $judgePs -ProductRoot $fx *> $null
+    # Drift consumes the canonical binary verdict. The legacy PowerShell judge is compared
+    # above for backward compatibility, but it intentionally cannot satisfy the newer
+    # freshness contract (input_fingerprint/git_head). Seeding drift with that legacy file
+    # would make the current point unverifiable and shift the 3/6 stall thresholds by one.
+    & $exe judge -product $fx *> $null
+    if ($LASTEXITCODE -eq 2) { throw 'binary judge could not seed canonical drift verdict' }
     New-Item -ItemType Directory -Path (Join-Path $fx '.woody') -Force | Out-Null
     $hist = Join-Path $fx '.woody\goal-drift.jsonl'
     # Остаток по судье в макете: 3 непокрытых факта. План: закрыт 1, открыт 1, гейт 1.
