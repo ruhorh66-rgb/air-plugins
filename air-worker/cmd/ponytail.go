@@ -9,10 +9,7 @@ import (
 	"strings"
 )
 
-const (
-	ponytailSkillInvocation = "@ponytail full"
-	ponytailSkillMaxBytes   = 64 * 1024
-)
+const ponytailSkillMaxBytes = 64 * 1024
 
 type ponytailSkill struct {
 	Version string
@@ -124,17 +121,16 @@ func requirePonytailSkill() error {
 }
 
 // ponytailPrompt activates the officially installed Ponytail plugin skill for a
-// non-interactive Codex call. codex exec currently does not expand @ponytail itself,
-// so AirWorker supplies the exact installed vendor SKILL.md rather than copying or
-// reimplementing Ponytail semantics.
+// non-interactive Codex call by supplying the exact installed vendor SKILL.md.
+// Do not emit an @ponytail command marker here: a live codex exec smoke proved that the
+// marker can be consumed as a standalone skill command, leaving the following task unread.
 func ponytailPrompt(prompt string) string {
 	prompt = strings.TrimSpace(prompt)
 	skill, err := loadPonytailSkill()
 	if err != nil {
-		return ponytailSkillInvocation + "\n\n[PONYTAIL_SKILL_LOAD_FAILED: " + err.Error() + "]\n\nAIRWORKER TASK:\n" + prompt
+		return "[PONYTAIL_SKILL_LOAD_FAILED: " + err.Error() + "]\n\nAIRWORKER TASK:\n" + prompt
 	}
-	return ponytailSkillInvocation +
-		"\n\nPONYTAIL VENDOR SKILL · installed plugin ponytail@ponytail v" + skill.Version +
+	return "PONYTAIL VENDOR SKILL · installed plugin ponytail@ponytail v" + skill.Version +
 		" · ACTIVE MODE: full\n--- BEGIN VENDOR SKILL ---\n" + skill.Body +
 		"\n--- END VENDOR SKILL ---\n\nAIRWORKER TASK:\n" + prompt
 }

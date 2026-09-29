@@ -137,7 +137,7 @@ func TestExecutorHelperProcess(t *testing.T) {
 	if len(os.Args) > 0 {
 		prompt = os.Args[len(os.Args)-1]
 	}
-	if !strings.Contains(prompt, "@ponytail full") || !strings.Contains(prompt, "ACTIVE MODE: full") ||
+	if strings.HasPrefix(strings.TrimSpace(prompt), "@ponytail") || !strings.Contains(prompt, "ACTIVE MODE: full") ||
 		!strings.Contains(prompt, "VENDOR_SKILL_BODY") || !strings.Contains(prompt, "TASK.md") {
 		fmt.Println(`{"type":"turn.failed","error":{"message":"ponytail or task context missing"}}`)
 		os.Exit(8)

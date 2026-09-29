@@ -22,8 +22,10 @@ func withPonytailFixture(t *testing.T, body string) {
 func TestPonytailPromptUsesInstalledVendorSkillAndFullMode(t *testing.T) {
 	withPonytailFixture(t, "# Ponytail\nVENDOR_RULE_7_UNIQUE")
 	got := ponytailPrompt("TASK")
+	if strings.HasPrefix(strings.TrimSpace(got), "@ponytail") {
+		t.Fatalf("non-interactive prompt must not start with a skill command marker: %s", got)
+	}
 	for _, want := range []string{
-		"@ponytail full",
 		"installed plugin ponytail@ponytail v4.10.0",
 		"ACTIVE MODE: full",
 		"VENDOR_RULE_7_UNIQUE",
