@@ -21,7 +21,7 @@ func TestPlannerUsesTopExecutorVendor(t *testing.T) {
 }
 
 func TestCodexPlannerSandboxIsReadOnly(t *testing.T) {
-	args := plannerCodexArgs(`X:\product`, "task", runnerSpec{Kind: "codex", Model: "gpt-test", Effort: "high"})
+	args := plannerCodexArgs(`X:\product`, runnerSpec{Kind: "codex", Model: "gpt-test", Effort: "high"})
 	joined := " "
 	for _, a := range args {
 		joined += a + " "

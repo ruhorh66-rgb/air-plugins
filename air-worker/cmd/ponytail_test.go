@@ -77,13 +77,29 @@ func TestReadInstalledPonytailSkillRejectsUnapprovedSource(t *testing.T) {
 func TestCodexExecutorAndPlannerUsePonytail(t *testing.T) {
 	withPonytailFixture(t, "VENDOR_CONTEXT")
 	runner := runnerSpec{Kind: "codex", Model: "gpt-6-sol", Effort: "low"}
-	execArgs := codexArgsForSandbox("X:\\product", "EXEC_TASK", runner, "workspace-write")
-	if got := execArgs[len(execArgs)-1]; !strings.Contains(got, "VENDOR_CONTEXT") || !strings.Contains(got, "AIRWORKER TASK:\nEXEC_TASK") {
-		t.Fatalf("executor prompt missing Ponytail vendor context: %q", got)
+	execArgs := codexArgsForSandbox("X:\\product", runner, "workspace-write")
+	if execArgs[len(execArgs)-1] != "-" {
+		t.Fatalf("executor prompt must use stdin: %#v", execArgs)
 	}
-	planArgs := plannerCodexArgs("X:\\product", "PLAN_TASK", runner)
-	if got := planArgs[len(planArgs)-1]; !strings.Contains(got, "VENDOR_CONTEXT") || !strings.Contains(got, "AIRWORKER TASK:\nPLAN_TASK") {
-		t.Fatalf("planner prompt missing Ponytail vendor context: %q", got)
+	execCmd := codexCommandForSandbox("codex", "X:\\product", "EXEC_TASK", runner, "workspace-write")
+	execPrompt, err := io.ReadAll(execCmd.Stdin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(execPrompt); !strings.Contains(got, "VENDOR_CONTEXT") || !strings.Contains(got, "AIRWORKER TASK:\nEXEC_TASK") {
+		t.Fatalf("executor stdin missing Ponytail vendor context/task: %q", got)
+	}
+	planArgs := plannerCodexArgs("X:\\product", runner)
+	if planArgs[len(planArgs)-1] != "-" {
+		t.Fatalf("planner prompt must use stdin: %#v", planArgs)
+	}
+	planCmd := codexCommandForSandbox("codex", "X:\\product", "PLAN_TASK", runner, "read-only")
+	planPrompt, err := io.ReadAll(planCmd.Stdin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(planPrompt); !strings.Contains(got, "VENDOR_CONTEXT") || !strings.Contains(got, "AIRWORKER TASK:\nPLAN_TASK") {
+		t.Fatalf("planner stdin missing Ponytail vendor context/task: %q", got)
 	}
 }
 

@@ -19,8 +19,8 @@ func plannerRunner(cfg runConfig, tier string) (runnerSpec, error) {
 	return r, nil
 }
 
-func plannerCodexArgs(root, prompt string, runner runnerSpec) []string {
-	return codexArgsForSandbox(root, prompt, runner, "read-only")
+func plannerCodexArgs(root string, runner runnerSpec) []string {
+	return codexArgsForSandbox(root, runner, "read-only")
 }
 
 func callPlannerRunner(root, prompt string, runner runnerSpec, answerPath string, scope sessionScope) int {
@@ -40,12 +40,8 @@ func callPlannerRunner(root, prompt string, runner runnerSpec, answerPath string
 		line("ОТКАЗ: " + err.Error())
 		return 2
 	}
-	args := plannerCodexArgs(root, prompt, runner)
 	line(fmt.Sprintf("зову планировщика Codex: role planner · model %s · effort %s · sandbox read-only", runner.Model, runner.Effort))
-	cmd := runnerCommand(exe, args...)
-	cmd.Dir = root
-	cmd.Env = codexEnv(nil)
-	cmd.Stdin = nil
+	cmd := codexCommandForSandbox(exe, root, prompt, runner, "read-only")
 	// К42 — durable job receipt пишется RUNNING ДО запуска разбивщика Codex.
 	out, runErr := runReceiptedWithMeta(context.Background(), scope, "plan", "planner-codex", cmd,
 		codexReceiptMeta(runner, "planner", "read-only"))

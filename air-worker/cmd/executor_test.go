@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -128,15 +129,13 @@ func TestExecutorHelperProcess(t *testing.T) {
 		return
 	}
 	model := ""
-	prompt := ""
 	for i, arg := range os.Args {
 		if arg == "-m" && i+1 < len(os.Args) {
 			model = os.Args[i+1]
 		}
 	}
-	if len(os.Args) > 0 {
-		prompt = os.Args[len(os.Args)-1]
-	}
+	raw, _ := io.ReadAll(os.Stdin)
+	prompt := string(raw)
 	if strings.HasPrefix(strings.TrimSpace(prompt), "@ponytail") || !strings.Contains(prompt, "ACTIVE MODE: full") ||
 		!strings.Contains(prompt, "VENDOR_SKILL_BODY") || !strings.Contains(prompt, "TASK.md") {
 		fmt.Println(`{"type":"turn.failed","error":{"message":"ponytail or task context missing"}}`)

@@ -589,3 +589,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] N-014 vendor model ladder · owner:AC·DEV·AirWorker · [[N-018_0-11-3-gpt-executor-core-commands]] · 0.11.3 GPT executor core commands
 - [open] N-014 vendor model ladder · owner:AC·DEV·AirWorker · [[N-019_0-11-3-release-regression-rollback-and-github-in]] · 0.11.3 release regression rollback and GitHub install gate
 - [open] N-018 GPT executor core commands · owner:AC·DEV·AirWorker · [[N-020_0-11-3-ponytail-noninteractive-task-consumption-f]] · 0.11.3 Ponytail noninteractive task-consumption fix
+- [open] N-020 Ponytail noninteractive task-consumption fix · owner:AC·DEV·AirWorker · [[N-021_0-11-3-codex-multiline-prompt-transport-via-stdi]] · 0.11.3 Codex multiline prompt transport via stdin

@@ -539,10 +539,7 @@ func invokeLearnReviewModel(product, packetPath string) ([]learnReviewCandidate,
 	}
 	runner := runnerSpec{Kind: "codex", Model: "gpt-5.6-luna", Effort: "medium"}
 	prompt := "Read this packet first and perform the read-only AirCurator review. Return only the JSON schema requested by the packet: " + packetPath
-	cmd := runnerCommand(exePath, codexArgsForSandbox(product, prompt, runner, "read-only")...)
-	cmd.Dir = product
-	cmd.Env = codexEnv(nil)
-	cmd.Stdin = nil
+	cmd := codexCommandForSandbox(exePath, product, prompt, runner, "read-only")
 	out, runErr := cmd.CombinedOutput()
 	raw := decodeOutput(out)
 	var messages []string

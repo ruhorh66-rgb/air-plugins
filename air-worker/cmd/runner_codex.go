@@ -71,7 +71,7 @@ func validateCodexAddDirs(paths []string) error {
 	return nil
 }
 
-func codexArgsForSandbox(root, prompt string, runner runnerSpec, sandbox string) []string {
+func codexArgsForSandbox(root string, runner runnerSpec, sandbox string) []string {
 	args := []string{"exec", "--json", "--skip-git-repo-check", "-s", sandbox, "-C", root}
 	if runner.Model != "" {
 		args = append(args, "-m", runner.Model)
@@ -82,11 +82,19 @@ func codexArgsForSandbox(root, prompt string, runner runnerSpec, sandbox string)
 	for _, dir := range runner.AddDirs {
 		args = append(args, "--add-dir", filepath.Clean(strings.TrimSpace(dir)))
 	}
-	return append(args, ponytailPrompt(prompt))
+	return append(args, "-")
 }
 
-func codexArgs(root, prompt string, runner runnerSpec) []string {
-	return codexArgsForSandbox(root, prompt, runner, "workspace-write")
+func codexArgs(root string, runner runnerSpec) []string {
+	return codexArgsForSandbox(root, runner, "workspace-write")
+}
+
+func codexCommandForSandbox(exePath, root, prompt string, runner runnerSpec, sandbox string) *exec.Cmd {
+	cmd := runnerCommand(exePath, codexArgsForSandbox(root, runner, sandbox)...)
+	cmd.Dir = root
+	cmd.Env = codexEnv(nil)
+	cmd.Stdin = strings.NewReader(ponytailPrompt(prompt))
+	return cmd
 }
 
 func codexReceiptMeta(runner runnerSpec, role, sandbox string) jobReceiptMeta {
@@ -100,10 +108,7 @@ func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID 
 	if err := requirePonytailSkill(); err != nil {
 		return stepResult{Subtype: "invalid_runner_config", Detail: "ponytail: " + err.Error()}
 	}
-	cmd := runnerCommand(exePath, codexArgs(c.Root, prompt, runner)...)
-	cmd.Dir = c.Root
-	cmd.Env = codexEnv(nil)
-	cmd.Stdin = nil
+	cmd := codexCommandForSandbox(exePath, c.Root, prompt, runner, "workspace-write")
 	// К42 — durable job receipt пишется RUNNING ДО запуска исполнителя Codex.
 	operation := runnerReceiptOperation("executor-codex", runner, c.iter)
 	out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), stepID, operation, cmd, codexReceiptMeta(runner, "executor/leader", "workspace-write"))
@@ -144,9 +149,7 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 			reviewPrompt := fmt.Sprintf(
 				"You are AirWorker native read-only subagent %d/%d. Analyze the task independently. Do not edit files. Return concrete risks, an implementation or review plan, and exact checks.\n\nCoordinator task:\n%s",
 				index, requested, prompt)
-			cmd := runnerCommand(exePath, codexArgsForSandbox(c.Root, reviewPrompt, runner, "read-only")...)
-			cmd.Dir = c.Root
-			cmd.Env = codexEnv(nil)
+			cmd := codexCommandForSandbox(exePath, c.Root, reviewPrompt, runner, "read-only")
 			agentStep := fmt.Sprintf("%s-agent-%d", stepID, index)
 			operation := runnerReceiptOperation("executor-codex-subagent", runner, c.iter)
 			out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), agentStep, operation, cmd, codexReceiptMeta(runner, "orchestration-subagent", "read-only"))

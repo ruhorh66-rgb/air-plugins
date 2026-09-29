@@ -19,7 +19,7 @@ func TestCodexAdditionalWritableDirs(t *testing.T) {
 	if err := validateCodexAddDirs(runner.AddDirs); err != nil {
 		t.Fatalf("valid add_dirs rejected: %v", err)
 	}
-	args := codexArgs(`F:\product`, "TASK", runner)
+	args := codexArgs(`F:\product`, runner)
 	var got []string
 	for i := 0; i+1 < len(args); i++ {
 		if args[i] == "--add-dir" {

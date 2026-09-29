@@ -6,7 +6,7 @@ import (
 )
 
 func TestCodexArgsEnvAndCapabilities(t *testing.T) {
-	args := strings.Join(codexArgs(`X:\\product`, "task", runnerSpec{Model: "gpt-test", Effort: "medium"}), " ")
+	args := strings.Join(codexArgs(`X:\\product`, runnerSpec{Model: "gpt-test", Effort: "medium"}), " ")
 	if !strings.Contains(args, "workspace-write") || strings.Contains(args, "read-only") {
 		t.Fatalf("wrong sandbox args: %s", args)
 	}
