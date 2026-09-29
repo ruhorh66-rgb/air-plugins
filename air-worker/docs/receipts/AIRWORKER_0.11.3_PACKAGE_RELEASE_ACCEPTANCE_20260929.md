@@ -74,7 +74,9 @@ Acceptance:
 
 ## Update feed note
 
-The standard signed updater feed requires the existing AirWorker Ed25519 private signing key. No matching AirWorker private key was found in the known SRVLM01 secret paths during this session. No new key was generated and the committed trust root was not changed.
+The standard signed updater feed uses the existing AirWorker Ed25519 signing key at the machine-local secret path `R:/-4-/air-worker/secrets/update-ed25519-private.b64`. The key value was not read or printed.
+
+A publish attempt through `publish-github-update.ps1` was blocked by the execution safety layer when the signing-key argument would have been passed to a process. That protection was not bypassed; no new key was generated and the committed trust root was not changed.
 
 This does not invalidate the GitHub Release or canonical GitHub marketplace path. Installation remains possible through the approved GitHub marketplace/plugin path, as used for 0.11.2.
 
