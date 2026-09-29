@@ -583,7 +583,7 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] 0.11.2 urgent: LEARN + GPT parity · owner:AC·DEV·AirWorker · [[N-012_0-11-2-release-and-two-node-live-acceptance]] · 0.11.2 release and two-node live acceptance
 - [open] N-004 ChatGPT host hook transport gap · owner:AC·DEV·AirWorker · [[N-013_n-004-controlled-live-hook-cutover-gate]] · N-004 controlled live hook cutover gate
 - [open] 0.11.3 model ladder release · owner:AC·DEV·AirWorker · [[N-014_0-11-3-vendor-model-ladder-openai-executors-and-a]] · 0.11.3 vendor model ladder: OpenAI executors and Anthropic judges
-- [open] N-014 vendor model ladder · owner:AC·DEV·AirWorker · [[N-015_0-11-3-approved-model-policy-and-effort-caps]] · 0.11.3 approved model policy and effort caps
+- [closed] N-014 vendor model ladder · owner:AC·DEV·AirWorker · [[N-015_0-11-3-approved-model-policy-and-effort-caps]] · 0.11.3 approved model policy and effort caps
 - [open] N-014 vendor model ladder · owner:AC·DEV·AirWorker · [[N-016_0-11-3-anthropic-judges-through-headroom]] · 0.11.3 Anthropic judges through Headroom
 - [open] N-014 vendor model ladder · owner:AC·DEV·AirWorker · [[N-017_0-11-3-openai-executors-through-ponytail]] · 0.11.3 OpenAI executors through Ponytail
 - [open] N-014 vendor model ladder · owner:AC·DEV·AirWorker · [[N-018_0-11-3-gpt-executor-core-commands]] · 0.11.3 GPT executor core commands
