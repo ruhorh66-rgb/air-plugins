@@ -581,3 +581,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-010_0-11-2-learned-rules-as-indexed-on-demand-skills]] · 0.11.2: learned rules as indexed on-demand skills
 - [closed] N-001 complete self-learning loop · owner:AC·DEV·AirWorker · [[N-011_0-11-2-journal-apply-and-rollback-lifecycle-even]] · 0.11.2: journal apply and rollback lifecycle events
 - [closed] 0.11.2 urgent: LEARN + GPT parity · owner:AC·DEV·AirWorker · [[N-012_0-11-2-release-and-two-node-live-acceptance]] · 0.11.2 release and two-node live acceptance
+- [open] N-004 ChatGPT host hook transport gap · owner:AC·DEV·AirWorker · [[N-013_n-004-controlled-live-hook-cutover-gate]] · N-004 controlled live hook cutover gate
