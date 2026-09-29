@@ -13,7 +13,7 @@ import (
 )
 
 var learnEventKinds = map[string]bool{
-	"lesson": true, "correction": true, "violation": true, "check": true, "judge_result": true,
+	"lesson": true, "correction": true, "violation": true, "check": true, "judge_result": true, "lifecycle": true,
 }
 
 func validateLearnEvent(row learnJournalRecord) error {

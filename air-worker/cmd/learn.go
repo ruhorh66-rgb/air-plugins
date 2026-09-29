@@ -412,7 +412,7 @@ func cmdLearnEventWithName(name string, argv []string) int {
 	class := fs.String("class", "", "generalized lesson class")
 	observed := fs.String("observed", "", "what happened")
 	evidence := fs.String("evidence", "", "optional evidence reference")
-	kind := fs.String("kind", "lesson", "lesson, correction, violation, check, or judge_result")
+	kind := fs.String("kind", "lesson", "lesson, correction, violation, check, judge_result, or lifecycle")
 	source := fs.String("source", "worker", "event source")
 	actor := fs.String("actor", "", "actor/session name")
 	actorKind := fs.String("actor-kind", "", "gpt-window or claude-session")
@@ -641,6 +641,11 @@ func cmdLearnApply(argv []string) int {
 			fmt.Fprintln(os.Stderr, "learn apply:", applyErr)
 			return 2
 		}
+		if err := recordLearnLifecycleEvent(root, "apply", proposals[idx], proposals[idx].LedgerID,
+			"check_type="+proposals[idx].CheckType+" check_spec="+proposals[idx].CheckSpec, time.Now().UTC()); err != nil {
+			fmt.Fprintln(os.Stderr, "learn apply: transition committed, canonical lifecycle event failed:", err)
+			return 2
+		}
 		return 0
 	}
 	originalProposals, err := os.ReadFile(paths.Proposals)
@@ -727,6 +732,10 @@ func cmdLearnApply(argv []string) int {
 	mutationCommitted = true
 	if err := consumeLearnApprovalGrant(grantClaimPath, grantPath, grant, ledger.ID); err != nil {
 		fmt.Fprintln(os.Stderr, "learn apply: rule applied and ledgered, but approval grant could not be published as consumed; claim stays unavailable:", err)
+		return 2
+	}
+	if err := recordLearnLifecycleEvent(root, "apply", proposals[idx], ledger.ID, "rule_path="+ledger.RulePath, now); err != nil {
+		fmt.Fprintln(os.Stderr, "learn apply: transition committed, canonical lifecycle event failed:", err)
 		return 2
 	}
 	fmt.Printf("%s APPLIED ledger=%s grant=%s before=%s after=%s\n", proposal.ID, ledger.ID, grant.ID, ledger.BeforeSHA256, ledger.AfterSHA256)
@@ -955,6 +964,13 @@ func cmdLearnRollback(argv []string) int {
 	if err := appendLearnJSON(paths.Ledger, row); err != nil {
 		fmt.Fprintln(os.Stderr, "learn rollback: ledger append failed:", err)
 		return 2
+	}
+	if _, p := findLearnProposal(proposals, target.ProposalID); p != nil {
+		if err := recordLearnLifecycleEvent(root, "rollback", *p, row.ID,
+			"target_ledger="+target.ID+" rule_path="+target.RulePath, now); err != nil {
+			fmt.Fprintln(os.Stderr, "learn rollback: transition committed, canonical lifecycle event failed:", err)
+			return 2
+		}
 	}
 	fmt.Printf("%s REVOKED target=%s\n", target.ProposalID, target.ID)
 	return 0

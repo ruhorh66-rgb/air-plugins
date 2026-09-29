@@ -99,6 +99,25 @@ func TestLearnRollbackRestoresExactPreviousBytes(t *testing.T) {
 	if proposals[0].Status != learnRevoked {
 		t.Fatalf("proposal status after rollback=%q", proposals[0].Status)
 	}
+	journal, err := readLearnJournal(paths.Journal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lifecycle []learnJournalRecord
+	for _, event := range journal {
+		if event.Kind == "lifecycle" && event.Reference == id {
+			lifecycle = append(lifecycle, event)
+		}
+	}
+	if len(lifecycle) != 2 {
+		t.Fatalf("apply+rollback must emit two canonical lifecycle events, got %#v", lifecycle)
+	}
+	if !strings.Contains(lifecycle[0].Evidence, "action=apply") || !strings.Contains(lifecycle[0].Evidence, "ledger=") {
+		t.Fatalf("apply lifecycle evidence incomplete: %#v", lifecycle[0])
+	}
+	if !strings.Contains(lifecycle[1].Evidence, "action=rollback") || !strings.Contains(lifecycle[1].Evidence, "target_ledger="+ledgerID) {
+		t.Fatalf("rollback lifecycle evidence incomplete: %#v", lifecycle[1])
+	}
 }
 
 func TestLearnRollbackRefusesToClobberNewerRules(t *testing.T) {
