@@ -596,3 +596,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-019 0.11.3 release regression · owner:AC·DEV·AirWorker · [[N-025_0-11-3-align-planner-release-check-with-canonica]] · 0.11.3 align planner release check with canonical plan thread
 - [closed] N-019 0.11.3 release regression and install · owner:AC·DEV·AirWorker · [[N-026_0-11-3-air-env-002-plugin-profile-drift-repair]] · 0.11.3 AIR-ENV-002 plugin profile drift repair
 - [closed] 0.11.3 post-release plan hygiene · owner:AC·DEV·AirWorker · [[N-027_align-legacy-ladder-criteria-with-accepted-0-11-3]] · Align legacy ladder criteria with accepted 0.11.3 policy
+- [open] post-0.11.3 self-learning hardening · owner:AC·DEV·AirWorker · [[N-028_0-11-4-operational-self-learning-procedures-for-s]] · 0.11.4 operational self-learning procedures for stalls

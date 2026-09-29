@@ -1,0 +1,15 @@
+{
+  "schema": "air-worker.learn.rule/v1",
+  "proposal_id": "LP-20260929T154021Z-7b217ff8",
+  "class": "file-lock-before-code-patch",
+  "rule": "On Windows ACCESS_DENIED replacing a file, identify the file-handle owner with Restart Manager or equivalent read-only diagnostics before changing atomic-write code; if a supervised process owns the handle, release it only through its approved lifecycle controller and retry unchanged code.",
+  "trigger": "Atomic rename/replace/write of an existing file returns ACCESS_DENIED or sharing violation.",
+  "check_type": "gate",
+  "check_spec": "operational-procedure-v1",
+  "test_case": "file replacement returns ACCESS_DENIED -\u003e identify handle owner before any write-path code patch",
+  "status": "APPLIED",
+  "approved_at": "2026-09-29T15:43:24.7616983Z",
+  "approval": "grant:LG-20260929T154302Z-9c5c390f",
+  "verified_at": "2026-09-29T15:43:24.7616983Z",
+  "verification_receipt": "builtin:operational-procedure-v1:v1 structural=pass"
+}

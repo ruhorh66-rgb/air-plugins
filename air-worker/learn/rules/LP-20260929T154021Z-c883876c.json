@@ -1,0 +1,15 @@
+{
+  "schema": "air-worker.learn.rule/v1",
+  "proposal_id": "LP-20260929T154021Z-c883876c",
+  "class": "execution-unknown-no-blind-retry",
+  "rule": "Treat EXECUTION_UNKNOWN as unknown execution state, not failure. Do not repeat start_process until node/process/filesystem evidence proves the original command did not run.",
+  "trigger": "AIR Commander start_process returns EXECUTION_UNKNOWN or transport outcome is ambiguous.",
+  "check_type": "gate",
+  "check_spec": "operational-procedure-v1",
+  "test_case": "start_process returns EXECUTION_UNKNOWN -\u003e inspect node/process/filesystem evidence and suppress duplicate start unless non-execution is proven",
+  "status": "APPLIED",
+  "approved_at": "2026-09-29T15:43:24.6777016Z",
+  "approval": "grant:LG-20260929T154302Z-e7900c1a",
+  "verified_at": "2026-09-29T15:43:24.6777016Z",
+  "verification_receipt": "builtin:operational-procedure-v1:v1 structural=pass"
+}

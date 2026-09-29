@@ -1,5 +1,17 @@
 # CHANGELOG — air-worker
 
+## 0.11.4 — release candidate 29.09.2026
+
+### Verified operational self-learning for stalls and ambiguous execution
+
+- Added generic learned check `gate/operational-procedure-v1` for non-blocking operational procedures that must be verified before becoming indexed skills.
+- Trained three LPR-approved procedures from live 29.09 incidents: diagnose a silent process before retrying, never blindly repeat `start_process` after `EXECUTION_UNKNOWN`, and identify a Windows file-handle owner before changing atomic-write code after `ACCESS_DENIED`.
+- All three rules were approved through the trusted ChatGPT/AIR Commander private approval path, applied through `learn apply`, ledgered, and exposed by the installed 0.11.3 `SessionStart` skill index before this code release.
+- The verifier is intentionally structural and does not turn these procedures into hard runtime blocks; it preserves operator judgment while making the procedures durable, indexed and loadable on demand.
+- Existing model ladder, Headroom transport, Ponytail transport and executor policy are unchanged.
+
+Release control: full Go/vet + plugin/package regression and clean build; rollback target `air-worker--v0.11.3`. Live 0.11.4 installation remains a separate explicit LPR gate.
+
 ## 0.11.3 — release candidate 29.09.2026
 
 ### Vendor model ladder + Headroom judges + Ponytail GPT executors

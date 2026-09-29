@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.11.3",
-  "description": "AirWorker 0.11.3: OpenAI executor ladder, Anthropic judges via Headroom, and GPT executor core.",
+  "version": "0.11.4",
+  "description": "AirWorker 0.11.4: verified operational self-learning procedures for stalls and ambiguous execution.",
   "author": {
     "name": "AIR OS"
   },

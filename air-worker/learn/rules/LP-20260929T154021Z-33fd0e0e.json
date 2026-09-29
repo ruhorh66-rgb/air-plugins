@@ -1,0 +1,15 @@
+{
+  "schema": "air-worker.learn.rule/v1",
+  "proposal_id": "LP-20260929T154021Z-33fd0e0e",
+  "class": "process-stall-diagnosis",
+  "rule": "When a long process appears silent, inspect the original PID existence, age, CPU, descendants and completed output before declaring a hang or retrying; never duplicate a heavy start solely because polling returned no new lines.",
+  "trigger": "A running tool/process has no new output, a polling call looks stalled, or the operator suspects the worker is hung.",
+  "check_type": "gate",
+  "check_spec": "operational-procedure-v1",
+  "test_case": "no new output from an existing or recently completed PID -\u003e inspect original process/completion evidence before any retry",
+  "status": "APPLIED",
+  "approved_at": "2026-09-29T15:43:24.5882373Z",
+  "approval": "grant:LG-20260929T154302Z-dfbdae5a",
+  "verified_at": "2026-09-29T15:43:24.5882373Z",
+  "verification_receipt": "builtin:operational-procedure-v1:v1 structural=pass"
+}
