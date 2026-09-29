@@ -214,7 +214,7 @@ func semanticCodexCommand(exePath, root, prompt string, reviewer runnerSpec, sch
 	cmd := semanticCommand(exePath, semanticCodexArgs(root, reviewer, schemaPath)...)
 	cmd.Dir = root
 	cmd.Env = codexEnv(nil)
-	cmd.Stdin = strings.NewReader(prompt)
+	cmd.Stdin = strings.NewReader(ponytailPrompt(prompt))
 	return cmd
 }
 

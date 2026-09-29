@@ -20,14 +20,7 @@ func plannerRunner(cfg runConfig, tier string) (runnerSpec, error) {
 }
 
 func plannerCodexArgs(root, prompt string, runner runnerSpec) []string {
-	args := []string{"exec", "--json", "--skip-git-repo-check", "-s", "read-only", "-C", root}
-	if runner.Model != "" {
-		args = append(args, "-m", runner.Model)
-	}
-	if runner.Effort != "" {
-		args = append(args, "-c", "model_reasoning_effort="+runner.Effort)
-	}
-	return append(args, prompt)
+	return codexArgsForSandbox(root, prompt, runner, "read-only")
 }
 
 func callPlannerRunner(root, prompt string, runner runnerSpec, answerPath string, scope sessionScope) int {

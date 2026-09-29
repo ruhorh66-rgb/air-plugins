@@ -82,7 +82,7 @@ func codexArgsForSandbox(root, prompt string, runner runnerSpec, sandbox string)
 	for _, dir := range runner.AddDirs {
 		args = append(args, "--add-dir", filepath.Clean(strings.TrimSpace(dir)))
 	}
-	return append(args, prompt)
+	return append(args, ponytailPrompt(prompt))
 }
 
 func codexArgs(root, prompt string, runner runnerSpec) []string {
