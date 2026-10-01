@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.11.4",
-  "description": "AirWorker 0.11.4: verified operational self-learning procedures for stalls and ambiguous execution.",
+  "version": "0.11.5",
+  "description": "AirWorker 0.11.5: Windows atomic replacement of open files.",
   "author": {
     "name": "AIR OS"
   },

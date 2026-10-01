@@ -1,5 +1,15 @@
 # CHANGELOG — air-worker
 
+## 0.11.5 — 01.10.2026
+
+### Windows atomic replacement with an open reader
+
+- `writeFileAtomic` now replaces an existing file through `FileRenameInfoEx` with `REPLACE_IF_EXISTS | POSIX_SEMANTICS`, allowing readers that opened it with `FILE_SHARE_DELETE` to keep their handle while a new version becomes visible.
+- Transient sharing and access failures use bounded retry; an incompatible reader still yields a named error after the deadline. The temporary file is cleaned up on failure.
+- Added an external-process reader regression for both sharing modes and repeated replacement coverage.
+
+Release control: full Go tests/vet and package checks, clean checkout binaries, GitHub tag/Release. Rollback target: `air-worker--v0.11.4`. Installation requires a separate LPR gate.
+
 ## 0.11.4 — release candidate 29.09.2026
 
 ### Verified operational self-learning for stalls and ambiguous execution
