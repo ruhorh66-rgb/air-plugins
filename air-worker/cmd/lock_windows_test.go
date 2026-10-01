@@ -3,12 +3,116 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
+
+// A separate process keeps the destination handle open throughout the rename.
+func TestAtomicReaderProcess(t *testing.T) {
+	path := os.Getenv("AIR_WORKER_ATOMIC_READER_PATH")
+	if path == "" {
+		return
+	}
+	name, err := syscall.UTF16PtrFromString(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	share := uint32(syscall.FILE_SHARE_READ | syscall.FILE_SHARE_WRITE)
+	if os.Getenv("AIR_WORKER_ATOMIC_SHARE_DELETE") == "1" {
+		share |= syscall.FILE_SHARE_DELETE
+	}
+	h, err := syscall.CreateFile(name, syscall.GENERIC_READ, share, nil, syscall.OPEN_EXISTING, syscall.FILE_ATTRIBUTE_NORMAL, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.CloseHandle(h)
+	fmt.Println("READY")
+	_, _ = io.Copy(io.Discard, os.Stdin)
+}
+
+func TestWriteFileAtomicWithExternalReader(t *testing.T) {
+	oldTimeout, oldDelay := writeFileAtomicRetryTimeout, writeFileAtomicRetryDelay
+	writeFileAtomicRetryTimeout, writeFileAtomicRetryDelay = 60*time.Millisecond, 5*time.Millisecond
+	t.Cleanup(func() {
+		writeFileAtomicRetryTimeout, writeFileAtomicRetryDelay = oldTimeout, oldDelay
+	})
+	for _, tc := range []struct {
+		name, shareDelete string
+		wantSuccess       bool
+	}{
+		{"share-delete", "1", true},
+		{"no-share-delete", "0", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "PLAN.md")
+			if err := os.WriteFile(path, []byte("old"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			child := exec.Command(os.Args[0], "-test.run=^TestAtomicReaderProcess$")
+			child.Env = append(os.Environ(), "AIR_WORKER_ATOMIC_READER_PATH="+path, "AIR_WORKER_ATOMIC_SHARE_DELETE="+tc.shareDelete)
+			stdin, err := child.StdinPipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			stdout, err := child.StdoutPipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := child.Start(); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() {
+				_ = stdin.Close()
+				_ = child.Wait()
+			})
+			scanner := bufio.NewScanner(stdout)
+			if !scanner.Scan() || scanner.Text() != "READY" {
+				t.Fatalf("reader did not open PLAN.md: %q, %v", scanner.Text(), scanner.Err())
+			}
+			err = writeFileAtomic(path, []byte("new"))
+			if (err == nil) != tc.wantSuccess {
+				t.Fatalf("replace success=%v, want %v; err=%v", err == nil, tc.wantSuccess, err)
+			}
+			if !tc.wantSuccess && (!strings.Contains(err.Error(), path) || !strings.Contains(err.Error(), "FILE_SHARE_DELETE")) {
+				t.Fatalf("failure does not explain blocked replacement: %v", err)
+			}
+			want := "old"
+			if tc.wantSuccess {
+				want = "new"
+			}
+			got, readErr := os.ReadFile(path)
+			if readErr != nil || string(got) != want {
+				t.Fatalf("PLAN.md=%q, err=%v; want %q", got, readErr, want)
+			}
+			entries, readErr := os.ReadDir(filepath.Dir(path))
+			if readErr != nil || len(entries) != 1 {
+				t.Fatalf("atomic write left litter: %v, %v", entries, readErr)
+			}
+		})
+	}
+}
+
+func TestWriteFileAtomicRepeatedReplacement(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "PLAN.md")
+	for i := 0; i < 100; i++ {
+		want := fmt.Sprintf("revision %d", i)
+		if err := writeFileAtomic(path, []byte(want)); err != nil {
+			t.Fatalf("revision %d: %v", i, err)
+		}
+		got, err := os.ReadFile(path)
+		if err != nil || string(got) != want {
+			t.Fatalf("revision %d: got %q, err=%v", i, got, err)
+		}
+	}
+}
 
 // ЭТИ ПРОВЕРКИ ЗОВУТ ЗАМОК, А НЕ СМОТРЯТ НА НЕГО.
 //

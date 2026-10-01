@@ -52,10 +52,11 @@ var (
 	// Урок ровно тот же, что механизм ловит у продуктов: резолв не доказывает наличия,
 	// доказывает только ОТВЕТ. Здесь его доказал прогон, и никакая проверка формы
 	// доказать не могла.
-	procCreateMutexWLock = kernel32Lock.NewProc("CreateMutexW")
-	procOpenMutexW       = kernel32Lock.NewProc("OpenMutexW")
-	procReleaseMutex     = kernel32Lock.NewProc("ReleaseMutex")
-	procCloseHandleLock  = kernel32Lock.NewProc("CloseHandle")
+	procCreateMutexWLock           = kernel32Lock.NewProc("CreateMutexW")
+	procOpenMutexW                 = kernel32Lock.NewProc("OpenMutexW")
+	procReleaseMutex               = kernel32Lock.NewProc("ReleaseMutex")
+	procCloseHandleLock            = kernel32Lock.NewProc("CloseHandle")
+	procSetFileInformationByHandle = kernel32Lock.NewProc("SetFileInformationByHandle")
 )
 
 var kernel32Lock = syscall.NewLazyDLL("kernel32.dll")
@@ -141,27 +142,46 @@ func lockHeld(name string) bool {
 // вердикту: его читают и страж, и двигатель, и соседние сессии.
 func writeFileAtomic(path string, data []byte) error {
 	dir := filepath.Dir(path)
-	tmp := filepath.Join(dir, fmt.Sprintf(".%s.%d.tmp", filepath.Base(path), os.Getpid()))
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	f, err := os.CreateTemp(dir, "."+filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	defer os.Remove(tmp)
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
 		return err
 	}
 
 	deadline := time.Now().Add(writeFileAtomicRetryTimeout)
 	delay := writeFileAtomicRetryDelay
+	posixSupported := true
 	for {
-		err := os.Rename(tmp, path)
+		var err error
+		if posixSupported {
+			err = renamePosixWindows(tmp, path)
+			if errors.Is(err, syscall.Errno(1)) || errors.Is(err, syscall.Errno(3)) ||
+				errors.Is(err, syscall.Errno(50)) || errors.Is(err, syscall.Errno(87)) ||
+				errors.Is(err, syscall.Errno(120)) || errors.Is(err, syscall.Errno(123)) {
+				posixSupported = false
+			}
+		}
+		if !posixSupported {
+			err = os.Rename(tmp, path)
+		}
 		if err == nil {
 			return nil
 		}
 		if !retryableRenameError(err) {
-			os.Remove(tmp)
-			return err
+			return fmt.Errorf("atomic replace %q: %w", path, err)
 		}
 
 		remaining := time.Until(deadline)
 		if remaining <= 0 {
-			os.Remove(tmp)
-			return err
+			return fmt.Errorf("atomic replace %q timed out; target may be held without FILE_SHARE_DELETE (holder PID unknown): %w", path, err)
 		}
 		if delay > remaining {
 			delay = remaining
@@ -174,6 +194,44 @@ func writeFileAtomic(path string, data []byte) error {
 			}
 		}
 	}
+}
+
+type fileRenameInfo struct {
+	Flags          uint32
+	RootDirectory  syscall.Handle
+	FileNameLength uint32
+	FileName       [1]uint16
+}
+
+func renamePosixWindows(from, to string) error {
+	absolute, err := filepath.Abs(to)
+	if err != nil {
+		return err
+	}
+	name, err := syscall.UTF16FromString(absolute)
+	if err != nil {
+		return err
+	}
+	offset := int(unsafe.Offsetof(fileRenameInfo{}.FileName))
+	buf := make([]byte, offset+len(name)*2)
+	info := (*fileRenameInfo)(unsafe.Pointer(&buf[0]))
+	info.Flags = 0x1 | 0x2 // REPLACE_IF_EXISTS | POSIX_SEMANTICS
+	info.FileNameLength = uint32((len(name) - 1) * 2)
+	copy(unsafe.Slice((*uint16)(unsafe.Pointer(&buf[offset])), len(name)), name)
+	source, err := syscall.UTF16PtrFromString(from)
+	if err != nil {
+		return err
+	}
+	h, err := syscall.CreateFile(source, 0x00010000, syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_DELETE, nil, syscall.OPEN_EXISTING, syscall.FILE_ATTRIBUTE_NORMAL, 0) // DELETE access
+	if err != nil {
+		return &os.LinkError{Op: "open rename source", Old: from, New: to, Err: err}
+	}
+	defer syscall.CloseHandle(h)
+	r1, _, callErr := procSetFileInformationByHandle.Call(uintptr(h), 22, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf))) // FileRenameInfoEx
+	if r1 == 0 {
+		return &os.LinkError{Op: "set FileRenameInfoEx", Old: from, New: to, Err: callErr}
+	}
+	return nil
 }
 
 func retryableRenameError(err error) bool {
