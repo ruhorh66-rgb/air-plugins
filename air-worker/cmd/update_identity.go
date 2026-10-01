@@ -34,7 +34,15 @@ func runUpdateHostCommand(ctx context.Context, envKey, envValue, name string, ar
 		return "", fmt.Errorf("%s not found: %w", name, err)
 	}
 	cmd := exec.CommandContext(ctx, path, args...)
-	cmd.Env = withUpdateEnv(os.Environ(), envKey, envValue)
+	profile := ""
+	if envKey == "CLAUDE_CONFIG_DIR" {
+		profile = envValue
+	}
+	cmd.Env, err = childEnvironment(name, os.Environ(), profile)
+	if err != nil {
+		return "", err
+	}
+	cmd.Env = withUpdateEnv(cmd.Env, envKey, envValue)
 	out, err := cmd.CombinedOutput()
 	text := strings.TrimSpace(decodeOutput(out))
 	if err != nil {
@@ -108,7 +116,19 @@ func verifyUpdateLiveIdentity(m updateManifest, livePath string) error {
 }
 
 func syncKnownPluginCaches(m updateManifest) ([]updateCacheSyncResult, error) {
+	if strings.TrimSpace(os.Getenv("CLAUDE_CONFIG_DIR")) == "" && strings.TrimSpace(userEnvVar("CLAUDE_CONFIG_DIR")) == "" {
+		return nil, fmt.Errorf("active Claude profile is not explicit; set CLAUDE_CONFIG_DIR before plugin update")
+	}
 	profiles := knownUpdateProfiles()
+	active, err := activeClaudeConfigDir()
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range profiles {
+		if p.Host == "claude" && !samePath(p.ConfigDir, active) {
+			return nil, fmt.Errorf("inactive Claude profile %s has AirWorker installed; resolve multiple profiles before plugin update", p.ConfigDir)
+		}
+	}
 	if len(profiles) == 0 {
 		return nil, nil
 	}

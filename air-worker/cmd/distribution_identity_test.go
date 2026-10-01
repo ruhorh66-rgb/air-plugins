@@ -163,11 +163,11 @@ func TestBuildSelfcheckWorksWithoutSourceCheckoutAndWarnsMultipleProfiles(t *tes
 	}
 
 	report := buildSelfcheckReport(filepath.Join(user, "live", executableName()), activeClaude, activeCodex)
-	if code := selfcheckExit(report); code != 0 {
+	if code := selfcheckExit(report); code != 1 {
 		t.Fatalf("selfcheck code=%d violations=%v notProven=%v warnings=%v", code, report.Violations, report.NotProven, report.Warnings)
 	}
-	if !strings.Contains(strings.Join(report.Warnings, "\n"), "MULTIPLE PROFILE AMBIGUITY") {
-		t.Fatalf("multiple profile ambiguity not named: %v", report.Warnings)
+	if !strings.Contains(strings.Join(report.Violations, "\n"), "MULTIPLE PROFILE AMBIGUITY: claude") {
+		t.Fatalf("second Claude installation must fail selfcheck: %v", report.Violations)
 	}
 	foundActiveClaude, foundActiveCodex := false, false
 	for _, p := range report.Profiles {

@@ -77,6 +77,20 @@ def _environment_with_token() -> dict:
     исключает секреты, и диагностика здесь говорит только «взят/не найден».
     """
     env = dict(os.environ)
+    profile = env.get("CLAUDE_CONFIG_DIR", "").strip()
+    if not profile and sys.platform == "win32":
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+                profile, _ = winreg.QueryValueEx(key, "CLAUDE_CONFIG_DIR")
+        except OSError:
+            pass
+    if not profile:
+        home = env.get("USERPROFILE") or env.get("HOME")
+        if not home:
+            raise RuntimeError("active Claude profile is unknown; set CLAUDE_CONFIG_DIR")
+        profile = os.path.join(home, ".claude")
+    env["CLAUDE_CONFIG_DIR"] = os.path.abspath(profile)
     if env.get("CLAUDE_CODE_OAUTH_TOKEN"):
         return env
 

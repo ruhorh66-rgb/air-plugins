@@ -269,6 +269,10 @@ func upsertEnv(env []string, key, value string) []string {
 
 func applyClaudeRunnerEnv(cmd *exec.Cmd) bool {
 	env, tookToken := runnerEnv()
-	cmd.Env = env
+	var err error
+	cmd.Env, err = childEnvironment("claude", env, "")
+	if err != nil {
+		cmd.Err = err
+	}
 	return tookToken
 }

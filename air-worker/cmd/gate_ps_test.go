@@ -184,14 +184,20 @@ func TestLoopOpenGateExactStop(t *testing.T) {
 func TestPowerShellGuardMutationProofAndPwshUnchanged(t *testing.T) {
 	input := []string{`Path=C:\bin`, `PSModulePath=C:\Program Files\PowerShell\7\Modules;C:\custom\Modules`}
 	if runtime.GOOS == "windows" {
-		guarded := configuredChildEnvironment(`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`, input)
+		guarded, err := configuredChildEnvironment(`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`, input)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if strings.Contains(strings.ToLower(strings.Join(guarded, "\n")), `\powershell\7`) {
 			t.Fatalf("mutation proof: powershell.exe retained PowerShell 7 modules: %#v", guarded)
 		}
 	}
-	untouched := configuredChildEnvironment("pwsh", input)
-	if strings.Join(untouched, "\x00") != strings.Join(input, "\x00") {
-		t.Fatalf("pwsh environment changed: %#v", untouched)
+	untouched, err := configuredChildEnvironment("pwsh", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if envValue(untouched, "CLAUDE_CONFIG_DIR") == "" || envValue(untouched, "Path") != `C:\bin` {
+		t.Fatalf("pwsh environment lost profile or unrelated settings: %#v", untouched)
 	}
 }
 

@@ -466,7 +466,7 @@ func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope
 		for k, v := range chk.Env {
 			cmd.Env = append(cmd.Env, k+"="+v)
 		}
-		cmd.Env = configuredChildEnvironment(resolved, cmd.Env)
+		cmd.Env, cmd.Err = configuredChildEnvironment(resolved, cmd.Env)
 	}
 	out, err := runReceipted(context.Background(), scope, "judge", name, cmd)
 	code := exitCode(cmd, err)

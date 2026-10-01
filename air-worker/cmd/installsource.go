@@ -38,14 +38,10 @@ const (
 // extraKnownMarketplaces в settings.json источником не считается (её правка на
 // AIR-ENV-002 источник не изменила — маркетплейс остался каталогом).
 func claudeConfigDir() string {
-	if v := strings.TrimSpace(os.Getenv("CLAUDE_CONFIG_DIR")); v != "" {
-		return v
+	if dir, err := activeClaudeConfigDir(); err == nil {
+		return dir
 	}
-	up := os.Getenv("USERPROFILE")
-	if up == "" {
-		up = os.Getenv("HOME") // на не-Windows и в тестах
-	}
-	return filepath.Join(up, ".claude")
+	return claudeDefaultConfigDir()
 }
 
 // --- разбор реестров плагина -------------------------------------------------

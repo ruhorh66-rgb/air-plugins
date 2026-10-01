@@ -29,6 +29,7 @@ $ErrorActionPreference = 'Stop'
 # точное совпадение, при промахе -- по имени модели до двоеточия, при промахе обоих --
 # отказ с названной причиной. См. lib/ladder.ps1 за тем, почему тихий индекс 0 был дефектом.
 . (Join-Path (Split-Path -Parent $PSScriptRoot) 'lib\ladder.ps1')
+. (Join-Path $PSScriptRoot 'claude-env.ps1')
 
 # КОДИРОВКА ВЫВОДА СТАВИТСЯ ЯВНО. Найдено третьей площадкой 12.09.2026: диагностика
 # -Init превращалась в «????????» при запуске из чужой оболочки — ломался поток в
@@ -383,6 +384,7 @@ function Resolve-Runner([string]$rung) {
 }
 
 function Invoke-Claude([string]$prompt, [string]$model, [string]$effort, [double]$budgetLeft) {
+    Set-ActiveClaudeConfigDir
     $a = @('-p', $prompt, '--model', $model, '--output-format', 'json', '--max-turns', $maxTurns)
     # Допустимые уровни: low, medium, high, xhigh, max. Неизвестное значение CLI не
     # отвергает, а МОЛЧА берёт умолчание — печатает предупреждение и идёт дальше.

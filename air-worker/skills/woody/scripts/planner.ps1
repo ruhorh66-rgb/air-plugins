@@ -52,6 +52,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'claude-env.ps1')
 try { [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) } catch { }
 
 # Резолв ступени — общая функция со стражем и петлёй. Своя копия разошлась бы на первой правке.
@@ -196,6 +197,7 @@ $errPath = Join-Path $outDir 'planner-answer.err'
 if ($UseAnswer) { Copy-Item -LiteralPath $UseAnswer -Destination $outPath -Force; Write-Line 'разбор сохранённого ответа, вызова нет' }
 else {
 Write-Line 'зову разбивщика (один вызов)...'
+Set-ActiveClaudeConfigDir
 $psi = Start-Process -FilePath $claudeExe -PassThru -Wait -WindowStyle Hidden `
        -ArgumentList @('-p', '--model', $modelName, '--output-format', 'json') `
        -RedirectStandardInput $promptPath -RedirectStandardOutput $outPath -RedirectStandardError $errPath

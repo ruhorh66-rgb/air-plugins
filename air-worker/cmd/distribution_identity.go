@@ -418,8 +418,12 @@ func buildSelfcheckReport(livePath, claudeActive, codexActive string) selfcheckR
 			}
 		}
 		if len(roots) > 1 {
-			report.Warnings = appendUnique(report.Warnings,
-				fmt.Sprintf("MULTIPLE PROFILE AMBIGUITY: %s has air-worker state in %s", host, strings.Join(roots, ", ")))
+			message := fmt.Sprintf("MULTIPLE PROFILE AMBIGUITY: %s has air-worker state in %s", host, strings.Join(roots, ", "))
+			if host == "claude" {
+				report.Violations = appendUnique(report.Violations, message+"; remove the inactive AirWorker installation")
+			} else {
+				report.Warnings = appendUnique(report.Warnings, message)
+			}
 		}
 	}
 	warnings, violations, notProven := compareDistributionIdentity(report.Live, report.Profiles)

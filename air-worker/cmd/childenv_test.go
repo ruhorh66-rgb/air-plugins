@@ -1,9 +1,38 @@
 package main
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestChildReceivesClaudeProfileWithEmptyBaseEnv(t *testing.T) {
+	profile := filepath.Join(t.TempDir(), "active-claude")
+	t.Setenv("CLAUDE_CONFIG_DIR", profile)
+	env, err := childEnvironment("claude", nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=^TestClaudeProfileChildHelper$")
+	cmd.Env = append(env, "AIR_CHILD_ENV_TEST=1")
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(out)); got != profile {
+		t.Fatalf("child CLAUDE_CONFIG_DIR=%q want %q", got, profile)
+	}
+}
+
+func TestClaudeProfileChildHelper(t *testing.T) {
+	if os.Getenv("AIR_CHILD_ENV_TEST") == "" {
+		return
+	}
+	_, _ = os.Stdout.WriteString(os.Getenv("CLAUDE_CONFIG_DIR"))
+	os.Exit(0)
+}
 
 func TestChildEnvironmentSanitizesPSModulePath(t *testing.T) {
 	input := []string{

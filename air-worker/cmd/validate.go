@@ -203,7 +203,7 @@ func goListSelectors(root string, chk checkSpec, selectors []string) (map[string
 		for k, v := range chk.Env {
 			cmd.Env = append(cmd.Env, k+"="+v)
 		}
-		cmd.Env = configuredChildEnvironment(resolved, cmd.Env)
+		cmd.Env, cmd.Err = configuredChildEnvironment(resolved, cmd.Env)
 	}
 	out, err := cmd.CombinedOutput()
 	code := exitCode(cmd, err)
