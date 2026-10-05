@@ -1,0 +1,35 @@
+{
+  "schema": "air-worker.learning.plan-transactions-receipt/v1",
+  "sgt": "2026-10-05T22:20:00+08:00",
+  "node": "N-038_learn-fix-reconcile-all-shared-plan-mutations-an",
+  "status": "PASS",
+  "source_head_reviewed": "0824ddb26d579192368dcf6d6e14931a9955e91b",
+  "transaction_regression": {
+    "command": "go test . -run '^(TestSharedPlanNewAndMigrationRetryAcrossConsumerProcesses|TestSharedPlanCloseRetryAcrossConsumerProcesses|TestSharedPlanCloseKeepsEditMadeDuringPreflight|TestSharedPlanCreateRequiresStableRequestBeforeMutation|TestRound4PendingMigrationBlocksInterleavedMutations|TestRound4UnpublishedIDReservationBlocksOtherNew)$' -count=1 -timeout=120s",
+    "exit_code": 0,
+    "receipt": "R:\\-4-\\air-worker\\work\\learning-20261005\\n038-transactions-fresh.log",
+    "sha256": "211fc909dff64964cb53b913fb526f8f27861f9bbd37b91a5602ddedd119d1b8"
+  },
+  "verified_contract": [
+    "new/migrate require a stable request-id before mutation",
+    "reusing a request-id with different content fails",
+    "original IDs and event identity survive separate-process retry",
+    "partial event batches resume without duplication",
+    "close Node/Body/BeforeSHA are checked against one byte snapshot and concurrent edits survive/refuse closure",
+    "a different prepared create/migrate/close transaction blocks before ID allocation or plan/event mutation"
+  ],
+  "independent_astra": {
+    "model": "gpt-6-astra",
+    "sandbox": "read-only",
+    "manifest": "R:\\-4-\\air-worker\\work\\learning-20261005\\n038-review-manifest.json",
+    "manifest_sha256": "b70f1e0ac3c26cfde4b72898652bfb3349da07242e2afc9acfd8cf3959208b5a",
+    "verdict": "PASS",
+    "findings": [],
+    "verdict_file": "R:\\-4-\\air-worker\\work\\learning-20261005\\n038-astra.verdict.json",
+    "verdict_sha256": "c97e7f2a915c07045902d96eea4d803bed23b0666d1a40e3b7d48cacb331317c"
+  },
+  "limits": [
+    "Read-only Astra review does not independently reproduce tests.",
+    "Sudden hardware power-loss durability and non-Windows concurrency are outside N-038 proof; N-040 separately documents the controllable flush/publication contract."
+  ]
+}
