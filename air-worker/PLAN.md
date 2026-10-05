@@ -609,3 +609,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-030/N-035 · owner:gpt-airworker-learning-20261005 · [[N-038_learn-fix-reconcile-all-shared-plan-mutations-an]] · LEARN-FIX: reconcile all shared plan mutations and one node snapshot
 - [closed] N-035 · owner:gpt-airworker-learning-20261005 · [[N-039_learn-check-sidecar-inherited-pipe-deadline-regr]] · LEARN-CHECK: sidecar inherited-pipe deadline regression
 - [closed] N-038/N-035 · owner:gpt-airworker-learning-20261005 · [[N-040_learn-fix-round4-pending-transaction-gate-flushe]] · LEARN-FIX round4: pending transaction gate, flushed intents, bounded input
+- [open] LEARN-REL · owner:gpt-airworker-learning-20261005 · [[N-041_rel-judge-reconcile-product-wide-factual-judge-b]] · REL-JUDGE: reconcile product-wide factual judge before release
