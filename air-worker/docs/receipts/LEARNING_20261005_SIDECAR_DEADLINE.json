@@ -1,0 +1,62 @@
+{
+  "schema": "air-worker.learning.sidecar-deadline-receipt/v1",
+  "sgt": "2026-10-05T22:15:00+08:00",
+  "node": "N-039_learn-check-sidecar-inherited-pipe-deadline-regr",
+  "status": "PASS",
+  "module": {
+    "root": "F:\\-8-\\_worktrees\\air-modules-airworker-20261005",
+    "head": "dd5b6efad6c4d319f78e910d61cc6be8ddf2d8f8",
+    "upstream": "ddc0dfc60654ab95a9ba3f9a13c4422d9dd2132e",
+    "working_tree_clean": true
+  },
+  "original_failure": {
+    "command": "go test ./... -count=1 -timeout=120s",
+    "exit_code": 1,
+    "receipt": "R:\\-4-\\air-worker\\work\\learning-20261005\\module-resume-full.json",
+    "receipt_sha256": "94fc801fc541dfa87eb7f43ba400eea975f3a12dab61fcf921a82ace0472f202",
+    "log": "R:\\-4-\\air-worker\\work\\learning-20261005\\module-resume-full.log",
+    "log_sha256": "b6e132ed80700896293402cadbbac0df48a1c21f484d4c5560fe35fff957a38f",
+    "observed": "TestAstraSidecarInheritedPipeCannotDefeatDeadline failed at 736.0433ms against a 600ms wall-clock assertion with context deadline exceeded."
+  },
+  "diagnosis": {
+    "production_mechanism": "learning.CallSidecar uses exec.CommandContext plus cmd.WaitDelay=250ms.",
+    "finding": "The old test conflated Windows process startup/scheduler wall-clock with the inherited-pipe drain mechanism. The behavior to assert is exec.ErrWaitDelay while the direct child has exited successfully but a descendant still holds inherited stdout/stderr. Context cancellation is covered separately by the sidecar timeout test.",
+    "test_change": "The fixture context is long enough not to race Windows startup; the assertion now requires errors.Is(err, exec.ErrWaitDelay) and ctx.Err()==nil. This is a mechanism assertion, not a relaxed elapsed-time threshold."
+  },
+  "controlled_checks": [
+    {
+      "command": "go test ./learning -run '^TestAstraSidecarInheritedPipeCannotDefeatDeadline$' -count=3 -v -timeout=60s",
+      "exit_code": 0,
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-20261005\\module-pipe-serial-original.json",
+      "sha256": "c0326d22c61b7d16d92a44d3838ad604a827a31086176e3e5f9c1fed26cc5238"
+    },
+    {
+      "command": "go test ./learning -run '^TestAstraSidecarInheritedPipeCannotDefeatDeadline$' -count=10 -v -timeout=90s",
+      "exit_code": 0,
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-20261005\\n039-sidecar-serial-fresh.log",
+      "sha256": "d0397316141dccb50feeec1cf4b1915111618c408204c9c513e3f63cc342e8f0",
+      "observed": "10/10 runs returned exec: WaitDelay expired before I/O complete; measured CallSidecar times were approximately 668-875ms and context did not expire."
+    }
+  ],
+  "complete_regression": {
+    "historical_after_refinement": {
+      "go_test_exit_code": 0,
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-20261005\\module-refined-full.json",
+      "sha256": "e647a7e4ff144270118ac0d8418a2a6fc9a617f3dbd8654f2669ff685ffd2c96",
+      "go_vet_exit_code": 0,
+      "vet_receipt": "R:\\-4-\\air-worker\\work\\learning-20261005\\module-refined-vet.json",
+      "vet_sha256": "892a038375650ec3273c01a18544031e2baef10b957d1926be635f33256ca18b"
+    },
+    "fresh": {
+      "command": "go test ./... -count=1 -timeout=180s; go vet ./...",
+      "test_exit_code": 0,
+      "vet_exit_code": 0,
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-20261005\\n039-module-full-fresh.log",
+      "sha256": "e07456e324c79b6f0cc091e3857737b7104d9b8cead4f471aeca6e91099f13c9"
+    }
+  },
+  "limits": [
+    "This closes the false-negative regression check. It does not change the production CallSidecar implementation.",
+    "The module checkpoint is local/ahead of its remote by one commit; release integration must decide whether this test-only checkpoint is published or whether the consumer remains pinned to the already verified production-code commit."
+  ]
+}
