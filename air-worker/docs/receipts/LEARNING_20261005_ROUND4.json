@@ -1,0 +1,80 @@
+{
+  "schema": "air-worker.learning.round4-receipt/v1",
+  "sgt": "2026-10-05T22:12:57.531+08:00",
+  "node": "N-040_learn-fix-round4-pending-transaction-gate-flushe",
+  "status": "PASS",
+  "scope": "Review-4 P1/P1/P2 only: conflicting prepared plan transactions, durable intent persistence, bounded learning adapter input.",
+  "source": {
+    "worktree": "F:\\-7-\\_worktrees\\airworker-learning-20261005",
+    "saved_baseline_commit": "e66c681bd0a987999b42085024cd816c1ef14905",
+    "origin_main_at_start": "b53163f0c9332efd8a2c2c69dcc889237dc0bd6a",
+    "module_checkpoint": "dd5b6efad6c4d319f78e910d61cc6be8ddf2d8f8",
+    "module_dependency_pin": "2ca7e731607e9e301bd4ebae540dd8dc796a7997",
+    "candidate_binary_sha256": "2e0f2018a2ff8ab53eec4b66e4870052502328df3fbf3df90c87596ef316b896"
+  },
+  "red_before_fix": {
+    "command": "go test . -run '^TestRound4' -count=1 -timeout=120s",
+    "exit_code": 1,
+    "receipt": "R:\\-4-\\air-worker\\work\\learning-20261005\\round4-negative-before.txt",
+    "sha256": "0e49b92c52e1bb271108124db1dc47b39895a9793e7017a06a60ea7324bae9a7",
+    "observed": [
+      "competing new was accepted while a migration intent was prepared",
+      "competing close was accepted while a migration intent was prepared",
+      "an unpublished node-ID reservation was ignored",
+      "plan intents did not use a flushed atomic writer",
+      "an oversized generated summary launched the delivery adapter and reported delivered"
+    ]
+  },
+  "fix": {
+    "pending_intent_gate": "Under the existing product plan-nodes mutex, a different prepared create/migrate/close intent now fails closed before node-ID allocation or mutation; corrupt/unknown intent state also fails closed; the same intent path remains retryable.",
+    "durable_intents": "create/migrate and close intents use writeFileAtomicDurable. Non-Windows flushes temp bytes before rename and syncs the containing directory. Windows flushes temp bytes before the existing atomic replacement and reopens/syncs the published target; flush/publication errors propagate.",
+    "bounded_adapter_input": "runLearningProcess rejects JSON input larger than sharedLearningMaxBytes before executable open/hash/launch. Oversized summary delivery remains pending_delivery with the explicit callback error."
+  },
+  "green_after_fix": {
+    "targeted": {
+      "command": "go test . -run '^TestRound4' -count=1 -timeout=120s",
+      "exit_code": 0,
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-20261005\\round4-targeted-after.txt",
+      "sha256": "1387a0efb3d041494bc12828048b83259aa373f751b4fd5f1933dcb2bf628abf"
+    },
+    "full_consumer": {
+      "command": "go test ./... -count=1 -timeout=180s; go vet ./...",
+      "test_exit_code": 0,
+      "vet_exit_code": 0,
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-20261005\\round4-full-after.txt",
+      "sha256": "b06b5a98008c19a84f153d62db6218f5404e5d7bbf906caadd8610fb2fe14411"
+    },
+    "native_validation": {
+      "build_exit_code": 0,
+      "plan_lint_exit_code": 0,
+      "goals_exit_code": 0,
+      "validate_exit_code": 0,
+      "plan_spine_exit_code": 0,
+      "diff_check_exit_code": 0,
+      "problems": []
+    }
+  },
+  "independent_astra": {
+    "model": "gpt-6-astra",
+    "sandbox": "read-only",
+    "manifest": "R:\\-4-\\air-worker\\work\\learning-20261005\\round4-review-manifest.json",
+    "manifest_sha256": "7f6eff48870d2174fc913ccdf2772cc4c532f0b030c48035aab83e160fa9017b",
+    "verdict": "PASS",
+    "findings": [],
+    "verdict_file": "R:\\-4-\\air-worker\\work\\learning-20261005\\round4-astra.verdict.json",
+    "verdict_sha256": "b54e7271992d8de6c4569650bb2b81b5d0c20ac9b2d45b3c2555e94d8cdba0f6"
+  },
+  "factual_product_judge": {
+    "command": "round4-candidate\\air-worker.exe judge -product F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker -json",
+    "exit_code": 1,
+    "distance": 33,
+    "receipt": "R:\\-4-\\air-worker\\work\\learning-20261005\\round4-judge.json",
+    "sha256": "c792842ae8676aca5f0955b8f36f2bcb16d691ac12b19457c0aad6fe2f516f32",
+    "interpretation": "The product-wide factual judge is not PASS. Its failures are pre-existing/global plan debt: legacy Criterion*Pending selectors, Hermes static plugin check, and goal-drift's missing prior .goal-verdict. N-040 itself is judged by its node-specific RED/GREEN checks plus independent Astra per done_when. This receipt does not claim the whole product is release-ready."
+  },
+  "limits": [
+    "A software test cannot prove NTFS rename metadata survival under sudden hardware power loss. The implementation proves and tests the controllable contract: bytes are Sync'd before publication and publication/reopen/flush errors propagate.",
+    "N-040 PASS does not close N-029..N-039, does not establish live-learning acceptance, and does not authorize installation or a live blocking proposal.",
+    "The product-wide factual judge remains RED and must be reconciled before a new stable release."
+  ]
+}

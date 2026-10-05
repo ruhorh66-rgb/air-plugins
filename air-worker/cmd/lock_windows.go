@@ -155,7 +155,52 @@ func writeFileAtomic(path string, data []byte) error {
 	if err := f.Close(); err != nil {
 		return err
 	}
+	return replaceFileAtomicWindows(tmp, path)
+}
 
+// writeFileAtomicDurable is used for recovery intents. The temporary file is
+// flushed before its atomic publication, then the published target is flushed
+// again. NTFS rename metadata durability across sudden hardware power loss is an
+// OS/filesystem guarantee outside Go's testable surface; we record that limit in
+// the release receipt rather than claiming a synthetic power-loss proof.
+func writeFileAtomicDurable(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	f, err := os.CreateTemp(dir, "."+filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	defer os.Remove(tmp)
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := replaceFileAtomicWindows(tmp, path); err != nil {
+		return err
+	}
+	published, err := os.OpenFile(path, os.O_RDWR, 0)
+	if err != nil {
+		return fmt.Errorf("reopen durable intent after publication: %w", err)
+	}
+	syncErr := published.Sync()
+	closeErr := published.Close()
+	if syncErr != nil {
+		return fmt.Errorf("flush durable intent after publication: %w", syncErr)
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	return nil
+}
+
+func replaceFileAtomicWindows(tmp, path string) error {
 	deadline := time.Now().Add(writeFileAtomicRetryTimeout)
 	delay := writeFileAtomicRetryDelay
 	posixSupported := true

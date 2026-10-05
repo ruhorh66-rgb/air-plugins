@@ -42,7 +42,7 @@ func persistSharedPlanClose(path string, intent sharedPlanCloseIntent) error {
 	if len(b) > 2*sharedLearningMaxBytes {
 		return errors.New("plan close intent exceeds byte limit")
 	}
-	return writeFileAtomic(path, append(b, '\n'))
+	return writeFileAtomicDurable(path, append(b, '\n'))
 }
 
 // The caller holds the product's plan-nodes lock. A module error can occur AFTER
@@ -57,6 +57,9 @@ func cmdSharedPlanNodeClose(root string, s sharedLearningSettings, n planNode, b
 			fmt.Fprintln(os.Stderr, "plan close requires reconciliation:", err)
 		}
 		return 2
+	}
+	if err := rejectConflictingSharedPlanIntent(root, s, intentPath); err != nil {
+		return fail(err)
 	}
 	var intent sharedPlanCloseIntent
 	b, err := readLearningBounded(intentPath, 2*sharedLearningMaxBytes)

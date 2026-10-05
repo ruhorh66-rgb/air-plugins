@@ -170,6 +170,9 @@ func (b *learningBoundedOutput) Write(p []byte) (int, error) {
 // Adapters consume evidence as JSON stdin, never as a shell command. The configured
 // executable is release-owned and hash-pinned; a model's packet cannot select it.
 func runLearningProcess(ctx context.Context, a *learningProcessAdapter, input json.RawMessage) (json.RawMessage, error) {
+	if len(input) > sharedLearningMaxBytes {
+		return nil, errors.New("learning adapter input exceeds byte limit")
+	}
 	if a == nil {
 		return nil, errors.New("learning adapter not configured")
 	}

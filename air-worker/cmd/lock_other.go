@@ -36,6 +36,46 @@ func writeFileAtomic(path string, data []byte) error {
 	return nil
 }
 
+// writeFileAtomicDurable is reserved for recovery intents whose bytes must be
+// flushed before publication. POSIX additionally syncs the containing directory
+// so the rename itself is durable across a power-loss boundary.
+func writeFileAtomicDurable(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	f, err := os.CreateTemp(dir, "."+filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	defer os.Remove(tmp)
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		return err
+	}
+	d, err := os.Open(dir)
+	if err != nil {
+		return fmt.Errorf("sync durable intent directory: %w", err)
+	}
+	syncErr := d.Sync()
+	closeErr := d.Close()
+	if syncErr != nil {
+		return fmt.Errorf("sync durable intent directory: %w", syncErr)
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	return nil
+}
+
 func cmdTray(argv []string) int {
 	fmt.Fprint(os.Stderr, "значок в области уведомлений сделан для Windows"+lineEnding)
 	return 2

@@ -91,6 +91,13 @@ func TestLearningProcessHelper(t *testing.T) {
 	case "delivery":
 		h := sha256.Sum256(b)
 		json.NewEncoder(os.Stdout).Encode(map[string]string{"sha256": hex.EncodeToString(h[:]), "channel_ref": "fixture/loopback", "message_id": "fixture-message"})
+	case "launch-marker":
+		marker := os.Getenv("AW_LEARNING_START_MARKER")
+		if marker == "" || os.WriteFile(marker, []byte("started"), 0600) != nil {
+			os.Exit(2)
+		}
+		h := sha256.Sum256(b)
+		json.NewEncoder(os.Stdout).Encode(map[string]string{"sha256": hex.EncodeToString(h[:]), "channel_ref": "fixture/loopback", "message_id": "fixture-marker"})
 	case "timeout":
 		time.Sleep(10 * time.Second)
 	case "oversize":

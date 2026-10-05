@@ -53,7 +53,7 @@ func persistSharedPlanCreate(path string, intent sharedPlanCreateIntent) error {
 	if len(b) > 8*sharedLearningMaxBytes {
 		return errors.New("plan create intent exceeds byte limit")
 	}
-	return writeFileAtomic(path, append(b, '\n'))
+	return writeFileAtomicDurable(path, append(b, '\n'))
 }
 
 // Publish a new node without replacing an editor's concurrent file. A temporary
@@ -107,6 +107,9 @@ func cmdSharedPlanCreate(root string, s sharedLearningSettings, req sharedPlanCr
 	requestBytes, _ := json.Marshal(req)
 	requestSHA := learnSHA(requestBytes)
 	intentPath = filepath.Join(s.RuntimeRoot, "plan-create", learnSHA([]byte(req.Operation+"\n"+req.ID))+".json")
+	if err := rejectConflictingSharedPlanIntent(root, s, intentPath); err != nil {
+		return fail(err)
+	}
 	var intent sharedPlanCreateIntent
 	b, err := readLearningBounded(intentPath, 8*sharedLearningMaxBytes)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
