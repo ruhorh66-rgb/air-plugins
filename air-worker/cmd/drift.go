@@ -75,6 +75,7 @@ type driftMeasure struct {
 	DistanceRule    string `json:"distance_rule"`
 	JudgeDistance   *int   `json:"judge_distance"`
 	JudgeCode       *int   `json:"judge_code"`
+	PlanWorkSource  string `json:"plan_work_source,omitempty"`
 	PlanOpenSteps   *int   `json:"plan_open_steps"`
 	PlanClosedSteps *int   `json:"plan_closed_steps"`
 	PlanGates       int    `json:"plan_gates"`
@@ -102,6 +103,21 @@ type driftPoint struct {
 	Judge  *int
 	Closed *int
 	Open   *int
+	Source string
+}
+
+func normalizePlanWorkSource(source string) string {
+	if strings.TrimSpace(source) == "" {
+		return planWorkSourceLegacy
+	}
+	return source
+}
+
+func valueOrZero(v *int) int {
+	if v == nil {
+		return 0
+	}
+	return *v
 }
 
 type driftReason struct {
@@ -172,6 +188,9 @@ func moved(prev, cur driftPoint) bool {
 // не являются: уточнение пути откатом не является. Определение одно — для двигателя по
 // истории и для петли по итерации.
 func regression(prev, cur driftPoint) string {
+	if normalizePlanWorkSource(prev.Source) != normalizePlanWorkSource(cur.Source) {
+		return ""
+	}
 	if prev.Judge == nil || cur.Judge == nil {
 		return ""
 	}
@@ -190,6 +209,9 @@ func regression(prev, cur driftPoint) string {
 // меньше, остаток по судье не вырос. Это разбиение шага или добавление недостающего, то
 // есть ровно то, что предписывает THROTTLE.
 func refinedPlan(prev, cur driftPoint) bool {
+	if normalizePlanWorkSource(prev.Source) != normalizePlanWorkSource(cur.Source) {
+		return false
+	}
 	if prev.Open == nil || cur.Open == nil || *cur.Open <= *prev.Open {
 		return false
 	}
@@ -218,8 +240,14 @@ func countStreaks(history []driftPoint, current driftPoint) (stall, unverifiable
 	var prev *driftPoint
 	refined := false
 	step := func(p driftPoint) {
+		if prev != nil && normalizePlanWorkSource(prev.Source) != normalizePlanWorkSource(p.Source) {
+			stall, unverifiable, refined = 0, 0, false
+			prev = nil
+		}
 		if p.Judge == nil {
 			unverifiable++
+			pp := p
+			prev = &pp
 			return
 		}
 		unverifiable = 0
@@ -275,6 +303,10 @@ func evaluate(cur driftPoint, judgeCode *int, planOpen *int, history []driftPoin
 	workExhausted := cur.Judge != nil && *cur.Judge == 0
 	if workExhausted {
 		switch {
+		case judgeCode != nil && *judgeCode == 0 && normalizePlanWorkSource(cur.Source) == planWorkSourceNodes:
+			reasons = append(reasons, driftReason{
+				Rule: "WORKER-DRIFT-00", Verdict: verdictAllow,
+				Why: fmt.Sprintf("цель factual judge достигнута; %d открытых plan-node узлов остаются отдельной канонической нитью работы и не означают расхождение с legacy PLAN", valueOrZero(planOpen))})
 		case judgeCode != nil && *judgeCode == 0 && planOpen != nil && *planOpen > 0:
 			// WORKER-DRIFT-04 — СУДЬЯ ДОВОЛЕН, А ПЛАН ГОВОРИТ ИНОЕ. Пока шаги плана
 			// складывались в расстояние, этот случай давал ненулевое расстояние сам собой.
@@ -363,6 +395,7 @@ func readHistory(path string) []driftPoint {
 			Judge  *int   `json:"judge_distance"`
 			Open   *int   `json:"plan_open_steps"`
 			Closed *int   `json:"plan_closed_steps"`
+			Source string `json:"plan_work_source"`
 		}
 		if json.Unmarshal([]byte(strings.TrimPrefix(line, string(utf8BOM))), &row) != nil {
 			continue
@@ -370,7 +403,7 @@ func readHistory(path string) []driftPoint {
 		if row.Rule != distanceRule {
 			continue
 		}
-		out = append(out, driftPoint{Judge: row.Judge, Closed: row.Closed, Open: row.Open})
+		out = append(out, driftPoint{Judge: row.Judge, Closed: row.Closed, Open: row.Open, Source: normalizePlanWorkSource(row.Source)})
 	}
 	return out
 }
@@ -393,7 +426,7 @@ func driftOnce(root string, record bool, note string) (driftMeasure, int) {
 
 // pointOf — точка для сравнения замеров: те же три числа, что двигатель пишет в историю.
 func pointOf(m driftMeasure) driftPoint {
-	return driftPoint{Judge: m.JudgeDistance, Closed: m.PlanClosedSteps, Open: m.PlanOpenSteps}
+	return driftPoint{Judge: m.JudgeDistance, Closed: m.PlanClosedSteps, Open: m.PlanOpenSteps, Source: normalizePlanWorkSource(m.PlanWorkSource)}
 }
 
 // verdictExitCode — код 3 у «ждёт ЛПР» отдельный от торможения намеренно. Механизм,
@@ -478,15 +511,22 @@ func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 	planPath := planFilePath(root, cfg)
 	plan := parsePlan(planPath)
 	var planOpen, planClosed *int
+	planWorkSource := planWorkSourceLegacy
+	planGates := plan.Gates()
 	if !plan.Found {
 		limits = append(limits, fmt.Sprintf(
 			"плана нет (%s): шаги плана не измеряются, движение судится только остатком по судье", planPath))
 	} else {
-		planOpen = intPtr(plan.OpenWork())
-		if verdictFresh && mv.CriteriaTotal > 0 {
+		work := activePlanWork(root, plan)
+		planWorkSource = work.Source
+		planGates = work.Gates
+		planOpen = intPtr(work.Open)
+		if work.Source == planWorkSourceNodes {
+			planClosed = intPtr(work.Closed)
+		} else if verdictFresh && mv.CriteriaTotal > 0 {
 			planClosed = intPtr(confirmedClosedSteps(planPath, mv.CriteriaPassed))
 		} else {
-			planClosed = intPtr(plan.ClosedSteps())
+			planClosed = intPtr(work.Closed)
 		}
 	}
 
@@ -521,7 +561,7 @@ func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 	if judgeDistance != nil {
 		distance = intPtr(*judgeDistance)
 	}
-	cur := driftPoint{Judge: judgeDistance, Closed: planClosed, Open: planOpen}
+	cur := driftPoint{Judge: judgeDistance, Closed: planClosed, Open: planOpen, Source: planWorkSource}
 
 	history := readHistory(filepath.Join(root, ".woody", "goal-drift.jsonl"))
 	v, reasons := evaluate(cur, judgeCode, planOpen, history, lim)
@@ -541,9 +581,10 @@ func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 		DistanceRule:       distanceRule,
 		JudgeDistance:      judgeDistance,
 		JudgeCode:          judgeCode,
+		PlanWorkSource:     planWorkSource,
 		PlanOpenSteps:      planOpen,
 		PlanClosedSteps:    planClosed,
-		PlanGates:          plan.Gates(),
+		PlanGates:          planGates,
 		LPRGates:           lprGates,
 		CriteriaGated:      criteriaGated,
 		CriteriaUnknown:    criteriaUnknown,

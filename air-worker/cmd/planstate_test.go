@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestCriterion40Pending — К40: GATED отделён от UNKNOWN/NOT_PROVEN, executable distance и
@@ -76,6 +77,53 @@ func TestCriterion40Pending(t *testing.T) {
 // TestCriterion59Pending — К59: distance не считает одну обязанность дважды. Факт, уже
 // являющийся мерой критерия, дедуплицирован против legacy min_facts; report отдельно
 // показывает executable work, LPR gates и technical unknowns и предупреждает о legacy overlap.
+func TestPlanStateUsesCanonicalPlanNodesOverLegacyRows(t *testing.T) {
+	root := t.TempDir()
+	plan := filepath.Join(root, "PLAN.md")
+	text := "" +
+		"**Ц1.** node source\n\n" +
+		"| Критерий | Цель | Признак достижения | Чем меряется |\n" +
+		"|---|---|---|---|\n" +
+		"| К1 | Ц1 | fact | факт `f1` |\n\n" +
+		"| № | Шаг | Ступень | Судья |\n" +
+		"|---|---|---|---|\n" +
+		"| 1 | legacy work one | `script` | К1 |\n" +
+		"| 2 | legacy work two | `script` | К1 |\n" +
+		"| 3 | historical release gate | — | гейт: ЛПР |\n"
+	if err := os.WriteFile(plan, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(planNodeDir(root), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	nodes := []planNode{
+		{ID: "N-001_open", Title: "Open", Parent: "root", Trigger: "test", Owner: "worker", DoneWhen: "done", Status: "open", ReturnTo: "root", CreatedAt: now, UpdatedAt: now},
+		{ID: "N-002_closed", Title: "Closed", Parent: "root", Trigger: "test", Owner: "worker", DoneWhen: "done", Status: "closed", ReturnTo: "root", Receipts: []string{"receipt.json"}, CreatedAt: now, UpdatedAt: now},
+	}
+	for _, node := range nodes {
+		if err := os.WriteFile(filepath.Join(planNodeDir(root), node.ID+".md"), renderPlanNode(node), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cl := checklistFile{Items: []factItem{{ID: "f1", Status: "completed"}}}
+	raw, _ := json.Marshal(cl)
+	if err := os.WriteFile(filepath.Join(root, "checklist.json"), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg := runConfig{Plan: "PLAN.md", Judge: judgeSpec{Checklist: "checklist.json"}}
+	ps := buildPlanState(root, cfg, plan, judgeResult{})
+	if ps.WorkSource != planWorkSourceNodes {
+		t.Fatalf("work source=%q want %q", ps.WorkSource, planWorkSourceNodes)
+	}
+	if ps.ExecutableWork != 1 {
+		t.Fatalf("node-spine open work=%d want 1; legacy table has two open rows and must not be active", ps.ExecutableWork)
+	}
+	if ps.PlanGates != 0 || ps.LPRGates != 0 {
+		t.Fatalf("historical legacy gate leaked into node-source PlanState: PlanGates=%d LPRGates=%d", ps.PlanGates, ps.LPRGates)
+	}
+}
+
 func TestCriterion59Pending(t *testing.T) {
 	root := t.TempDir()
 	plan := filepath.Join(root, "PLAN.md")

@@ -12,10 +12,45 @@ package main
 // GATED здесь отделён от UNKNOWN (см. measureGated в criteria.go): LPRGates — это открытые
 // гейты ПЛАНА плюс критерии, чья мера объявлена решением ЛПР, а не «непонятно, чем мерить».
 // Закрытые гейты в LPRGates не входят — закрытый гейт не работа и не ожидание, он сделан.
+const (
+	planWorkSourceLegacy = "legacy-plan"
+	planWorkSourceNodes  = "plan-node"
+)
+
+type activePlanWorkView struct {
+	Source string
+	Open   int
+	Closed int
+	Gates  int
+	Nodes  []planNode
+}
+
+func activePlanWork(root string, plan planInfo) activePlanWorkView {
+	nodes, err := listPlanNodes(root)
+	if err == nil && len(nodes) > 0 {
+		view := activePlanWorkView{Source: planWorkSourceNodes, Nodes: nodes}
+		for _, node := range nodes {
+			if node.Status == "closed" {
+				view.Closed++
+			} else {
+				view.Open++
+			}
+		}
+		return view
+	}
+	return activePlanWorkView{
+		Source: planWorkSourceLegacy,
+		Open:   plan.OpenWork(),
+		Closed: plan.ClosedSteps(),
+		Gates:  plan.Gates(),
+	}
+}
+
 type PlanState struct {
-	Path  string
-	Steps []planStep
-	Goals planGoals
+	Path       string
+	Steps      []planStep
+	Goals      planGoals
+	WorkSource string
 
 	CriteriaPassed        []string
 	CriteriaFailed        []string
@@ -43,13 +78,15 @@ type PlanState struct {
 // нового этот путь не решает молча.
 func buildPlanState(root string, cfg runConfig, planPath string, base judgeResult) PlanState {
 	plan := parsePlan(planPath)
+	work := activePlanWork(root, plan)
 	g := readPlanGoals(planPath)
 	ps := PlanState{
 		Path:           planPath,
 		Steps:          plan.Steps,
 		Goals:          g,
-		PlanGates:      plan.Gates(),
-		ExecutableWork: plan.OpenWork(),
+		WorkSource:     work.Source,
+		PlanGates:      work.Gates,
+		ExecutableWork: work.Open,
 	}
 	if len(g.Criteria) > 0 {
 		ps.CriteriaPassed, ps.CriteriaFailed, ps.CriteriaGated, ps.CriteriaUnknown, ps.CriterionObservations =

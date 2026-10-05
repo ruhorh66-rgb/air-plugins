@@ -227,17 +227,21 @@ func readSpend(root string, budget float64) reportSpend {
 // его исполняет человек, и называть его «следующим шагом модели» значило бы обещать
 // работу, которой модель сделать не может.
 func nextOpenStep(root, planPath string) reportStep {
-	if nodes, err := listPlanNodes(root); err == nil {
-		for _, node := range nodes {
-			if node.Status == "open" {
-				return reportStep{Num: node.ID, Title: node.Title, Tier: "node", Source: "plan-node", Owner: node.Owner, Found: true}
-			}
-		}
-	}
 	if planPath == "" {
 		planPath = filepath.Join(root, "PLAN.md")
 	} else if !filepath.IsAbs(planPath) {
 		planPath = filepath.Join(root, planPath)
+	}
+	work := activePlanWork(root, parsePlan(planPath))
+	if work.Source == planWorkSourceNodes {
+		for _, node := range work.Nodes {
+			if node.Status == "open" {
+				return reportStep{Num: node.ID, Title: node.Title, Tier: "node", Source: "plan-node", Owner: node.Owner, Found: true}
+			}
+		}
+		// A canonical node spine remains authoritative even when every node is
+		// closed. Falling back to old table rows would resurrect historical work.
+		return reportStep{}
 	}
 	for _, st := range readPlanSteps(planPath) {
 		if st.Done || st.Gate {
@@ -251,13 +255,15 @@ func nextOpenStep(root, planPath string) reportStep {
 func cachedUnknownMeasure(root string, cfg runConfig, note string) driftMeasure {
 	planPath := nativePlanPath(root, cfg)
 	plan := parsePlan(planPath)
+	work := activePlanWork(root, plan)
 	return driftMeasure{
 		At:              time.Now().Format("2006-01-02T15:04:05"),
 		DistanceRule:    distanceRule,
 		JudgeCode:       intPtr(2),
-		PlanOpenSteps:   intPtr(plan.OpenWork()),
-		PlanClosedSteps: intPtr(plan.ClosedSteps()),
-		PlanGates:       plan.Gates(),
+		PlanWorkSource:  work.Source,
+		PlanOpenSteps:   intPtr(work.Open),
+		PlanClosedSteps: intPtr(work.Closed),
+		PlanGates:       work.Gates,
 		Verdict:         "NOT_PROVEN",
 		Note:            note,
 		By:              appName + " " + version,

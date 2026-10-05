@@ -204,6 +204,37 @@ func TestСудьяДоволенАПланГоворитИное(t *testing.T) 
 	}
 }
 
+func TestPlanNodeSourceDoesNotTriggerLegacyJudgeMismatch(t *testing.T) {
+	cur := pp(0, 4, 3)
+	cur.Source = planWorkSourceNodes
+	v, reasons := evaluate(cur, d(0), d(3), nil, defaultLimits())
+	if v != verdictAllow {
+		t.Fatalf("plan-node work with factual PASS must remain ALLOW, got %q: %v", v, reasons)
+	}
+	if hasRule(reasons, "WORKER-DRIFT-04") {
+		t.Fatalf("legacy judge/plan mismatch fired for plan-node source: %v", reasons)
+	}
+	if !hasRule(reasons, "WORKER-DRIFT-00") {
+		t.Fatalf("plan-node factual PASS must explain the separate work thread: %v", reasons)
+	}
+}
+
+func TestPlanWorkSourceChangeResetsDriftHistory(t *testing.T) {
+	history := []driftPoint{
+		{Judge: d(2), Closed: d(5), Open: d(3), Source: planWorkSourceLegacy},
+		{Judge: d(2), Closed: d(5), Open: d(3), Source: planWorkSourceLegacy},
+		{Judge: d(2), Closed: d(5), Open: d(3), Source: planWorkSourceLegacy},
+	}
+	cur := driftPoint{Judge: d(2), Closed: d(1), Open: d(2), Source: planWorkSourceNodes}
+	stall, blind := countStreaks(history, cur)
+	if stall != 0 || blind != 0 {
+		t.Fatalf("source boundary must reset incomparable history: stall=%d blind=%d", stall, blind)
+	}
+	if why := regression(history[len(history)-1], cur); why != "" {
+		t.Fatalf("source boundary must not compare closed counts: %s", why)
+	}
+}
+
 // --- граница истории и сквозной замер -------------------------------------------------
 
 const planFixture = "| № | Шаг | Ступень | Судья |\n" +
