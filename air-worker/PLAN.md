@@ -606,6 +606,6 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-learning-20261005 · [[N-035_learn-test-две-живые-цепочки-и-р]] · LEARN-TEST: две живые цепочки и регрессия точного артефакта
 - [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-learning-20261005 · [[N-036_learn-rel-отдельные-гейты-выпу]] · LEARN-REL: отдельные гейты выпуска, установки и наблюдения
 - [open] N-036 LEARN-REL · owner:gpt-airworker-learning-20261005 · [[N-037_learn-rel-authorization-20261005-release-after-v]] · LEARN-REL authorization 20261005: release after verified checks
-- [open] N-030/N-035 · owner:gpt-airworker-learning-20261005 · [[N-038_learn-fix-reconcile-all-shared-plan-mutations-an]] · LEARN-FIX: reconcile all shared plan mutations and one node snapshot
+- [closed] N-030/N-035 · owner:gpt-airworker-learning-20261005 · [[N-038_learn-fix-reconcile-all-shared-plan-mutations-an]] · LEARN-FIX: reconcile all shared plan mutations and one node snapshot
 - [closed] N-035 · owner:gpt-airworker-learning-20261005 · [[N-039_learn-check-sidecar-inherited-pipe-deadline-regr]] · LEARN-CHECK: sidecar inherited-pipe deadline regression
 - [closed] N-038/N-035 · owner:gpt-airworker-learning-20261005 · [[N-040_learn-fix-round4-pending-transaction-gate-flushe]] · LEARN-FIX round4: pending transaction gate, flushed intents, bounded input
