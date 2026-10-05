@@ -1,0 +1,47 @@
+{
+  "schema": "air-worker.plan-scope-reconciliation/v1",
+  "created_at_utc": "2026-10-05T15:30:09.661842+00:00",
+  "plan": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\PLAN.md",
+  "plan_pre_sha256": "14990108313d231b9c5c7ae9da159191135e6939be9adc9f1285623125604802",
+  "plan_post_sha256": "1a5e67e2ea6d59db7207e2a8582705787035c71d6dc713c42ff5f3a5565552df",
+  "node": "N-042_rel-judge-preserve-non-current-legacy-architectu",
+  "criteria_migrated_out_of_active_release_judge": {
+    "К14": "| К14 | Ц2 | `SKILL.md` — короткий необязательный discovery/help-слой; механизм и решения не меняются при его отсутствии или незагрузке | проверка `тесты бинарника` · тест `TestCriterion14Pending` |",
+    "К25": "| К25 | Ц5 | перед установкой проверена годность планов продуктов, по которым идёт петля; установка не останавливает исполнителей петли | проверка `тесты бинарника` · тест `TestCriterion25Pending` |",
+    "К43": "| К43 | Ц3 | `script:action` и `script:probe` различаются: exit 0 закрывает только action/`close_on_exit_0`, probe никогда не закрывает work-step; loop умеет штатно остановиться после одного work-step (`--once`/`--max-work-steps 1`) | проверка `тесты бинарника` · тест `TestCriterion43Pending` |",
+    "К48": "| К48 | Ц3 | административные изменения PLAN выполняются командами binary `close-step`, `reopen-step`, `annotate-step`, `split-step` поверх одного PlanState, а не ручной Markdown-правкой | проверка `тесты бинарника` · тест `TestCriterion48Pending` |",
+    "К49": "| К49 | Ц3 | acceptance имеет тип `unit`, `integration-local`, `live-machine`, `reboot` или `LPR`; unit не закрывает шаг, если критерий требует live/reboot/LPR | проверка `тесты бинарника` · тест `TestCriterion49Pending` |",
+    "К50": "| К50 | Ц4 | developer bootstrap/recovery одной командой показывает version → canonical PLAN → validate/goals → fast report → git/dependency health → объявленные recovery anchors; core только проверяет anchor, продуктовый snapshot не реализует | проверка `тесты бинарника` · тест `TestCriterion50Pending` |",
+    "К61": "| К61 | Ц3 | selector measure умеет package/scope и отдельные select cwd/env/tmp; effective command/context виден в JSON. Исходы различают package missing, test missing, test failed и infrastructure unavailable/transient lock; AirWorker не маскирует product-test failure автоматическим retry | проверка `тесты бинарника` · тест `TestCriterion61Pending` |",
+    "К76": "| К76 | Ц6 | runtime/cache Codex и Claude Code имеют канонический адрес R:\\_runtime; исходные пути остаются совместимыми через проверенные junction, активные процессы не прерываются, профили с токенами не переносятся | проверка `тесты бинарника` · тест `TestRuntimeCacheMigrationPending` |",
+    "К81": "| К81 | Ц6 | после официального появления combined `chat --query-file` + `--usage-file` новый контракт доказывает machine-readable usage на success/failure/timeout/budget и добавляет tokens/cost в promotion gate без argv transport | факт `hermes-combined-usage-receipt` |"
+  },
+  "legacy_active_steps_migrated": {
+    "94": "| 94 | **Будущее расширение Hermes usage receipt.** После появления в официальном Hermes единого поддерживаемого пути `chat --query-file`/stdin + one-shot + max-turns + run-budget + `--usage-file` обновить version floor/profile contract, добавить success/failure/timeout/budget E2E и только затем включить tokens/cost в обязательный promotion gate. Не является частью 0.10.10 и не разрешает временный argv-обход | `sonnet` | К81: официальный Hermes release/commit; capability probe; machine-readable receipt на success/failure/timeout/budget; backward regression PASS |",
+    "74": "| 74 | Безопасное исполнение шага: явные `script:action`/`script:probe` (или эквивалентный `close_on_exit_0`) и штатный `loop --once`/`--max-work-steps 1`; рабочие эксплуатационные сессии могут гарантированно отдать механизму ровно один work-step; adjacent session/jobs stay runnable | `sonnet` | К31, К43: `TestCriterion31ScriptActionProbePending`, `TestCriterion43Pending` |",
+    "52": "| 52 | Инвариант skill объявлен тестом: без `SKILL.md` plugin/binary/guards продолжают работать; отдельно держится малый предел длины skill | `sonnet` | К14, К15: тест без skill + тест превышения предела |",
+    "53": "| 53 | `SKILL.md` сокращён до 10–30 строк discovery/help: что такое Air Worker, зачем он нужен, команды — ссылкой на `air-worker help`, а не списком, который разойдётся с бинарником; явная строка «правила и состояние — в binary». Никаких грамматик, историй дефектов, политик и текстов отказов | `sonnet` | К14: короткий необязательный skill проходит тест предела и тест отсутствия; TestCriterion14Pending |",
+    "54": "| 54 | Установка проверяет годность планов продуктов, по которым идёт петля, и не останавливает их исполнителей | `sonnet` | К25: тест Go на негодный план соседа и на живого исполнителя; TestCriterion25Pending |",
+    "90": "| 90 | Завершить cutover runtime/cache на R:\\_runtime после остановки активных Codex/Claude процессов: сверить копию, создать junction, проверить запуск и сохранить rollback; копия 17.09.2026 подготовлена, счёт файлов и байтов совпал, переключение ещё не выполнялось | `script` | К76: `TestRuntimeCacheMigrationPending`, live junction и запуск |",
+    "76": "| 76 | Штатные операции PlanState: `close-step`, `reopen-step`, `annotate-step`, `split-step`; административное изменение состояния идёт через binary, ручная Markdown-правка остаётся только аварийным/dev режимом | `sonnet` | К48: `TestCriterion48Pending` |",
+    "77": "| 77 | Acceptance types: `unit`, `integration-local`, `live-machine`, `reboot`, `LPR`; критерий хранит требуемый тип, и unit не может закрыть live/reboot/LPR шаг | `sonnet` | К49: `TestCriterion49Pending` |",
+    "78": "| 78 | Developer bootstrap/recovery guard: одна команда version → canonical PLAN → validate/goals → fast report → git/dependency health → recovery anchors. Продуктовый recovery snapshot остаётся у продукта; core только проверяет объявленный anchor | `sonnet` | К50: `TestCriterion50Pending` |"
+  },
+  "mixed_rows_before": {
+    "72": "| 72 | `air-worker validate` + selector engine: PLAN grammar/columns/id, criterion ranges/иерархические ID, suspicious reuse одного критерия последовательными work-steps, tier→ladder→runner→tool, `script` command, dev-path dependency. Go/pytest inventory строится один раз; поддерживаются package-scope и явные selector cwd/env/tmp; outcomes различают package/test missing, test fail и infrastructure unavailable Exploitation regressions 15.09.2026: preparatory steps must not reuse a terminal criterion without an intermediate measurable acceptance; PowerShell script selectors must preserve named `-Only` through `powershell.exe -Command`; escaped/literal `|` inside a Markdown cell must not split the four-column PLAN table; closing a step must preserve Judge/criterion references byte-for-byte except the step-number strike. | `sonnet` | К41, К51, К60, К61, К26: `TestCriterion41Pending`, `TestCriterion51Pending`, `TestCriterion60Pending`, `TestCriterion61Pending`, `TestCriterion26Pending` |",
+    "47": "| 47 | Тесты хуков переписаны на сквозную доставку: событие подаётся обёртке на stdin, в том числе в сессии без загруженного скила | `sonnet` | К15, К16, К22: прогон обёрток в `тесты хуков` |",
+    "55": "| 55 | Отсутствие управляющей логики вне binary проверяется поставкой: в hooks нет `.ps1`, adapters не содержат решений, skill необязателен, `hooks.json` не хранит исторические трактаты/политику. Второй реализации механизма в поставке нет. Старые движки `skills/woody/scripts` (woody, judge, planner, goal-drift) и `skills/woody/lib` сняты вместе со сверкой равенства в `tools/check-binary.ps1`, для которой они держались эталоном. `skills/woody/capabilities.json` снят: команды печатает `air-worker help`. Движок Python `skills/run-worker-task` — гейт 70 | `sonnet` | К11, К12, К14: счёт файлов/строк и тест plugin без skill |"
+  },
+  "rationale": {
+    "К14": "future compact optional SKILL contract; current skill still exceeds target",
+    "К25": "future install-vs-live-loop acceptance, not proven",
+    "К43": "future one-work-step loop bound/action-probe contract, not implemented",
+    "К48": "superseded command vocabulary; current canonical kernel is plan spine/node new|close|list/migrate, old close-step/reopen-step/annotate-step/split-step is not claimed implemented",
+    "К49": "future typed acceptance levels, not implemented",
+    "К50": "future developer bootstrap/recovery guard, not implemented",
+    "К61": "future extended selector cwd/env/tmp/outcome taxonomy; current checkSpec does not expose full contract",
+    "К76": "operational runtime/cache cutover requires separate live process window; not a current code-release criterion",
+    "К81": "vendor-deferred Hermes combined usage receipt; 0.10.10 explicitly made it non-blocking until vendor capability exists"
+  },
+  "invariant": "Migration out of the active 0.11.x release judge is not implementation or acceptance; the requirement remains open in the referenced plan node."
+}

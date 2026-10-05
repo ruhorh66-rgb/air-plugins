@@ -1,0 +1,31 @@
+{
+  "schema": "air-worker.plan-scope-reconciliation/v1",
+  "created_at_utc": "2026-10-05T15:30:09.661842+00:00",
+  "plan": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\PLAN.md",
+  "plan_pre_sha256": "14990108313d231b9c5c7ae9da159191135e6939be9adc9f1285623125604802",
+  "plan_post_sha256": "1a5e67e2ea6d59db7207e2a8582705787035c71d6dc713c42ff5f3a5565552df",
+  "node": "N-043_rel-judge-preserve-additional-superseded-criteri",
+  "criteria_migrated_out_of_active_release_judge": {
+    "К16": "| К16 | Ц3 | правка файлов без объявленного продукта с годным планом отклоняется; правка по гейту ЛПР и правка исполнителя петли в корне продукта пропускаются | проверка `тесты бинарника` · тест `TestCriterion16Pending` |",
+    "К31": "| К31 | Ц3 | `script:action` с командой закрывается по коду этой команды: 0 — закрытие без подъёма ступени, не 0 — работа остаётся; `script:probe` при коде 0 только обновляет доказательство и шаг не закрывает | проверка `тесты бинарника` · тест `TestCriterion31ScriptActionProbePending` |",
+    "К39": "| К39 | Ц6 | GPT Chat + RDC — третий host adapter без отдельной логики: binary выдаёт task packet для текущего шага, GPT Chat исполняет его через RDC, после чего тот же factual judge и Anthropic semantic judge оценивают результат. Один packet проектируется под один инструментальный прогон: целевой объём ≤20 минут кодинга, жёсткое окно 20–26 минут; более крупный шаг binary/план обязан заранее разделить. Рабочий профиль чата — GPT-5.6 Sol, high reasoning | проверка `тесты бинарника` · тест `TestCriterion39Pending` |",
+    "К60": "| К60 | Ц3 | PLAN lint не допускает silent mismatch ссылок: диапазон `К4-К17`/`К4–К17` либо детерминированно разворачивается, либо отклоняется; поддержана согласованная иерархическая форма ID; один критерий у последовательных work-steps выдаёт warning/error до loop | проверка `тесты бинарника` · тест `TestCriterion60Pending` |"
+  },
+  "legacy_active_steps_migrated": {
+    "74": "| 74 | Безопасное исполнение шага: явные `script:action`/`script:probe` (или эквивалентный `close_on_exit_0`) и штатный `loop --once`/`--max-work-steps 1`; рабочие эксплуатационные сессии могут гарантированно отдать механизму ровно один work-step; adjacent session/jobs stay runnable | `sonnet` | К31, К43: `TestCriterion31ScriptActionProbePending`, `TestCriterion43Pending` |",
+    "69": "| 69 | GPT Chat + RDC adapter: binary формирует воспроизводимый task packet текущего шага (цель, критерии, корень, scope, ожидаемый результат, job_id и финальный factual judge). GPT Chat исполняет через RDC как first-class external executor; transport timeout = RUNNING и следующий прогон сначала poll-ит job. Фактические host/vendor/model/effort пишутся в measurement, AirWorker не запускает вторую модель. Packet ≤20 минут кодинга, жёсткое окно 20–26 минут; более крупный шаг заранее дробится | `sonnet` | К39, К42, К47: `TestCriterion39Pending`, `TestCriterion42Pending`, `TestCriterion47Pending` · исполнитель: ChatGPT |",
+    "42": "| 42 | Решение стража работы в бинарнике с исключениями: гейт ЛПР и исполнитель петли в корне продукта с годным планом правку не теряют. Образец — первая редакция на PowerShell | `sonnet` | К16: тест Go на отказ без продукта и на два исключения; TestCriterion16Pending |"
+  },
+  "mixed_rows_before": {
+    "72": "| 72 | `air-worker validate` + selector engine: PLAN grammar/columns/id, criterion ranges/иерархические ID, suspicious reuse одного критерия последовательными work-steps, tier→ladder→runner→tool, `script` command, dev-path dependency. Go/pytest inventory строится один раз; поддерживаются package-scope и явные selector cwd/env/tmp; outcomes различают package/test missing, test fail и infrastructure unavailable Exploitation regressions 15.09.2026: preparatory steps must not reuse a terminal criterion without an intermediate measurable acceptance; PowerShell script selectors must preserve named `-Only` through `powershell.exe -Command`; escaped/literal `|` inside a Markdown cell must not split the four-column PLAN table; closing a step must preserve Judge/criterion references byte-for-byte except the step-number strike. | `sonnet` | К41, К51, К60, К61, К26: `TestCriterion41Pending`, `TestCriterion51Pending`, `TestCriterion60Pending`, `TestCriterion61Pending`, `TestCriterion26Pending` |",
+    "47": "| 47 | Тесты хуков переписаны на сквозную доставку: событие подаётся обёртке на stdin, в том числе в сессии без загруженного скила | `sonnet` | К15, К16, К22: прогон обёрток в `тесты хуков` |",
+    "55": "| 55 | Отсутствие управляющей логики вне binary проверяется поставкой: в hooks нет `.ps1`, adapters не содержат решений, skill необязателен, `hooks.json` не хранит исторические трактаты/политику. Второй реализации механизма в поставке нет. Старые движки `skills/woody/scripts` (woody, judge, planner, goal-drift) и `skills/woody/lib` сняты вместе со сверкой равенства в `tools/check-binary.ps1`, для которой они держались эталоном. `skills/woody/capabilities.json` снят: команды печатает `air-worker help`. Движок Python `skills/run-worker-task` — гейт 70 | `sonnet` | К11, К12, К14: счёт файлов/строк и тест plugin без skill |"
+  },
+  "rationale": {
+    "К16": "legacy generic file-edit guard wording does not equal current session/executor scope mechanism; preserve without fake equivalence",
+    "К31": "legacy script:action/script:probe taxonomy is not implemented by current plain script semantics",
+    "К39": "legacy GPT Chat+RDC packet transport superseded by first-class executor dispatch/task-file/session-scope; old transport itself is not claimed implemented",
+    "К60": "hierarchy/range/reuse plan-lint grammar is broader than current plan-lint and remains future work"
+  },
+  "invariant": "Migration out of the active 0.11.x release judge is not implementation or acceptance; the requirement remains open in the referenced plan node."
+}

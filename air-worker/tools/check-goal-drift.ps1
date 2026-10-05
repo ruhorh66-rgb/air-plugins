@@ -42,6 +42,7 @@ $checked = @()
 $driftPath = $null
 foreach ($cand in @(
     $env:WOODY_GOAL_DRIFT,
+    (Join-Path $ProductRoot 'skills\woody\scripts\goal-drift.ps1'),
     $(if ($env:CLAUDE_CONFIG_DIR) { Join-Path $env:CLAUDE_CONFIG_DIR 'skills\air-woody\scripts\goal-drift.ps1' } else { $null }),
     'F:\-7-\air-worker\skills\woody\scripts\goal-drift.ps1'
 )) {

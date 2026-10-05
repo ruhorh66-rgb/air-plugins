@@ -140,15 +140,69 @@ func goSelectorExists(root string, chk checkSpec, selector string) measureResult
 	}
 	return measureResult{State: measureFail, Detail: fmt.Sprintf("тест %q не написан", selector)}
 }
+
+var judgeGoListSelectors = goListSelectors
+
+func buildJudgeSelectorInventory(root string, cfg runConfig, g planGoals) map[string]map[string]measureResult {
+	needs, _ := criterionSelectorNeeds(cfg, g)
+	inventory := map[string]map[string]measureResult{}
+	for name, need := range needs {
+		chk := need.Check
+		command := strings.TrimSuffix(filepath.Base(chk.Command), filepath.Ext(chk.Command))
+		if !strings.EqualFold(command, "go") || len(need.Selectors) == 0 {
+			continue
+		}
+		results := map[string]measureResult{}
+		found, err := judgeGoListSelectors(root, chk, need.Selectors)
+		if err != nil {
+			for _, selector := range need.Selectors {
+				results[selector] = measureResult{State: measureUnknown, Detail: fmt.Sprintf("selector inventory проверки %q недоступен: %v", name, err)}
+			}
+		} else {
+			for _, selector := range need.Selectors {
+				if found[selector] {
+					results[selector] = measureResult{State: measurePass, Detail: selector}
+				} else {
+					results[selector] = measureResult{State: measureFail, Detail: fmt.Sprintf("тест %q не написан", selector)}
+				}
+			}
+		}
+		inventory[name] = results
+	}
+	return inventory
+}
+
 func runSelectedCheck(root string, chk checkSpec, selector string) measureResult {
+	return runSelectedCheckWithInventory(root, chk, selector, judgeResult{})
+}
+
+func runSelectedCheckWithInventory(root string, chk checkSpec, selector string, base judgeResult) measureResult {
 	extra, err := selectorArgs(chk, selector)
 	if err != nil {
 		return measureResult{State: measureUnknown, Detail: err.Error()}
 	}
 	if selector != "" && strings.EqualFold(filepath.Base(chk.Command), "go") {
-		exists := goSelectorExists(root, chk, selector)
-		if exists.State != measurePass {
-			return exists
+		if inventory, ok := base.SelectorInventory[chk.Name]; ok {
+			exists, known := inventory[selector]
+			if !known {
+				return measureResult{State: measureUnknown, Detail: fmt.Sprintf("selector %q отсутствует в inventory проверки %q", selector, chk.Name)}
+			}
+			if exists.State != measurePass {
+				return exists
+			}
+			// The inventory was built from the same check command/package scope.
+			// If that complete check already passed, this selector was both present
+			// and executed successfully in the full check; rerunning it would only
+			// multiply process starts by the number of plan criteria.
+			full := checkResultState(base, chk.Name)
+			if full.State == measurePass {
+				return measureResult{State: measurePass, Detail: fmt.Sprintf("%s · selector %s найден в общем inventory", chk.Name, selector)}
+			}
+		} else {
+			exists := goSelectorExists(root, chk, selector)
+			if exists.State != measurePass {
+				return exists
+			}
 		}
 	}
 	clone := chk
@@ -243,7 +297,7 @@ func evaluateCriterionObserved(root string, cfg runConfig, c planCriterion, base
 			} else if m.Selector == "" {
 				mr = checkResultState(base, m.Name)
 			} else {
-				mr = runSelectedCheck(root, chk, m.Selector)
+				mr = runSelectedCheckWithInventory(root, chk, m.Selector, base)
 			}
 		case "fact":
 			mr = factMeasureState(root, cfg, m.Name)

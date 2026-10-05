@@ -108,10 +108,13 @@ if ($null -ne $plugin) {
 }
 
 $hermes = Get-Command hermes -ErrorAction SilentlyContinue
-if ($null -ne $hermes) {
-    $doctorOutput = & hermes plugins doctor (Split-Path -Parent $pluginManifest) --ci 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) { Fail "Hermes plugin doctor failed: $($doctorOutput.Trim())" } else { Pass 'Hermes plugin doctor' }
-    if (-not $StaticOnly) {
+if (-not $StaticOnly) {
+    if ($null -eq $hermes) {
+        Fail 'Hermes executable not found; runtime capability and plugin doctor cannot be proven'
+    } else {
+        $doctorOutput = & hermes plugins doctor (Split-Path -Parent $pluginManifest) --ci 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) { Fail "Hermes plugin doctor failed: $($doctorOutput.Trim())" } else { Pass 'Hermes plugin doctor' }
+
         $version = (& hermes --version 2>&1 | Select-Object -First 1).ToString().Trim()
         if ($version -notmatch 'v(\d+)\.(\d+)\.(\d+)') { Fail "cannot parse Hermes version: $version" }
         elseif ([version]("{0}.{1}.{2}" -f $Matches[1], $Matches[2], $Matches[3]) -lt [version]'0.21.3') { Fail "Hermes runtime is below 0.21.3: $version" }
@@ -134,8 +137,9 @@ if ($null -ne $hermes) {
         if ($combinedUsage) { Pass 'Hermes optional combined usage receipt is available' }
         else { Pass 'Hermes combined usage receipt is unavailable and non-blocking for contract v1' }
     }
-} elseif (-not $StaticOnly) { Fail 'Hermes executable not found; runtime capability and plugin doctor cannot be proven' }
-else { Pass 'Hermes unavailable; runtime checks explicitly skipped' }
+} else {
+    Pass 'Hermes runtime and plugin doctor explicitly skipped in static-only mode'
+}
 
 $result = [ordered]@{ schema_version = 'air-worker.hermes-adapter-check/v1'; outcome = $(if ($failures.Count -eq 0) { 'pass' } else { 'fail' }); static_only = [bool]$StaticOnly; passes = @($passes); failures = @($failures) }
 if ($Json) { $result | ConvertTo-Json -Depth 6 }

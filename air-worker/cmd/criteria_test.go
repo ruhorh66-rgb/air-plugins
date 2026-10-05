@@ -78,3 +78,55 @@ func TestCriterionJudgeAffectsVerdictAndDistance(t *testing.T) {
 		t.Fatalf("criterion unknown code=%d", code)
 	}
 }
+
+func TestJudgeSelectorInventoryBatchesOneGoListPerCheck(t *testing.T) {
+	old := judgeGoListSelectors
+	defer func() { judgeGoListSelectors = old }()
+	calls := 0
+	judgeGoListSelectors = func(root string, chk checkSpec, selectors []string) (map[string]bool, error) {
+		calls++
+		if chk.Name != "unit" || len(selectors) != 2 {
+			t.Fatalf("inventory request=%s %#v", chk.Name, selectors)
+		}
+		return map[string]bool{"TestOne": true, "TestTwo": true}, nil
+	}
+	cfg := runConfig{Judge: judgeSpec{Checks: []checkSpec{{
+		Name: "unit", Command: "go", Args: []string{"test", "."}, Select: "-run ^{}$",
+	}}}}
+	g := planGoals{Criteria: []planCriterion{
+		{ID: "К1", Goal: "Ц1", Measure: "проверка `unit` · тест `TestOne`"},
+		{ID: "К2", Goal: "Ц1", Measure: "проверка `unit` · тест `TestTwo`"},
+	}}
+	inventory := buildJudgeSelectorInventory(".", cfg, g)
+	if calls != 1 {
+		t.Fatalf("go selector inventory calls=%d want 1", calls)
+	}
+	base := judgeResult{Passed: []string{"unit"}, SelectorInventory: inventory}
+	passed, failed, gated, unknown, _ := evaluatePlanCriteriaObserved(".", cfg, g, base)
+	if len(passed) != 2 || len(failed) != 0 || len(gated) != 0 || len(unknown) != 0 {
+		t.Fatalf("criteria pass=%v fail=%v gated=%v unknown=%v", passed, failed, gated, unknown)
+	}
+}
+
+func TestJudgeSelectorInventoryMarksMissingWithoutPerSelectorProbe(t *testing.T) {
+	old := judgeGoListSelectors
+	defer func() { judgeGoListSelectors = old }()
+	calls := 0
+	judgeGoListSelectors = func(root string, chk checkSpec, selectors []string) (map[string]bool, error) {
+		calls++
+		return map[string]bool{"TestOne": true}, nil
+	}
+	cfg := runConfig{Judge: judgeSpec{Checks: []checkSpec{{
+		Name: "unit", Command: "go", Args: []string{"test", "."}, Select: "-run ^{}$",
+	}}}}
+	g := planGoals{Criteria: []planCriterion{
+		{ID: "К1", Goal: "Ц1", Measure: "проверка `unit` · тест `TestOne`"},
+		{ID: "К2", Goal: "Ц1", Measure: "проверка `unit` · тест `TestMissing`"},
+	}}
+	inventory := buildJudgeSelectorInventory(".", cfg, g)
+	base := judgeResult{Passed: []string{"unit"}, SelectorInventory: inventory}
+	passed, failed, _, unknown, _ := evaluatePlanCriteriaObserved(".", cfg, g, base)
+	if calls != 1 || len(passed) != 1 || len(failed) != 1 || len(unknown) != 0 {
+		t.Fatalf("calls=%d pass=%v fail=%v unknown=%v", calls, passed, failed, unknown)
+	}
+}

@@ -234,6 +234,11 @@ type judgeResult struct {
 	Failed  []string
 	Unknown []string
 
+	// SelectorInventory is built once per factual judge run for selector-based
+	// checks. A passing full check plus a found selector proves that selected
+	// test without starting another process for every criterion.
+	SelectorInventory map[string]map[string]measureResult
+
 	CheckObservations     []judgeCheckObservation
 	CriterionObservations []judgeCriterionObservation
 	InputFingerprint      string
@@ -336,6 +341,10 @@ func runJudge(root string, cfg runConfig, minFactsOverride int, scope sessionSco
 	planPath := filepath.Join(root, planName)
 	r.InputFingerprint = judgeInputFingerprint(root, cfg, filepath.Join(root, "run-config.json"), planPath)
 	g := readPlanGoals(planPath)
+	// K51: selector discovery is a judge-run stage, not a per-criterion side effect.
+	// The same Go check/package scope is inventoried once and then reused by every
+	// criterion. Missing selectors therefore do not spawn one go-test-list process each.
+	r.SelectorInventory = buildJudgeSelectorInventory(root, cfg, g)
 
 	// К59 — факты, уже являющиеся мерой критерия, размечаются ДО подсчёта legacy min_facts,
 	// чтобы недостача по ним не вошла в distance дважды: один раз через CriteriaFailed/Gated,

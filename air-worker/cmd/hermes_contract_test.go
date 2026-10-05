@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -58,6 +59,33 @@ func inlineYAMLList(t *testing.T, text, key string) []string {
 		parts[i] = strings.Trim(strings.TrimSpace(parts[i]), "\"'")
 	}
 	return parts
+}
+
+func TestHermesStaticOnlyDoesNotInvokeRuntime(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows PowerShell static contract")
+	}
+	root := hermesRepoRoot(t)
+	script := filepath.Join(root, "tools", "check-hermes-adapter.ps1")
+	fakeDir := t.TempDir()
+	marker := filepath.Join(fakeDir, "hermes-invoked.txt")
+	fake := filepath.Join(fakeDir, "hermes.cmd")
+	body := "@echo off\\r\\n>\\\"" + marker + "\\\" echo invoked\\r\\nexit /b 91\\r\\n"
+	if err := os.WriteFile(fake, []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script, "-StaticOnly", "-Json")
+	cmd.Env = append(os.Environ(), "PATH="+fakeDir+";"+os.Getenv("PATH"))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("static Hermes contract failed: %v\\n%s", err, out)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("-StaticOnly invoked Hermes runtime: %v", err)
+	}
+	if !bytes.Contains(out, []byte(`"static_only":  true`)) && !bytes.Contains(out, []byte(`"static_only": true`)) {
+		t.Fatalf("static result did not identify static mode: %s", out)
+	}
 }
 
 func TestCriterion78HermesPluginContract(t *testing.T) {
