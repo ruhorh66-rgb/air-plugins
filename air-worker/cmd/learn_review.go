@@ -173,6 +173,14 @@ func handleUserPromptLearning(in hookInput) (hookResult, error) {
 	if !ok {
 		return hookResult{}, nil
 	}
+	if _, on, err := readSharedLearningSettings(product); on || err != nil {
+		if err != nil {
+			return hookResult{Block: true, Reason: "shared-learning cutover refused: " + err.Error()}, nil
+		}
+		// Shared mode grants use the configured trusted verifier and exact diff;
+		// never mint a legacy grant with incompatible digest semantics.
+		return handleLearningContext(in)
+	}
 	// Grant minting is allowed only after cmdHook has established trusted transport.
 	// Claude reaches this handler through its native plugin hook. External adapters such
 	// as ChatGPT must set host_trusted and pass the bridge-parent provenance check first.
@@ -189,6 +197,9 @@ func handleLearningContext(in hookInput) (hookResult, error) {
 	product, ok := productForLearningHookInput(in)
 	if !ok {
 		return hookResult{}, nil
+	}
+	if handled, res, err := sharedLearningContext(product, in); handled {
+		return res, err
 	}
 	index, err := approvedLearnSkillIndex(product)
 	if errors.Is(err, os.ErrNotExist) {
@@ -222,6 +233,9 @@ func handleStopLearning(in hookInput) (hookResult, error) {
 	product, ok := productForLearningHookInput(in)
 	if !ok {
 		return hookResult{}, nil
+	}
+	if handled, res, err := sharedLearningStop(product, in); handled {
+		return res, err
 	}
 	transcriptPath := strings.TrimSpace(in.TranscriptPath)
 	if transcriptPath == "" {

@@ -597,3 +597,15 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-019 0.11.3 release regression and install · owner:AC·DEV·AirWorker · [[N-026_0-11-3-air-env-002-plugin-profile-drift-repair]] · 0.11.3 AIR-ENV-002 plugin profile drift repair
 - [closed] 0.11.3 post-release plan hygiene · owner:AC·DEV·AirWorker · [[N-027_align-legacy-ladder-criteria-with-accepted-0-11-3]] · Align legacy ladder criteria with accepted 0.11.3 policy
 - [open] post-0.11.3 self-learning hardening · owner:AC·DEV·AirWorker · [[N-028_0-11-4-operational-self-learning-procedures-for-s]] · 0.11.4 operational self-learning procedures for stalls
+- [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-learning-20261005 · [[N-029_learn-0-единственный-active-plan-и-в]] · LEARN-0: единственный active PLAN и воспроизводимая база
+- [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-learning-20261005 · [[N-030_learn-1-общий-learning-один-state-и-с]] · LEARN-1: общий learning, один state и совместимый CLI
+- [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-learning-20261005 · [[N-031_learn-2-события-ядра-и-автомат]] · LEARN-2: события ядра и автоматический review без Claude transcript
+- [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-learning-20261005 · [[N-032_learn-3a-безопасное-автоматич]] · LEARN-3A: безопасное автоматическое создание и изменение процедур
+- [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-learning-20261005 · [[N-033_learn-3b-точный-diff-и-доверенно]] · LEARN-3B: точный diff и доверенное одноразовое разрешение блока
+- [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-learning-20261005 · [[N-034_learn-3d-загрузка-текста-подтв]] · LEARN-3D: загрузка текста, подтверждённое применение и доставка
+- [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-learning-20261005 · [[N-035_learn-test-две-живые-цепочки-и-р]] · LEARN-TEST: две живые цепочки и регрессия точного артефакта
+- [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-learning-20261005 · [[N-036_learn-rel-отдельные-гейты-выпу]] · LEARN-REL: отдельные гейты выпуска, установки и наблюдения
+- [open] N-036 LEARN-REL · owner:gpt-airworker-learning-20261005 · [[N-037_learn-rel-authorization-20261005-release-after-v]] · LEARN-REL authorization 20261005: release after verified checks
+- [open] N-030/N-035 · owner:gpt-airworker-learning-20261005 · [[N-038_learn-fix-reconcile-all-shared-plan-mutations-an]] · LEARN-FIX: reconcile all shared plan mutations and one node snapshot
+- [open] N-035 · owner:gpt-airworker-learning-20261005 · [[N-039_learn-check-sidecar-inherited-pipe-deadline-regr]] · LEARN-CHECK: sidecar inherited-pipe deadline regression
+- [open] N-038/N-035 · owner:gpt-airworker-learning-20261005 · [[N-040_learn-fix-round4-pending-transaction-gate-flushe]] · LEARN-FIX round4: pending transaction gate, flushed intents, bounded input

@@ -164,6 +164,10 @@ func readPlanNode(path string) (planNode, error) {
 	if err != nil {
 		return planNode{}, err
 	}
+	return parsePlanNode(path, raw)
+}
+
+func parsePlanNode(path string, raw []byte) (planNode, error) {
 	text := strings.ReplaceAll(string(raw), "\r\n", "\n")
 	lines := strings.Split(text, "\n")
 	if len(lines) < 3 || strings.TrimSpace(lines[0]) != "---" {
@@ -227,6 +231,10 @@ func readPlanNodeBody(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return parsePlanNodeBody(path, raw)
+}
+
+func parsePlanNodeBody(path string, raw []byte) (string, error) {
 	text := strings.ReplaceAll(string(raw), "\r\n", "\n")
 	lines := strings.Split(text, "\n")
 	if len(lines) < 3 || strings.TrimSpace(lines[0]) != "---" {
@@ -383,6 +391,7 @@ func cmdPlanNodeNew(argv []string) int {
 	fs := flag.NewFlagSet("plan node new", flag.ContinueOnError)
 	product := fs.String("product", ".", "product root")
 	title := fs.String("title", "", "node title")
+	requestID := fs.String("request-id", "", "stable idempotency key; required for shared new")
 	parent := fs.String("parent", "", "spine parent/stage")
 	owner := fs.String("owner", "", "owner session/window")
 	doneWhen := fs.String("done-when", "", "closure criterion")
@@ -421,6 +430,18 @@ func cmdPlanNodeNew(argv []string) int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "plan node new:", err)
 		return 2
+	}
+	if settings, shared, err := readSharedLearningSettings(root); shared {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "plan node new:", err)
+			return 2
+		}
+		if fs.NArg() != 0 {
+			fmt.Fprintln(os.Stderr, "unexpected shared plan arguments")
+			return 2
+		}
+		req := sharedPlanCreateRequest{ID: strings.TrimSpace(*requestID), Operation: "new", Title: strings.TrimSpace(*title), Parent: strings.TrimSpace(*parent), Owner: strings.TrimSpace(*owner), DoneWhen: strings.TrimSpace(*doneWhen), Trigger: strings.TrimSpace(*trigger), ReturnTo: strings.TrimSpace(*returnTo)}
+		return cmdSharedPlanCreate(root, settings, req, eventActor, *asJSON)
 	}
 	id, err := nextPlanNodeID(root, *title)
 	if err != nil {
@@ -529,12 +550,12 @@ func cmdPlanNodeClose(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	n, err := readPlanNode(path)
+	n, err := parsePlanNode(path, nodeBefore)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	body, err := readPlanNodeBody(path)
+	body, err := parsePlanNodeBody(path, nodeBefore)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
@@ -547,6 +568,13 @@ func cmdPlanNodeClose(argv []string) int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "plan node close:", err)
 		return 2
+	}
+	if settings, shared, err := readSharedLearningSettings(root); shared {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "plan node close:", err)
+			return 2
+		}
+		return cmdSharedPlanNodeClose(root, settings, n, body, path, *receipt, eventActor, nodeBefore, *asJSON)
 	}
 	if n.Status == "closed" {
 		fmt.Printf("%s already closed%s", n.ID, lineEnding)
@@ -698,6 +726,10 @@ func cmdPlanMigrate(argv []string) int {
 	product := fs.String("product", ".", "product root")
 	owner := fs.String("owner", "", "default owner for migrated nodes")
 	trigger := fs.String("trigger", "", "migration trigger / LPR wording")
+	requestID := fs.String("request-id", "", "stable idempotency key; required for shared migrate")
+	actor := fs.String("actor", "", "actor/session name")
+	actorKind := fs.String("actor-kind", "", "gpt-window or claude-session")
+	asJSON := fs.Bool("json", false, "machine-readable JSON")
 	if err := fs.Parse(argv); err != nil {
 		return 2
 	}
@@ -712,6 +744,23 @@ func cmdPlanMigrate(argv []string) int {
 		return 1
 	}
 	defer lock.release()
+	if settings, shared, err := readSharedLearningSettings(root); shared {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "plan migrate:", err)
+			return 2
+		}
+		if fs.NArg() != 0 {
+			fmt.Fprintln(os.Stderr, "unexpected shared plan arguments")
+			return 2
+		}
+		eventActor, err := resolveMutationActor(*actorKind, *actor, *owner)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "plan migrate:", err)
+			return 2
+		}
+		req := sharedPlanCreateRequest{ID: strings.TrimSpace(*requestID), Operation: "migrate", Owner: strings.TrimSpace(*owner), Trigger: strings.TrimSpace(*trigger)}
+		return cmdSharedPlanCreate(root, settings, req, eventActor, *asJSON)
+	}
 
 	planPath := filepath.Join(root, "PLAN.md")
 	planBefore, err := os.ReadFile(planPath)
@@ -853,6 +902,9 @@ func planNodeEventRowWithActor(n planNode, action, evidence, source string, at t
 }
 
 func appendPlanNodeEvents(root string, rows []map[string]any) error {
+	if handled, err := appendSharedPlanEvents(root, rows); handled {
+		return err
+	}
 	if len(rows) == 0 {
 		return nil
 	}

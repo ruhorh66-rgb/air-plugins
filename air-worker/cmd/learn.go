@@ -138,6 +138,9 @@ func newLearnID(prefix string, now time.Time) (string, error) {
 }
 
 func appendLearnJSON(path string, v any) error {
+	if err := forbidLegacyLearningWrite(path); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -305,6 +308,9 @@ func marshalLearnJSONL[T any](rows []T) ([]byte, error) {
 }
 
 func writeLearnAtomic(path string, data []byte) error {
+	if err := forbidLegacyLearningWrite(path); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -363,6 +369,9 @@ func findLearnLedger(rows []learnLedgerRecord, id string) *learnLedgerRecord {
 }
 
 func cmdLearn(argv []string) int {
+	if handled, code := routeSharedLearn(argv); handled {
+		return code
+	}
 	if len(argv) == 0 {
 		fmt.Fprintln(os.Stderr, "usage: air-worker learn add|event|migrate-legacy|propose|pending|apply|effect|usage|weekly|context|rollback ...")
 		return 2

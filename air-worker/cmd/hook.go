@@ -101,6 +101,7 @@ func classifyHookEvent(event string) hookClass {
 // читают его же: заводить второй разбор JSON под каждый обработчик значило бы разойтись с
 // протоколом по частям, а не сразу.
 type hookInput struct {
+	RunID                string          `json:"run_id,omitempty"`
 	Principal            string          `json:"principal,omitempty"`
 	HostTrusted          bool            `json:"host_trusted,omitempty"`
 	SessionID            string          `json:"session_id"`

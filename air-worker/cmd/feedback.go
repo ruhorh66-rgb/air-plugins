@@ -167,6 +167,9 @@ func writeFeedbackWithIO(root, planPath string, r feedbackRecord, io feedbackIO)
 	return res, nil
 }
 func cmdFeedback(argv []string) int {
+	if handled, code := routeSharedFeedback(argv); handled {
+		return code
+	}
 	fs := flag.NewFlagSet("feedback", flag.ContinueOnError)
 	product := fs.String("product", "", "product root")
 	sourceVersion := fs.String("source-version", "", "observed product version")

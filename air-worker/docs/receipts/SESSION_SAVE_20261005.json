@@ -1,0 +1,567 @@
+{
+  "schema": "air-worker.session-checkpoint/v1",
+  "sgt": "2026-10-05T21:32:58.137295+08:00",
+  "status": "SAVED_WIP_NOT_RELEASE_READY",
+  "user_order": "Завершить сессию, сохранить наработки, коммит.",
+  "active_plan": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\PLAN.md",
+  "source_parent": "b53163f0c9332efd8a2c2c69dcc889237dc0bd6a",
+  "branch": "dev/airworker-learning-20261005",
+  "module_checkpoint": "dd5b6efad6c4d319f78e910d61cc6be8ddf2d8f8",
+  "dependency_pin": "2ca7e731607e9e301bd4ebae540dd8dc796a7997",
+  "installed_readback": "air-worker 0.11.5",
+  "latest_astra_file": "R:\\-4-\\air-worker\\work\\learning-20261005\\airworker-review-4.verdict.json",
+  "latest_astra_sha256": "5e73586692674a2dbc087f0d11aeb37e02c42d0cd0caa11d8b9d76030e9420d4",
+  "latest_astra_verdict": {
+    "verdict": "CHANGES_REQUIRED",
+    "scope": "Read-only review of the specified AirWorker consumer changes, untracked tests, relevant helpers, and necessary pinned-library call semantics.",
+    "findings": [
+      {
+        "severity": "P1",
+        "path": "cmd/plan_shared_create.go",
+        "line": 115,
+        "problem": "New requests ignore other prepared intents. After a two-node migration persists only its first event, repairing the trace obstruction and running another new/close command succeeds. Retrying migration then rejects the changed PLAN/node before delivering its remaining event. A crash before node publication also leaves an ID reservation invisible to nextPlanNodeID. The tests restart the same request without interleaving another mutation.",
+        "fix": "Under the product plan lock, reconcile or reject conflicting prepared create/migrate/close intents before permitting another mutation or allocating IDs. Add subprocess checks that interleave new and close with a pending migration."
+      },
+      {
+        "severity": "P1",
+        "path": "cmd/plan_shared_close.go",
+        "line": 45,
+        "problem": "Both intent persistence functions use writeFileAtomic, whose Windows implementation writes, closes and renames without Sync; the other implementation also lacks Sync. Consequently the purported durable intent can be lost or corrupted during an OS crash while a flushed learning event survives. Recovery then loses the original identity or mistakes a closed node for a historical closure. Fresh-process retry tests do not exercise this durability gap.",
+        "fix": "Persist intents through a flushed atomic writer before publishing nodes, PLAN changes or events, and propagate flush failures. Apply this to both close and create/migrate intents, with the required platform publication guarantees."
+      },
+      {
+        "severity": "P2",
+        "path": "cmd/learn_shared.go",
+        "line": 202,
+        "problem": "Adapter stdout and stderr are bounded, but stdin is not: arbitrary-length callback input goes directly into bytes.NewReader. The pinned summary implementation aggregates all procedure changes and pending blocks, so normal journal growth can send an arbitrarily large JSON payload to the delivery process. The CLI request limit does not bound this generated payload.",
+        "fix": "Reject oversized adapter input before launching the executable, using an explicit byte limit. Add a check proving oversized input never starts the adapter and summary delivery remains pending with an explicit error."
+      }
+    ],
+    "limits": [
+      "No files changed, tests executed, installations, delegation or external network calls. Parent-reported test results were not independently rerun.",
+      "This is a development integration review, not full release acceptance. Real learning partner/channel wiring, full host correction capture, observable guidance use, live exact human grants and action enforcement, process-tree containment, and installed-product acceptance remain required for a stable self-learning release."
+    ]
+  },
+  "next_node": "N-040_learn-fix-round4-pending-transaction-gate-flushe",
+  "round4_preparation_source_comparison": [
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\learn_shared.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\learn_shared_astra_test.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\learn_shared_cli.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\learn_shared_preflight_test.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\learn_shared_retry_test.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\learn_shared_test.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\lock_other.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\lock_windows.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\lock_windows_test.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\plan_nodes.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\plan_nodes_test.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\plan_shared_close.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\plan_shared_create.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\plan_shared_transactions_test.go",
+      "matches_preparation": true
+    },
+    {
+      "path": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd\\report_plan_nodes_test.go",
+      "matches_preparation": true
+    }
+  ],
+  "test_receipts": [
+    {
+      "file": "R:\\-4-\\air-worker\\work\\learning-20261005\\module-refined-vet.json",
+      "sha256": "892a038375650ec3273c01a18544031e2baef10b957d1926be635f33256ca18b",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "exit_code": 0,
+      "finished": "2026-10-05T13:06:08.803948+00:00",
+      "root": "F:\\-8-\\_worktrees\\air-modules-airworker-20261005"
+    },
+    {
+      "file": "R:\\-4-\\air-worker\\work\\learning-20261005\\module-refined-full.json",
+      "sha256": "e647a7e4ff144270118ac0d8418a2a6fc9a617f3dbd8654f2669ff685ffd2c96",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout=120s"
+      ],
+      "exit_code": 0,
+      "finished": "2026-10-05T13:06:07.752106+00:00",
+      "root": "F:\\-8-\\_worktrees\\air-modules-airworker-20261005"
+    },
+    {
+      "file": "R:\\-4-\\air-worker\\work\\learning-20261005\\module-pipe-serial-original.json",
+      "sha256": "c0326d22c61b7d16d92a44d3838ad604a827a31086176e3e5f9c1fed26cc5238",
+      "command": [
+        "go",
+        "test",
+        "./learning",
+        "-run=^TestAstraSidecarInheritedPipeCannotDefeatDeadline$",
+        "-count=3",
+        "-v",
+        "-timeout=60s"
+      ],
+      "exit_code": 0,
+      "finished": "2026-10-05T12:59:39.150726+00:00",
+      "root": "F:\\-8-\\_worktrees\\air-modules-airworker-20261005"
+    },
+    {
+      "file": "R:\\-4-\\air-worker\\work\\learning-20261005\\airworker-round3-process-retry.json",
+      "sha256": "f701756c9ab8cb4946012cd4a33721ac3c4f3aaee1d9d7d3165a4b4ec86fcea5",
+      "command": [
+        "go",
+        "test",
+        ".",
+        "-run=^(TestShared|TestPlan|TestNextPlan)",
+        "-count=1",
+        "-timeout=120s"
+      ],
+      "exit_code": 0,
+      "finished": "2026-10-05T12:58:18.811894+00:00",
+      "root": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd"
+    },
+    {
+      "file": "R:\\-4-\\air-worker\\work\\learning-20261005\\airworker-round3-shared.json",
+      "sha256": "9084d9387bb861b12b1be51a9e4e58ac1a961c8a3a1e11a1290133a559e98452",
+      "command": [
+        "go",
+        "test",
+        ".",
+        "-run=^TestShared",
+        "-count=1",
+        "-timeout=120s"
+      ],
+      "exit_code": 1,
+      "finished": "2026-10-05T12:51:43.363939+00:00",
+      "root": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd"
+    },
+    {
+      "file": "R:\\-4-\\air-worker\\work\\learning-20261005\\airworker-resume-native-judge.json",
+      "sha256": "44c29db181c3f56a93585482eb436fbf1106ff95c17e7831d4489b9f2c884f96",
+      "command": [
+        "C:/Users/admin_loc/AppData/Local/air-worker/bin/air-worker.exe",
+        "judge",
+        "-product",
+        "F:/-7-/_worktrees/airworker-learning-20261005/air-worker",
+        "-json"
+      ],
+      "exit_code": 124,
+      "finished": "2026-10-05T12:43:38.262934+00:00",
+      "root": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker"
+    },
+    {
+      "file": "R:\\-4-\\air-worker\\work\\learning-20261005\\module-resume-vet.json",
+      "sha256": "ee089c23ee75a93aadf6ef3b89edf30e4926995fc3727aec4866c86a8d99884f",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "exit_code": 0,
+      "finished": "2026-10-05T12:39:38.128337+00:00",
+      "root": "F:\\-8-\\_worktrees\\air-modules-airworker-20261005"
+    },
+    {
+      "file": "R:\\-4-\\air-worker\\work\\learning-20261005\\module-resume-full.json",
+      "sha256": "94fc801fc541dfa87eb7f43ba400eea975f3a12dab61fcf921a82ace0472f202",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout=120s"
+      ],
+      "exit_code": 1,
+      "finished": "2026-10-05T12:39:36.949814+00:00",
+      "root": "F:\\-8-\\_worktrees\\air-modules-airworker-20261005"
+    },
+    {
+      "file": "R:\\-4-\\air-worker\\work\\learning-20261005\\airworker-resume-vet.json",
+      "sha256": "f720e29ac2a8c975ec58ee5cd44d9729055fcec09ef9b413230067f7c71fa77c",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "exit_code": 0,
+      "finished": "2026-10-05T12:38:51.702215+00:00",
+      "root": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd"
+    },
+    {
+      "file": "R:\\-4-\\air-worker\\work\\learning-20261005\\airworker-resume-full.json",
+      "sha256": "2f4ee1c657a1ebeb8195f09948aa834e86453b30b154469387ca711a01772501",
+      "command": [
+        "go",
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout=180s"
+      ],
+      "exit_code": 0,
+      "finished": "2026-10-05T12:38:45.520532+00:00",
+      "root": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd"
+    },
+    {
+      "file": "R:\\-4-\\air-worker\\work\\learning-20261005\\airworker-round2-preflight.json",
+      "sha256": "f3a278ed4bc44b946c59d2c266e4c3bb83c4378ff6f0b4143f0670bb5da88b6e",
+      "command": [
+        "go",
+        "test",
+        ".",
+        "-run=^TestShared",
+        "-count=1",
+        "-timeout=120s"
+      ],
+      "exit_code": 0,
+      "finished": "2026-10-05T12:33:08.784592+00:00",
+      "root": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd"
+    },
+    {
+      "file": "R:\\-4-\\air-worker\\work\\learning-20261005\\airworker-round2-green2.json",
+      "sha256": "c13d3b0bcd8737244fa06f4f959ebb6f1d94f1e4a32ef2515c16eba5b6d26011",
+      "command": [
+        "go",
+        "test",
+        ".",
+        "-run=^TestShared",
+        "-count=1",
+        "-timeout=120s"
+      ],
+      "exit_code": 0,
+      "finished": "2026-10-05T12:27:33.335299+00:00",
+      "root": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\cmd"
+    }
+  ],
+  "native_plan_readback": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\native-plan-readback.json",
+  "backup": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258",
+  "backup_manifest": [
+    {
+      "repository": "airworker",
+      "path": "air-worker/.gitignore",
+      "sha256": "98835eb3bde44ce058e9a247536d8c0e3c19f28ff830be9f9bf758bd08d16f53",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\.gitignore",
+      "bytes": 984
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/PLAN.md",
+      "sha256": "d1ee16cd8c1d90a4b93e3477419a86150e090d869854c267dea6d9b14bdf6aa5",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\PLAN.md",
+      "bytes": 180207
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/feedback.go",
+      "sha256": "17254e7cd3734a013a77cdffc38bca9a01408b6b8532aa09a78496eee7998dd9",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\feedback.go",
+      "bytes": 8181
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/go.mod",
+      "sha256": "6f35dbd256efbd26e3d45d9e855a682c411826ef694ba015cb25e3c7dbcdc866",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\go.mod",
+      "bytes": 113
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/go.sum",
+      "sha256": "20fbd8f7451c311e4bdd7880170fb45e87091b0cca1f7d2b19268c43c39f1453",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\go.sum",
+      "bytes": 245
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/hook.go",
+      "sha256": "14068dcbba649a4c97f235f398baba04c97aafcfb7bf34bfb6fc68cc74ed2a87",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\hook.go",
+      "bytes": 23044
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/learn.go",
+      "sha256": "f35c070ee9469089f6621b107efd24123f81c43ad81c50472d779816640c43fe",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\learn.go",
+      "bytes": 30094
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/learn_review.go",
+      "sha256": "2696210b6212d7fcfa17757e03653ff0d68dc072bf35c352e2ce3b5ef80279c3",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\learn_review.go",
+      "bytes": 18589
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/learn_shared.go",
+      "sha256": "85027ee36132c5bba3c7db08f5be28dd2ea11af2d3bc57fa01c5d4b6422fb239",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\learn_shared.go",
+      "bytes": 15246
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/learn_shared_astra_test.go",
+      "sha256": "e18e9df1df9de41cc2934cba36a8a099ed807f37db823b5cbbbc2ea9410f2713",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\learn_shared_astra_test.go",
+      "bytes": 5128
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/learn_shared_cli.go",
+      "sha256": "03d7f20585ed4a37ccd7dc6c2d3eb8bced2be49f2399c681922da4fc1aef1a38",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\learn_shared_cli.go",
+      "bytes": 13337
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/learn_shared_preflight_test.go",
+      "sha256": "8564988aa34d11780faf224e51049161787b6aac6cff2097cd27259486bc3749",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\learn_shared_preflight_test.go",
+      "bytes": 4031
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/learn_shared_retry_test.go",
+      "sha256": "a10b3815473f653958db256c9e0347781512ae2aa863951f837f37f093ab1440",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\learn_shared_retry_test.go",
+      "bytes": 8977
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/learn_shared_test.go",
+      "sha256": "215a68f2f3adcfebe0a497eaf9e4a0e4e4ba6a78cd7ed78aaf26004940bec9e5",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\learn_shared_test.go",
+      "bytes": 11015
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/plan_nodes.go",
+      "sha256": "40ed02822c0f287b1e54c62327f16a195dbfd0ab73f16607535c494ab4eb0940",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\plan_nodes.go",
+      "bytes": 29890
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/plan_shared_close.go",
+      "sha256": "3a1f5a8c6e57da6a004d65ae3a787c6b020731945812d58879a0133de2251836",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\plan_shared_close.go",
+      "bytes": 6809
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/plan_shared_create.go",
+      "sha256": "3c7b7aa78ee4130c550655d48ef36525287f0f19defc04de21e4bf973ad0fda4",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\plan_shared_create.go",
+      "bytes": 12273
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/cmd/plan_shared_transactions_test.go",
+      "sha256": "d80f31c16e7990d71cb806eaa66ae0c72194051089014d7ead5f20d31f0b43c2",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\cmd\\plan_shared_transactions_test.go",
+      "bytes": 10652
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/docs/SHARED_LEARNING_OPERATIONS.md",
+      "sha256": "561534df5ae73d1e62cad2ae1beb32f9e276a9771c2ecdf6dd91631cd490e62d",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\docs\\SHARED_LEARNING_OPERATIONS.md",
+      "bytes": 13115
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/docs/receipts/LEARNING_20261005_RELEASE_AUTHORITY.json",
+      "sha256": "8c73e234fd697e60edc770b4ccfbcadef1aa3b5665982a152831357912f18e70",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\docs\\receipts\\LEARNING_20261005_RELEASE_AUTHORITY.json",
+      "bytes": 70562
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/learn/events.jsonl",
+      "sha256": "fe8bb4760de91b654b17d9647767ede8c0ea35c6a0f62abcfadaf3c0d7c3985d",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\learn\\events.jsonl",
+      "bytes": 43559
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/plan/N-029_learn-0-единственный-active-plan-и-в.md",
+      "sha256": "eb6b1e2a222a106a0d0f6074d7c2994e5f35df08752c3e3288bfc12263f4a1ed",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\plan\\N-029_learn-0-единственный-active-plan-и-в.md",
+      "bytes": 2631
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/plan/N-030_learn-1-общий-learning-один-state-и-с.md",
+      "sha256": "9101c9ca50b8772dcbf2dea54bcea836287465c8bee3706217628f4fd6e8f3ba",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\plan\\N-030_learn-1-общий-learning-один-state-и-с.md",
+      "bytes": 2677
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/plan/N-031_learn-2-события-ядра-и-автомат.md",
+      "sha256": "16a11dabe0762caea24a46c928bc91a90349c800692f2a2a9e2b023316a390fc",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\plan\\N-031_learn-2-события-ядра-и-автомат.md",
+      "bytes": 2522
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/plan/N-032_learn-3a-безопасное-автоматич.md",
+      "sha256": "ddd7cf709d09169993c358cdb2acd48c874391b8b99acc6ec3532a9aa90d3b72",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\plan\\N-032_learn-3a-безопасное-автоматич.md",
+      "bytes": 2603
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/plan/N-033_learn-3b-точный-diff-и-доверенно.md",
+      "sha256": "7d601f52f2f7d18fc3f972219b0e6894a1ecbfb9123ac386dccf929661eb8e21",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\plan\\N-033_learn-3b-точный-diff-и-доверенно.md",
+      "bytes": 2419
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/plan/N-034_learn-3d-загрузка-текста-подтв.md",
+      "sha256": "e308f270017e29cb585ab4ab2aa4104a1f64f8a3e4f71d312dbf7295908cf2f7",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\plan\\N-034_learn-3d-загрузка-текста-подтв.md",
+      "bytes": 2212
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/plan/N-035_learn-test-две-живые-цепочки-и-р.md",
+      "sha256": "3ff9b9dd95cd8dd6589f9682bc453b14660b7510b64755384b5c1c3aa56611f2",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\plan\\N-035_learn-test-две-живые-цепочки-и-р.md",
+      "bytes": 2594
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/plan/N-036_learn-rel-отдельные-гейты-выпу.md",
+      "sha256": "b001bd9bfddea97b81fa18d0cdc1b3e7223f7ae012b6b8b49faee74c00509015",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\plan\\N-036_learn-rel-отдельные-гейты-выпу.md",
+      "bytes": 2305
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/plan/N-037_learn-rel-authorization-20261005-release-after-v.md",
+      "sha256": "93f301604b2ac034585858ad50538f98a2a07339ef1dc672714e9d4c36e3c19d",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\plan\\N-037_learn-rel-authorization-20261005-release-after-v.md",
+      "bytes": 2417
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/plan/N-038_learn-fix-reconcile-all-shared-plan-mutations-an.md",
+      "sha256": "576af4f5e120bc74e1b1cbd2a9aaa997862765a8fc9d3296a3973cefd34ebd12",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\plan\\N-038_learn-fix-reconcile-all-shared-plan-mutations-an.md",
+      "bytes": 1903
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/plan/N-039_learn-check-sidecar-inherited-pipe-deadline-regr.md",
+      "sha256": "22770272bb86af245cb21c5085f90d144720fff9e4cdc9a670cba8a2ef642dbe",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\plan\\N-039_learn-check-sidecar-inherited-pipe-deadline-regr.md",
+      "bytes": 1801
+    },
+    {
+      "repository": "airworker",
+      "path": "air-worker/plan/N-040_learn-fix-round4-pending-transaction-gate-flushe.md",
+      "sha256": "8ac5c814d09771ee90c271861f5c05e5ce40f9330231cdde418165b6071b9520",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\airworker\\air-worker\\plan\\N-040_learn-fix-round4-pending-transaction-gate-flushe.md",
+      "bytes": 2287
+    },
+    {
+      "repository": "module",
+      "path": "PLAN.md",
+      "sha256": "8b90e39929780dd276898d9b06e6773cb39835a292bfab54c1608907aa104649",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\module\\PLAN.md",
+      "bytes": 10817
+    },
+    {
+      "repository": "module",
+      "path": "docs/receipts/SESSION_SAVE_20261005.json",
+      "sha256": "5b65894e654671c39fff1af0a8f4bbd0c9617dae7f2be59d599ecf0f25e1ade8",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\module\\docs\\receipts\\SESSION_SAVE_20261005.json",
+      "bytes": 3135
+    },
+    {
+      "repository": "module",
+      "path": "learn/events.jsonl",
+      "sha256": "f057eae5687139cebcd43f6c7d777c4dd15a4f63f0b49bac00c18ac51f6c27fb",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\module\\learn\\events.jsonl",
+      "bytes": 8834
+    },
+    {
+      "repository": "module",
+      "path": "learning/sidecar_pipe_test.go",
+      "sha256": "06665b71bce4ae8a27824317f4f33f14a02f2e4ca26eb83bab3b768654c489b8",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\module\\learning\\sidecar_pipe_test.go",
+      "bytes": 2003
+    },
+    {
+      "repository": "module",
+      "path": "plan/N-020_sidecar-pipe-check-assert-enforced-i-o-deadline-r.md",
+      "sha256": "d24465ec216a1516b37df76266e3a38161cddbbea82d89c2d845c7a767ae0f50",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\module\\plan\\N-020_sidecar-pipe-check-assert-enforced-i-o-deadline-r.md",
+      "bytes": 1862
+    },
+    {
+      "repository": "wiki",
+      "path": "PRODUCT_INSTRUCTION.md",
+      "sha256": "205f4c257f1a0599f9837e9dc4e4207c8447af044b50c8ff48e2cc22337bd7da",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\wiki\\PRODUCT_INSTRUCTION.md",
+      "bytes": 8549
+    },
+    {
+      "repository": "wiki",
+      "path": "learn/events.jsonl",
+      "sha256": "931c94095e44976631a0929f9b9728fc7be1d4364edfedad1a98fb75768631d4",
+      "snapshot": "R:\\-4-\\air-worker\\work\\learning-20261005\\session-save-20261005-213258\\before\\wiki\\learn\\events.jsonl",
+      "bytes": 50562
+    }
+  ],
+  "new_tests_run_during_save": false,
+  "feature_nodes_closed": false,
+  "release": false,
+  "installation": false,
+  "push": false
+}
