@@ -554,9 +554,9 @@ func countFacts(root, checklistRel string, want int, criterionFacts map[string]b
 	r.FactsClosed = &closed
 	r.FactsGated = gated
 	r.FactsOverlap = overlap
-	line := fmt.Sprintf("фактов закрыто %d из %d", closed, want)
+	line := fmt.Sprintf("фактов закрыто %d; минимальный порог %d", closed, want)
 	if gated > 0 {
-		line += fmt.Sprintf(", из них %d ждут ЛПР", gated)
+		line += fmt.Sprintf(", отдельно %d ждут ЛПР", gated)
 	}
 	if len(overlap) > 0 {
 		line += fmt.Sprintf("; из недостающих %d уже считаны критерием (не дублируются): %s", len(overlap), strings.Join(overlap, ", "))

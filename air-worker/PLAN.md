@@ -589,3 +589,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] N-041 · owner:gpt-airworker-learning-20261005 · [[N-042_rel-judge-preserve-non-current-legacy-architectu]] · REL-JUDGE: preserve non-current legacy architecture debt
 - [open] N-041 · owner:gpt-airworker-learning-20261005 · [[N-043_rel-judge-preserve-additional-superseded-criteri]] · REL-JUDGE: preserve additional superseded criteria
 - [open] N-041 · owner:gpt-airworker-learning-20261005 · [[N-044_rel-judge-drift-must-use-canonical-plan-node-wor]] · REL-JUDGE: drift must use canonical plan-node work source
+- [open] N-041 · owner:gpt-airworker-learning-20261005 · [[N-045_rel-judge-fact-threshold-wording]] · REL-JUDGE fact threshold wording

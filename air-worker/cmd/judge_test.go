@@ -95,6 +95,30 @@ func TestПропажаРеестраЭтоНеЗакрытоНоль(t *testing
 	}
 }
 
+func TestFactsSummaryLabelsMinimumThreshold(t *testing.T) {
+	dir := t.TempDir()
+	cl := `{"items":[
+		{"id":"f01","status":"completed"},
+		{"id":"f02","status":"completed"},
+		{"id":"f03","status":"completed"},
+		{"id":"f04","status":"gated","awaits":"LPR decision"}
+	]}`
+	if err := os.WriteFile(filepath.Join(dir, "checklist.json"), []byte(cl), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var r judgeResult
+	countFacts(dir, "checklist.json", 2, nil, &r)
+	if r.FactsClosed == nil || *r.FactsClosed != 3 {
+		t.Fatalf("closed facts=%v", r.FactsClosed)
+	}
+	if strings.Contains(r.FactsLine, "3 из 2") {
+		t.Fatalf("minimum threshold rendered as total: %q", r.FactsLine)
+	}
+	if !strings.Contains(r.FactsLine, "минимальный порог 2") || !strings.Contains(r.FactsLine, "отдельно 1 ждут ЛПР") {
+		t.Fatalf("threshold/gated wording is not explicit: %q", r.FactsLine)
+	}
+}
+
 func TestBOMНеЛомаетРазбор(t *testing.T) {
 	// Файлы, написанные PowerShell 5.1, несут BOM. Это свойство того, кто писал.
 	dir := t.TempDir()
