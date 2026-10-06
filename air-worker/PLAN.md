@@ -580,11 +580,11 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-030/N-035 · owner:gpt-airworker-learning-20261005 · [[N-038_learn-fix-reconcile-all-shared-plan-mutations-an]] · LEARN-FIX: reconcile all shared plan mutations and one node snapshot
 - [closed] N-035 · owner:gpt-airworker-learning-20261005 · [[N-039_learn-check-sidecar-inherited-pipe-deadline-regr]] · LEARN-CHECK: sidecar inherited-pipe deadline regression
 - [closed] N-038/N-035 · owner:gpt-airworker-learning-20261005 · [[N-040_learn-fix-round4-pending-transaction-gate-flushe]] · LEARN-FIX round4: pending transaction gate, flushed intents, bounded input
-- [open] LEARN-REL · owner:gpt-airworker-learning-20261005 · [[N-041_rel-judge-reconcile-product-wide-factual-judge-b]] · REL-JUDGE: reconcile product-wide factual judge before release
-- [open] N-041 · owner:gpt-airworker-learning-20261005 · [[N-042_rel-judge-preserve-non-current-legacy-architectu]] · REL-JUDGE: preserve non-current legacy architecture debt
-- [open] N-041 · owner:gpt-airworker-learning-20261005 · [[N-043_rel-judge-preserve-additional-superseded-criteri]] · REL-JUDGE: preserve additional superseded criteria
-- [open] N-041 · owner:gpt-airworker-learning-20261005 · [[N-044_rel-judge-drift-must-use-canonical-plan-node-wor]] · REL-JUDGE: drift must use canonical plan-node work source
-- [open] N-041 · owner:gpt-airworker-learning-20261005 · [[N-045_rel-judge-fact-threshold-wording]] · REL-JUDGE fact threshold wording
-- [open] N-041 · owner:gpt-airworker-learning-20261005 · [[N-046_rel-judge-fix-astra-600s-findings]] · REL-JUDGE: fix Astra 600s findings
-- [open] N-046 · owner:gpt-airworker-learning-20261005 · [[N-047_rel-judge-preserve-astra-semantic-proof-gaps]] · REL-JUDGE: preserve Astra semantic proof gaps
-- [open] N-046 · owner:gpt-airworker-learning-20261005 · [[N-048_rel-judge-astra-round2-selector-execution-and-no]] · REL-JUDGE: Astra round2 selector execution and node-source public fail-closed
+- [closed] LEARN-REL · owner:gpt-airworker-learning-20261005 · [[N-041_rel-judge-reconcile-product-wide-factual-judge-b]] · REL-JUDGE: reconcile product-wide factual judge before release
+- [closed] N-041 · owner:gpt-airworker-learning-20261005 · [[N-042_rel-judge-preserve-non-current-legacy-architectu]] · REL-JUDGE: preserve non-current legacy architecture debt
+- [closed] N-041 · owner:gpt-airworker-learning-20261005 · [[N-043_rel-judge-preserve-additional-superseded-criteri]] · REL-JUDGE: preserve additional superseded criteria
+- [closed] N-041 · owner:gpt-airworker-learning-20261005 · [[N-044_rel-judge-drift-must-use-canonical-plan-node-wor]] · REL-JUDGE: drift must use canonical plan-node work source
+- [closed] N-041 · owner:gpt-airworker-learning-20261005 · [[N-045_rel-judge-fact-threshold-wording]] · REL-JUDGE fact threshold wording
+- [closed] N-041 · owner:gpt-airworker-learning-20261005 · [[N-046_rel-judge-fix-astra-600s-findings]] · REL-JUDGE: fix Astra 600s findings
+- [closed] N-046 · owner:gpt-airworker-learning-20261005 · [[N-047_rel-judge-preserve-astra-semantic-proof-gaps]] · REL-JUDGE: preserve Astra semantic proof gaps
+- [closed] N-046 · owner:gpt-airworker-learning-20261005 · [[N-048_rel-judge-astra-round2-selector-execution-and-no]] · REL-JUDGE: Astra round2 selector execution and node-source public fail-closed
