@@ -591,3 +591,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-031 · owner:gpt-airworker-learning-20261005 · [[N-049_learn-fix-fail-closed-shared-config-hook-errors-l]] · LEARN-FIX: fail-closed shared config, hook errors, load receipts
 - [closed] N-049 · owner:gpt-airworker-learning-20261005 · [[N-050_rel-fastpath-finish-only-blocking-proof-before-s]] · REL-FASTPATH: finish only blocking proof before scoped release
 - [closed] N-049 · owner:gpt-airworker-learning-20261005 · [[N-051_learn-fix-astra-n-049-receipt-identity-and-path-c]] · LEARN-FIX: Astra N-049 receipt identity and path confinement
+- [open] N-037 · owner:gpt-airworker-learning-20261005 · [[N-052_rel-0-11-6-scoped-package-and-github-publication]] · REL-0.11.6: scoped package and GitHub publication
