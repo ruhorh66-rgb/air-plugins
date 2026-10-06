@@ -17,35 +17,39 @@ type curatorSkillStatusReport struct {
 	Mirrors []curatorSkillMirrorState `json:"mirrors,omitempty"`
 }
 
+func curatorDeclaredPluginRoot(raw, source string) (string, error) {
+	abs, err := filepath.Abs(strings.TrimSpace(raw))
+	if err != nil {
+		return "", fmt.Errorf("%s: resolve plugin root: %w", source, err)
+	}
+	abs = filepath.Clean(abs)
+	registry := filepath.Join(abs, filepath.FromSlash(curatorSkillRegistryRel))
+	st, err := os.Stat(registry)
+	if err != nil {
+		return "", fmt.Errorf("%s: AirCurator release-owned skill registry unavailable at %s: %w", source, registry, err)
+	}
+	if st.IsDir() {
+		return "", fmt.Errorf("%s: AirCurator release-owned skill registry is a directory: %s", source, registry)
+	}
+	return abs, nil
+}
+
 func curatorPluginRoot(explicit string) (string, error) {
-	candidates := []string{
-		strings.TrimSpace(explicit),
-		strings.TrimSpace(os.Getenv("AIR_WORKER_PLUGIN_ROOT")),
-		strings.TrimSpace(os.Getenv("CLAUDE_PLUGIN_ROOT")),
+	if value := strings.TrimSpace(explicit); value != "" {
+		return curatorDeclaredPluginRoot(value, "-plugin-root")
+	}
+	if value := strings.TrimSpace(os.Getenv("AIR_WORKER_PLUGIN_ROOT")); value != "" {
+		return curatorDeclaredPluginRoot(value, "AIR_WORKER_PLUGIN_ROOT")
+	}
+	if value := strings.TrimSpace(os.Getenv("CLAUDE_PLUGIN_ROOT")); value != "" {
+		return curatorDeclaredPluginRoot(value, "CLAUDE_PLUGIN_ROOT")
 	}
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
 		if strings.EqualFold(filepath.Base(dir), "bin") {
-			candidates = append(candidates, filepath.Dir(dir))
-		}
-	}
-	seen := map[string]bool{}
-	for _, candidate := range candidates {
-		if candidate == "" {
-			continue
-		}
-		abs, err := filepath.Abs(candidate)
-		if err != nil {
-			continue
-		}
-		abs = filepath.Clean(abs)
-		key := strings.ToLower(abs)
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		if st, err := os.Stat(filepath.Join(abs, filepath.FromSlash(curatorSkillRegistryRel))); err == nil && !st.IsDir() {
-			return abs, nil
+			if root, rootErr := curatorDeclaredPluginRoot(filepath.Dir(dir), "executable-relative plugin root"); rootErr == nil {
+				return root, nil
+			}
 		}
 	}
 	return "", errors.New("AirCurator release-owned skill registry not found; provide -plugin-root or AIR_WORKER_PLUGIN_ROOT")
@@ -241,17 +245,19 @@ func cmdCuratorSkills(argv []string) int {
 			}
 			report.Mirrors = append(report.Mirrors, states...)
 		}
+		var code int
+		report.Status, code = curatorSkillStatusVerdict(report)
 		if *asJSON {
-			return printCuratorSkillJSON(report)
+			if printCode := printCuratorSkillJSON(report); printCode != 0 {
+				return printCode
+			}
+			return code
 		}
-		fmt.Printf("AirCurator skill package: %s · registered=%d\n", health.Status, len(health.Skills))
+		fmt.Printf("AirCurator skill package: %s · registered=%d\n", report.Status, len(health.Skills))
 		for _, mirror := range report.Mirrors {
 			fmt.Printf("%s %s: %s · %s\n", mirror.Host, mirror.SkillID, mirror.State, mirror.MirrorPath)
 		}
-		if health.Status != curatorSkillStatusPass {
-			return 1
-		}
-		return 0
+		return code
 
 	case "sync":
 		fs := flag.NewFlagSet("curator skills sync", flag.ContinueOnError)
@@ -317,6 +323,13 @@ func cmdCuratorSkills(argv []string) int {
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
+		}
+		health := inspectCuratorSkillPackage(root)
+		if health.Status != curatorSkillStatusPass {
+			for _, violation := range health.Violations {
+				fmt.Fprintln(os.Stderr, violation)
+			}
+			return 1
 		}
 		reg, err := loadCuratorSkillRegistry(root)
 		if err != nil {

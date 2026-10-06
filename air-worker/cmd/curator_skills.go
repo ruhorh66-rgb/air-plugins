@@ -15,19 +15,20 @@ import (
 )
 
 const (
-	curatorSkillRegistryRel      = "skills/air-curator/registry.json"
-	curatorSkillRegistrySchema   = "air-worker.curator-skills/v1"
-	curatorSkillMirrorSchema     = "air-worker.curator-skill-mirror/v1"
-	curatorSkillMirrorMarkerName = ".air-worker-managed.json"
-	curatorSkillStatusPass       = "PASS"
-	curatorSkillStatusFail       = "FAIL"
-	curatorHostRequired          = "required"
-	curatorHostManagedMirror     = "managed_mirror"
-	curatorHostNotApplicable     = "not_applicable"
-	curatorMirrorSynced          = "synced"
-	curatorMirrorCurrent         = "current"
-	curatorMirrorMissing         = "missing"
-	curatorMirrorDrift           = "drift"
+	curatorSkillRegistryRel          = "skills/air-curator/registry.json"
+	curatorSkillRegistrySchema       = "air-worker.curator-skills/v1"
+	curatorSkillRegistryRequiredFrom = "0.11.7"
+	curatorSkillMirrorSchema         = "air-worker.curator-skill-mirror/v1"
+	curatorSkillMirrorMarkerName     = ".air-worker-managed.json"
+	curatorSkillStatusPass           = "PASS"
+	curatorSkillStatusFail           = "FAIL"
+	curatorHostRequired              = "required"
+	curatorHostManagedMirror         = "managed_mirror"
+	curatorHostNotApplicable         = "not_applicable"
+	curatorMirrorSynced              = "synced"
+	curatorMirrorCurrent             = "current"
+	curatorMirrorMissing             = "missing"
+	curatorMirrorDrift               = "drift"
 )
 
 type curatorSkillHost struct {
@@ -213,6 +214,8 @@ func loadCuratorSkillRegistry(root string) (curatorSkillRegistry, error) {
 	}
 	seenID := map[string]bool{}
 	seenPath := map[string]bool{}
+	seenMirrorDestination := map[string]string{}
+	seenMirrorMarker := map[string]string{}
 	for i := range reg.Skills {
 		s := &reg.Skills[i]
 		s.ID = strings.TrimSpace(s.ID)
@@ -255,6 +258,17 @@ func loadCuratorSkillRegistry(root string) (curatorSkillRegistry, error) {
 			if err != nil || !strings.HasPrefix(filepath.ToSlash(mrel), "skills/") {
 				return reg, fmt.Errorf("skill %s mirror path for %s is unsafe: %s", s.ID, host, mirror)
 			}
+			destinationKey := host + "\x00" + strings.ToLower(filepath.Clean(mrel))
+			if other, ok := seenMirrorDestination[destinationKey]; ok {
+				return reg, fmt.Errorf("curator mirror destination collision for %s: skills %s and %s use %s", host, other, s.ID, mirror)
+			}
+			seenMirrorDestination[destinationKey] = s.ID
+			markerRel := filepath.Join(filepath.Dir(mrel), curatorSkillMirrorMarkerName)
+			markerKey := host + "\x00" + strings.ToLower(filepath.Clean(markerRel))
+			if other, ok := seenMirrorMarker[markerKey]; ok {
+				return reg, fmt.Errorf("curator mirror marker collision for %s: skills %s and %s share %s", host, other, s.ID, filepath.ToSlash(markerRel))
+			}
+			seenMirrorMarker[markerKey] = s.ID
 		}
 		for j := range s.Triggers {
 			s.Triggers[j] = strings.TrimSpace(s.Triggers[j])
@@ -317,14 +331,37 @@ func curatorSkillSource(root string, skill curatorSkillSpec) (string, []byte, er
 	return path, body, nil
 }
 
-func curatorSkillRegistryPresent(root string) bool {
-	info, err := os.Stat(filepath.Join(filepath.Clean(root), filepath.FromSlash(curatorSkillRegistryRel)))
-	return err == nil && !info.IsDir()
+func curatorSkillRegistryRequired(packageVersion string) bool {
+	packageVersion = strings.TrimSpace(packageVersion)
+	return packageVersion != "" && compareVersions(packageVersion, curatorSkillRegistryRequiredFrom) >= 0
 }
 
-func inspectCuratorProfileSkills(root, host, configDir string, active bool) (*curatorSkillHealth, []curatorSkillMirrorState, error) {
-	if !curatorSkillRegistryPresent(root) {
-		return nil, nil, nil
+func missingCuratorSkillRegistryHealth(root string, err error) *curatorSkillHealth {
+	root = filepath.Clean(root)
+	reason := "required AirCurator skill registry missing"
+	if err != nil {
+		reason += ": " + err.Error()
+	}
+	return &curatorSkillHealth{
+		Schema:       "air-worker.curator-skill-health/v1",
+		Root:         root,
+		RegistryPath: filepath.Join(root, filepath.FromSlash(curatorSkillRegistryRel)),
+		Status:       curatorSkillStatusFail,
+		Violations:   []string{reason},
+	}
+}
+
+func inspectCuratorProfileSkills(root, host, configDir string, active bool, packageVersion string) (*curatorSkillHealth, []curatorSkillMirrorState, error) {
+	registryPath := filepath.Join(filepath.Clean(root), filepath.FromSlash(curatorSkillRegistryRel))
+	info, statErr := os.Stat(registryPath)
+	if statErr != nil || info.IsDir() {
+		if !curatorSkillRegistryRequired(packageVersion) {
+			return nil, nil, nil
+		}
+		if statErr == nil && info.IsDir() {
+			statErr = fmt.Errorf("registry path is a directory: %s", registryPath)
+		}
+		return missingCuratorSkillRegistryHealth(root, statErr), nil, nil
 	}
 	health := inspectCuratorSkillPackage(root)
 	if health.Status != curatorSkillStatusPass || !active {

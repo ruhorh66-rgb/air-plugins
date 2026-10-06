@@ -95,6 +95,49 @@ func TestCuratorSkillPackageHealthRequiresRegisteredSource(t *testing.T) {
 	}
 }
 
+func TestCuratorSkillPackageHealthRejectsMirrorDestinationAndMarkerCollisions(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mutate func(map[string]string, map[string]string)
+		want   string
+	}{
+		{
+			name: "destination",
+			mutate: func(first, second map[string]string) {
+				second["codex"] = first["codex"]
+			},
+			want: "destination collision",
+		},
+		{
+			name: "marker",
+			mutate: func(first, second map[string]string) {
+				first["codex"] = "skills/shared/a.md"
+				second["codex"] = "skills/shared/b.md"
+			},
+			want: "marker collision",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			bodyA := curatorFixtureSkill("skill-a", "safe a")
+			bodyB := curatorFixtureSkill("skill-b", "safe b")
+			first := curatorFixtureEntry("skill-a", "skills/skill-a/SKILL.md", "role-a", bodyA, "trigger a")
+			second := curatorFixtureEntry("skill-b", "skills/skill-b/SKILL.md", "role-b", bodyB, "trigger b")
+			firstMirrors := first["mirrors"].(map[string]string)
+			secondMirrors := second["mirrors"].(map[string]string)
+			tc.mutate(firstMirrors, secondMirrors)
+			writeCuratorRegistryFixture(t, root, []map[string]any{first, second})
+			health := inspectCuratorSkillPackage(root)
+			if health.Status != curatorSkillStatusFail {
+				t.Fatalf("mirror collision must fail package health: %#v", health)
+			}
+			if !strings.Contains(strings.ToLower(strings.Join(health.Violations, " ")), tc.want) {
+				t.Fatalf("reason must mention %q: %#v", tc.want, health.Violations)
+			}
+		})
+	}
+}
+
 func TestCuratorSkillPackageHealthRejectsHashNameAndSecretDrift(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
@@ -337,6 +380,92 @@ func TestSelfcheckTreatsCuratorSkillPackageAndMirrorDriftAsViolations(t *testing
 	text := strings.Join(violations, "\n")
 	if !strings.Contains(text, "skill package violation") || !strings.Contains(text, "mirror drift") {
 		t.Fatalf("selfcheck did not surface package+mirror violations: %v", violations)
+	}
+}
+
+func TestCuratorPluginRootExplicitAndDeclaredRootsAreAuthoritative(t *testing.T) {
+	canonical, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	invalid := t.TempDir()
+	t.Setenv("AIR_WORKER_PLUGIN_ROOT", canonical)
+	if got, err := curatorPluginRoot(invalid); err == nil {
+		t.Fatalf("explicit invalid plugin root must fail, got fallback %s", got)
+	}
+
+	t.Setenv("AIR_WORKER_PLUGIN_ROOT", invalid)
+	t.Setenv("CLAUDE_PLUGIN_ROOT", canonical)
+	if got, err := curatorPluginRoot(""); err == nil {
+		t.Fatalf("declared AIR_WORKER_PLUGIN_ROOT must be authoritative, got fallback %s", got)
+	}
+}
+
+func TestCuratorSkillStatusReturnsFailureOnDrift(t *testing.T) {
+	root := t.TempDir()
+	body := curatorFixtureSkill("skill-a", "safe")
+	rel := "skills/skill-a/SKILL.md"
+	writeCuratorFixtureSkill(t, root, rel, body)
+	entry := curatorFixtureEntry("skill-a", rel, "test-role", body, "test trigger")
+	writeCuratorRegistryFixture(t, root, []map[string]any{entry})
+
+	claude := t.TempDir()
+	codex := t.TempDir()
+	if _, err := syncCuratorSkillMirrors(root, "claude", claude); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := syncCuratorSkillMirrors(root, "codex", codex); err != nil {
+		t.Fatal(err)
+	}
+	if rc := cmdCuratorSkills([]string{
+		"status", "-plugin-root", root, "-claude-config", claude, "-codex-config", codex, "-json",
+	}); rc != 0 {
+		t.Fatalf("clean status rc=%d want 0", rc)
+	}
+
+	drift := filepath.Join(codex, "skills", "skill-a", "SKILL.md")
+	if err := os.WriteFile(drift, []byte("host drift\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if rc := cmdCuratorSkills([]string{
+		"status", "-plugin-root", root, "-claude-config", claude, "-codex-config", codex, "-json",
+	}); rc == 0 {
+		t.Fatal("drifted mirror status must return nonzero")
+	}
+}
+
+func TestCuratorSkillResolveRejectsMissingRegisteredSource(t *testing.T) {
+	root := t.TempDir()
+	body := curatorFixtureSkill("skill-a", "safe")
+	entry := curatorFixtureEntry("skill-a", "skills/skill-a/SKILL.md", "test-role", body, "test trigger")
+	writeCuratorRegistryFixture(t, root, []map[string]any{entry})
+
+	if rc := cmdCuratorSkills([]string{
+		"resolve", "-plugin-root", root, "-role", "test-role", "-json",
+	}); rc == 0 {
+		t.Fatal("resolve must not return success for a missing registered source")
+	}
+}
+
+func TestCurrentCuratorProfileRequiresRegistry(t *testing.T) {
+	root := t.TempDir()
+	config := t.TempDir()
+	health, _, err := inspectCuratorProfileSkills(root, "codex", config, true, "0.11.7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if health == nil || health.Status != curatorSkillStatusFail {
+		t.Fatalf("current 0.11.7 package without registry must fail health: %#v", health)
+	}
+}
+
+func TestLegacyCuratorProfileAllowsMissingRegistry(t *testing.T) {
+	health, mirrors, err := inspectCuratorProfileSkills(t.TempDir(), "codex", t.TempDir(), true, "0.11.5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if health != nil || mirrors != nil {
+		t.Fatalf("0.11.5 missing registry must remain legacy-compatible: health=%#v mirrors=%#v", health, mirrors)
 	}
 }
 

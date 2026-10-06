@@ -266,7 +266,7 @@ func claudeProfileSnapshot(configDir string, active bool) distributionProfile {
 	} else {
 		p.Error = "payload snapshot: " + err.Error()
 	}
-	if health, mirrors, err := inspectCuratorProfileSkills(rec.InstallPath, "claude", configDir, active); health != nil {
+	if health, mirrors, err := inspectCuratorProfileSkills(rec.InstallPath, "claude", configDir, active, p.Version); health != nil {
 		p.CuratorSkills, p.CuratorMirrors = health, mirrors
 		if err != nil {
 			if p.Error != "" {
@@ -298,7 +298,7 @@ func codexProfileSnapshot(configDir string, active bool) distributionProfile {
 	} else {
 		p.Error = "payload snapshot: " + err.Error()
 	}
-	if health, mirrors, err := inspectCuratorProfileSkills(rec.InstallPath, "codex", configDir, active); health != nil {
+	if health, mirrors, err := inspectCuratorProfileSkills(rec.InstallPath, "codex", configDir, active, p.Version); health != nil {
 		p.CuratorSkills, p.CuratorMirrors = health, mirrors
 		if err != nil {
 			if p.Error != "" {
