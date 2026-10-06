@@ -1,0 +1,47 @@
+{
+    "schema":  "air-worker.n046-receipt/v1",
+    "node":  "N-046",
+    "status":  "PASS",
+    "scope":  "All findings from the first 600s global review and subsequent selector/provenance rounds are resolved or preserved as explicit backlog; final exact factual judge and Astra PASS.",
+    "verified_at_utc":  "2026-10-06T02:29:12.2716634Z",
+    "evidence":  {
+                     "git_head":  "464952dd3279841e2090f5eae8e40281aefccc71",
+                     "binary_sha256":  "205BB57BB1F7D577ED0F108627C274DDE2546E40F8D74A2DF3DBE079C9E6A89E",
+                     "build_provenance":  {
+                                              "path":  "R:\\-4-\\air-worker\\work\\learning-20261005\\n048-round5-build-provenance.txt",
+                                              "sha256":  "F52F64D820033BDCC37A31B30EFB95E7FB26F3F3540695FFF2E0F513E3F02353",
+                                              "vcs_revision":  "464952dd3279841e2090f5eae8e40281aefccc71",
+                                              "vcs_modified":  false
+                                          },
+                     "full_regression":  {
+                                             "path":  "R:\\-4-\\air-worker\\work\\learning-20261005\\n048-round4-exact-full.json",
+                                             "sha256":  "B1904305F501A3C6DBD4599DEA5B9A576529DEEFAC6A52FEC2EA04BBF38FC557",
+                                             "go_test_exit":  0,
+                                             "go_vet_exit":  0
+                                         },
+                     "factual_judge":  {
+                                           "path":  "R:\\-4-\\air-worker\\work\\learning-20261005\\n048-round5-judge-464952d.json",
+                                           "meta":  "R:\\-4-\\air-worker\\work\\learning-20261005\\n048-round5-judge-464952d.meta.json",
+                                           "sha256":  "9F3FAF8E1079C397773FF5975C44C6CEEE9858776EDCF2D4B0DAA60EBDA075AE",
+                                           "exit_code":  0,
+                                           "distance":  0,
+                                           "checks":  13,
+                                           "criteria":  62,
+                                           "lpr_gates":  0
+                                       },
+                     "independent_astra":  {
+                                               "model":  "gpt-6-astra",
+                                               "effort":  "high",
+                                               "timeout_seconds":  600,
+                                               "path":  "R:\\-4-\\air-worker\\work\\learning-20261005\\n048-round5-astra-464952d-600.verdict.json",
+                                               "receipt":  "R:\\-4-\\air-worker\\work\\learning-20261005\\n048-round5-astra-464952d-600.receipt.json",
+                                               "sha256":  "BD18015FE80F412792664956CC149FE70F61564CBED50FAC162831B6BDE81F25",
+                                               "verdict":  "PASS",
+                                               "findings":  [
+
+                                                            ],
+                                               "input_unchanged":  true
+                                           }
+                 },
+    "semantic_backlog_receipt":  "docs/receipts/LEARNING_20261006_SEMANTIC_SCOPE.json"
+}
