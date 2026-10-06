@@ -32,7 +32,7 @@ func TestSharedDataFileEventPayloadAndRetry(t *testing.T) {
 	for _, op := range []string{"event", "add", "finalize"} {
 		t.Run(op, func(t *testing.T) {
 			product, s := sharedProductFixture(t, false)
-			data := map[string]any{"run_id": "json-run", "observed": "original evidence text", "class": "evidence", "source": "json-source", "actor": "json-worker", "actor_kind": "gpt-window", "session": "json-session", "evidence": "receipt/json", "outcome": "fail"}
+			data := map[string]any{"run_id": "json-run", "observed": "original evidence text", "class": "evidence", "source": "json-source", "actor": "json-worker", "actor_kind": "gpt-window", "session": "json-session", "evidence": "receipt/json", "outcome": "fail", "rule_id": "skills/learned/example.md@abc123"}
 			b, _ := json.Marshal(data)
 			payload := filepath.Join(t.TempDir(), "event.json")
 			if err := os.WriteFile(payload, b, 0600); err != nil {
@@ -46,7 +46,7 @@ func TestSharedDataFileEventPayloadAndRetry(t *testing.T) {
 			if len(rows) != 1 {
 				t.Fatalf("events=%d", len(rows))
 			}
-			for key, want := range map[string]string{"run_id": "json-run", "observed": "original evidence text", "class": "evidence", "source": "json-source", "principal": "gpt-window:json-worker", "session": "json-session", "outcome_ref": "receipt/json", "outcome": "fail"} {
+			for key, want := range map[string]string{"run_id": "json-run", "observed": "original evidence text", "class": "evidence", "source": "json-source", "principal": "gpt-window:json-worker", "session": "json-session", "outcome_ref": "receipt/json", "outcome": "fail", "rule_id": "skills/learned/example.md@abc123"} {
 				if rows[0][key] != want {
 					t.Errorf("lost %s: got=%v want=%s", key, rows[0][key], want)
 				}
@@ -64,17 +64,17 @@ func TestSharedDataFileEventPayloadAndRetry(t *testing.T) {
 func TestSharedDataFileExplicitFlagsOverrideIncludingEmpty(t *testing.T) {
 	product, s := sharedProductFixture(t, false)
 	payload := filepath.Join(t.TempDir(), "event.json")
-	data := map[string]string{"run_id": "payload-run", "observed": "payload text", "actor": "payload-worker", "source": "payload-source", "outcome_ref": "payload-ref", "outcome": "payload-outcome", "session": "payload-session"}
+	data := map[string]string{"run_id": "payload-run", "observed": "payload text", "actor": "payload-worker", "source": "payload-source", "outcome_ref": "payload-ref", "outcome": "payload-outcome", "session": "payload-session", "rule_id": "payload-rule@sha"}
 	b, _ := json.Marshal(data)
 	if err := os.WriteFile(payload, b, 0600); err != nil {
 		t.Fatal(err)
 	}
-	args := []string{"finalize", "-product", product, "-data-file", payload, "-run-id", "flag-run", "-observed", "flag text", "-actor", "flag-worker", "-source", "", "-evidence", "", "-outcome", "", "-session", "flag-session"}
+	args := []string{"finalize", "-product", product, "-data-file", payload, "-run-id", "flag-run", "-observed", "flag text", "-actor", "flag-worker", "-source", "", "-evidence", "", "-outcome", "", "-rule-id", "flag-rule@sha", "-session", "flag-session"}
 	if on, code := routeSharedLearn(args); !on || code != 0 {
 		t.Fatalf("%v %d", on, code)
 	}
 	rows := sharedEventRows(t, s)
-	for key, want := range map[string]string{"run_id": "flag-run", "observed": "flag text", "principal": "gpt-window:flag-worker", "outcome_ref": "", "outcome": "", "session": "flag-session"} {
+	for key, want := range map[string]string{"run_id": "flag-run", "observed": "flag text", "principal": "gpt-window:flag-worker", "outcome_ref": "", "outcome": "", "session": "flag-session", "rule_id": "flag-rule@sha"} {
 		if rows[0][key] != want {
 			t.Errorf("flag precedence %s: %v", key, rows[0][key])
 		}

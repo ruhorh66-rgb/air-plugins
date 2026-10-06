@@ -1,0 +1,84 @@
+{
+  "schema": "air-worker.learning-p0-isolated-acceptance/v1",
+  "status": "PASS",
+  "at_utc": "2026-10-06T15:34:00Z",
+  "scope": "isolated shared-learning activation and next-run use; no production install/cutover",
+  "source_commit": "74a2e6820c81341f9ec71e50568517f4c4065a0c",
+  "package_commit": "ea514193c66005cec792c22b0e17c0fefd65dc0e",
+  "package_binary": {
+    "version": "0.11.7",
+    "vcs_revision": "74a2e6820c81341f9ec71e50568517f4c4065a0c",
+    "vcs_modified": false
+  },
+  "fixture": {
+    "product": "R:\\-4-\\air-worker\\work\\learning-p0\\fixture-74a2e68\\air-worker",
+    "runtime_root": "R:\\-4-\\air-worker\\work\\learning-p0\\runtime-74a2e68",
+    "product_id": "air-worker-p0-fixture"
+  },
+  "activation": {
+    "command": "learn init-shared",
+    "result": "PASS",
+    "migrated_legacy_rules": [
+      "LP-20260929T154021Z-33fd0e0e",
+      "LP-20260929T154021Z-7b217ff8",
+      "LP-20260929T154021Z-c883876c"
+    ],
+    "managed_skills": [
+      "skills/learned/process-stall-diagnosis-5607e7a1.md",
+      "skills/learned/file-lock-before-code-patch-28db46c8.md",
+      "skills/learned/execution-unknown-no-blind-retry-6b72186f.md"
+    ],
+    "reviewer": "@self -> learning-adapter reviewer -> Codex gpt-6-sol medium",
+    "shared_module_version": "0.1.0-dev.20261005"
+  },
+  "automatic_review": {
+    "run_id": "p0-live-review-001",
+    "event_id": "EV-55eb93c7bf7a32a9acf5d7f5",
+    "review_id": "RV-9080256d39b50a5cf0d2863d",
+    "review_outcome": "candidate",
+    "proposal_id": "LP-EV-55eb93c7bf7a32a9acf5d7f5",
+    "transaction_id": "TX-441b0b70dd04580e040d6b3e",
+    "target": "skills/learned/release-receipt-head-check-f2bd66b5.md",
+    "post_sha256": "4ed637031fca5e7d949c2532fd0885ce6bf4473cd206f2dd830f3fdad0f1ebe4",
+    "apply_status": "applied"
+  },
+  "next_run": {
+    "run_id": "p0-next-run-001",
+    "load_event_id": "EV-30c80bd2ad12e9000f759106",
+    "loaded_target": "skills/learned/release-receipt-head-check-f2bd66b5.md",
+    "loaded_sha256": "4ed637031fca5e7d949c2532fd0885ce6bf4473cd206f2dd830f3fdad0f1ebe4",
+    "load_used_flag": false,
+    "outcome_receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\p0-next-run-001.outcome.json",
+    "outcome_result": "PASS",
+    "finalize_event_id": "EV-7a9bd2c119fcd33affa2ecab",
+    "rule_id": "LP-EV-55eb93c7bf7a32a9acf5d7f5",
+    "outcome": "pass",
+    "second_review_id": "RV-0f764634e5385ed24ccc6733",
+    "second_review_outcome": "no_candidate"
+  },
+  "native_gates": {
+    "package_commit": "ea514193c66005cec792c22b0e17c0fefd65dc0e",
+    "receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\candidate-ea51419\\native-gates.json",
+    "plan_lint_exit": 0,
+    "goals_exit": 0,
+    "validate_exit": 0,
+    "skill_health_exit": 0,
+    "check_plugin_exit": 0
+  },
+  "boundaries": {
+    "production_runtime_changed": false,
+    "live_install_changed": false,
+    "plugin_caches_changed": false,
+    "publication_performed": false,
+    "reboot_uac_foreign_service_stop": false,
+    "asw_bridge_changed": false
+  },
+  "remaining": [
+    "commit final source delta including public rule-id flag/help",
+    "full Go regression and vet on exact final source",
+    "clean exact binary rebuild",
+    "exact-artifact learning smoke and independent semantic review",
+    "separate exact publication gate before GitHub tag/release",
+    "after publication use existing LPR install/cache-refresh authorization"
+  ]
+}

@@ -125,8 +125,8 @@ func usage() {
         Capture operational feedback as immutable product evidence plus a non-executable
         candidate in the canonical PLAN. Full success or explicit PARTIAL with nonzero exit.
 
-  air-worker learn add|event|migrate-legacy|propose|pending|apply|effect|context|rollback ...
-        Петля самообучения AirCurator. Фоновый разбор может только предложить правило.
+  air-worker learn init-shared|add|event|finalize|status|paths|propose|pending|diff|approve|apply|effect|context|rollback|summary ...
+        Петля самообучения AirCurator. init-shared транзакционно включает общий learning; процедуры могут применяться автоматически, executable rules требуют доверенного grant.
   air-worker learning-adapter reviewer
         Release-owned process adapter для shared-learning; штатно вызывается самим модулем через @self.
         "да <id>" принимается только из доверенного UserPromptSubmit активной сессии и создаёт

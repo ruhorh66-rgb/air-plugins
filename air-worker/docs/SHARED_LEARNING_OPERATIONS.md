@@ -1,6 +1,6 @@
 # Общий модуль самообучения — кандидат разработки 05.10.2026
 
-Статус: изолированная разработка, не установленный релиз и не приёмка живого обучения. Исходный выпуск AirWorker 0.11.5 остаётся установленным. Поручение ЛПР: текущая сессия пишет код; независимый проверяющий — Codex Astra (`gpt-6-astra`). Решением «ок, продолжай, выпускай в релиз после проверок» от 05.10.2026 разрешена публикация проверенного выпуска; решение записано ядром в N-037 и `docs/receipts/LEARNING_20261005_RELEASE_AUTHORITY.json`. Установка, production-переход и конкретная live-блокировка не разрешены этим решением. Оно не заменяет проверки и не закрывает оставшиеся критерии живого обучения.
+Статус: P0 shared-learning реализован в кандидате 0.11.7 и прошёл изолированный цикл `init-shared → finalize/review → auto-apply procedure → next-run load exact SHA → outcome/rule_id`; production ещё не переключён. Исходный live AirWorker 0.11.5 остаётся установленным до публикации проверенного 0.11.7. Квитанция функционального цикла: `docs/receipts/LEARNING_P0_ISOLATED_ACCEPTANCE_20261006.json`. Publication остаётся отдельным exact-SHA гейтом; после публикации ЛПР 06.10.2026 явно разрешил установку и обновление Claude/Codex cache. Reboot/UAC/остановка чужих служб/ASW/bridge этим не разрешены.
 
 ## Один владелец состояния
 
@@ -10,6 +10,7 @@
 
 ## Вызовы и границы
 
+- `air-worker learn init-shared -product <root> -runtime-root <absolute-R-path> [-product-id <id>]` — транзакционно выбирает shared writer, переносит только уже APPLIED `operational-procedure-v1` в `skills/learned`, архивирует прежние active rule files и откатывает всё при ошибке. Любой другой активный legacy rule блокирует переход.
 - `air-worker learn status -product <root>` / `paths` — версия модуля, фактические пути и последний след.
 - `air-worker learn event -product <root> -run-id <id> -class <class> -observed <text> -actor <actor>` — наблюдение и автоматический review завершённого прогона.
 - `air-worker learn finalize -product <root> -run-id <id> -observed <text> -actor <actor>` — штатное завершение внешнего прогона. Для GPT обязателен стабильный run_id; транскрипт Claude не требуется.
@@ -22,15 +23,15 @@ JSON и код возврата проверяются вместе: 0 — оп�
 
 ## Реальные адаптеры и проверка поставки
 
-Judge, Reviewer, VerifyGrant и DeliverSummary — настроенные процессные адаптеры: абсолютный исполнимый файл, SHA-256, фиксированные аргументы, JSON stdin/stdout, ограничение времени и объёма результата. Конфигурация/аргументы принадлежат доверенной поставке; данные reviewer не выбирают команду. Программный verifier обязан проверять истинный канал ЛПР и возвращать те же proposal_id, diff_sha256, decision, channel_ref; подпись отказа нельзя переиспользовать как APPROVE. Доставка требует message_id/channel_ref и readback SHA фактически доставленного сообщения.
+Для AirWorker 0.11.7 Reviewer — release-owned `@self` adapter: тот же exact binary запускает `learning-adapter reviewer`, передаёт product root через защищённый process env и вызывает существующий Codex/Ponytail read-only route (`gpt-6-sol`, medium). Reviewer может вернуть только procedure-кандидат в managed subtree либо пустой результат; grants, executable rules, permissions и policy он не создаёт. Внешние Judge/VerifyGrant/DeliverSummary при их настройке остаются hash-pinned процессными адаптерами с JSON stdin/stdout, deadline и bounded output. VerifyGrant обязан проверять истинный канал ЛПР и те же proposal_id/diff_sha256/decision/channel_ref; без него executable `check_spec` не получает approval. Доставка требует message_id/channel_ref и readback SHA фактически доставленного сообщения.
 
 Отсутствие адаптера видно как unjudged, RV error или pending_delivery. Локальный файл не считается доставкой человеку. Go-callback обязан соблюдать context; процессный адаптер ограничивает собственный процесс. Произвольное дерево дочерних процессов, реальные провайдеры, маршрутизация доверенного разрешения и фактическая доставка должны быть отдельно проверены перед production.
 
 ## Что доказано и что пока открыто
 
-Тесты выполняют создание/изменение/загрузку процедур, проверку SHA, откат, восстановление оборванных транзакций, защиту идентичности, конфликтующие процессы, ограничения путей, повторные разрешения, ошибку/таймаут reviewer и процессный обмен. Положительный процессный сценарий использует явно помеченные тестовые adapters, не скрытую имитацию live-провайдера.
+Unit/subprocess тесты покрывают создание/изменение/загрузку процедур, проверку SHA, откат, восстановление оборванных транзакций, защиту идентичности, конфликтующие процессы, ограничения путей, повторные разрешения, ошибку/таймаут reviewer и process exchange. Дополнительно на SRVLM01 выполнен изолированный реальный цикл: три legacy operational procedures мигрированы через `init-shared`; `finalize` вызвал release-owned `@self` Codex reviewer и автоматически применил новый procedure; следующий run загрузил exact target/SHA; отдельная машинная квитанция PASS и `finalize` связали outcome с `rule_id`; повторный review вернул `no_candidate`. Это не production cutover и не семидневный effect.
 
-Открыты: подключение выбранного реального напарника и фактического канала сводки; полная автоматическая доставка поправок каждого поддерживаемого host; доказательство применения навыка в обычной следующей работе; конкретное доверенное live-да для ограничивающего правила; block/allow в действующей операции; релизная приёмка и откат установленного артефакта. Семидневная статистика эффекта — последующий этап, отсутствие наблюдений не PASS.
+Открыты перед эксплуатацией: exact-artifact full regression + независимый semantic PASS, GitHub publication по отдельному exact-SHA гейту, затем уже разрешённые ЛПР install/cache refresh и live installed-binary smoke. VerifyGrant/live block для executable `check_spec`, реальная доставка daily summary и семидневная статистика effect остаются отдельными ограниченными функциями и не блокируют процедурное самообучение.
 
 ## Восстановление
 

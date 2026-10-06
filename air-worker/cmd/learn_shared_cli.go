@@ -119,6 +119,7 @@ func cmdSharedLearn(root string, s sharedLearningSettings, argv []string) int {
 	session := fs.String("session", "", "идентификатор сессии")
 	reference := fs.String("reference", "", "ссылка на исходный материал")
 	outcome := fs.String("outcome", "", "исход работы")
+	ruleID := fs.String("rule-id", "", "точный ID/target@SHA реально использованной процедуры")
 	id := fs.String("id", "", "proposal_id")
 	target := fs.String("target", "", "относительный путь навыка")
 	preSHA := fs.String("pre-sha256", "", "SHA до правки; пусто только для нового файла")
@@ -174,7 +175,7 @@ func cmdSharedLearn(root string, s sharedLearningSettings, argv []string) int {
 	fs.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	for flagName, item := range map[string]struct{ key, value string }{
 		"run-id": {"run_id", *runID}, "id": {"proposal_id", *id}, "target": {"target", *target},
-		"outcome": {"outcome", *outcome}, "observed": {"observed", *observed}, "class": {"class", *class},
+		"outcome": {"outcome", *outcome}, "rule-id": {"rule_id", *ruleID}, "observed": {"observed", *observed}, "class": {"class", *class},
 		"source": {"source", *source}, "actor": {"actor", *actor}, "actor-kind": {"actor_kind", *actorKind},
 		"session": {"session", *session}, "evidence": {"evidence", *evidence}, "reference": {"reference", *reference},
 	} {
