@@ -404,6 +404,14 @@ func recordSharedContextEvent(product string, s sharedLearningSettings, runID, k
 }
 
 func readSharedContextSkill(product, target string, limit int64) ([]byte, error) {
+	return readSharedContextSkillWithHook(product, target, limit, nil)
+}
+
+// readSharedContextSkillWithHook keeps the race regression deterministic without
+// weakening production behavior. Production passes nil; tests can swap a parent after
+// ancestor validation and restore it after os.Open to prove confinement follows the
+// opened handle rather than the pathname.
+func readSharedContextSkillWithHook(product, target string, limit int64, hook func(string) error) ([]byte, error) {
 	rel := filepath.Clean(filepath.FromSlash(target))
 	if filepath.IsAbs(rel) || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
 		return nil, errors.New("learned skill target escaped product root")
@@ -433,11 +441,21 @@ func readSharedContextSkill(product, target string, limit int64) ([]byte, error)
 		}
 	}
 
+	if hook != nil {
+		if err := hook("before-open"); err != nil {
+			return nil, err
+		}
+	}
 	f, err := os.Open(abs)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
+	if hook != nil {
+		if err := hook("after-open"); err != nil {
+			return nil, err
+		}
+	}
 	st, err := f.Stat()
 	if err != nil {
 		return nil, err
@@ -467,6 +485,10 @@ func readSharedContextSkill(product, target string, limit int64) ([]byte, error)
 }
 
 func sharedLearningContextFromCatalog(product string, s sharedLearningSettings, in hookInput, runID string, skills []sharedLearningCatalogSkill) (hookResult, error) {
+	return sharedLearningContextFromCatalogWithReader(product, s, in, runID, skills, readSharedContextSkill)
+}
+
+func sharedLearningContextFromCatalogWithReader(product string, s sharedLearningSettings, in hookInput, runID string, skills []sharedLearningCatalogSkill, reader func(string, string, int64) ([]byte, error)) (hookResult, error) {
 	var text strings.Builder
 	text.WriteString("LEARNED PROCEDURES: evidence-based guidance, not permissions or approval grants. Higher-priority product and user rules remain in force.\n")
 	var loadedFacts, failedFacts []string
@@ -477,7 +499,7 @@ func sharedLearningContextFromCatalog(product string, s sharedLearningSettings, 
 			text.WriteString("Additional procedures are available through air-worker learn context -product <root>.\n")
 			break
 		}
-		body, readErr := readSharedContextSkill(product, skill.Target, sharedLearningMaxBytes)
+		body, readErr := reader(product, skill.Target, sharedLearningMaxBytes)
 		if readErr != nil {
 			failedFacts = append(failedFacts, skill.Target+"@expected="+skill.SHA256+": "+readErr.Error())
 			continue
