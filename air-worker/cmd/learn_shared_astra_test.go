@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -255,18 +257,189 @@ func TestSharedContextPreservesVerifiedBodyWhenLaterSkillFails(t *testing.T) {
 	if !strings.Contains(res.Context, "skill_delivery_failed") {
 		t.Fatalf("partial delivery warning missing: %s", res.Context)
 	}
-	body, err := os.ReadFile(filepath.Join(s.RuntimeRoot, "events.jsonl"))
+	rows := sharedEventRows(t, s)
+	loadedA, loadedB, failedB := false, false, false
+	for _, row := range rows {
+		kind, _ := row["kind"].(string)
+		observed, _ := row["observed"].(string)
+		switch kind {
+		case "skill_loaded":
+			if strings.Contains(observed, "a.md@") {
+				loadedA = true
+			}
+			if strings.Contains(observed, "b.md@") {
+				loadedB = true
+			}
+		case "skill_delivery_failed":
+			if strings.Contains(observed, "b.md@expected=") {
+				failedB = true
+			}
+		}
+	}
+	if !loadedA || loadedB || !failedB {
+		t.Fatalf("receipt mismatch: loadedA=%v loadedB=%v failedB=%v rows=%v", loadedA, loadedB, failedB, rows)
+	}
+}
+
+func TestSharedContextCommittedReceiptSurvivesTraceFailure(t *testing.T) {
+	product, s := sharedProductFixture(t, false)
+	content := sharedFixtureProcedure + "\nTrace delivery marker.\n"
+	if _, err := executeSharedLearning(product, s, "propose", map[string]string{
+		"proposal_id": "LP-trace", "kind": "procedure", "target": "skills/learned/trace.md", "pre_sha256": "", "content": content,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	index, err := executeSharedLearning(product, s, "index", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	text := string(body)
-	if !strings.Contains(text, "\"kind\":\"skill_loaded\"") || !strings.Contains(text, "a.md@") {
-		t.Fatalf("verified load receipt missing:\n%s", text)
+	var catalog struct {
+		Skills []sharedLearningCatalogSkill `json:"skills"`
 	}
-	if !strings.Contains(text, "\"kind\":\"skill_delivery_failed\"") || !strings.Contains(text, "b.md") {
-		t.Fatalf("failed later delivery receipt missing:\n%s", text)
+	if err := json.Unmarshal(index.Data, &catalog); err != nil || len(catalog.Skills) != 1 {
+		t.Fatalf("catalog: %v %s", err, index.Data)
 	}
-	if strings.Contains(text, "b.md@") {
-		t.Fatalf("failed later skill was falsely recorded loaded:\n%s", text)
+
+	logs := filepath.Join(s.RuntimeRoot, "logs")
+	saved := filepath.Join(s.RuntimeRoot, "logs-saved")
+	if err := os.Rename(logs, saved); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(logs, []byte("block trace directory"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := sharedLearningContextFromCatalog(product, s, hookInput{SessionID: "trace-session", Principal: "gpt"}, "trace-run", catalog.Skills)
+	if err != nil {
+		t.Fatalf("committed receipt trace failure must not abort delivery: %v", err)
+	}
+	if !strings.Contains(res.Context, "Trace delivery marker.") {
+		t.Fatalf("prepared context was discarded after committed receipt: %s", res.Context)
+	}
+	rows := sharedEventRows(t, s)
+	loaded := 0
+	for _, row := range rows {
+		if row["kind"] == "skill_loaded" {
+			loaded++
+		}
+	}
+	if loaded != 1 {
+		t.Fatalf("committed skill_loaded event count=%d rows=%v", loaded, rows)
+	}
+}
+
+func TestSharedContextReceiptIdentityChangesWithPayload(t *testing.T) {
+	product, s := sharedProductFixture(t, false)
+	target := "skills/learned/versioned.md"
+	first := sharedFixtureProcedure + "\nVersion one.\n"
+	if _, err := executeSharedLearning(product, s, "propose", map[string]string{
+		"proposal_id": "LP-version-1", "kind": "procedure", "target": target, "pre_sha256": "", "content": first,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	in := hookInput{SessionID: "same-session", Principal: "gpt"}
+	if _, _, err := sharedLearningContext(product, in); err != nil {
+		t.Fatal(err)
+	}
+	oldBody, err := os.ReadFile(filepath.Join(product, filepath.FromSlash(target)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second := sharedFixtureProcedure + "\nVersion two.\n"
+	if _, err := executeSharedLearning(product, s, "propose", map[string]string{
+		"proposal_id": "LP-version-2", "kind": "procedure", "target": target, "pre_sha256": learnSHA(oldBody), "content": second,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := sharedLearningContext(product, in); err != nil {
+		t.Fatal(err)
+	}
+
+	rows := sharedEventRows(t, s)
+	var loadedRuns []string
+	for _, row := range rows {
+		if row["kind"] == "skill_loaded" {
+			loadedRuns = append(loadedRuns, row["run_id"].(string))
+		}
+	}
+	if len(loadedRuns) != 2 || loadedRuns[0] == loadedRuns[1] {
+		t.Fatalf("changed loaded payload must create distinct receipt identities: %v", loadedRuns)
+	}
+
+	badTarget := "skills/learned/missing.md"
+	for _, sha := range []string{strings.Repeat("a", 64), strings.Repeat("b", 64)} {
+		_, err := sharedLearningContextFromCatalog(product, s, in, "same-session", []sharedLearningCatalogSkill{{
+			SkillID: "LP-missing", Target: badTarget, SHA256: sha,
+		}})
+		if err == nil {
+			t.Fatal("all-invalid catalog must return explicit delivery failure")
+		}
+	}
+	rows = sharedEventRows(t, s)
+	var failedRuns []string
+	for _, row := range rows {
+		if row["kind"] == "skill_delivery_failed" {
+			failedRuns = append(failedRuns, row["run_id"].(string))
+		}
+	}
+	if len(failedRuns) != 2 || failedRuns[0] == failedRuns[1] {
+		t.Fatalf("changed failure payload must create distinct receipt identities: %v", failedRuns)
+	}
+}
+
+func TestSharedContextRejectsParentJunctionAfterIndex(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("junction regression is Windows-specific")
+	}
+	product, s := sharedProductFixture(t, false)
+	target := "skills/learned/junction.md"
+	content := sharedFixtureProcedure + "\nJunction marker.\n"
+	if _, err := executeSharedLearning(product, s, "propose", map[string]string{
+		"proposal_id": "LP-junction", "kind": "procedure", "target": target, "pre_sha256": "", "content": content,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	index, err := executeSharedLearning(product, s, "index", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var catalog struct {
+		Skills []sharedLearningCatalogSkill `json:"skills"`
+	}
+	if err := json.Unmarshal(index.Data, &catalog); err != nil || len(catalog.Skills) != 1 {
+		t.Fatalf("catalog: %v %s", err, index.Data)
+	}
+
+	learned := filepath.Join(product, "skills", "learned")
+	external := filepath.Join(filepath.Dir(product), filepath.Base(product)+"-external-learned")
+	if err := os.Rename(learned, external); err != nil {
+		t.Fatal(err)
+	}
+	out, err := exec.Command("cmd", "/c", "mklink", "/J", learned, external).CombinedOutput()
+	if err != nil {
+		_ = os.Rename(external, learned)
+		t.Skipf("junction unavailable: %v: %s", err, out)
+	}
+	defer func() {
+		_ = os.Remove(learned)
+		_ = os.RemoveAll(external)
+	}()
+
+	res, err := sharedLearningContextFromCatalog(product, s, hookInput{SessionID: "junction-session", Principal: "gpt"}, "junction-run", catalog.Skills)
+	if err == nil {
+		t.Fatalf("parent junction after index must fail closed, context=%q", res.Context)
+	}
+	rows := sharedEventRows(t, s)
+	loaded, failed := 0, 0
+	for _, row := range rows {
+		switch row["kind"] {
+		case "skill_loaded":
+			loaded++
+		case "skill_delivery_failed":
+			failed++
+		}
+	}
+	if loaded != 0 || failed != 1 {
+		t.Fatalf("junction escape receipt mismatch: loaded=%d failed=%d rows=%v", loaded, failed, rows)
 	}
 }

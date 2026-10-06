@@ -386,11 +386,84 @@ type sharedLearningCatalogSkill struct {
 }
 
 func recordSharedContextEvent(product string, s sharedLearningSettings, runID, kind, observed, class, outcome string, in hookInput) error {
-	res, err := sharedLearningEvent(product, s, runID, kind, observed, class, "host-context", hookPrincipal(in), in.SessionID, "", outcome)
+	identity := learnSHA([]byte(kind + "\n" + observed + "\n" + class + "\n" + outcome))
+	eventRunID := strings.TrimSpace(runID) + ":context:" + identity[:20]
+	res, err := sharedLearningEvent(product, s, eventRunID, kind, observed, class, "host-context", hookPrincipal(in), in.SessionID, "", outcome)
 	if errors.Is(err, learning.ErrConflict) && res.Status == "duplicate" {
 		return nil
 	}
+	// For non-run_completed context receipts, Status=recorded means the primary
+	// event was durably appended. The only later module step is its diagnostic
+	// trace. A trace-write failure must not turn a truthful loaded receipt into
+	// an aborted delivery: return the prepared context so the receipt matches
+	// what the host receives.
+	if err != nil && res.Status == "recorded" && res.ID != "" {
+		return nil
+	}
 	return err
+}
+
+func readSharedContextSkill(product, target string, limit int64) ([]byte, error) {
+	rel := filepath.Clean(filepath.FromSlash(target))
+	if filepath.IsAbs(rel) || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
+		return nil, errors.New("learned skill target escaped product root")
+	}
+	abs := filepath.Join(product, rel)
+	if !pathWithinRoot(product, abs) {
+		return nil, errors.New("learned skill target escaped product root")
+	}
+
+	// Reject linked/reparse ancestors before opening. The opened handle is then
+	// checked again below, so a parent swap cannot redirect this read outside
+	// the resolved product root without detection.
+	for cur := filepath.Dir(abs); ; cur = filepath.Dir(cur) {
+		relToRoot, relErr := filepath.Rel(product, cur)
+		if relErr == nil && relToRoot == "." {
+			break
+		}
+		if relErr != nil || relToRoot == ".." || strings.HasPrefix(relToRoot, ".."+string(filepath.Separator)) || filepath.Dir(cur) == cur {
+			return nil, errors.New("learned skill ancestor escaped product root")
+		}
+		info, err := os.Lstat(cur)
+		if err != nil {
+			return nil, err
+		}
+		if !info.IsDir() || info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+			return nil, fmt.Errorf("learned skill has linked/reparse ancestor: %s", cur)
+		}
+	}
+
+	f, err := os.Open(abs)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !st.Mode().IsRegular() || st.Size() < 0 || st.Size() > limit {
+		return nil, errors.New("learned skill is not a bounded regular file")
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(product)
+	if err != nil {
+		return nil, err
+	}
+	finalPath, err := openedFileFinalPath(f)
+	if err != nil {
+		return nil, err
+	}
+	if !pathWithinRoot(resolvedRoot, finalPath) {
+		return nil, fmt.Errorf("opened learned skill escaped product root: %s", finalPath)
+	}
+	body, err := io.ReadAll(io.LimitReader(f, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > limit {
+		return nil, errors.New("learned skill exceeds byte limit")
+	}
+	return body, nil
 }
 
 func sharedLearningContextFromCatalog(product string, s sharedLearningSettings, in hookInput, runID string, skills []sharedLearningCatalogSkill) (hookResult, error) {
@@ -404,34 +477,14 @@ func sharedLearningContextFromCatalog(product string, s sharedLearningSettings, 
 			text.WriteString("Additional procedures are available through air-worker learn context -product <root>.\n")
 			break
 		}
-		rel := filepath.Clean(filepath.FromSlash(skill.Target))
-		abs := filepath.Join(product, rel)
-		inside, relErr := filepath.Rel(product, abs)
-		if relErr != nil || inside == ".." || strings.HasPrefix(inside, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-			failedFacts = append(failedFacts, skill.Target+": target escaped product root")
-			continue
-		}
-		info, statErr := os.Lstat(abs)
-		if statErr != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
-			if statErr != nil {
-				failedFacts = append(failedFacts, skill.Target+": "+statErr.Error())
-			} else {
-				failedFacts = append(failedFacts, skill.Target+": learned skill is not an ordinary regular file")
-			}
-			continue
-		}
-		if target, linkErr := os.Readlink(abs); linkErr == nil {
-			failedFacts = append(failedFacts, skill.Target+": learned skill is a link/reparse entry to "+target)
-			continue
-		}
-		body, readErr := readLearningBounded(abs, sharedLearningMaxBytes)
+		body, readErr := readSharedContextSkill(product, skill.Target, sharedLearningMaxBytes)
 		if readErr != nil {
-			failedFacts = append(failedFacts, skill.Target+": "+readErr.Error())
+			failedFacts = append(failedFacts, skill.Target+"@expected="+skill.SHA256+": "+readErr.Error())
 			continue
 		}
 		actualSHA := learnSHA(body)
 		if !strings.EqualFold(actualSHA, skill.SHA256) {
-			failedFacts = append(failedFacts, skill.Target+": SHA changed after verified index")
+			failedFacts = append(failedFacts, skill.Target+"@expected="+skill.SHA256+" actual="+actualSHA+": SHA changed after verified index")
 			continue
 		}
 		heading := fmt.Sprintf("\nSkill %s SHA256=%s\n", skill.SkillID, skill.SHA256)
