@@ -143,13 +143,45 @@ func goSelectorExists(root string, chk checkSpec, selector string) measureResult
 
 var judgeGoListSelectors = goListSelectors
 
+func normalizedCommandBase(command string) string {
+	base := filepath.Base(strings.TrimSpace(command))
+	ext := filepath.Ext(base)
+	if ext != "" {
+		base = strings.TrimSuffix(base, ext)
+	}
+	return strings.ToLower(base)
+}
+
+func isGoCommand(command string) bool {
+	return normalizedCommandBase(command) == "go"
+}
+
+func goCheckRunsAllTests(chk checkSpec) bool {
+	if !isGoCommand(chk.Command) {
+		return false
+	}
+	for i := 0; i < len(chk.Args); i++ {
+		arg := strings.ToLower(strings.TrimSpace(chk.Args[i]))
+		key := arg
+		if eq := strings.IndexByte(key, '='); eq >= 0 {
+			key = key[:eq]
+		}
+		switch key {
+		case "-run", "-test.run", "-skip", "-test.skip", "-list", "-test.list",
+			"-bench", "-test.bench", "-fuzz", "-test.fuzz", "-args",
+			"-short", "-test.short":
+			return false
+		}
+	}
+	return true
+}
+
 func buildJudgeSelectorInventory(root string, cfg runConfig, g planGoals) map[string]map[string]measureResult {
 	needs, _ := criterionSelectorNeeds(cfg, g)
 	inventory := map[string]map[string]measureResult{}
 	for name, need := range needs {
 		chk := need.Check
-		command := strings.TrimSuffix(filepath.Base(chk.Command), filepath.Ext(chk.Command))
-		if !strings.EqualFold(command, "go") || len(need.Selectors) == 0 {
+		if !isGoCommand(chk.Command) || len(need.Selectors) == 0 {
 			continue
 		}
 		results := map[string]measureResult{}
@@ -181,7 +213,7 @@ func runSelectedCheckWithInventory(root string, chk checkSpec, selector string, 
 	if err != nil {
 		return measureResult{State: measureUnknown, Detail: err.Error()}
 	}
-	if selector != "" && strings.EqualFold(filepath.Base(chk.Command), "go") {
+	if selector != "" && isGoCommand(chk.Command) {
 		if inventory, ok := base.SelectorInventory[chk.Name]; ok {
 			exists, known := inventory[selector]
 			if !known {
@@ -190,13 +222,13 @@ func runSelectedCheckWithInventory(root string, chk checkSpec, selector string, 
 			if exists.State != measurePass {
 				return exists
 			}
-			// The inventory was built from the same check command/package scope.
-			// If that complete check already passed, this selector was both present
-			// and executed successfully in the full check; rerunning it would only
-			// multiply process starts by the number of plan criteria.
+			// Inventory proves existence only. Reuse of the full check's PASS is
+			// valid only when that full Go invocation actually covered all tests.
+			// Filtered/list/short/fuzz/bench invocations must execute the selected
+			// criterion test explicitly instead of inheriting an unrelated PASS.
 			full := checkResultState(base, chk.Name)
-			if full.State == measurePass {
-				return measureResult{State: measurePass, Detail: fmt.Sprintf("%s · selector %s найден в общем inventory", chk.Name, selector)}
+			if full.State == measurePass && goCheckRunsAllTests(chk) {
+				return measureResult{State: measurePass, Detail: fmt.Sprintf("%s · selector %s найден в общем inventory и покрыт полным go test", chk.Name, selector)}
 			}
 		} else {
 			exists := goSelectorExists(root, chk, selector)

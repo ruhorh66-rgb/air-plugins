@@ -130,3 +130,65 @@ func TestJudgeSelectorInventoryMarksMissingWithoutPerSelectorProbe(t *testing.T)
 		t.Fatalf("calls=%d pass=%v fail=%v unknown=%v", calls, passed, failed, unknown)
 	}
 }
+
+func TestFilteredGoCheckCannotLendPassToExcludedSelector(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module filtered\n\ngo 1.22\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testSrc := "package filtered\nimport \"testing\"\nfunc TestSafe(t *testing.T) {}\nfunc TestBad(t *testing.T) { t.Fatal(\"must fail when selected\") }\n"
+	if err := os.WriteFile(filepath.Join(root, "filtered_test.go"), []byte(testSrc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	chk := checkSpec{
+		Name: "unit", Command: "go",
+		Args:   []string{"test", ".", "-run", "^TestSafe$"},
+		Select: "-run ^{}$",
+	}
+	base := judgeResult{
+		Passed: []string{"unit"},
+		SelectorInventory: map[string]map[string]measureResult{
+			"unit": {"TestBad": {State: measurePass, Detail: "TestBad"}},
+		},
+	}
+	got := runSelectedCheckWithInventory(root, chk, "TestBad", base)
+	if got.State != measureFail {
+		t.Fatalf("filtered base check must execute excluded selector instead of inheriting PASS: %+v", got)
+	}
+}
+
+func TestGoExeUsesSameSelectorInventoryAsGo(t *testing.T) {
+	chk := checkSpec{Name: "unit", Command: `C:\\tools\\go.exe`, Args: []string{"test", "."}, Select: "-run ^{}$"}
+	if !isGoCommand(chk.Command) {
+		t.Fatalf("go.exe path was not normalized as Go command: %q", chk.Command)
+	}
+	base := judgeResult{
+		Passed: []string{"unit"},
+		SelectorInventory: map[string]map[string]measureResult{
+			"unit": {"TestMissing": {State: measureFail, Detail: "missing"}},
+		},
+	}
+	got := runSelectedCheckWithInventory(".", chk, "TestMissing", base)
+	if got.State != measureFail {
+		t.Fatalf("go.exe missing selector must fail from shared inventory: %+v", got)
+	}
+}
+
+func TestGoCheckRunsAllTestsRejectsSelectionFlags(t *testing.T) {
+	full := checkSpec{Command: "go", Args: []string{"-C", "cmd", "test", "./...", "-count=1"}}
+	if !goCheckRunsAllTests(full) {
+		t.Fatal("canonical full go test must be reusable")
+	}
+	for _, args := range [][]string{
+		{"test", ".", "-run", "^TestSafe$"},
+		{"test", ".", "-run=^TestSafe$"},
+		{"test", ".", "-skip", "Slow"},
+		{"test", ".", "-list", "Test"},
+		{"test", ".", "-short"},
+		{"test", ".", "-args", "-test.run=TestSafe"},
+	} {
+		if goCheckRunsAllTests(checkSpec{Command: "go.exe", Args: args}) {
+			t.Fatalf("filtered/suppressed Go check incorrectly treated as full: %#v", args)
+		}
+	}
+}

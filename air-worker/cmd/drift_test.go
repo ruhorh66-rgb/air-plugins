@@ -235,6 +235,40 @@ func TestPlanWorkSourceChangeResetsDriftHistory(t *testing.T) {
 	}
 }
 
+func TestUnknownToKnownRecoveryKeepsLastMeasuredPoint(t *testing.T) {
+	for _, source := range []string{planWorkSourceLegacy, planWorkSourceNodes} {
+		t.Run(source, func(t *testing.T) {
+			history := []driftPoint{
+				{Judge: d(3), Closed: d(1), Open: d(2), Source: source},
+				{Judge: nil, Closed: d(1), Open: d(2), Source: source},
+			}
+			current := driftPoint{Judge: d(2), Closed: d(1), Open: d(2), Source: source}
+			stall, blind := countStreaks(history, current)
+			if stall != 0 || blind != 0 {
+				t.Fatalf("unknown->known recovery must resume from last measurable point without stall/blind residue: stall=%d blind=%d", stall, blind)
+			}
+			if v, reasons := evaluate(current, d(1), current.Open, history, defaultLimits()); v != verdictAllow {
+				t.Fatalf("unknown->known recovery must not crash or throttle: verdict=%q reasons=%v", v, reasons)
+			}
+		})
+	}
+}
+
+func TestUnknownAcrossWorkSourceBoundaryDoesNotCompareOldSource(t *testing.T) {
+	history := []driftPoint{
+		{Judge: d(1), Closed: d(9), Open: d(1), Source: planWorkSourceLegacy},
+		{Judge: nil, Closed: d(0), Open: d(3), Source: planWorkSourceNodes},
+	}
+	current := driftPoint{Judge: d(2), Closed: d(0), Open: d(3), Source: planWorkSourceNodes}
+	stall, blind := countStreaks(history, current)
+	if stall != 0 || blind != 0 {
+		t.Fatalf("source boundary through unknown point must start a fresh measurable history: stall=%d blind=%d", stall, blind)
+	}
+	if why := regression(history[0], current); why != "" {
+		t.Fatalf("old work-source must not be compared after boundary: %s", why)
+	}
+}
+
 // --- граница истории и сквозной замер -------------------------------------------------
 
 const planFixture = "| № | Шаг | Ступень | Судья |\n" +
@@ -338,5 +372,47 @@ func TestЗаписанныйЗамерЧитаетсяОбратно(t *testing
 	if m.StallMoves != 3 || m.Verdict != verdictThrottle {
 		t.Fatalf("три неподвижных замера и текущий: ожидался застой 3 и %q, получено %d и %q",
 			verdictThrottle, m.StallMoves, m.Verdict)
+	}
+}
+
+func TestDriftMalformedCanonicalNodeIsNotProven(t *testing.T) {
+	root := t.TempDir()
+	planPath := filepath.Join(root, "PLAN.md")
+	configPath := filepath.Join(root, "run-config.json")
+	plan := "| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n| 1 | legacy work | `script` | К1 |\n| 2 | legacy gate | — | гейт: ЛПР |\n"
+	if err := os.WriteFile(planPath, []byte(plan), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configPath, []byte(`{"plan":"PLAN.md"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg := runConfig{Plan: "PLAN.md"}
+	zero := 0
+	mv := machineVerdict{
+		At: time.Now().Format(time.RFC3339Nano), Code: 0, Distance: &zero,
+		InputFingerprint: judgeInputFingerprint(root, cfg, configPath, planPath),
+	}
+	raw, _ := json.Marshal(mv)
+	if err := os.WriteFile(filepath.Join(root, ".goal-verdict.json"), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(planNodeDir(root), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(planNodeDir(root), "N-999_bad.md"), []byte("broken\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m, reasons, limits := measureDrift(root, "malformed-node")
+	if m.Verdict != verdictNotProven || verdictExitCode(m.Verdict) != 2 {
+		t.Fatalf("malformed canonical node source must be NOT_PROVEN/nonzero: %#v reasons=%v", m, reasons)
+	}
+	if m.PlanWorkSource != planWorkSourceNodes || m.PlanOpenSteps != nil || m.PlanClosedSteps != nil || m.PlanGates != 0 {
+		t.Fatalf("drift leaked legacy plan state after node read failure: %#v", m)
+	}
+	if m.Distance != nil || m.JudgeDistance != nil || m.JudgeCode == nil || *m.JudgeCode != 2 {
+		t.Fatalf("combined drift measurement must become unmeasurable on canonical node failure: %#v", m)
+	}
+	if len(limits) == 0 || !hasRule(reasons, "WORKER-DRIFT-PLAN-SOURCE") {
+		t.Fatalf("node read failure not explained: limits=%v reasons=%v", limits, reasons)
 	}
 }

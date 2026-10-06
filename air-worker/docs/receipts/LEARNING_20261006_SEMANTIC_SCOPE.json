@@ -1,0 +1,100 @@
+{
+  "schema": "air-worker.plan-semantic-scope/v1",
+  "created_at_utc": "2026-10-06T00:14:04.649482+00:00",
+  "node": "N-047_rel-judge-preserve-astra-semantic-proof-gaps",
+  "plan": "F:\\-7-\\_worktrees\\airworker-learning-20261005\\air-worker\\PLAN.md",
+  "plan_pre_sha256": "a26c3096f2e02e2104acbc3f56bc2768c1310a8d31b1c132181b83e10a25c6f4",
+  "plan_post_sha256": "0bf4b3bb8f1f91f11eaa1c3e7a23641e5f17aa3d7f8577a0a3e08b80d37068ce",
+  "removed_from_active_release_judge": {
+    "К17": {
+      "line": 272,
+      "text": "| К17 | Ц3 | контур 1: изменение конфигурации судьи (`run-config.json`) и своего судьи продукта без гейта ЛПР на судью отклонено; скрипты проверок — тесты продукта, их закрытие подтверждает К19 | проверка `тесты бинарника` · тест `TestJudgeFilesRestoredAfterExecutorTurn`; проверка `тесты бинарника` · тест `TestProtectedJudgeSetFollowsConfig` |"
+    },
+    "К18": {
+      "line": 273,
+      "text": "| К18 | Ц3 | контур 2: при расхождении отпечатка согласованного судьи — той же границы, что в К17, — вердикт не выносится: «судья изменён без слова ЛПР», прогресс не засчитывается | проверка `тесты бинарника` · тест `TestJudgeInputFingerprintChangesOnProtectedInputs`; проверка `тесты бинарника` · тест `TestCachedReportDoesNotRunJudgeAndRejectsStaleFingerprint` |"
+    },
+    "К47": {
+      "line": 331,
+      "text": "| К47 | Ц6 | external/manual executor — first-class: фактические host/vendor/model/effort и job_id входят в measurement; AirWorker принимает внешний результат через тот же factual/semantic judge и не запускает вторую модель сам | проверка `тесты бинарника` · тест `TestExecutorScopeRequiresActiveDeclaredProduct`; проверка `тесты бинарника` · тест `TestExecutorDispatchLoadsPonytailAndWalksVendorFallbacks`; проверка `тесты бинарника` · тест `TestCriterion42Pending` |"
+    }
+  },
+  "narrowed_active_criteria_before": {
+    "К24": {
+      "line": 296,
+      "text": "| К24 | Ц4 | планировщик берёт токен тем же путём, что исполнитель петли | проверка `тесты бинарника` · тест `TestPlannerUsesTopExecutorVendor`; проверка `тесты бинарника` · тест `TestClaudeRunnerEnvForcesHeadroom` |"
+    },
+    "К26": {
+      "line": 276,
+      "text": "| К26 | Ц3 | шаг ступени `script` без команды планировщик не предлагает, а петля называет «нечем исполнить» до итерации, не тратя её | проверка `тесты бинарника` · тест `TestScriptFirstRejectsModelForExactCommand`; проверка `тесты бинарника` · тест `TestPlannerPromptRequiresScriptFirst` |"
+    },
+    "К41": {
+      "line": 282,
+      "text": "| К41 | Ц3 | `air-worker validate` до loop проверяет PLAN и всю цепочку tier → ladder → runner → tool, точную грамматику таблицы, уникальность шага и команду `script`; ошибка называет строку и причину. Dev/noncanonical dependency называется и предлагается установленный путь; после обновления та же проверка называет нужную миграцию, PLAN сама не переписывает | проверка `тесты бинарника` · тест `TestValidateRejectsUnknownGoSelectorBeforeJudge`; проверка `тесты бинарника` · тест `TestValidateScriptSelectorRequiresStaticProof`; проверка `тесты бинарника` · тест `TestValidateRejectsInvalidSelectorTemplate` |"
+    },
+    "К46": {
+      "line": 265,
+      "text": "| К46 | Ц2 | status показывает installed plugin/cache/CLI/tray, фактический Claude/Codex config/profile path и версию hooks/runtime, реально загруженную текущей host-сессией; multiple profiles названы явно, а если пакет новее active hooks generation — требуется restart | проверка `тесты бинарника` · тест `TestBuildSelfcheckWorksWithoutSourceCheckoutAndWarnsMultipleProfiles`; проверка `тесты бинарника` · тест `TestInstallStatusUsesSelfcheckSummary` |"
+    },
+    "К51": {
+      "line": 283,
+      "text": "| К51 | Ц3 | factual judge инвентаризует selectors каждой проверки один раз за judge-run и переиспользует результат: для Go — один inventory по нужным packages, для pytest — один collect, для других runner — детерминированный inventory. Отсутствующие selectors не запускают отдельный широкий процесс; число process starts не растёт линейно от количества будущих тестов | проверка `тесты бинарника` · тест `TestJudgeSelectorInventoryBatchesOneGoListPerCheck`; проверка `тесты бинарника` · тест `TestJudgeSelectorInventoryMarksMissingWithoutPerSelectorProbe` |"
+    },
+    "К54": {
+      "line": 299,
+      "text": "| К54 | Ц4 | `air-worker judge -json` выдаёт id/goal/selector/measure/state/duration/reason/receipt каждого критерия и timings base checks, inventory и selectors; текстовый judge/report строятся из той же структуры, чтобы источник деградации был виден без анализа процессов | проверка `тесты бинарника` · тест `TestJudgeJSONIncludesSelectorObservation`; проверка `тесты бинарника` · тест `TestJudgeJSONReportDoesNotRerunChecks` |"
+    }
+  },
+  "narrowed_active_criteria_after": {
+    "К26": "| К26 | Ц3 | точная детерминированная команда не уходит на model tier; planner prompt требует сначала проверить script-first | проверка `тесты бинарника` · тест `TestScriptFirstRejectsModelForExactCommand`; проверка `тесты бинарника` · тест `TestPlannerPromptRequiresScriptFirst` |",
+    "К24": "| К24 | Ц4 | планировщик выбирает верхнюю ступень того же executor vendor; общий Claude runner env сохраняет существующий OAuth token и принудительно использует Headroom base URL | проверка `тесты бинарника` · тест `TestPlannerUsesTopExecutorVendor`; проверка `тесты бинарника` · тест `TestClaudeRunnerEnvForcesHeadroom` |",
+    "К41": "| К41 | Ц3 | air-worker validate до judge отклоняет отсутствующий Go selector, недоказанный script selector и select-шаблон без {} | проверка `тесты бинарника` · тест `TestValidateRejectsUnknownGoSelectorBeforeJudge`; проверка `тесты бинарника` · тест `TestValidateScriptSelectorRequiresStaticProof`; проверка `тесты бинарника` · тест `TestValidateRejectsInvalidSelectorTemplate` |",
+    "К46": "| К46 | Ц2 | selfcheck/status показывают live/cache/config profile identity, фиксируют multiple-profile ambiguity; install-status использует тот же selfcheck summary | проверка `тесты бинарника` · тест `TestBuildSelfcheckWorksWithoutSourceCheckoutAndWarnsMultipleProfiles`; проверка `тесты бинарника` · тест `TestInstallStatusUsesSelfcheckSummary` |",
+    "К51": "| К51 | Ц3 | для Go factual judge строит один selector inventory на check; missing selector даёт FAIL; PASS полного check переиспользуется только для нефильтрованного полного go test; go и go.exe нормализованы одинаково | проверка `тесты бинарника` · тест `TestJudgeSelectorInventoryBatchesOneGoListPerCheck`; проверка `тесты бинарника` · тест `TestJudgeSelectorInventoryMarksMissingWithoutPerSelectorProbe`; проверка `тесты бинарника` · тест `TestFilteredGoCheckCannotLendPassToExcludedSelector`; проверка `тесты бинарника` · тест `TestGoExeUsesSameSelectorInventoryAsGo` |",
+    "К54": "| К54 | Ц4 | air-worker judge -json показывает checks/criteria/measures с id, goal, selector, state, reason, duration и input fingerprint; сборка JSON не перезапускает checks | проверка `тесты бинарника` · тест `TestJudgeJSONIncludesSelectorObservation`; проверка `тесты бинарника` · тест `TestJudgeJSONReportDoesNotRerunChecks` |"
+  },
+  "affected_open_legacy_rows_before": [
+    {
+      "line": 236,
+      "step": "79",
+      "text": "| 79 | Distribution identity + installed selfcheck. Release-check запрещает изменённый plugin payload под прежней distribution identity; selfcheck/status показывают installed version + git/revision, marketplace snapshot, активные Claude/Codex config dirs и предупреждают о нескольких профилях. `air-worker selfcheck` работает из installed cache/live runtime без source checkout; same-version mismatch не маскируется `already latest` | `sonnet` | К52, К53: `TestCriterion52Pending`, `TestCriterion53Pending` · исполнитель: ChatGPT; К46: TestCriterion46Pending |"
+    },
+    {
+      "line": 237,
+      "step": "72",
+      "text": "| 72 | `air-worker validate` + selector engine: PLAN grammar/columns/id, criterion ranges/иерархические ID, suspicious reuse одного критерия последовательными work-steps, tier→ladder→runner→tool, `script` command, dev-path dependency. Go/pytest inventory строится один раз; поддерживаются package-scope и явные selector cwd/env/tmp; outcomes различают package/test missing, test fail и infrastructure unavailable Exploitation regressions 15.09.2026: preparatory steps must not reuse a terminal criterion without an intermediate measurable acceptance; PowerShell script selectors must preserve named `-Only` through `powershell.exe -Command`; escaped/literal `|` inside a Markdown cell must not split the four-column PLAN table; closing a step must preserve Judge/criterion references byte-for-byte except the step-number strike. | `sonnet` | К41, К51, К26: `TestCriterion41Pending`, `TestCriterion51Pending`, `TestCriterion60Pending`, `TestCriterion61Pending`, `TestCriterion26Pending` |"
+    },
+    {
+      "line": 238,
+      "step": "75",
+      "text": "| 75 | Дешёвая structured observability: `judge -json` с состоянием/selector/duration/reason/timing каждого критерия и checks/selectors; `report --cached`/`--no-judge` для навигации и `--informational`/`--no-fail` для цепочек команд без ложного abort на открытой цели. Текстовый report/judge используют ту же структуру данных | `sonnet` | К45, К54: `TestCriterion45Pending`, `TestCriterion54Pending` |"
+    },
+    {
+      "line": 343,
+      "step": "43",
+      "text": "| 43 | Контур 1 защиты судьи в бинарнике: правка `run-config.json` и своего судьи продукта — только по гейту ЛПР на судью | `sonnet` | К17: тест Go на правку без гейта судьи и с ним; TestCriterion17Pending |"
+    },
+    {
+      "line": 344,
+      "step": "44",
+      "text": "| 44 | Контур 2: бинарник хранит отпечаток согласованного судьи и при расхождении не выносит вердикт, а называет его | `opus` | К18: тест Go на подменённый судья и на несчитанный прогресс; TestCriterion18Pending |"
+    },
+    {
+      "line": 349,
+      "step": "51",
+      "text": "| 51 | Планировщик берёт токен тем же путём, что исполнитель петли — «Not logged in» на машине с работающей петлёй не воспроизводится. Исправлено в исходнике, живой прогон 14.09.2026 взял токен | `sonnet` | К24: проверка `планировщик разбивает одним дорогим вызовом и не отнимает план у человека`; TestCriterion24Pending |"
+    }
+  ],
+  "preserved_unproven_obligations": {
+    "К17": "judge mutation authorization / explicit LPR-authorized change path and rejection of unauthorized judge edits",
+    "К18": "fresh-verdict refusal after unauthorized judge mutation plus authorized fingerprint transition",
+    "К47": "external/manual executor result acceptance through factual+semantic judges with zero second executor launches",
+    "К26": "missing exact command handling before iteration beyond current script-first/model-tier contract",
+    "К24": "planner-specific credential delivery path beyond vendor selection/shared runner environment",
+    "К41": "full tier->ladder->runner->tool, dev-path dependency and broader validation contract",
+    "К46": "active hooks generation and restart semantics",
+    "К51": "pytest collect and deterministic inventory for non-Go runners",
+    "К54": "receipt fields and explicit inventory-vs-selector timing breakdown"
+  },
+  "invariant": "Narrowing active release proof is not implementation or acceptance of the preserved obligations; they remain open in N-047."
+}

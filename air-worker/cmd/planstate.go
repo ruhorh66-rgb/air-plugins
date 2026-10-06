@@ -23,11 +23,18 @@ type activePlanWorkView struct {
 	Closed int
 	Gates  int
 	Nodes  []planNode
+	Err    error
 }
 
 func activePlanWork(root string, plan planInfo) activePlanWorkView {
 	nodes, err := listPlanNodes(root)
-	if err == nil && len(nodes) > 0 {
+	if err != nil {
+		// A present-but-unreadable canonical node source must fail closed.
+		// Falling back to the legacy table would resurrect historical work/gates
+		// exactly when the authoritative source is damaged.
+		return activePlanWorkView{Source: planWorkSourceNodes, Err: err}
+	}
+	if len(nodes) > 0 {
 		view := activePlanWorkView{Source: planWorkSourceNodes, Nodes: nodes}
 		for _, node := range nodes {
 			if node.Status == "closed" {
@@ -51,6 +58,7 @@ type PlanState struct {
 	Steps      []planStep
 	Goals      planGoals
 	WorkSource string
+	WorkError  string
 
 	CriteriaPassed        []string
 	CriteriaFailed        []string
@@ -88,11 +96,17 @@ func buildPlanState(root string, cfg runConfig, planPath string, base judgeResul
 		PlanGates:      work.Gates,
 		ExecutableWork: work.Open,
 	}
+	if work.Err != nil {
+		ps.WorkError = work.Err.Error()
+	}
 	if len(g.Criteria) > 0 {
 		ps.CriteriaPassed, ps.CriteriaFailed, ps.CriteriaGated, ps.CriteriaUnknown, ps.CriterionObservations =
 			evaluatePlanCriteriaObserved(root, cfg, g, base)
 	}
 	ps.LPRGates = ps.PlanGates + len(ps.CriteriaGated)
 	ps.TechnicalUnknowns = len(ps.CriteriaUnknown)
+	if ps.WorkError != "" {
+		ps.TechnicalUnknowns++
+	}
 	return ps
 }

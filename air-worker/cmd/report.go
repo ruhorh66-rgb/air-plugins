@@ -256,18 +256,27 @@ func cachedUnknownMeasure(root string, cfg runConfig, note string) driftMeasure 
 	planPath := nativePlanPath(root, cfg)
 	plan := parsePlan(planPath)
 	work := activePlanWork(root, plan)
-	return driftMeasure{
-		At:              time.Now().Format("2006-01-02T15:04:05"),
-		DistanceRule:    distanceRule,
-		JudgeCode:       intPtr(2),
-		PlanWorkSource:  work.Source,
-		PlanOpenSteps:   intPtr(work.Open),
-		PlanClosedSteps: intPtr(work.Closed),
-		PlanGates:       work.Gates,
-		Verdict:         "NOT_PROVEN",
-		Note:            note,
-		By:              appName + " " + version,
+	m := driftMeasure{
+		At:             time.Now().Format("2006-01-02T15:04:05"),
+		DistanceRule:   distanceRule,
+		JudgeCode:      intPtr(2),
+		PlanWorkSource: work.Source,
+		PlanGates:      work.Gates,
+		Verdict:        verdictNotProven,
+		Note:           note,
+		By:             appName + " " + version,
 	}
+	if work.Err != nil {
+		m.PlanGates = 0
+		if m.Note != "" {
+			m.Note += "; "
+		}
+		m.Note += "canonical plan-node source unreadable: " + work.Err.Error()
+		return m
+	}
+	m.PlanOpenSteps = intPtr(work.Open)
+	m.PlanClosedSteps = intPtr(work.Closed)
+	return m
 }
 
 func readFreshCachedVerdict(root string, cfg runConfig) (machineVerdict, string, error) {

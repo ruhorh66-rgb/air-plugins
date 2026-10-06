@@ -185,3 +185,32 @@ func TestCriterion59Pending(t *testing.T) {
 		t.Fatalf("FactsLine обязана предупреждать о legacy overlap: %q", r.FactsLine)
 	}
 }
+
+func TestPlanStateMalformedCanonicalNodeFailsClosed(t *testing.T) {
+	root := t.TempDir()
+	planPath := filepath.Join(root, "PLAN.md")
+	plan := "| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n| 1 | legacy work | `script` | К1 |\n| 2 | legacy gate | — | гейт: ЛПР |\n"
+	if err := os.WriteFile(planPath, []byte(plan), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(planNodeDir(root), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(planNodeDir(root), "N-999_bad.md"), []byte("not a node\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	work := activePlanWork(root, parsePlan(planPath))
+	if work.Source != planWorkSourceNodes || work.Err == nil {
+		t.Fatalf("malformed canonical node source must fail closed as plan-node: %#v", work)
+	}
+	if work.Open != 0 || work.Gates != 0 {
+		t.Fatalf("legacy work/gates leaked through malformed node source: %#v", work)
+	}
+	ps := buildPlanState(root, runConfig{}, planPath, judgeResult{})
+	if ps.WorkSource != planWorkSourceNodes || ps.WorkError == "" || ps.ExecutableWork != 0 || ps.PlanGates != 0 {
+		t.Fatalf("PlanState resurrected legacy work after node read failure: %#v", ps)
+	}
+	if ps.TechnicalUnknowns != 1 {
+		t.Fatalf("node read failure must be a technical unknown, got %d", ps.TechnicalUnknowns)
+	}
+}

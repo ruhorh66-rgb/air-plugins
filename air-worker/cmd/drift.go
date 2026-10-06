@@ -30,10 +30,11 @@ import (
 // measureDrift, а скрипт только доставляет вызов до бинарника.
 
 const (
-	verdictAllow    = "ALLOW"
-	verdictThrottle = "THROTTLE"
-	verdictEscalate = "ESCALATE"
-	verdictBlocked  = "ЖДЁТ ЛПР"
+	verdictAllow     = "ALLOW"
+	verdictThrottle  = "THROTTLE"
+	verdictEscalate  = "ESCALATE"
+	verdictBlocked   = "ЖДЁТ ЛПР"
+	verdictNotProven = "NOT_PROVEN"
 )
 
 // distanceRule — ПРАВИЛО, ПО КОТОРОМУ ЗАПИСАН ЗАМЕР. Замеры разных правил не сравниваются.
@@ -237,32 +238,38 @@ func refinedPlan(prev, cur driftPoint) bool {
 // засчитывается застоем: иначе описание пути можно было бы наращивать вместо того, чтобы
 // идти по нему, — ровно «рост промежуточного числа», против которого двигатель заведён.
 func countStreaks(history []driftPoint, current driftPoint) (stall, unverifiable int) {
-	var prev *driftPoint
+	var prevMeasured *driftPoint
+	var source string
+	haveSource := false
 	refined := false
 	step := func(p driftPoint) {
-		if prev != nil && normalizePlanWorkSource(prev.Source) != normalizePlanWorkSource(p.Source) {
+		currentSource := normalizePlanWorkSource(p.Source)
+		if !haveSource || source != currentSource {
 			stall, unverifiable, refined = 0, 0, false
-			prev = nil
+			prevMeasured = nil
+			source, haveSource = currentSource, true
 		}
 		if p.Judge == nil {
+			// An unmeasurable point contributes to the blindness streak but is
+			// never a comparison point: moved/refinedPlan require real judge
+			// distances. Recovery compares with the last measurable point in
+			// the same work-source, while a source transition resets it above.
 			unverifiable++
-			pp := p
-			prev = &pp
 			return
 		}
 		unverifiable = 0
-		if prev != nil {
+		if prevMeasured != nil {
 			switch {
-			case moved(*prev, p):
+			case moved(*prevMeasured, p):
 				stall, refined = 0, false
-			case refinedPlan(*prev, p) && !refined:
+			case refinedPlan(*prevMeasured, p) && !refined:
 				refined = true
 			default:
 				stall++
 			}
 		}
 		pp := p
-		prev = &pp
+		prevMeasured = &pp
 	}
 	for _, p := range history {
 		step(p)
@@ -434,7 +441,7 @@ func pointOf(m driftMeasure) driftPoint {
 // следующим ходом, второе — только человеком.
 func verdictExitCode(v string) int {
 	switch v {
-	case verdictEscalate:
+	case verdictEscalate, verdictNotProven:
 		return 2
 	case verdictBlocked:
 		return 3
@@ -513,20 +520,30 @@ func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 	var planOpen, planClosed *int
 	planWorkSource := planWorkSourceLegacy
 	planGates := plan.Gates()
+	planWorkBroken := false
 	if !plan.Found {
 		limits = append(limits, fmt.Sprintf(
 			"плана нет (%s): шаги плана не измеряются, движение судится только остатком по судье", planPath))
 	} else {
 		work := activePlanWork(root, plan)
 		planWorkSource = work.Source
-		planGates = work.Gates
-		planOpen = intPtr(work.Open)
-		if work.Source == planWorkSourceNodes {
-			planClosed = intPtr(work.Closed)
-		} else if verdictFresh && mv.CriteriaTotal > 0 {
-			planClosed = intPtr(confirmedClosedSteps(planPath, mv.CriteriaPassed))
+		if work.Err != nil {
+			// Canonical node state exists but cannot be trusted. Do not fall back
+			// to historical PLAN rows/gates and do not publish synthetic zeroes.
+			planWorkBroken = true
+			planGates = 0
+			planOpen, planClosed = nil, nil
+			limits = append(limits, "канонический plan-node источник не прочитан: "+work.Err.Error())
 		} else {
-			planClosed = intPtr(work.Closed)
+			planGates = work.Gates
+			planOpen = intPtr(work.Open)
+			if work.Source == planWorkSourceNodes {
+				planClosed = intPtr(work.Closed)
+			} else if verdictFresh && mv.CriteriaTotal > 0 {
+				planClosed = intPtr(confirmedClosedSteps(planPath, mv.CriteriaPassed))
+			} else {
+				planClosed = intPtr(work.Closed)
+			}
 		}
 	}
 
@@ -557,6 +574,12 @@ func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 	// Защита «судья доволен, а план говорит иное», ради которой сумма когда-то вводилась,
 	// не теряется: при нулевом остатке и открытых исполняемых шагах двигатель выносит
 	// «ЖДЁТ ЛПР» (WORKER-DRIFT-04), а петля отказывается работать отдельной проверкой.
+	if planWorkBroken {
+		// The factual judge may be fresh, but the combined drift measurement is not:
+		// canonical work state is unreadable, so publish UNKNOWN rather than a false zero.
+		judgeDistance = nil
+		judgeCode = intPtr(2)
+	}
 	var distance *int
 	if judgeDistance != nil {
 		distance = intPtr(*judgeDistance)
@@ -566,9 +589,16 @@ func measureDrift(root, note string) (driftMeasure, []driftReason, []string) {
 	history := readHistory(filepath.Join(root, ".woody", "goal-drift.jsonl"))
 	v, reasons := evaluate(cur, judgeCode, planOpen, history, lim)
 	stall, unverifiable := countStreaks(history, cur)
+	if planWorkBroken {
+		v = verdictNotProven
+		reasons = []driftReason{{
+			Rule: "WORKER-DRIFT-PLAN-SOURCE", Verdict: verdictNotProven,
+			Why: "канонический plan-node источник повреждён или не читается; legacy PLAN намеренно не используется как fallback",
+		}}
+	}
 	lprGates := 0
 	var criteriaGated, criteriaUnknown, factsOverlap []string
-	if verdictFresh {
+	if verdictFresh && !planWorkBroken {
 		lprGates = mv.LPRGates
 		criteriaGated = mv.CriteriaGated
 		criteriaUnknown = mv.CriteriaUnknown

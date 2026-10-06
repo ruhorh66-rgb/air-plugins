@@ -212,9 +212,19 @@ func TestJudgeJSONIncludesSelectorObservation(t *testing.T) {
 	if len(report.Criteria) != 1 || len(report.Criteria[0].Measures) != 1 {
 		t.Fatalf("criterion observation=%#v", report.Criteria)
 	}
-	m := report.Criteria[0].Measures[0]
-	if m.Kind != "check" || m.Name != "unit" || m.Selector != "TestKnown" || m.State != "PASS" {
+	c := report.Criteria[0]
+	m := c.Measures[0]
+	if c.ID != "К1" || c.Goal != "Ц1" || c.Measure == "" || c.State != "PASS" || c.Reason == "" || c.DurationMS < 0 {
+		t.Fatalf("criterion structured observation incomplete: %#v", c)
+	}
+	if m.Kind != "check" || m.Name != "unit" || m.Selector != "TestKnown" || m.State != "PASS" || m.Reason == "" || m.DurationMS < 0 {
 		t.Fatalf("selector observation=%#v", m)
+	}
+	if len(report.Checks) != 1 || report.Checks[0].State != "PASS" || report.Checks[0].Reason == "" || report.Checks[0].DurationMS < 0 {
+		t.Fatalf("base check timing/reason missing: %#v", report.Checks)
+	}
+	if report.InputFingerprint == "" {
+		t.Fatal("structured judge report lacks input fingerprint")
 	}
 }
 
