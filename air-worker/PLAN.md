@@ -593,3 +593,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-049 · owner:gpt-airworker-learning-20261005 · [[N-051_learn-fix-astra-n-049-receipt-identity-and-path-c]] · LEARN-FIX: Astra N-049 receipt identity and path confinement
 - [closed] N-037 · owner:gpt-airworker-learning-20261005 · [[N-052_rel-0-11-6-scoped-package-and-github-publication]] · REL-0.11.6: scoped package and GitHub publication
 - [open] post-0.11.6 AirCurator skill lifecycle · owner:gpt-airworker-curator-skill-lifecycle-20261006 · [[N-053_curator-skill-lifecycle-release-owned-registry-d]] · CURATOR-SKILL-LIFECYCLE: release-owned registry, delivery, health and startup
+- [open] N-053 · owner:gpt-airworker-curator-skill-lifecycle-20261006 · [[N-054_rel-0-11-7-aircurator-skill-lifecycle-candidate-a]] · REL-0.11.7: AirCurator skill lifecycle candidate and exact publication/install gate
