@@ -587,3 +587,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] N-041 · owner:gpt-airworker-learning-20261005 · [[N-045_rel-judge-fact-threshold-wording]] · REL-JUDGE fact threshold wording
 - [open] N-041 · owner:gpt-airworker-learning-20261005 · [[N-046_rel-judge-fix-astra-600s-findings]] · REL-JUDGE: fix Astra 600s findings
 - [open] N-046 · owner:gpt-airworker-learning-20261005 · [[N-047_rel-judge-preserve-astra-semantic-proof-gaps]] · REL-JUDGE: preserve Astra semantic proof gaps
+- [open] N-046 · owner:gpt-airworker-learning-20261005 · [[N-048_rel-judge-astra-round2-selector-execution-and-no]] · REL-JUDGE: Astra round2 selector execution and node-source public fail-closed

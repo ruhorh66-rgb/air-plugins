@@ -365,18 +365,19 @@ func runJudge(root string, cfg runConfig, minFactsOverride int, scope sessionSco
 		countFacts(root, cfg.Judge.Checklist, want, criterionFacts, &r)
 	}
 
+	ps := buildPlanState(root, cfg, planPath, r)
+	r.PlanGates = ps.PlanGates
+	if ps.WorkError != "" {
+		r.Unknown = append(r.Unknown, "канонический plan-node источник — НЕЧЕМ ПРОВЕРИТЬ: "+ps.WorkError)
+	}
 	if len(g.Criteria) > 0 {
 		bindings := criteriaBinding(root, cfg, g)
 		if len(bindings) > 0 {
 			r.CriteriaUnknown = append(r.CriteriaUnknown, bindings...)
 		} else {
-			ps := buildPlanState(root, cfg, planPath, r)
 			r.CriteriaPassed, r.CriteriaFailed, r.CriteriaGated, r.CriteriaUnknown = ps.CriteriaPassed, ps.CriteriaFailed, ps.CriteriaGated, ps.CriteriaUnknown
 			r.CriterionObservations = append([]judgeCriterionObservation(nil), ps.CriterionObservations...)
-			r.PlanGates = ps.PlanGates
 		}
-	} else {
-		r.PlanGates = parsePlan(planPath).Gates()
 	}
 	return r
 }

@@ -85,3 +85,68 @@ func TestReportDoesNotFallbackToLegacyOnMalformedPlanNode(t *testing.T) {
 		t.Fatalf("cached report did not name node-source error: %q", m.Note)
 	}
 }
+
+func writeMalformedCanonicalNode(t *testing.T, root string) {
+	t.Helper()
+	if err := os.MkdirAll(planNodeDir(root), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(planNodeDir(root), "N-999_bad.md"), []byte("broken canonical node\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMalformedCanonicalNodeMakesPublicJudgeAndReportNonzero(t *testing.T) {
+	root, _ := writeObservabilityFixture(t, 0)
+	writeMalformedCanonicalNode(t, root)
+	var cfg runConfig
+	if err := readJSON(filepath.Join(root, "run-config.json"), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	res := runJudge(root, cfg, -1, legacyScope(root))
+	code, text := verdict(res)
+	if code != 2 || !strings.Contains(strings.Join(res.Unknown, "\n"), "plan-node") {
+		t.Fatalf("factual judge did not fail closed on malformed canonical node: code=%d unknown=%v", code, res.Unknown)
+	}
+	publishVerdict(root, code, text, res)
+	report := buildReportMode(root, false)
+	if report.JudgeCode != 2 || report.Measure.Verdict != verdictNotProven {
+		t.Fatalf("ordinary report did not propagate canonical node failure: %#v", report)
+	}
+}
+
+func TestCachedPassCannotHideLaterMalformedCanonicalNode(t *testing.T) {
+	root, _ := writeObservabilityFixture(t, 0)
+	var cfg runConfig
+	if err := readJSON(filepath.Join(root, "run-config.json"), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	res := runJudge(root, cfg, -1, legacyScope(root))
+	code, text := verdict(res)
+	if code != 0 {
+		t.Fatalf("fixture must start with factual PASS, got %d: %v", code, res)
+	}
+	res.InputFingerprint = judgeInputFingerprint(root, cfg, filepath.Join(root, "run-config.json"), filepath.Join(root, "PLAN.md"))
+	publishVerdict(root, code, text, res)
+	writeMalformedCanonicalNode(t, root)
+	report := buildReportMode(root, true)
+	if report.JudgeCode != 2 || report.Measure.Verdict != verdictNotProven || report.Measure.PlanOpenSteps != nil {
+		t.Fatalf("cached PASS hid malformed canonical node source: %#v", report)
+	}
+}
+
+func TestNoCriteriaJudgeStillFailsOnMalformedCanonicalNode(t *testing.T) {
+	root := t.TempDir()
+	planPath := filepath.Join(root, "PLAN.md")
+	plan := "| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n| 1 | legacy work | `script` | executor |\n"
+	if err := os.WriteFile(planPath, []byte(plan), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeMalformedCanonicalNode(t, root)
+	cfg := runConfig{Plan: "PLAN.md"}
+	res := runJudge(root, cfg, -1, legacyScope(root))
+	code, _ := verdict(res)
+	if code != 2 || !strings.Contains(strings.Join(res.Unknown, "\n"), "plan-node") || res.PlanGates != 0 {
+		t.Fatalf("no-criteria branch resurrected legacy source: code=%d gates=%d unknown=%v", code, res.PlanGates, res.Unknown)
+	}
+}

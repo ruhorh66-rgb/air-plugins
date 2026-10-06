@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -190,5 +191,96 @@ func TestGoCheckRunsAllTestsRejectsSelectionFlags(t *testing.T) {
 		if goCheckRunsAllTests(checkSpec{Command: "go.exe", Args: args}) {
 			t.Fatalf("filtered/suppressed Go check incorrectly treated as full: %#v", args)
 		}
+	}
+}
+
+func writeSuppressedGoSelectorFixture(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module suppressed\n\ngo 1.22\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	src := "package suppressed\nimport \"testing\"\nfunc TestSafe(t *testing.T) {}\nfunc TestBad(t *testing.T) { if testing.Short() { return }; t.Fatal(\"selected TestBad executed\") }\n"
+	if err := os.WriteFile(filepath.Join(root, "suppressed_test.go"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+func selectorInventoryPass(name string) judgeResult {
+	return judgeResult{
+		Passed: []string{"unit"},
+		SelectorInventory: map[string]map[string]measureResult{
+			"unit": {name: {State: measurePass, Detail: name}},
+		},
+	}
+}
+
+func TestSelectedGoExecutionRemovesSuppressingFlags(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+	}{
+		{"double-dash-run", []string{"test", ".", "--run=^TestSafe$"}},
+		{"list", []string{"test", ".", "-list", "Test"}},
+		{"test-list", []string{"test", ".", "-test.list", "Test"}},
+		{"skip", []string{"test", ".", "-skip", "TestBad"}},
+		{"test-skip", []string{"test", ".", "-test.skip", "TestBad"}},
+		{"short", []string{"test", ".", "-short"}},
+		{"count-zero", []string{"test", ".", "-count=0"}},
+		{"test-count-zero", []string{"test", ".", "-test.count", "0"}},
+		{"test-run", []string{"test", ".", "-test.run", "^TestSafe$"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := writeSuppressedGoSelectorFixture(t)
+			chk := checkSpec{Name: "unit", Command: "go", Args: tc.args, Select: "-run ^{}$"}
+			got := runSelectedCheckWithInventory(root, chk, "TestBad", selectorInventoryPass("TestBad"))
+			if got.State != measureFail {
+				t.Fatalf("suppressing args %#v hid selected failing test: %+v", tc.args, got)
+			}
+		})
+	}
+}
+
+func TestGoFlagsCannotLendOrSuppressSelectedPass(t *testing.T) {
+	root := writeSuppressedGoSelectorFixture(t)
+	t.Setenv("GOFLAGS", "-run=^TestSafe$")
+	chk := checkSpec{Name: "unit", Command: "go", Args: []string{"test", "."}, Select: "-run ^{}$"}
+	if goCheckRunsAllTests(chk) {
+		t.Fatal("inherited GOFLAGS made filtered check look unrestricted")
+	}
+	got := runSelectedCheckWithInventory(root, chk, "TestBad", selectorInventoryPass("TestBad"))
+	if got.State != measureUnknown || !strings.Contains(got.Detail, "GOFLAGS") {
+		t.Fatalf("inherited GOFLAGS must fail selected execution closed: %+v", got)
+	}
+
+	chk.Env = map[string]string{"GOFLAGS": ""}
+	chk.Args = []string{"test", ".", "-run", "^TestSafe$"}
+	got = runSelectedCheckWithInventory(root, chk, "TestBad", selectorInventoryPass("TestBad"))
+	if got.State != measureFail {
+		t.Fatalf("explicit empty GOFLAGS plus filtered base must run selected failing test: %+v", got)
+	}
+}
+
+func TestGoCheckRunsAllTestsRejectsDoubleDashAndZeroCount(t *testing.T) {
+	for _, args := range [][]string{
+		{"test", ".", "--run=^TestSafe$"},
+		{"test", ".", "--skip=TestBad"},
+		{"test", ".", "--list=Test"},
+		{"test", ".", "-count=0"},
+		{"test", ".", "-count", "0"},
+		{"test", ".", "-test.count=0"},
+	} {
+		if goCheckRunsAllTests(checkSpec{Command: "go.exe", Args: args, Env: map[string]string{"GOFLAGS": ""}}) {
+			t.Fatalf("suppressed Go invocation incorrectly reusable: %#v", args)
+		}
+	}
+}
+
+func TestSelectedGoArgsRejectArgsTerminator(t *testing.T) {
+	chk := checkSpec{Name: "unit", Command: "go", Args: []string{"test", ".", "-args", "-test.run=TestSafe"}, Select: "-run ^{}$", Env: map[string]string{"GOFLAGS": ""}}
+	if _, err := selectedGoCheck(chk, "TestBad"); err == nil || !strings.Contains(err.Error(), "-args") {
+		t.Fatalf("-args selected execution must be UNKNOWN, err=%v", err)
 	}
 }

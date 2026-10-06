@@ -369,6 +369,16 @@ func buildReportMode(root string, noJudge bool) productReport {
 	if !measureReady {
 		r.Measure, r.Reasons, r.Limits = measureDrift(root, "")
 	}
+	if r.Measure.Verdict == verdictNotProven && r.JudgeCode == 0 {
+		r.JudgeCode = 2
+		if len(r.Reasons) > 0 {
+			r.JudgeText = "НЕ ПРОВЕРЕНО: " + r.Reasons[0].Why
+		} else if strings.TrimSpace(r.Measure.Note) != "" {
+			r.JudgeText = "НЕ ПРОВЕРЕНО: " + r.Measure.Note
+		} else {
+			r.JudgeText = "НЕ ПРОВЕРЕНО: состояние плана не измеряется"
+		}
+	}
 	r.Tree = measureTree(root)
 	budget := 0.0
 	if cfgErr == nil {
