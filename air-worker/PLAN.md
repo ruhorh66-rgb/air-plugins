@@ -576,7 +576,7 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-learning-20261005 · [[N-034_learn-3d-загрузка-текста-подтв]] · LEARN-3D: загрузка текста, подтверждённое применение и доставка
 - [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-learning-20261005 · [[N-035_learn-test-две-живые-цепочки-и-р]] · LEARN-TEST: две живые цепочки и регрессия точного артефакта
 - [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-learning-20261005 · [[N-036_learn-rel-отдельные-гейты-выпу]] · LEARN-REL: отдельные гейты выпуска, установки и наблюдения
-- [open] N-036 LEARN-REL · owner:gpt-airworker-learning-20261005 · [[N-037_learn-rel-authorization-20261005-release-after-v]] · LEARN-REL authorization 20261005: release after verified checks
+- [closed] N-036 LEARN-REL · owner:gpt-airworker-learning-20261005 · [[N-037_learn-rel-authorization-20261005-release-after-v]] · LEARN-REL authorization 20261005: release after verified checks
 - [closed] N-030/N-035 · owner:gpt-airworker-learning-20261005 · [[N-038_learn-fix-reconcile-all-shared-plan-mutations-an]] · LEARN-FIX: reconcile all shared plan mutations and one node snapshot
 - [closed] N-035 · owner:gpt-airworker-learning-20261005 · [[N-039_learn-check-sidecar-inherited-pipe-deadline-regr]] · LEARN-CHECK: sidecar inherited-pipe deadline regression
 - [closed] N-038/N-035 · owner:gpt-airworker-learning-20261005 · [[N-040_learn-fix-round4-pending-transaction-gate-flushe]] · LEARN-FIX round4: pending transaction gate, flushed intents, bounded input
@@ -591,4 +591,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-031 · owner:gpt-airworker-learning-20261005 · [[N-049_learn-fix-fail-closed-shared-config-hook-errors-l]] · LEARN-FIX: fail-closed shared config, hook errors, load receipts
 - [closed] N-049 · owner:gpt-airworker-learning-20261005 · [[N-050_rel-fastpath-finish-only-blocking-proof-before-s]] · REL-FASTPATH: finish only blocking proof before scoped release
 - [closed] N-049 · owner:gpt-airworker-learning-20261005 · [[N-051_learn-fix-astra-n-049-receipt-identity-and-path-c]] · LEARN-FIX: Astra N-049 receipt identity and path confinement
-- [open] N-037 · owner:gpt-airworker-learning-20261005 · [[N-052_rel-0-11-6-scoped-package-and-github-publication]] · REL-0.11.6: scoped package and GitHub publication
+- [closed] N-037 · owner:gpt-airworker-learning-20261005 · [[N-052_rel-0-11-6-scoped-package-and-github-publication]] · REL-0.11.6: scoped package and GitHub publication
