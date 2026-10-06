@@ -9,7 +9,7 @@
 - Added `air-worker curator skills health|status|sync|resolve`; package health fails closed on a missing/unsafe/duplicate registered source, SHA/frontmatter mismatch, or high-confidence secret material. `tools/check-plugin.ps1` makes this a package gate.
 - SessionStart can bootstrap clean Claude/Codex config roots with managed, hash-bound mirrors and returns a compact role/trigger discovery catalog before a product session is declared. A drifted managed mirror is never blindly overwritten; selfcheck surfaces package violations and active-host mirror drift.
 - Existing plugin payload identity includes registered skills automatically. Windows clean-session/package smoke and negative missing-skill coverage are required. Hermes and Android are explicitly `NOT_APPLICABLE` for skill mirror delivery until those package surfaces expose a supported skill payload contract.
-- The deferred `curator/report-every-patrol` commit `5f4a443c306bc27b16c53c408aa00ea03cba203e`, N-031 wiki/SQL/learning/grants, and all DB copy/restore work remain outside this candidate.
+- The deferred `curator/report-every-patrol` commit `5f4a443c306bc27b16c53c408aa00ea03cba203e` was reviewed under N-055 and its exact patrol-reporting semantic delta is included in the release-owned `air-curator` skill; the accumulated resume/review host skills are release-owned with preserved provenance. N-031 wiki/SQL/learning/grants and all DB copy/restore work remain outside this candidate.
 
 Release control: build and verify the exact candidate, including full Go/vet, plugin/package health, clean-session smoke and independent Codex Astra. Publication/tag/push require a separate exact LPR gate; installation/cutover requires a separate explicit LPR yes. Rollback target: `air-worker--v0.11.6`.
 
