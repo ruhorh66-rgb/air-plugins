@@ -1,0 +1,56 @@
+{
+  "schema": "air-worker.n051-receipt/v1",
+  "node": "N-051",
+  "status": "PASS",
+  "head": "d0d1dcce6c6bc5515b050c574e34a71d4741970c",
+  "binary_sha256": "AC56DE89A509FDBBE52A109149FCCBA739E77BFEFFE542A3B946971FF3720659",
+  "verified_scope": [
+    "committed context receipt remains truthful after deferred trace failure",
+    "context receipt identity binds kind and exact loaded/failure payload",
+    "opened learned skill confinement follows opened handle on Windows and non-Windows"
+  ],
+  "evidence": {
+    "full_regression": {
+      "path": "R:\\-4-\\air-worker\\work\\learning-20261005\\n051-current-exact-full-d0d1dcc.json",
+      "sha256": "E9B08EDAE63C078111836CE2446FAACD52FF59053F7904C4442C23E83536B159",
+      "go_test_exit": 0,
+      "go_vet_exit": 0
+    },
+    "linux_regression": {
+      "path": "R:\\-4-\\air-worker\\work\\learning-20261005\\n051-linux-exec-d0d1dcc.json",
+      "sha256": "708CAADA92EE167038C5DCA5520447181CF4003DBE60A4988C8CE5CCD32828D4",
+      "exit_code": 0,
+      "test": "TestSharedContextRejectsParentSwapAroundOpen"
+    },
+    "factual_judge": {
+      "path": "R:\\-4-\\air-worker\\work\\learning-20261005\\n051-current-judge-d0d1dcc.json",
+      "sha256": "C373059108AB9F254D9C1144637939F142044A409D47F4EF2FB468E219725C22",
+      "meta": "R:\\-4-\\air-worker\\work\\learning-20261005\\n051-current-judge-d0d1dcc.meta.json",
+      "meta_sha256": "8C691E681C84FA2205B75C7B32704164E314E42C3C7E24A54DE4F015AFE85E2C",
+      "exit_code": 0,
+      "distance": 0
+    },
+    "build_provenance": {
+      "path": "R:\\-4-\\air-worker\\work\\learning-20261005\\n051-clean-d0d1dcc-build-provenance.txt",
+      "sha256": "0F201A7A0DB2538C1A5514FEBB852E3DA300584C85C820BD535281A7DBC6DE3A",
+      "vcs_revision": "d0d1dcce6c6bc5515b050c574e34a71d4741970c",
+      "vcs_modified": false
+    },
+    "astra": {
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "timeout_seconds": 600,
+      "verdict": "PASS",
+      "path": "R:\\-4-\\air-worker\\work\\learning-20261005\\n051-current2-astra-d0d1dcc-600.verdict.json",
+      "sha256": "0C2CA9BE01F0BBF88230DDB300A52FDA80296508B62D3B741B6EDB702A1B684D",
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-20261005\\n051-current2-astra-d0d1dcc-600.receipt.json",
+      "receipt_sha256": "602C495346A6E7ADC06FDEDE9BAE76E9733A5D5539E76F48D0508457C049D5E2",
+      "input_unchanged": true,
+      "findings": []
+    }
+  },
+  "limits": [
+    "N-034/N-035 live rollout excluded",
+    "no install/reboot/UAC/foreign-service stop performed"
+  ]
+}

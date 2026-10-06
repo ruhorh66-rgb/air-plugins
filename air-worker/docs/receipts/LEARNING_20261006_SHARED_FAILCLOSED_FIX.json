@@ -1,0 +1,26 @@
+{
+  "schema": "air-worker.n049-receipt/v1",
+  "node": "N-049",
+  "status": "PASS",
+  "head": "d0d1dcce6c6bc5515b050c574e34a71d4741970c",
+  "closed_findings": [
+    "learning-module.json presence uses fail-closed shared-mode selection",
+    "shared lifecycle/context failures surface nonzero with stable identity while legacy lifecycle remains unchanged",
+    "skill_loaded is emitted only after validated delivery; partial failures preserve verified context",
+    "N-051 residual receipt/path-confinement findings closed"
+  ],
+  "original_astra": {
+    "path": "R:\\-4-\\air-worker\\work\\learning-20261005\\n049-astra-4466c9a-600.verdict.json",
+    "sha256": "47828F46C617E88F4DAF6A337F242CE686A5FDCEC6A385408042ADAC923E6054"
+  },
+  "child_receipt": "docs/receipts/LEARNING_20261006_N049_ASTRA2.json",
+  "final_astra": {
+    "verdict": "PASS",
+    "path": "R:\\-4-\\air-worker\\work\\learning-20261005\\n051-current2-astra-d0d1dcc-600.verdict.json",
+    "sha256": "0C2CA9BE01F0BBF88230DDB300A52FDA80296508B62D3B741B6EDB702A1B684D"
+  },
+  "limits": [
+    "live delivery/use acceptance remains outside this node",
+    "no install or production cutover"
+  ]
+}

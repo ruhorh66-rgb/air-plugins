@@ -1,0 +1,33 @@
+{
+  "schema": "air-worker.n050-fastpath-receipt/v1",
+  "node": "N-050",
+  "status": "PASS",
+  "head": "d0d1dcce6c6bc5515b050c574e34a71d4741970c",
+  "optimized_path": [
+    "N-051",
+    "N-049",
+    "N-037 scoped publication gate"
+  ],
+  "verified": {
+    "global_judge_receipt": "docs/receipts/LEARNING_20261005_GLOBAL_JUDGE.json",
+    "shared_failclosed_receipt": "docs/receipts/LEARNING_20261006_SHARED_FAILCLOSED_FIX.json",
+    "n051_receipt": "docs/receipts/LEARNING_20261006_N049_ASTRA2.json",
+    "exact_full_regression_exit": 0,
+    "factual_judge_exit": 0,
+    "astra_verdict": "PASS",
+    "build_vcs_revision": "d0d1dcce6c6bc5515b050c574e34a71d4741970c",
+    "build_vcs_modified": false
+  },
+  "next": "N-037 scoped publication gate",
+  "unchanged_gates": [
+    "installation",
+    "production cutover",
+    "reboot",
+    "UAC",
+    "foreign service stop",
+    "live blocking grant"
+  ],
+  "limits": [
+    "historical/live backlog remains open unless it blocks declared release scope"
+  ]
+}
