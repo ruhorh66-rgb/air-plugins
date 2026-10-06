@@ -82,6 +82,8 @@ func TestLearningProcessHelper(t *testing.T) {
 		os.Stdout.Write([]byte(`{"status":"fail","reason":"fixture found unverified output","check_ref":"fixture-verifier"}`))
 	case "judge":
 		os.Stdout.Write([]byte(`{"status":"fail","reason":"fixture found unverified output","check_ref":"fixture-verifier"}`))
+	case "echo-product":
+		json.NewEncoder(os.Stdout).Encode(map[string]string{"product": os.Getenv("AIR_WORKER_LEARNING_PRODUCT")})
 	case "review":
 		if !strings.Contains(string(b), "artifact") {
 			os.Stdout.Write([]byte(`{}`))
@@ -206,7 +208,7 @@ func TestSharedProcessAdapterRejectsBadOutputAndTimeout(t *testing.T) {
 				a.TimeoutMS = 30
 			}
 			started := time.Now()
-			if _, err := runLearningProcess(context.Background(), a, json.RawMessage(`{}`)); err == nil {
+			if _, err := runLearningProcess(context.Background(), "", a, json.RawMessage(`{}`)); err == nil {
 				t.Fatal("invalid adapter result accepted")
 			}
 			if mode == "timeout" && time.Since(started) > 3*time.Second {
@@ -216,7 +218,7 @@ func TestSharedProcessAdapterRejectsBadOutputAndTimeout(t *testing.T) {
 	}
 	a := learningAdapterFixture(t, "review")
 	a.SHA256 = strings.Repeat("0", 64)
-	if _, err := runLearningProcess(context.Background(), a, json.RawMessage(`{}`)); err == nil {
+	if _, err := runLearningProcess(context.Background(), "", a, json.RawMessage(`{}`)); err == nil {
 		t.Fatal("untrusted adapter binary ran")
 	}
 }
@@ -289,5 +291,31 @@ func TestSharedDataFileNullReturnsErrorInsteadOfPanic(t *testing.T) {
 	handled, code := routeSharedLearn([]string{"propose", "-product", product, "-data-file", payload})
 	if !handled || code == 0 {
 		t.Fatal("null data-file accepted")
+	}
+}
+
+func TestSharedProcessAdapterSelfBinding(t *testing.T) {
+	t.Setenv("AW_LEARNING_ADAPTER_HELPER", "1")
+	product := filepath.Join(t.TempDir(), "product")
+	if err := os.MkdirAll(product, 0700); err != nil {
+		t.Fatal(err)
+	}
+	a := &learningProcessAdapter{
+		Executable: "@self",
+		SHA256:     "@self",
+		Args:       []string{"-test.run=^TestLearningProcessHelper$", "--", "echo-product"},
+		TimeoutMS:  5000,
+	}
+	raw, err := runLearningProcess(context.Background(), product, a, json.RawMessage(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]string
+	if json.Unmarshal(raw, &got) != nil || got["product"] != product {
+		t.Fatalf("self adapter product binding lost: %s", raw)
+	}
+	a.SHA256 = strings.Repeat("0", 64)
+	if _, err := runLearningProcess(context.Background(), product, a, json.RawMessage(`{}`)); err == nil {
+		t.Fatal("@self adapter accepted a non-self SHA contract")
 	}
 }

@@ -211,31 +211,49 @@ func (b *learningBoundedOutput) Write(p []byte) (int, error) {
 
 // Adapters consume evidence as JSON stdin, never as a shell command. The configured
 // executable is release-owned and hash-pinned; a model's packet cannot select it.
-func runLearningProcess(ctx context.Context, a *learningProcessAdapter, input json.RawMessage) (json.RawMessage, error) {
+func runLearningProcess(ctx context.Context, product string, a *learningProcessAdapter, input json.RawMessage) (json.RawMessage, error) {
 	if len(input) > sharedLearningMaxBytes {
 		return nil, errors.New("learning adapter input exceeds byte limit")
 	}
 	if a == nil {
 		return nil, errors.New("learning adapter not configured")
 	}
-	if !filepath.IsAbs(a.Executable) || len(a.SHA256) != 64 {
-		return nil, errors.New("learning adapter must have an absolute executable and SHA-256")
-	}
-	f, err := os.Open(a.Executable)
-	if err != nil {
-		return nil, err
-	}
-	h := sha256.New()
-	_, hashErr := io.Copy(h, f)
-	closeErr := f.Close()
-	if hashErr != nil {
-		return nil, hashErr
-	}
-	if closeErr != nil {
-		return nil, closeErr
-	}
-	if !strings.EqualFold(hex.EncodeToString(h.Sum(nil)), a.SHA256) {
-		return nil, errors.New("learning adapter executable SHA mismatch")
+	exePath := strings.TrimSpace(a.Executable)
+	expectedSHA := strings.TrimSpace(a.SHA256)
+	selfBound := exePath == "@self"
+	if selfBound {
+		if expectedSHA != "@self" {
+			return nil, errors.New("learning @self adapter requires sha256=@self")
+		}
+		var err error
+		exePath, err = os.Executable()
+		if err != nil {
+			return nil, fmt.Errorf("resolve learning @self adapter: %w", err)
+		}
+		exePath, err = filepath.Abs(exePath)
+		if err != nil {
+			return nil, fmt.Errorf("resolve learning @self adapter absolute path: %w", err)
+		}
+	} else {
+		if !filepath.IsAbs(exePath) || len(expectedSHA) != 64 {
+			return nil, errors.New("learning adapter must have an absolute executable and SHA-256")
+		}
+		f, err := os.Open(exePath)
+		if err != nil {
+			return nil, err
+		}
+		h := sha256.New()
+		_, hashErr := io.Copy(h, f)
+		closeErr := f.Close()
+		if hashErr != nil {
+			return nil, hashErr
+		}
+		if closeErr != nil {
+			return nil, closeErr
+		}
+		if !strings.EqualFold(hex.EncodeToString(h.Sum(nil)), expectedSHA) {
+			return nil, errors.New("learning adapter executable SHA mismatch")
+		}
 	}
 	ms := a.TimeoutMS
 	if ms <= 0 || ms > 120000 {
@@ -243,13 +261,25 @@ func runLearningProcess(ctx context.Context, a *learningProcessAdapter, input js
 	}
 	childCtx, cancel := context.WithTimeout(ctx, time.Duration(ms)*time.Millisecond)
 	defer cancel()
-	cmd := exec.CommandContext(childCtx, a.Executable, a.Args...)
+	cmd := exec.CommandContext(childCtx, exePath, a.Args...)
 	cmd.Stdin = bytes.NewReader(input)
 	cmd.WaitDelay = 2 * time.Second
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, item := range os.Environ() {
+		name := item
+		if i := strings.IndexByte(item, '='); i >= 0 {
+			name = item[:i]
+		}
+		if strings.EqualFold(name, "AIR_WORKER_LEARNING_PRODUCT") {
+			continue
+		}
+		env = append(env, item)
+	}
+	cmd.Env = append(env, "AIR_WORKER_LEARNING_PRODUCT="+product)
 	var stdout, stderr learningBoundedOutput
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	err = cmd.Run()
+	err := cmd.Run()
 	if childCtx.Err() != nil {
 		return nil, childCtx.Err()
 	}
@@ -270,17 +300,17 @@ func sharedLearningConfig(product string, s sharedLearningSettings) learning.Con
 	c := learning.Config{ProductID: s.ProductID, RuntimeRoot: s.RuntimeRoot, GitRoot: product, ManagedSkillPrefix: s.ManagedSkillPrefix, ProtectedTargets: s.ProtectedTargets, ReviewTimeoutMS: s.TimeoutMS}
 	if s.Judge != nil {
 		c.Judge = func(ctx context.Context, b json.RawMessage) (json.RawMessage, error) {
-			return runLearningProcess(ctx, s.Judge, b)
+			return runLearningProcess(ctx, product, s.Judge, b)
 		}
 	}
 	if s.Reviewer != nil {
 		c.Reviewer = func(ctx context.Context, b json.RawMessage) (json.RawMessage, error) {
-			return runLearningProcess(ctx, s.Reviewer, b)
+			return runLearningProcess(ctx, product, s.Reviewer, b)
 		}
 	}
 	if s.VerifyGrant != nil {
 		c.VerifyGrant = func(ctx context.Context, b json.RawMessage) error {
-			answer, err := runLearningProcess(ctx, s.VerifyGrant, b)
+			answer, err := runLearningProcess(ctx, product, s.VerifyGrant, b)
 			if err != nil {
 				return err
 			}
@@ -298,7 +328,7 @@ func sharedLearningConfig(product string, s sharedLearningSettings) learning.Con
 	}
 	if s.DeliverSummary != nil {
 		c.DeliverSummary = func(ctx context.Context, b json.RawMessage) (json.RawMessage, error) {
-			answer, err := runLearningProcess(ctx, s.DeliverSummary, b)
+			answer, err := runLearningProcess(ctx, product, s.DeliverSummary, b)
 			if err != nil {
 				return nil, err
 			}

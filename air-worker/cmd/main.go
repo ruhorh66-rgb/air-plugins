@@ -127,6 +127,8 @@ func usage() {
 
   air-worker learn add|event|migrate-legacy|propose|pending|apply|effect|context|rollback ...
         Петля самообучения AirCurator. Фоновый разбор может только предложить правило.
+  air-worker learning-adapter reviewer
+        Release-owned process adapter для shared-learning; штатно вызывается самим модулем через @self.
         "да <id>" принимается только из доверенного UserPromptSubmit активной сессии и создаёт
         одноразовый grant; apply потребляет grant. Прямая запись в runtime и durable learn блокируется.
         Каждая мутация имеет digest-ledger и обратимый blob.
@@ -272,6 +274,8 @@ func run(argv []string) int {
 		return cmdFeedback(argv[1:])
 	case "learn":
 		return cmdLearn(argv[1:])
+	case "learning-adapter":
+		return cmdLearningAdapter(argv[1:])
 	case "curator":
 		return cmdCurator(argv[1:])
 	case "selfcheck":

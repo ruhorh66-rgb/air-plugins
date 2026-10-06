@@ -369,11 +369,14 @@ func findLearnLedger(rows []learnLedgerRecord, id string) *learnLedgerRecord {
 }
 
 func cmdLearn(argv []string) int {
+	if len(argv) > 0 && argv[0] == "init-shared" {
+		return cmdLearnInitShared(argv[1:])
+	}
 	if handled, code := routeSharedLearn(argv); handled {
 		return code
 	}
 	if len(argv) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: air-worker learn add|event|migrate-legacy|propose|pending|apply|effect|usage|weekly|context|rollback ...")
+		fmt.Fprintln(os.Stderr, "usage: air-worker learn init-shared|add|event|migrate-legacy|propose|pending|apply|effect|usage|weekly|context|rollback ...")
 		return 2
 	}
 	switch argv[0] {
