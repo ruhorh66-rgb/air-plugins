@@ -588,3 +588,5 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-041 · owner:gpt-airworker-learning-20261005 · [[N-046_rel-judge-fix-astra-600s-findings]] · REL-JUDGE: fix Astra 600s findings
 - [closed] N-046 · owner:gpt-airworker-learning-20261005 · [[N-047_rel-judge-preserve-astra-semantic-proof-gaps]] · REL-JUDGE: preserve Astra semantic proof gaps
 - [closed] N-046 · owner:gpt-airworker-learning-20261005 · [[N-048_rel-judge-astra-round2-selector-execution-and-no]] · REL-JUDGE: Astra round2 selector execution and node-source public fail-closed
+- [open] N-031 · owner:gpt-airworker-learning-20261005 · [[N-049_learn-fix-fail-closed-shared-config-hook-errors-l]] · LEARN-FIX: fail-closed shared config, hook errors, load receipts
+- [open] N-049 · owner:gpt-airworker-learning-20261005 · [[N-050_rel-fastpath-finish-only-blocking-proof-before-s]] · REL-FASTPATH: finish only blocking proof before scoped release

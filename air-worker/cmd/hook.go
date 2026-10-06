@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -429,6 +430,13 @@ func cmdHook(argv []string) (code int) {
 
 	res, err := handlerFor(event)(in)
 	if err != nil {
+		var sharedErr *sharedLearningHookError
+		if errors.As(err, &sharedErr) {
+			reason := sharedErr.Error()
+			fmt.Fprint(os.Stderr, "air-worker hook "+event+": "+reason+lineEnding)
+			writeHookTrace(sessionID, event, class, "shared-learning-error", reason)
+			return 2
+		}
 		return finishHook(class, event, sessionID, err.Error())
 	}
 	if res.Block {

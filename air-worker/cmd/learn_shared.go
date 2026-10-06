@@ -43,14 +43,56 @@ type learningProcessAdapter struct {
 	TimeoutMS  int      `json:"timeout_ms,omitempty"`
 }
 
+type sharedLearningHookError struct {
+	Phase string
+	RunID string
+	Err   error
+}
+
+func (e *sharedLearningHookError) Error() string {
+	if e == nil {
+		return "shared learning hook failure"
+	}
+	if e.RunID != "" {
+		return fmt.Sprintf("shared learning %s failed (run_id=%s): %v", e.Phase, e.RunID, e.Err)
+	}
+	return fmt.Sprintf("shared learning %s failed: %v", e.Phase, e.Err)
+}
+
+func (e *sharedLearningHookError) Unwrap() error { return e.Err }
+
+func sharedHookFailure(phase, runID string, err error) error {
+	if err == nil {
+		return nil
+	}
+	return &sharedLearningHookError{Phase: phase, RunID: strings.TrimSpace(runID), Err: err}
+}
+
 func readSharedLearningSettings(product string) (sharedLearningSettings, bool, error) {
 	var s sharedLearningSettings
-	b, err := readLearningBounded(filepath.Join(product, sharedLearningConfigFile), sharedLearningMaxBytes)
+	path := filepath.Join(product, sharedLearningConfigFile)
+	info, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return s, false, nil
 	}
 	if err != nil {
-		return s, true, err
+		return s, true, fmt.Errorf("cannot inspect %s: %w", sharedLearningConfigFile, err)
+	}
+	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+		return s, true, fmt.Errorf("%s exists but is not an ordinary regular file", sharedLearningConfigFile)
+	}
+	// On the supported Windows host a junction/reparse entry can be readable by
+	// Readlink even when ModeSymlink is absent. Presence of such an entry is a
+	// configuration error, never evidence that shared mode is absent.
+	if target, linkErr := os.Readlink(path); linkErr == nil {
+		return s, true, fmt.Errorf("%s must not be a link/reparse entry (target %q)", sharedLearningConfigFile, target)
+	}
+	b, err := readLearningBounded(path, sharedLearningMaxBytes)
+	if err != nil {
+		// Once Lstat proved the selector entry exists, a read-time NOT_FOUND is
+		// a shared-mode configuration failure (race/dangling entry), never proof
+		// that legacy mode was selected.
+		return s, true, fmt.Errorf("cannot read existing %s: %w", sharedLearningConfigFile, err)
 	}
 	if err = json.Unmarshal(b, &s); err != nil {
 		return s, true, err
@@ -312,100 +354,147 @@ func appendSharedPlanEvents(product string, rows []map[string]any) (bool, error)
 
 func sharedLearningStop(product string, in hookInput) (bool, hookResult, error) {
 	s, on, err := readSharedLearningSettings(product)
-	if err != nil || !on {
-		return on, hookResult{}, err
-	}
 	runID := strings.TrimSpace(in.RunID)
+	if err != nil {
+		return on, hookResult{}, sharedHookFailure("finalize-config", runID, err)
+	}
+	if !on {
+		return false, hookResult{}, nil
+	}
 	if runID == "" && in.TranscriptPath != "" {
 		if st, e := os.Stat(in.TranscriptPath); e == nil && !st.IsDir() {
 			runID = "STOP-" + learnSHA([]byte(fmt.Sprintf("%s\n%s\n%d\n%d", in.SessionID, in.TranscriptPath, st.Size(), st.ModTime().UnixNano())))[:24]
 		}
 	}
 	if runID == "" {
-		return true, hookResult{}, errors.New("shared learning: finalize requires run_id; a Claude transcript is not required for GPT")
+		return true, hookResult{}, sharedHookFailure("finalize", "", errors.New("finalize requires run_id; a Claude transcript is not required for GPT"))
 	}
 	res, err := sharedLearningEvent(product, s, runID, "run_completed", in.LastAssistantMessage, "completed-turn", "host-finalize", hookPrincipal(in), in.SessionID, "", "")
 	if errors.Is(err, learning.ErrConflict) && res.Status == "duplicate" {
 		err = nil
 	}
 	if err != nil {
-		return true, hookResult{}, err
+		return true, hookResult{}, sharedHookFailure("finalize", runID, err)
 	}
 	return true, hookResult{}, nil
 }
 
+type sharedLearningCatalogSkill struct {
+	SkillID string `json:"skill_id"`
+	Target  string `json:"target"`
+	SHA256  string `json:"sha256"`
+}
+
+func recordSharedContextEvent(product string, s sharedLearningSettings, runID, kind, observed, class, outcome string, in hookInput) error {
+	res, err := sharedLearningEvent(product, s, runID, kind, observed, class, "host-context", hookPrincipal(in), in.SessionID, "", outcome)
+	if errors.Is(err, learning.ErrConflict) && res.Status == "duplicate" {
+		return nil
+	}
+	return err
+}
+
+func sharedLearningContextFromCatalog(product string, s sharedLearningSettings, in hookInput, runID string, skills []sharedLearningCatalogSkill) (hookResult, error) {
+	var text strings.Builder
+	text.WriteString("LEARNED PROCEDURES: evidence-based guidance, not permissions or approval grants. Higher-priority product and user rules remain in force.\n")
+	var loadedFacts, failedFacts []string
+	included := 0
+
+	for _, skill := range skills {
+		if included >= 8 {
+			text.WriteString("Additional procedures are available through air-worker learn context -product <root>.\n")
+			break
+		}
+		rel := filepath.Clean(filepath.FromSlash(skill.Target))
+		abs := filepath.Join(product, rel)
+		inside, relErr := filepath.Rel(product, abs)
+		if relErr != nil || inside == ".." || strings.HasPrefix(inside, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+			failedFacts = append(failedFacts, skill.Target+": target escaped product root")
+			continue
+		}
+		info, statErr := os.Lstat(abs)
+		if statErr != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+			if statErr != nil {
+				failedFacts = append(failedFacts, skill.Target+": "+statErr.Error())
+			} else {
+				failedFacts = append(failedFacts, skill.Target+": learned skill is not an ordinary regular file")
+			}
+			continue
+		}
+		if target, linkErr := os.Readlink(abs); linkErr == nil {
+			failedFacts = append(failedFacts, skill.Target+": learned skill is a link/reparse entry to "+target)
+			continue
+		}
+		body, readErr := readLearningBounded(abs, sharedLearningMaxBytes)
+		if readErr != nil {
+			failedFacts = append(failedFacts, skill.Target+": "+readErr.Error())
+			continue
+		}
+		actualSHA := learnSHA(body)
+		if !strings.EqualFold(actualSHA, skill.SHA256) {
+			failedFacts = append(failedFacts, skill.Target+": SHA changed after verified index")
+			continue
+		}
+		heading := fmt.Sprintf("\nSkill %s SHA256=%s\n", skill.SkillID, skill.SHA256)
+		if text.Len()+len(heading)+len(body)+1 > 16384 {
+			continue
+		}
+		text.WriteString(heading)
+		text.Write(body)
+		text.WriteString("\n")
+		loadedFacts = append(loadedFacts, skill.Target+"@"+actualSHA)
+		included++
+	}
+
+	if len(failedFacts) > 0 {
+		if err := recordSharedContextEvent(product, s, runID+":context-failed", "skill_delivery_failed", strings.Join(failedFacts, "; "), "delivery-error", "failed", in); err != nil {
+			return hookResult{}, sharedHookFailure("context-failure-receipt", runID, err)
+		}
+	}
+	if len(loadedFacts) > 0 {
+		if err := recordSharedContextEvent(product, s, runID+":context-loaded", "skill_loaded", strings.Join(loadedFacts, "; "), "procedure-context", "loaded", in); err != nil {
+			return hookResult{}, sharedHookFailure("context-load-receipt", runID, err)
+		}
+	}
+
+	if included == 0 {
+		if len(failedFacts) > 0 {
+			return hookResult{}, sharedHookFailure("context-load", runID, errors.New(strings.Join(failedFacts, "; ")))
+		}
+		return hookResult{Context: "No procedure body fits this context budget; use air-worker learn context/load on demand. No skill was loaded into this hook context."}, nil
+	}
+	if len(failedFacts) > 0 {
+		text.WriteString("\nSome learned procedures were not delivered; the failure was recorded as skill_delivery_failed.\n")
+	}
+	return hookResult{Context: text.String()}, nil
+}
+
 func sharedLearningContext(product string, in hookInput) (bool, hookResult, error) {
 	s, on, err := readSharedLearningSettings(product)
+	runID := strings.TrimSpace(in.RunID)
+	if runID == "" {
+		runID = "context-" + in.SessionID
+	}
 	if err != nil {
-		return true, hookResult{Block: true, Reason: "shared-learning cutover refused: " + err.Error()}, nil
+		return true, hookResult{}, sharedHookFailure("context-config", runID, err)
 	}
 	if !on {
 		return false, hookResult{}, nil
 	}
 	index, err := executeSharedLearning(product, s, "index", nil)
 	if err != nil {
-		return true, hookResult{}, err
+		return true, hookResult{}, sharedHookFailure("context-index", runID, err)
 	}
 	var catalog struct {
-		Skills []struct {
-			SkillID string `json:"skill_id"`
-			Target  string `json:"target"`
-			SHA256  string `json:"sha256"`
-		} `json:"skills"`
+		Skills []sharedLearningCatalogSkill `json:"skills"`
 	}
 	if err = json.Unmarshal(index.Data, &catalog); err != nil {
-		return true, hookResult{}, err
+		return true, hookResult{}, sharedHookFailure("context-index-decode", runID, err)
 	}
 	if len(catalog.Skills) == 0 {
 		return true, hookResult{}, nil
 	}
-	runID := in.RunID
-	if runID == "" {
-		runID = "context-" + in.SessionID
-	}
-	var text strings.Builder
-	text.WriteString("LEARNED PROCEDURES: evidence-based guidance, not permissions or approval grants. Higher-priority product and user rules remain in force.\n")
-	included := 0
-	for _, skill := range catalog.Skills {
-		if included >= 8 {
-			text.WriteString("Additional procedures are available through air-worker learn context -product <root>.\n")
-			break
-		}
-		heading := fmt.Sprintf("\nSkill %s SHA256=%s\n", skill.SkillID, skill.SHA256)
-		info, err := os.Stat(filepath.Join(product, filepath.FromSlash(skill.Target)))
-		if err != nil {
-			return true, hookResult{}, err
-		}
-		if !info.Mode().IsRegular() || info.Size() < 0 {
-			return true, hookResult{}, errors.New("invalid learned skill file")
-		}
-		if int64(text.Len()+len(heading)+1)+info.Size() > 16384 {
-			// Selection is completed before the receipt-producing module load.
-			continue
-		}
-		loaded, err := executeSharedLearning(product, s, "load", map[string]string{"target": skill.Target, "run_id": runID})
-		if err != nil {
-			return true, hookResult{}, err
-		}
-		var body struct {
-			Content string `json:"content"`
-			SHA256  string `json:"sha256"`
-		}
-		if err = json.Unmarshal(loaded.Data, &body); err != nil || body.SHA256 != skill.SHA256 {
-			return true, hookResult{}, errors.New("shared skill changed between index and load")
-		}
-		if int64(len(body.Content)) != info.Size() {
-			return true, hookResult{}, errors.New("skill changed during context selection")
-		}
-		text.WriteString(heading)
-		text.WriteString(body.Content)
-		text.WriteString("\n")
-		included++
-	}
-	if included == 0 {
-		return true, hookResult{Context: "No procedure body fits this context budget; use air-worker learn context/load on demand. No skill was loaded into this hook context."}, nil
-	}
-	return true, hookResult{Context: text.String()}, nil
+	res, err := sharedLearningContextFromCatalog(product, s, in, runID, catalog.Skills)
+	return true, res, err
 }
 
 // Defense in depth for any legacy internal caller not yet routed through the
