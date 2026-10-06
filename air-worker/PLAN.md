@@ -598,3 +598,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] post-0.11.7 AirWorker data integrity · owner:gpt-airworker-handoff-20261006 · [[N-056_recovery-inventory-airworker-wiki-sql-learning-r]] · RECOVERY-INVENTORY: AirWorker wiki SQL learning rules grants isolated verification
 - [open] N-054 · owner:gpt-airworker-handoff-20261006 · [[N-057_rel-0-11-7-scope-reconcile-reviewed-patrol-delta]] · REL-0.11.7-SCOPE: reconcile reviewed patrol delta and accumulated curator skills
 - [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-handoff-20261006 · [[N-058_learn-p0-wire-shared-learning-into-live-cli-and-n]] · LEARN-P0: wire shared learning into live CLI and next-run lifecycle
+- [open] N-058_learn-p0-wire-shared-learning-into-live-cli-and-n · owner:gpt-airworker-handoff-20261006 · [[N-059_rel-0-11-7-p0-include-live-shared-learning-activ]] · REL-0.11.7-P0: include live shared-learning activation in next candidate
