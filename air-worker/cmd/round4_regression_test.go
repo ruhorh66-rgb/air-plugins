@@ -143,7 +143,7 @@ func TestRound4IntentPersistenceUsesDurableAtomicWriter(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		text := string(b)
+		text := strings.ReplaceAll(string(b), "\r\n", "\n")
 		start := strings.Index(text, "func persistSharedPlan")
 		if start < 0 {
 			t.Fatalf("%s: persistence function missing", name)

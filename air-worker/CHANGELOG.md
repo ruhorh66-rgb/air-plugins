@@ -1,5 +1,18 @@
 # CHANGELOG — air-worker
 
+## 0.11.6 — 06.10.2026
+
+### Scoped judge and shared-learning hardening
+
+- Reconciled the product-wide factual judge with the canonical plan-node source: stale placeholder selectors no longer masquerade as evidence, Go selector discovery is batched, filtered/suppressed Go invocations cannot lend a false PASS, and `go`/`go.exe`, `GOFLAGS`, `-C`, zero-count variants and missing selectors fail closed or execute the selected test explicitly.
+- Fixed Hermes static verification so `-StaticOnly` never launches the Hermes runtime; factual `judge`, `drift`, `report` and plan-node work-source semantics now agree without resurrecting legacy PLAN rows.
+- Hardened shared-learning transactions and host hooks: conflicting prepared intents are rejected, intent writes are flushed before publication, adapter stdin is bounded, a present-but-invalid `learning-module.json` never falls back to legacy writers, and shared lifecycle/context persistence failures surface explicitly.
+- Context delivery receipts now bind exact loaded/failure payloads, preserve successfully verified context across later failures, handle committed-event/deferred-trace outcomes consistently, and confine learned-skill reads to the object behind the opened file handle on Windows and Linux/non-Windows paths.
+- Added Windows and Linux race regressions plus clean-source VCS provenance checks. Exact factual judge, full Go/vet and independent Codex Astra review are release gates.
+- This scoped release intentionally excludes concurrent AirCurator skill edits and does not claim the still-open N-034/N-035 live delivery/use/observation milestones as accepted.
+
+Release control: clean-checkout package, factual judge and independent Astra PASS, GitHub tag/Release. Rollback target: `air-worker--v0.11.5`. Installation, production cutover, reboot/UAC and foreign-service actions remain separate explicit LPR gates.
+
 ## 0.11.5 — 01.10.2026
 
 ### Windows atomic replacement with an open reader

@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.11.5",
-  "description": "AirWorker 0.11.5: Windows atomic replacement of open files.",
+  "version": "0.11.6",
+  "description": "AirWorker 0.11.6: scoped judge and shared-learning hardening.",
   "author": {
     "name": "AIR OS"
   },

@@ -248,8 +248,8 @@ if ($want -gt 0) {
                 }
                 $script:factsClosed = $closed
                 $script:factsGated = $gated
-                $factsLine = "фактов закрыто $closed из $want"
-                if ($gated -gt 0) { $factsLine += ", из них $gated ждут ЛПР" }
+                $factsLine = "фактов закрыто $closed; минимальный порог $want"
+                if ($gated -gt 0) { $factsLine += ", отдельно $gated ждут ЛПР" }
                 # Гейт цель НЕ закрывает: продукт с непройденным гейтом не готов. Но и
                 # работой он не лечится, поэтому строка вердикта называет его отдельно,
                 # а расстояние (ниже, в машинном вердикте) его не считает.
