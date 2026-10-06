@@ -1,0 +1,90 @@
+{
+  "schema": "air-worker.release-receipt/v1",
+  "release": "0.11.6",
+  "status": "PUBLISHED_VERIFIED",
+  "published_scope": "scoped judge and shared-learning hardening",
+  "source_commit": "a25b5d9646c6b173c6a8462cc6159474ec25fbc3",
+  "package_commit": "0cc7568cfadcfb4e18c641c0955ee28ceb87584b",
+  "github": {
+    "repository": "ruhorh66-rgb/air-plugins",
+    "main": "0cc7568cfadcfb4e18c641c0955ee28ceb87584b",
+    "tag": "air-worker--v0.11.6",
+    "tag_object": "d2a353da79b2a2dc74ac0e12d4044d332f2a2046",
+    "tag_target": "0cc7568cfadcfb4e18c641c0955ee28ceb87584b",
+    "release_published_at_utc": "2026-10-06T06:58:27Z",
+    "assets": [
+      {
+        "name": "air-worker-0.11.6-source.zip",
+        "size": 70593546,
+        "sha256": "2BBBBB28E7CF4AE52B87EB3C4B1B17B23A75298E0A60FB25B739323E4750EB25"
+      },
+      {
+        "name": "air-worker-0.11.6-windows-x64.exe",
+        "size": 9390080,
+        "sha256": "3561965DEEB98AB375889C3F78CF9E86ED8F9D9763ECE305ECB655CAC73FD4A9"
+      },
+      {
+        "name": "air-worker-tray-0.11.6-windows-x64.exe",
+        "size": 2527744,
+        "sha256": "E548424877C9385E38482B0F14CD68F04493D936F60A07C1C74CDA2BE7A12811"
+      }
+    ]
+  },
+  "verification": {
+    "full_regression": {
+      "path": "R:\\-4-\\air-worker\\release\\0.11.6-verification\\full-B3-0cc7568.json",
+      "go_test_exit": 0,
+      "go_vet_exit": 0
+    },
+    "linux_regression": {
+      "path": "R:\\-4-\\air-worker\\release\\0.11.6-verification\\linux-B3-0cc7568.json",
+      "test": "TestSharedContextRejectsParentSwapAroundOpen",
+      "exit_code": 0
+    },
+    "factual_judge": {
+      "path": "R:\\-4-\\air-worker\\release\\0.11.6-verification\\judge-final2-B3-0cc7568.json",
+      "sha256": "66DA20655012D3E250EAEE14E955B412F951230D6D7CCF72BD4B4993A9AE0B14",
+      "code": 0,
+      "distance": 0,
+      "checks_pass": "13/13",
+      "criteria_pass": "62/62"
+    },
+    "astra": {
+      "path": "R:\\-4-\\air-worker\\release\\0.11.6-verification\\astra-B3-0cc7568-600.verdict.json",
+      "receipt": "R:\\-4-\\air-worker\\release\\0.11.6-verification\\astra-B3-0cc7568-600.receipt.json",
+      "verdict": "PASS",
+      "findings": [],
+      "timeout_seconds": 600,
+      "input_unchanged": true,
+      "verdict_sha256": "B908D0F887155B4BB0AF3BD9392D00C4F27285A0131C73C0C50D412A7EFCD148",
+      "receipt_sha256": "758398BEDD82919B88BF0F0D9830ADD0B6DFBDF842ADE97F2839100C39473369"
+    },
+    "build": {
+      "cli_sha256": "3561965DEEB98AB375889C3F78CF9E86ED8F9D9763ECE305ECB655CAC73FD4A9",
+      "tray_sha256": "E548424877C9385E38482B0F14CD68F04493D936F60A07C1C74CDA2BE7A12811",
+      "vcs_revision": "a25b5d9646c6b173c6a8462cc6159474ec25fbc3",
+      "vcs_modified": false
+    }
+  },
+  "rollback": {
+    "installed_version": "0.11.5",
+    "selfcheck_exit": 0,
+    "live_sha256": "289652d5d0f5ccf0d64d165112bd44e962a0661d20866cafda2f235c7acc9904",
+    "tag": "air-worker--v0.11.5",
+    "tag_target": "b53163f0c9332efd8a2c2c69dcc889237dc0bd6a",
+    "github_assets_present": true
+  },
+  "excluded": [
+    "AirCurator concurrent commits fbc76de/68ca8ef/08425c3/a47a8e8",
+    "curator/report-every-patrol 5f4a443c306bc27b16c53c408aa00ea03cba203e",
+    "N-034/N-035 live delivery/use/observation acceptance",
+    "installation and production cutover",
+    "reboot/UAC/foreign-service stop"
+  ],
+  "remaining_gates": [
+    "N-034 live delivery/use/observation",
+    "N-035 live acceptance",
+    "N-036 installation/observation release gate",
+    "installation requires separate explicit LPR yes"
+  ]
+}
