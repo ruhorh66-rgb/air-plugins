@@ -228,7 +228,11 @@ func TestSelectedGoExecutionRemovesSuppressingFlags(t *testing.T) {
 		{"test-skip", []string{"test", ".", "-test.skip", "TestBad"}},
 		{"short", []string{"test", ".", "-short"}},
 		{"count-zero", []string{"test", ".", "-count=0"}},
+		{"count-zero-octal-spelling", []string{"test", ".", "-count=00"}},
+		{"count-zero-hex-spelling", []string{"test", ".", "-count=0x0"}},
 		{"test-count-zero", []string{"test", ".", "-test.count", "0"}},
+		{"test-count-zero-octal-spelling", []string{"test", ".", "-test.count=00"}},
+		{"test-count-zero-hex-spelling", []string{"test", ".", "-test.count=0x0"}},
 		{"test-run", []string{"test", ".", "-test.run", "^TestSafe$"}},
 	}
 	for _, tc := range cases {
@@ -269,12 +273,52 @@ func TestGoCheckRunsAllTestsRejectsDoubleDashAndZeroCount(t *testing.T) {
 		{"test", ".", "--skip=TestBad"},
 		{"test", ".", "--list=Test"},
 		{"test", ".", "-count=0"},
+		{"test", ".", "-count=00"},
+		{"test", ".", "-count=0x0"},
 		{"test", ".", "-count", "0"},
 		{"test", ".", "-test.count=0"},
+		{"test", ".", "-test.count=00"},
+		{"test", ".", "-test.count=0x0"},
 	} {
 		if goCheckRunsAllTests(checkSpec{Command: "go.exe", Args: args, Env: map[string]string{"GOFLAGS": ""}}) {
 			t.Fatalf("suppressed Go invocation incorrectly reusable: %#v", args)
 		}
+	}
+}
+
+func TestGoEnvConfigFlagsCannotLendOrSuppressSelectedPass(t *testing.T) {
+	root := writeSuppressedGoSelectorFixture(t)
+	envFile := filepath.Join(t.TempDir(), "goenv")
+	if err := os.WriteFile(envFile, []byte("GOFLAGS=-skip=TestBad\\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	oldFlags, hadFlags := os.LookupEnv("GOFLAGS")
+	if err := os.Unsetenv("GOFLAGS"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if hadFlags {
+			_ = os.Setenv("GOFLAGS", oldFlags)
+		} else {
+			_ = os.Unsetenv("GOFLAGS")
+		}
+	})
+	t.Setenv("GOENV", envFile)
+
+	chk := checkSpec{Name: "unit", Command: "go", Args: []string{"test", "."}, Select: "-run ^{}$"}
+	flags, err := effectiveGoFlags(root, chk)
+	if err != nil {
+		t.Fatalf("effective GOFLAGS: %v", err)
+	}
+	if !strings.Contains(flags, "-skip=TestBad") {
+		t.Fatalf("GOENV-configured GOFLAGS not observed: %q", flags)
+	}
+	if covered, err := goCheckRunsAllTestsAt(root, chk); err != nil || covered {
+		t.Fatalf("GOENV-filtered base check must not be reusable: covered=%v err=%v flags=%q", covered, err, flags)
+	}
+	got := runSelectedCheckWithInventory(root, chk, "TestBad", selectorInventoryPass("TestBad"))
+	if got.State != measureUnknown || !strings.Contains(got.Detail, "GOFLAGS") {
+		t.Fatalf("GOENV-filtered selected execution must fail closed: %+v", got)
 	}
 }
 

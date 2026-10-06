@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -156,13 +157,33 @@ func isGoCommand(command string) bool {
 	return normalizedCommandBase(command) == "go"
 }
 
-func checkEnvValue(chk checkSpec, key string) string {
+func checkCommandEnv(resolved string, chk checkSpec) ([]string, error) {
+	env := os.Environ()
 	for k, v := range chk.Env {
-		if strings.EqualFold(strings.TrimSpace(k), key) {
-			return strings.TrimSpace(v)
-		}
+		env = append(env, k+"="+v)
 	}
-	return strings.TrimSpace(os.Getenv(key))
+	return configuredChildEnvironment(resolved, env)
+}
+
+func effectiveGoFlags(root string, chk checkSpec) (string, error) {
+	if !isGoCommand(chk.Command) {
+		return "", fmt.Errorf("команда %q не является Go", chk.Command)
+	}
+	resolved, err := exec.LookPath(chk.Command)
+	if err != nil {
+		return "", err
+	}
+	cmd := newChildCommand(resolved, "env", "GOFLAGS")
+	cmd.Dir = root
+	cmd.Env, cmd.Err = checkCommandEnv(resolved, chk)
+	if cmd.Err != nil {
+		return "", cmd.Err
+	}
+	out, runErr := cmd.CombinedOutput()
+	if code := exitCode(cmd, runErr); code != 0 {
+		return "", fmt.Errorf("go env GOFLAGS завершился кодом %d: %s", code, lastNonEmpty(decodeOutput(out)))
+	}
+	return strings.TrimSpace(decodeOutput(out)), nil
 }
 
 func normalizedGoFlag(arg string) (key, value string, hasValue bool) {
@@ -194,40 +215,65 @@ func goFlagTakesValue(key string) bool {
 	return false
 }
 
-func goCheckRunsAllTests(chk checkSpec) bool {
-	if !isGoCommand(chk.Command) || checkEnvValue(chk, "GOFLAGS") != "" {
-		return false
+func goCountExecutesTests(value string) bool {
+	n, err := strconv.ParseInt(strings.TrimSpace(value), 0, 64)
+	return err == nil && n > 0
+}
+
+func goCheckRunsAllTestsAt(root string, chk checkSpec) (bool, error) {
+	if !isGoCommand(chk.Command) {
+		return false, nil
+	}
+	flags, err := effectiveGoFlags(root, chk)
+	if err != nil {
+		return false, err
+	}
+	if flags != "" {
+		return false, nil
 	}
 	for i := 0; i < len(chk.Args); i++ {
 		key, value, hasValue := normalizedGoFlag(chk.Args[i])
 		if key == "-args" || key == "-test.args" || goExecutionSuppressor(key) {
-			return false
+			return false, nil
 		}
 		if key == "-count" || key == "-test.count" {
-			if !hasValue && i+1 < len(chk.Args) {
-				value = strings.TrimSpace(chk.Args[i+1])
+			if !hasValue {
+				if i+1 >= len(chk.Args) {
+					return false, nil
+				}
+				i++
+				value = strings.TrimSpace(chk.Args[i])
 			}
-			if value == "0" {
-				return false
+			if !goCountExecutesTests(value) {
+				return false, nil
 			}
 		}
 	}
-	return true
+	return true, nil
 }
 
-func selectedGoCheck(chk checkSpec, selector string) (checkSpec, error) {
-	if checkEnvValue(chk, "GOFLAGS") != "" {
-		return checkSpec{}, fmt.Errorf("проверка %q: GOFLAGS не пуст; безопасное selected execution не доказано", chk.Name)
+func goCheckRunsAllTests(chk checkSpec) bool {
+	ok, _ := goCheckRunsAllTestsAt(".", chk)
+	return ok
+}
+
+func selectedGoCheckAt(root string, chk checkSpec, selector string) (checkSpec, error) {
+	flags, err := effectiveGoFlags(root, chk)
+	if err != nil {
+		return checkSpec{}, fmt.Errorf("проверка %q: effective GOFLAGS не определены: %v", chk.Name, err)
+	}
+	if flags != "" {
+		return checkSpec{}, fmt.Errorf("проверка %q: effective GOFLAGS=%q; безопасное selected execution не доказано", chk.Name, flags)
 	}
 	extra, err := selectorArgs(chk, selector)
 	if err != nil {
 		return checkSpec{}, err
 	}
 	out := chk
-	out.Args = make([]string, 0, len(chk.Args)+len(extra))
+	out.Args = make([]string, 0, len(chk.Args)+len(extra)+1)
 	for i := 0; i < len(chk.Args); i++ {
 		raw := chk.Args[i]
-		key, value, hasValue := normalizedGoFlag(raw)
+		key, _, hasValue := normalizedGoFlag(raw)
 		if key == "-args" || key == "-test.args" {
 			return checkSpec{}, fmt.Errorf("проверка %q: %s делает selected execution недоказанным", chk.Name, raw)
 		}
@@ -239,21 +285,15 @@ func selectedGoCheck(chk checkSpec, selector string) (checkSpec, error) {
 		}
 		if key == "-count" || key == "-test.count" {
 			if !hasValue && i+1 < len(chk.Args) {
-				value = strings.TrimSpace(chk.Args[i+1])
-				if value == "0" {
-					i++
-					continue
-				}
-				out.Args = append(out.Args, raw, chk.Args[i+1])
 				i++
-				continue
 			}
-			if hasValue && value == "0" {
-				continue
-			}
+			continue
 		}
 		out.Args = append(out.Args, raw)
 	}
+	// Guarantee that the selected test actually executes exactly once even when
+	// the base check carried a zero/negative count spelling accepted by Go.
+	out.Args = append(out.Args, "-count=1")
 	out.Args = append(out.Args, extra...)
 	if out.Env == nil {
 		out.Env = map[string]string{}
@@ -264,8 +304,14 @@ func selectedGoCheck(chk checkSpec, selector string) (checkSpec, error) {
 		}
 		out.Env = copied
 	}
-	out.Env["GOFLAGS"] = ""
+	// A non-empty process GOFLAGS takes precedence over GOENV fallback. A benign
+	// count is used here after effectiveGoFlags proved the configured value empty.
+	out.Env["GOFLAGS"] = "-count=1"
 	return out, nil
+}
+
+func selectedGoCheck(chk checkSpec, selector string) (checkSpec, error) {
+	return selectedGoCheckAt(".", chk, selector)
 }
 
 func buildJudgeSelectorInventory(root string, cfg runConfig, g planGoals) map[string]map[string]measureResult {
@@ -314,8 +360,10 @@ func runSelectedCheckWithInventory(root string, chk checkSpec, selector string, 
 			// Inventory proves existence only. Reuse of the full check's PASS is
 			// valid only when that full Go invocation actually covered all tests.
 			full := checkResultState(base, chk.Name)
-			if full.State == measurePass && goCheckRunsAllTests(chk) {
-				return measureResult{State: measurePass, Detail: fmt.Sprintf("%s · selector %s найден в общем inventory и покрыт полным go test", chk.Name, selector)}
+			if full.State == measurePass {
+				if covered, coverErr := goCheckRunsAllTestsAt(root, chk); coverErr == nil && covered {
+					return measureResult{State: measurePass, Detail: fmt.Sprintf("%s · selector %s найден в общем inventory и покрыт полным go test", chk.Name, selector)}
+				}
 			}
 		} else {
 			exists := goSelectorExists(root, chk, selector)
@@ -324,7 +372,7 @@ func runSelectedCheckWithInventory(root string, chk checkSpec, selector string, 
 			}
 		}
 		var err error
-		clone, err = selectedGoCheck(chk, selector)
+		clone, err = selectedGoCheckAt(root, chk, selector)
 		if err != nil {
 			return measureResult{State: measureUnknown, Detail: err.Error()}
 		}
