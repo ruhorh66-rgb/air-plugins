@@ -165,6 +165,45 @@ func checkCommandEnv(resolved string, chk checkSpec) ([]string, error) {
 	return configuredChildEnvironment(resolved, env)
 }
 
+func goChdirProbePrefix(args []string) ([]string, error) {
+	if len(args) == 0 {
+		return nil, nil
+	}
+	isChdir := func(arg string) bool {
+		arg = strings.TrimSpace(arg)
+		return arg == "-C" || arg == "--C" || strings.HasPrefix(arg, "-C=") || strings.HasPrefix(arg, "--C=")
+	}
+	var prefix []string
+	first := strings.TrimSpace(args[0])
+	switch {
+	case first == "-C" || first == "--C":
+		if len(args) < 2 || strings.TrimSpace(args[1]) == "" {
+			return nil, fmt.Errorf("Go %s requires a non-empty directory", first)
+		}
+		prefix = append(prefix, first, args[1])
+	case strings.HasPrefix(first, "-C=") || strings.HasPrefix(first, "--C="):
+		_, dir, ok := strings.Cut(first, "=")
+		if !ok || strings.TrimSpace(dir) == "" {
+			return nil, fmt.Errorf("Go %s requires a non-empty directory", first)
+		}
+		prefix = append(prefix, first)
+	}
+	start := len(prefix)
+	if len(prefix) == 2 {
+		start = 2
+	} else if len(prefix) == 1 {
+		start = 1
+	} else {
+		start = 0
+	}
+	for i := start; i < len(args); i++ {
+		if isChdir(args[i]) {
+			return nil, fmt.Errorf("unsupported Go -C placement at argument %d", i)
+		}
+	}
+	return prefix, nil
+}
+
 func effectiveGoFlags(root string, chk checkSpec) (string, error) {
 	if !isGoCommand(chk.Command) {
 		return "", fmt.Errorf("команда %q не является Go", chk.Command)
@@ -173,7 +212,12 @@ func effectiveGoFlags(root string, chk checkSpec) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	cmd := newChildCommand(resolved, "env", "GOFLAGS")
+	prefix, err := goChdirProbePrefix(chk.Args)
+	if err != nil {
+		return "", err
+	}
+	args := append(append([]string{}, prefix...), "env", "GOFLAGS")
+	cmd := newChildCommand(resolved, args...)
 	cmd.Dir = root
 	cmd.Env, cmd.Err = checkCommandEnv(resolved, chk)
 	if cmd.Err != nil {

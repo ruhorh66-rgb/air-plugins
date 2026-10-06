@@ -176,9 +176,26 @@ func TestGoExeUsesSameSelectorInventoryAsGo(t *testing.T) {
 }
 
 func TestGoCheckRunsAllTestsRejectsSelectionFlags(t *testing.T) {
+	t.Setenv("GOENV", "off")
+	oldFlags, hadFlags := os.LookupEnv("GOFLAGS")
+	if err := os.Unsetenv("GOFLAGS"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if hadFlags {
+			_ = os.Setenv("GOFLAGS", oldFlags)
+		} else {
+			_ = os.Unsetenv("GOFLAGS")
+		}
+	})
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	productRoot := filepath.Dir(cwd)
 	full := checkSpec{Command: "go", Args: []string{"-C", "cmd", "test", "./...", "-count=1"}}
-	if !goCheckRunsAllTests(full) {
-		t.Fatal("canonical full go test must be reusable")
+	if covered, err := goCheckRunsAllTestsAt(productRoot, full); err != nil || !covered {
+		t.Fatalf("canonical full go test must be reusable: covered=%v err=%v", covered, err)
 	}
 	for _, args := range [][]string{
 		{"test", ".", "-run", "^TestSafe$"},
@@ -289,7 +306,7 @@ func TestGoCheckRunsAllTestsRejectsDoubleDashAndZeroCount(t *testing.T) {
 func TestGoEnvConfigFlagsCannotLendOrSuppressSelectedPass(t *testing.T) {
 	root := writeSuppressedGoSelectorFixture(t)
 	envFile := filepath.Join(t.TempDir(), "goenv")
-	if err := os.WriteFile(envFile, []byte("GOFLAGS=-skip=TestBad\\n"), 0o644); err != nil {
+	if err := os.WriteFile(envFile, []byte("GOFLAGS=-skip=TestBad\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	oldFlags, hadFlags := os.LookupEnv("GOFLAGS")
@@ -306,12 +323,25 @@ func TestGoEnvConfigFlagsCannotLendOrSuppressSelectedPass(t *testing.T) {
 	t.Setenv("GOENV", envFile)
 
 	chk := checkSpec{Name: "unit", Command: "go", Args: []string{"test", "."}, Select: "-run ^{}$"}
+	resolved, err := exec.LookPath(chk.Command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := newChildCommand(resolved, chk.Args...)
+	base.Dir = root
+	base.Env, base.Err = checkCommandEnv(resolved, chk)
+	if base.Err != nil {
+		t.Fatal(base.Err)
+	}
+	if out, err := base.CombinedOutput(); err != nil {
+		t.Fatalf("GOENV-filtered base check must suppress the otherwise failing TestBad: %v\n%s", err, out)
+	}
 	flags, err := effectiveGoFlags(root, chk)
 	if err != nil {
 		t.Fatalf("effective GOFLAGS: %v", err)
 	}
-	if !strings.Contains(flags, "-skip=TestBad") {
-		t.Fatalf("GOENV-configured GOFLAGS not observed: %q", flags)
+	if flags != "-skip=TestBad" {
+		t.Fatalf("GOENV-configured GOFLAGS not observed exactly: %q", flags)
 	}
 	if covered, err := goCheckRunsAllTestsAt(root, chk); err != nil || covered {
 		t.Fatalf("GOENV-filtered base check must not be reusable: covered=%v err=%v flags=%q", covered, err, flags)
@@ -319,6 +349,113 @@ func TestGoEnvConfigFlagsCannotLendOrSuppressSelectedPass(t *testing.T) {
 	got := runSelectedCheckWithInventory(root, chk, "TestBad", selectorInventoryPass("TestBad"))
 	if got.State != measureUnknown || !strings.Contains(got.Detail, "GOFLAGS") {
 		t.Fatalf("GOENV-filtered selected execution must fail closed: %+v", got)
+	}
+}
+
+func TestEffectiveGoFlagsPreservesLeadingChdirAcrossToolchainSwitch(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("the production defect was observed in the Windows toolchain re-exec path")
+	}
+	version := runtime.Version()
+	if !strings.HasPrefix(version, "go1.") {
+		t.Skipf("non-release Go version %q cannot drive deterministic testgo switch", version)
+	}
+	goroot := runtime.GOROOT()
+	goTestSource := filepath.Join(goroot, "src", "cmd", "go", "go_test.go")
+	if _, err := os.Stat(goTestSource); err != nil {
+		t.Skipf("cmd/go test source unavailable: %v", err)
+	}
+
+	testGo := filepath.Join(t.TempDir(), "go.exe")
+	build := exec.Command("go", "test", "-c", "cmd/go", "-o", testGo)
+	build.Dir = filepath.Join(goroot, "src")
+	build.Env = append(os.Environ(), "GOFLAGS=", "GOENV=off", "GOTOOLCHAIN=local", "GOWORK=off")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build cmd/go test binary: %v\n%s", err, out)
+	}
+
+	root := t.TempDir()
+	sub := filepath.Join(root, "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	targetVersion := strings.TrimPrefix(version, "go")
+	if err := os.WriteFile(filepath.Join(sub, "go.mod"), []byte("module chdirflags\n\ngo "+targetVersion+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	src := "package chdirflags\nimport \"testing\"\nfunc TestSafe(t *testing.T) {}\nfunc TestBad(t *testing.T) { t.Fatal(\"GOENV skip did not apply after toolchain switch\") }\n"
+	if err := os.WriteFile(filepath.Join(sub, "fixture_test.go"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sub, ".goenv"), []byte("GOFLAGS=-skip=TestBad\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	chk := checkSpec{
+		Name: "unit", Command: testGo,
+		Args: []string{"-C", "sub", "test", "."}, Select: "-run ^{}$",
+		Env: map[string]string{
+			"CMDGO_TEST_RUN_MAIN":   "1",
+			"TESTGO_VERSION":        "go1.20.0",
+			"TESTGO_VERSION_SWITCH": "switch",
+			"TESTGO_GOROOT":         goroot,
+			"GOROOT":                goroot,
+			"GOTOOLCHAIN":           "auto",
+			"GOENV":                 ".goenv",
+			"GOWORK":                "off",
+			"GOFLAGS":               "",
+		},
+	}
+	resolved, err := exec.LookPath(chk.Command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := newChildCommand(resolved, chk.Args...)
+	base.Dir = root
+	base.Env, base.Err = checkCommandEnv(resolved, chk)
+	if base.Err != nil {
+		t.Fatal(base.Err)
+	}
+	if out, err := base.CombinedOutput(); err != nil {
+		t.Fatalf("switched base Go check must demonstrate relative GOENV suppression: %v\n%s", err, out)
+	}
+
+	flags, err := effectiveGoFlags(root, chk)
+	if err != nil {
+		t.Fatalf("effective GOFLAGS with switched -C: %v", err)
+	}
+	if flags != "-skip=TestBad" {
+		t.Fatalf("effective GOFLAGS ignored -C/toolchain switch/relative GOENV: got %q", flags)
+	}
+	if covered, err := goCheckRunsAllTestsAt(root, chk); err != nil || covered {
+		t.Fatalf("switched GOENV-filtered base check must not be reusable: covered=%v err=%v", covered, err)
+	}
+	got := runSelectedCheckWithInventory(root, chk, "TestBad", selectorInventoryPass("TestBad"))
+	if got.State != measureUnknown || !strings.Contains(got.Detail, "GOFLAGS") {
+		t.Fatalf("switched GOENV-filtered selected execution must fail closed: %+v", got)
+	}
+}
+
+func TestGoChdirProbeRejectsLateOrMalformedChdir(t *testing.T) {
+	for _, args := range [][]string{
+		{"-C"},
+		{"-C="},
+		{"test", ".", "-C", "other"},
+		{"test", ".", "--C=other"},
+	} {
+		if _, err := goChdirProbePrefix(args); err == nil {
+			t.Fatalf("unsupported Go -C form must fail closed: %#v", args)
+		}
+	}
+	for _, args := range [][]string{
+		{"-C", "sub", "test", "."},
+		{"-C=sub", "test", "."},
+		{"--C", "sub", "test", "."},
+		{"--C=sub", "test", "."},
+	} {
+		if _, err := goChdirProbePrefix(args); err != nil {
+			t.Fatalf("supported Go -C form rejected %#v: %v", args, err)
+		}
 	}
 }
 
