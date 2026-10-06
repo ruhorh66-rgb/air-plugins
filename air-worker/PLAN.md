@@ -594,3 +594,5 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-037 · owner:gpt-airworker-learning-20261005 · [[N-052_rel-0-11-6-scoped-package-and-github-publication]] · REL-0.11.6: scoped package and GitHub publication
 - [open] post-0.11.6 AirCurator skill lifecycle · owner:gpt-airworker-curator-skill-lifecycle-20261006 · [[N-053_curator-skill-lifecycle-release-owned-registry-d]] · CURATOR-SKILL-LIFECYCLE: release-owned registry, delivery, health and startup
 - [open] N-053 · owner:gpt-airworker-curator-skill-lifecycle-20261006 · [[N-054_rel-0-11-7-aircurator-skill-lifecycle-candidate-a]] · REL-0.11.7: AirCurator skill lifecycle candidate and exact publication/install gate
+- [closed] N-053 · owner:gpt-airworker-handoff-20261006 · [[N-055_curator-skill-reconcile-review-deferred-patrol-c]] · CURATOR-SKILL-RECONCILE: review deferred patrol commit and current personal skills
+- [open] post-0.11.7 AirWorker data integrity · owner:gpt-airworker-handoff-20261006 · [[N-056_recovery-inventory-airworker-wiki-sql-learning-r]] · RECOVERY-INVENTORY: AirWorker wiki SQL learning rules grants isolated verification
