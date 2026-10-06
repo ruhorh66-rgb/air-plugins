@@ -8,7 +8,7 @@
   },
   "plugin": {
     "name": "air-worker",
-    "version": "0.11.6",
+    "version": "0.11.7",
     "source_manifest": "../../plugins/air-worker/plugin.yaml"
   },
   "tool": {

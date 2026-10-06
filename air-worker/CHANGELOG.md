@@ -1,5 +1,18 @@
 # CHANGELOG — air-worker
 
+## 0.11.7 — release candidate 06.10.2026
+
+### Release-owned AirCurator skill lifecycle
+
+- Added a release-owned AirCurator skill registry that binds exact payload path/SHA, role, triggers, load mode, host applicability and derived Claude/Codex mirror destinations for `air-curator`, `air-curator-resume-interrupted-worker`, and `air-curator-review-worker-result`.
+- The two lifecycle skills now ship from reviewed Git sources (`resume@08425c3`, `review@a47a8e8`) instead of mutable personal host copies. Personal mirrors are delivery artifacts, not authority.
+- Added `air-worker curator skills health|status|sync|resolve`; package health fails closed on a missing/unsafe/duplicate registered source, SHA/frontmatter mismatch, or high-confidence secret material. `tools/check-plugin.ps1` makes this a package gate.
+- SessionStart can bootstrap clean Claude/Codex config roots with managed, hash-bound mirrors and returns a compact role/trigger discovery catalog before a product session is declared. A drifted managed mirror is never blindly overwritten; selfcheck surfaces package violations and active-host mirror drift.
+- Existing plugin payload identity includes registered skills automatically. Windows clean-session/package smoke and negative missing-skill coverage are required. Hermes and Android are explicitly `NOT_APPLICABLE` for skill mirror delivery until those package surfaces expose a supported skill payload contract.
+- The deferred `curator/report-every-patrol` commit `5f4a443c306bc27b16c53c408aa00ea03cba203e`, N-031 wiki/SQL/learning/grants, and all DB copy/restore work remain outside this candidate.
+
+Release control: build and verify the exact candidate, including full Go/vet, plugin/package health, clean-session smoke and independent Codex Astra. Publication/tag/push require a separate exact LPR gate; installation/cutover requires a separate explicit LPR yes. Rollback target: `air-worker--v0.11.6`.
+
 ## 0.11.6 — 06.10.2026
 
 ### Scoped judge and shared-learning hardening
