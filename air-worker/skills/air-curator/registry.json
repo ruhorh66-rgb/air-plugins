@@ -35,7 +35,7 @@
     {
       "id": "air-curator",
       "path": "skills/air-curator/SKILL.md",
-      "sha256": "B455B096FDA1C3BB7EC7CBC084F5ACBCDB08F7C970C459182C2F8CE80B23D5D5",
+      "sha256": "91C129BFDF4D72682C170DCADA1227D248C2B9968565570241CCB72044533CC3",
       "role": "curator",
       "load": "startup",
       "triggers": [
@@ -54,7 +54,7 @@
     {
       "id": "air-curator-resume-interrupted-worker",
       "path": "skills/air-curator-resume-interrupted-worker/SKILL.md",
-      "sha256": "458F9A81EC1F210D25291CDDB864F5C766FB24AE68B530FEE17D02A8F222E365",
+      "sha256": "A8BE3A2E1C889597D173555DF4B69E8CB07D812F5F69FB3027019352DC2774FE",
       "role": "resume-interrupted-worker",
       "load": "on_trigger",
       "triggers": [
@@ -74,7 +74,7 @@
     {
       "id": "air-curator-review-worker-result",
       "path": "skills/air-curator-review-worker-result/SKILL.md",
-      "sha256": "2729ACD887AF1609FB7C66989DB7D412A54B471F9023A11A9C2D205A5765BEE1",
+      "sha256": "A781F1D8E45B4AABE0FEC1E973EA0449D90B3CC411FD75F68486854357A304B6",
       "role": "review-worker-result",
       "load": "on_trigger",
       "triggers": [

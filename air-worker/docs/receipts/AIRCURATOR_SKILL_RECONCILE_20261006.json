@@ -1,0 +1,109 @@
+{
+  "schema": "air-worker.curator-skill-reconcile/v1",
+  "status": "PASS",
+  "at_utc": "2026-10-06T12:08:00Z",
+  "worktree": "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006\\air-worker",
+  "base_handoff_head": "7d136dabb11692a36f60b4aa4d2a3dbf741d3719",
+  "astra_fix_commit": "3292e4a291b32a86ef65dc87e7fddda33e818ceb",
+  "reviewed_sources": {
+    "deferred_patrol_commit": {
+      "commit": "5f4a443c306bc27b16c53c408aa00ea03cba203e",
+      "action": "reviewed_and_applied_exact_semantic_delta",
+      "scope": "skills/air-curator/SKILL.md patrol reporting rule"
+    },
+    "personal_skills": [
+      {
+        "id": "air-curator-resume-interrupted-worker",
+        "source": "R:\\-4-\\codex-home\\skills\\air-curator-resume-interrupted-worker\\SKILL.md",
+        "original_sha256": "61D8BEEFFEB387BF4B5B69581C760F00AB8C70DBD55B4550E61F41F14BBCCE72",
+        "release_sha256_lf": "A8BE3A2E1C889597D173555DF4B69E8CB07D812F5F69FB3027019352DC2774FE",
+        "action": "copied_to_release_owned_source_and_normalized_to_lf"
+      },
+      {
+        "id": "air-curator-review-worker-result",
+        "source": "R:\\-4-\\codex-home\\skills\\air-curator-review-worker-result\\SKILL.md",
+        "original_sha256": "593BFC42502C25D9FEC727839B19B1B8A99FEB6610BB03D733E4781936A6974C",
+        "release_sha256_lf": "A781F1D8E45B4AABE0FEC1E973EA0449D90B3CC411FD75F68486854357A304B6",
+        "action": "copied_to_release_owned_source_and_normalized_to_lf"
+      }
+    ]
+  },
+  "release_owned_registry": {
+    "path": "skills/air-curator/registry.json",
+    "skills": {
+      "air-curator": "91C129BFDF4D72682C170DCADA1227D248C2B9968565570241CCB72044533CC3",
+      "air-curator-resume-interrupted-worker": "A8BE3A2E1C889597D173555DF4B69E8CB07D812F5F69FB3027019352DC2774FE",
+      "air-curator-review-worker-result": "A781F1D8E45B4AABE0FEC1E973EA0449D90B3CC411FD75F68486854357A304B6"
+    },
+    "encoding": "UTF-8 without BOM, LF",
+    "replacement_character_count": 0
+  },
+  "verification": {
+    "targeted_go_tests": {
+      "result": "PASS",
+      "exit_code": 0
+    },
+    "full_regression": {
+      "result": "PASS",
+      "receipt": "R:\\-4-\\air-worker\\work\\curator-skill-lifecycle\\stage3-full-after-skill-reconcile.json",
+      "go_test_exit": 0,
+      "go_vet_exit": 0,
+      "duration_ms": 218862
+    },
+    "package_health": {
+      "result": "PASS",
+      "registered_skills": 3
+    },
+    "scratch_check_plugin": {
+      "result": "PASS",
+      "exit_code": 0,
+      "root": "R:\\-4-\\air-worker\\work\\curator-skill-lifecycle\\stage3-package\\air-worker"
+    },
+    "clean_sync_status_resolve": {
+      "result": "PASS",
+      "sync_exit": 0,
+      "status_exit": 0,
+      "role_exit": 0,
+      "trigger_exit": 0
+    },
+    "clean_session_start": {
+      "result": "PASS",
+      "scratch_config": "R:\\-4-\\air-worker\\work\\curator-skill-lifecycle\\stage3-smoke-simple\\hook-claude",
+      "hook_exit": 0,
+      "context_lists_all_three_skills": true,
+      "mirror_sha_match": true,
+      "execution_unknown_reconciled_by_process_output_pid": 17796
+    },
+    "negative_missing_skill": {
+      "result": "PASS",
+      "expected_health_exit": 1
+    },
+    "negative_unmanaged_drift": {
+      "result": "PASS",
+      "expected_status_exit": 1,
+      "expected_sync_exit": 1,
+      "preserved_user_bytes": true
+    },
+    "negative_destination_marker_collision": {
+      "result": "PASS",
+      "covered_by_targeted_go_tests": true
+    },
+    "no_secret_package_health": {
+      "result": "PASS",
+      "covered_by_package_health": true
+    },
+    "diff_check": {
+      "result": "PASS",
+      "exit_code": 0
+    }
+  },
+  "boundaries": {
+    "live_runtime_changed": false,
+    "live_plugin_cache_changed": false,
+    "live_host_skill_mirrors_changed": false,
+    "publish_performed": false,
+    "install_performed": false,
+    "reboot_uac_foreign_service_stop": false
+  },
+  "next": "Use exact clean source to rebuild 0.11.7 candidate under N-054; publication/install remain gated."
+}
