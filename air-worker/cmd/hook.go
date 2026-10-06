@@ -362,6 +362,21 @@ func finishHook(class hookClass, event, sessionID, reason string) int {
 	return 0
 }
 
+func emitHookContext(event, context string) {
+	if strings.TrimSpace(context) == "" {
+		return
+	}
+	payload := map[string]any{
+		"hookSpecificOutput": map[string]any{
+			"hookEventName":     event,
+			"additionalContext": context,
+		},
+	}
+	if b, err := json.Marshal(payload); err == nil {
+		fmt.Print(string(b) + lineEnding)
+	}
+}
+
 // cmdHook — подкоманда `air-worker hook <событие>`. Событие хоста читается из stdin (JSON),
 // решение принимает бинарник целиком; сам хук (обёртка под hooks.json) — только адаптер.
 func cmdHook(argv []string) (code int) {
@@ -416,10 +431,25 @@ func cmdHook(argv []string) (code int) {
 		}
 	}
 
+	var startup hookResult
+	if event == "SessionStart" {
+		var startupErr error
+		startup, startupErr = curatorSkillStartup(in)
+		if startupErr != nil {
+			reason := startupErr.Error()
+			fmt.Fprint(os.Stderr, "air-worker hook "+event+": "+reason+lineEnding)
+			writeHookTrace(sessionID, event, class, "curator-skill-error", reason)
+			return 2
+		}
+	}
+
 	if !sessionActiveInput(in) {
-		// Рутинный путь для подавляющего большинства вызовов: Air Worker для этой сессии
-		// не включён. НИКАКИХ решений, включая след, — ровно так и названо в шаге: «no-op:
-		// пропуск всех событий без решений», unknown в том числе.
+		// AirCurator skill discovery is plugin-level and must exist even before a
+		// product session is declared. Other lifecycle/control behavior remains
+		// the established no-op for inactive AirWorker sessions.
+		if event == "SessionStart" {
+			emitHookContext(event, startup.Context)
+		}
 		return 0
 	}
 
@@ -439,22 +469,21 @@ func cmdHook(argv []string) (code int) {
 		}
 		return finishHook(class, event, sessionID, err.Error())
 	}
+	if event == "SessionStart" && strings.TrimSpace(startup.Context) != "" {
+		if strings.TrimSpace(res.Context) == "" {
+			res.Context = startup.Context
+		} else {
+			res.Context = startup.Context + lineEnding + res.Context
+		}
+	}
 	if res.Block {
 		fmt.Fprint(os.Stderr, "air-worker hook "+event+": "+res.Reason+lineEnding)
 		writeHookTrace(sessionID, event, class, "отклонил", res.Reason)
 		return 2
 	}
 	if strings.TrimSpace(res.Context) != "" {
-		payload := map[string]any{
-			"hookSpecificOutput": map[string]any{
-				"hookEventName":     event,
-				"additionalContext": res.Context,
-			},
-		}
-		if b, marshalErr := json.Marshal(payload); marshalErr == nil {
-			fmt.Print(string(b) + lineEnding)
-			writeHookTrace(sessionID, event, class, "контекст", "обработчик вернул additionalContext")
-		}
+		emitHookContext(event, res.Context)
+		writeHookTrace(sessionID, event, class, "контекст", "обработчик вернул additionalContext")
 	}
 	return 0
 }

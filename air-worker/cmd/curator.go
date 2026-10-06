@@ -65,6 +65,8 @@ func cmdCurator(argv []string) int {
 		return cmdCuratorDecision(argv[1:])
 	case "wake":
 		return cmdCuratorWake(argv[1:])
+	case "skills":
+		return cmdCuratorSkills(argv[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown curator action %q\n", argv[0])
 		return 2

@@ -1,0 +1,95 @@
+{
+  "schema": "air-worker.curator-skills/v1",
+  "product": "air-worker",
+  "source_of_truth": "release-payload",
+  "startup_contract": {
+    "load_registry": true,
+    "load_startup_skills": "startup",
+    "load_on_trigger": "on_trigger",
+    "mirrors_are_derived": true,
+    "secrets_allowed": false
+  },
+  "hosts": {
+    "windows": {
+      "status": "required",
+      "reason": "AirWorker release payload and managed mirror delivery are verified on Windows."
+    },
+    "claude": {
+      "status": "managed_mirror",
+      "reason": "Claude plugin payload is authoritative; config-root skill is a derived managed mirror."
+    },
+    "codex": {
+      "status": "managed_mirror",
+      "reason": "Codex plugin payload is authoritative; config-root skill is a derived managed mirror."
+    },
+    "hermes": {
+      "status": "not_applicable",
+      "reason": "Current Hermes manifest v1 exposes AirWorker tools and hooks but has no skill discovery/delivery payload field."
+    },
+    "android": {
+      "status": "not_applicable",
+      "reason": "Current AirWorker release has no Android package or skill payload surface."
+    }
+  },
+  "skills": [
+    {
+      "id": "air-curator",
+      "path": "skills/air-curator/SKILL.md",
+      "sha256": "B455B096FDA1C3BB7EC7CBC084F5ACBCDB08F7C970C459182C2F8CE80B23D5D5",
+      "role": "curator",
+      "load": "startup",
+      "triggers": [
+        "air curator",
+        "curator patrol",
+        "curator digest",
+        "nearest milestone",
+        "критический путь",
+        "ближайшая веха"
+      ],
+      "mirrors": {
+        "claude": "skills/air-curator/SKILL.md",
+        "codex": "skills/air-curator/SKILL.md"
+      }
+    },
+    {
+      "id": "air-curator-resume-interrupted-worker",
+      "path": "skills/air-curator-resume-interrupted-worker/SKILL.md",
+      "sha256": "458F9A81EC1F210D25291CDDB864F5C766FB24AE68B530FEE17D02A8F222E365",
+      "role": "resume-interrupted-worker",
+      "load": "on_trigger",
+      "triggers": [
+        "resume interrupted worker",
+        "network interruption",
+        "check connection",
+        "проверь связь",
+        "возобнови воркера",
+        "обрыв",
+        "кажется завис"
+      ],
+      "mirrors": {
+        "claude": "skills/air-curator-resume-interrupted-worker/SKILL.md",
+        "codex": "skills/air-curator-resume-interrupted-worker/SKILL.md"
+      }
+    },
+    {
+      "id": "air-curator-review-worker-result",
+      "path": "skills/air-curator-review-worker-result/SKILL.md",
+      "sha256": "2729ACD887AF1609FB7C66989DB7D412A54B471F9023A11A9C2D205A5765BEE1",
+      "role": "review-worker-result",
+      "load": "on_trigger",
+      "triggers": [
+        "review worker result",
+        "release candidate",
+        "worker blocker",
+        "оценить результат воркера",
+        "кандидат релиза",
+        "точный гейт",
+        "блокер воркера"
+      ],
+      "mirrors": {
+        "claude": "skills/air-curator-review-worker-result/SKILL.md",
+        "codex": "skills/air-curator-review-worker-result/SKILL.md"
+      }
+    }
+  ]
+}

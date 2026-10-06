@@ -136,6 +136,22 @@ if ($skills.Count -eq 0) {
     $ok += ('скилов в плагине: ' + $skills.Count + ' (' + (($skills | ForEach-Object { $_.Name }) -join ', ') + ')')
 }
 
+# Release-owned AirCurator registry is the package-health contract for curator skills.
+# The binary validates exact source path/SHA/frontmatter/no-secret invariants; host
+# mirrors are deliberately not authority and are checked separately by selfcheck/startup.
+if (Test-Path -LiteralPath $exe -PathType Leaf) {
+    $healthRaw = & $exe curator skills health -plugin-root $ProductRoot -json 2>&1 | Out-String
+    $healthCode = $LASTEXITCODE
+    $health = $null
+    try { $health = $healthRaw | ConvertFrom-Json } catch { }
+    if ($healthCode -ne 0 -or $null -eq $health -or [string]$health.status -ne 'PASS') {
+        $why = if ($healthRaw.Trim()) { $healthRaw.Trim() } else { "exit $healthCode" }
+        $fail += "AirCurator release-owned skill package health failed: $why"
+    } else {
+        $ok += "AirCurator release-owned skill registry/package health PASS ($(@($health.skills).Count) skills)"
+    }
+}
+
 # --- 3. ПЕРЕНОСИМОСТЬ: ни одного абсолютного пути в объявлениях ---------------
 # Смотрим ровно туда, что читает харнесс при установке: манифест, объявление хуков и
 # frontmatter скилов. Тело скила — документация, там абсолютный путь может быть примером.

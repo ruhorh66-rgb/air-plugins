@@ -34,19 +34,21 @@ type distributionBinaryIdentity struct {
 }
 
 type distributionProfile struct {
-	Host          string                     `json:"host"`
-	ConfigDir     string                     `json:"config_dir"`
-	Active        bool                       `json:"active"`
-	HasState      bool                       `json:"has_air_worker_state"`
-	Marketplace   string                     `json:"marketplace,omitempty"`
-	Canonical     bool                       `json:"canonical_github"`
-	PluginEnabled bool                       `json:"plugin_enabled"`
-	InstallPath   string                     `json:"install_path,omitempty"`
-	Version       string                     `json:"version,omitempty"`
-	Revision      string                     `json:"revision,omitempty"`
-	PayloadSHA256 string                     `json:"payload_sha256,omitempty"`
-	CacheBinary   distributionBinaryIdentity `json:"cache_binary"`
-	Error         string                     `json:"error,omitempty"`
+	Host           string                     `json:"host"`
+	ConfigDir      string                     `json:"config_dir"`
+	Active         bool                       `json:"active"`
+	HasState       bool                       `json:"has_air_worker_state"`
+	Marketplace    string                     `json:"marketplace,omitempty"`
+	Canonical      bool                       `json:"canonical_github"`
+	PluginEnabled  bool                       `json:"plugin_enabled"`
+	InstallPath    string                     `json:"install_path,omitempty"`
+	Version        string                     `json:"version,omitempty"`
+	Revision       string                     `json:"revision,omitempty"`
+	PayloadSHA256  string                     `json:"payload_sha256,omitempty"`
+	CacheBinary    distributionBinaryIdentity `json:"cache_binary"`
+	CuratorSkills  *curatorSkillHealth        `json:"curator_skills,omitempty"`
+	CuratorMirrors []curatorSkillMirrorState  `json:"curator_skill_mirrors,omitempty"`
+	Error          string                     `json:"error,omitempty"`
 }
 
 type selfcheckReport struct {
@@ -264,6 +266,15 @@ func claudeProfileSnapshot(configDir string, active bool) distributionProfile {
 	} else {
 		p.Error = "payload snapshot: " + err.Error()
 	}
+	if health, mirrors, err := inspectCuratorProfileSkills(rec.InstallPath, "claude", configDir, active); health != nil {
+		p.CuratorSkills, p.CuratorMirrors = health, mirrors
+		if err != nil {
+			if p.Error != "" {
+				p.Error += "; "
+			}
+			p.Error += "curator skill mirrors: " + err.Error()
+		}
+	}
 	return p
 }
 
@@ -286,6 +297,15 @@ func codexProfileSnapshot(configDir string, active bool) distributionProfile {
 		p.PayloadSHA256 = digest
 	} else {
 		p.Error = "payload snapshot: " + err.Error()
+	}
+	if health, mirrors, err := inspectCuratorProfileSkills(rec.InstallPath, "codex", configDir, active); health != nil {
+		p.CuratorSkills, p.CuratorMirrors = health, mirrors
+		if err != nil {
+			if p.Error != "" {
+				p.Error += "; "
+			}
+			p.Error += "curator skill mirrors: " + err.Error()
+		}
 	}
 	return p
 }
@@ -339,6 +359,27 @@ func compareDistributionIdentity(live distributionBinaryIdentity, profiles []dis
 		installed = append(installed, p)
 		if p.Error != "" {
 			notProven = appendUnique(notProven, fmt.Sprintf("%s cache %s: %s", p.Host, p.InstallPath, p.Error))
+		}
+		if p.CuratorSkills != nil && p.CuratorSkills.Status != curatorSkillStatusPass {
+			for _, problem := range p.CuratorSkills.Violations {
+				violations = appendUnique(violations,
+					fmt.Sprintf("%s cache %s: AirCurator skill package violation: %s", p.Host, p.InstallPath, problem))
+			}
+		}
+		for _, mirror := range p.CuratorMirrors {
+			switch mirror.State {
+			case curatorMirrorDrift:
+				violations = appendUnique(violations,
+					fmt.Sprintf("%s config %s: AirCurator skill mirror drift for %s (%s)", p.Host, p.ConfigDir, mirror.SkillID, mirror.MirrorPath))
+			case curatorMirrorMissing:
+				warnings = appendUnique(warnings,
+					fmt.Sprintf("%s config %s: AirCurator skill mirror missing for %s; SessionStart/sync can recreate it", p.Host, p.ConfigDir, mirror.SkillID))
+			case curatorMirrorSynced:
+				if !mirror.Managed {
+					warnings = appendUnique(warnings,
+						fmt.Sprintf("%s config %s: AirCurator skill mirror %s matches payload but is not marked managed", p.Host, p.ConfigDir, mirror.SkillID))
+				}
+			}
 		}
 		if p.Revision == "" {
 			notProven = appendUnique(notProven, fmt.Sprintf("%s cache %s: embedded vcs.revision unavailable", p.Host, p.InstallPath))
