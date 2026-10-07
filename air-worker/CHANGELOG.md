@@ -1,5 +1,13 @@
 # CHANGELOG — air-worker
 
+## 0.11.8 — hotfix candidate 07.10.2026
+
+### LF-stable marketplace AirCurator payloads
+
+- Added scoped `.gitattributes` policy `skills/**/SKILL.md text eol=lf` so canonical GitHub marketplace checkouts preserve the exact release-owned skill bytes on Windows even when host Git uses `core.autocrlf=true`.
+- This fixes live `selfcheck` false RED after 0.11.7 installation: Claude/Codex marketplace caches had only CRLF-converted copies, while CRLF→LF hashes matched all three registry SHA values exactly. Registry SHA semantics remain raw-byte authoritative; verifier behavior is not weakened and caches are not edited manually.
+- Acceptance requires an actual `core.autocrlf=true` clone with raw skill SHA/package-health PASS, full Go/vet, clean-session/self-learning regression and independent Astra PASS. Rollback remains published 0.11.7/0.11.6 as appropriate; publication/install of 0.11.8 remains a separate exact gate.
+
 ## 0.11.7 — release candidate 06.10.2026
 
 ### Release-owned AirCurator skill lifecycle

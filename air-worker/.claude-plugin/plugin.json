@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.11.7",
-  "description": "AirWorker 0.11.7: release-owned AirCurator skill lifecycle.",
+  "version": "0.11.8",
+  "description": "AirWorker 0.11.8: LF-stable AirCurator marketplace payloads.",
   "author": {
     "name": "AIR OS"
   },
