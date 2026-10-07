@@ -5,11 +5,12 @@ parent: "post-0.11.6 AirCurator skill lifecycle"
 trigger: "LPR 06.10.2026: after verified 0.11.6, eliminate loss of AirCurator skills between releases; installed 0.11.5 ships skills/air-curator/SKILL.md while air-curator-resume-interrupted-worker and air-curator-review-worker-result live only in R:\\-4-\\codex-home\\skills. Use Vera 036dbdb06650ead7ede1847f9ae8768ba474f574 / branch fix/skill-lifecycle-20261006 as a verified reference, not a blind copy. Defer N-031 wiki/SQL/learning/grants; do not copy isolated DBs or run restore."
 owner: "gpt-airworker-curator-skill-lifecycle-20261006"
 done_when: "A release-owned AirCurator skill registry declares every required/applicable skill with immutable source path, role/trigger/discovery metadata, platform applicability, mirror destinations and package-health identity. Product source lives inside the plugin payload; host mirrors are derived delivery artifacts and are never the authority. Package build/health fails closed when any registered release skill is missing, duplicated ambiguously, outside allowed roots, secret-bearing, or hash/metadata-inconsistent. Startup/session discovery on a clean host/session can find AirCurator plus resume-interrupted-worker and review-worker-result by role/trigger without depending on preexisting R:\\-4-\\codex-home\\skills. Delivery is deterministic/idempotent and distinguishes packaged source from Codex/Claude/Hermes/Android mirrors; Windows payload is fully verified and Android/Hermes payload is verified when a supported payload exists, otherwise explicitly NOT_APPLICABLE with evidence. Tests include negative missing-skill/package-health failure, mirror drift/overwrite policy, clean-session smoke, no-secret scan, and package snapshot identity. Compare with Vera commits 036dbdb06650ead7ede1847f9ae8768ba474f574 and da849a0 but adapt to AirWorker contracts. Preserve current 0.11.6 tag/package unchanged and keep curator/report-every-patrol 5f4a443c306bc27b16c53c408aa00ea03cba203e outside source until separately reviewed for the next release. Produce immutable evidence, exact reviewed commit and a separate next-release publication/install gate; do not publish or install without a new exact LPR gate. Receipt docs/receipts/AIRCURATOR_SKILL_LIFECYCLE_20261006.json."
-status: "open"
+status: "closed"
 return_to: "PLAN.md"
 created_at: "2026-10-06T07:19:57.0244871Z"
-updated_at: "2026-10-06T07:19:57.0244871Z"
+updated_at: "2026-10-07T10:53:53.0866956Z"
 receipts:
+  - "docs/receipts/AIRCURATOR_SKILL_LIFECYCLE_20261006.json"
 ---
 
 # CURATOR-SKILL-LIFECYCLE: release-owned registry, delivery, health and startup
