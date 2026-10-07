@@ -227,3 +227,106 @@ func TestInitSharedLearningAlreadyInitializedVerifiesMigration(t *testing.T) {
 		t.Fatalf("corrupted initialized migration accepted as %+v", report)
 	}
 }
+
+func TestInitSharedLearningDistinctProductsSharedRuntimePreserveWinner(t *testing.T) {
+	base := t.TempDir()
+	productOne := filepath.Join(base, "product-one")
+	productTwo := filepath.Join(base, "product-two")
+	for _, product := range []string{productOne, productTwo} {
+		if err := os.MkdirAll(product, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeLegacyOperationalRule(t, productOne, "LP-runtime-winner", "runtime-winner", "operational-procedure-v1")
+	writeLegacyOperationalRule(t, productTwo, "LP-runtime-loser", "runtime-loser", "operational-procedure-v1")
+	runtimeRoot := filepath.Join(base, "shared-runtime")
+
+	originalFault := sharedLearningBootstrapFault
+	defer func() { sharedLearningBootstrapFault = originalFault }()
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	released := false
+	defer func() {
+		if !released {
+			close(release)
+		}
+	}()
+	var once sync.Once
+	sharedLearningBootstrapFault = func(phase string) error {
+		if phase == "after-selector" {
+			once.Do(func() {
+				close(entered)
+				<-release
+			})
+		}
+		return nil
+	}
+
+	type bootstrapResult struct {
+		report sharedLearningInitReport
+		err    error
+	}
+	first := make(chan bootstrapResult, 1)
+	second := make(chan bootstrapResult, 1)
+	go func() {
+		report, err := initSharedLearning(productOne, runtimeRoot, "air-worker-product-one")
+		first <- bootstrapResult{report: report, err: err}
+	}()
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("winning initializer did not publish selector")
+	}
+
+	intentBefore, found, err := readSharedLearningBootstrapIntent(runtimeRoot)
+	if err != nil || !found || intentBefore.ProductID != "air-worker-product-one" || intentBefore.Status != "ready" {
+		t.Fatalf("winner intent not ready before loser: %+v found=%v err=%v", intentBefore, found, err)
+	}
+	if _, err := os.Stat(filepath.Join(productOne, sharedLearningConfigFile)); err != nil {
+		t.Fatalf("winner selector not published: %v", err)
+	}
+
+	go func() {
+		report, err := initSharedLearning(productTwo, runtimeRoot, "air-worker-product-two")
+		second <- bootstrapResult{report: report, err: err}
+	}()
+	time.Sleep(150 * time.Millisecond)
+	select {
+	case r := <-second:
+		t.Fatalf("loser escaped shared-runtime lock before winner completed: %+v %v", r.report, r.err)
+	default:
+	}
+	intentDuring, found, err := readSharedLearningBootstrapIntent(runtimeRoot)
+	if err != nil || !found || intentDuring.ProductID != intentBefore.ProductID || intentDuring.Status != "ready" {
+		t.Fatalf("loser changed winner intent while runtime lock held: before=%+v during=%+v found=%v err=%v", intentBefore, intentDuring, found, err)
+	}
+	if _, err := os.Stat(filepath.Join(productTwo, sharedLearningConfigFile)); !os.IsNotExist(err) {
+		t.Fatalf("loser published selector while winner held runtime lock: %v", err)
+	}
+
+	close(release)
+	released = true
+	r1 := <-first
+	r2 := <-second
+	if r1.err != nil || r1.report.Status != "initialized" {
+		t.Fatalf("winning initializer failed: %+v %v", r1.report, r1.err)
+	}
+	if r2.err == nil {
+		t.Fatalf("losing initializer unexpectedly succeeded: %+v", r2.report)
+	}
+
+	finalIntent, found, err := readSharedLearningBootstrapIntent(runtimeRoot)
+	if err != nil || !found || finalIntent.ProductID != "air-worker-product-one" || finalIntent.Status != "complete" {
+		t.Fatalf("winner intent was not preserved: %+v found=%v err=%v", finalIntent, found, err)
+	}
+	s, on, err := readSharedLearningSettings(productOne)
+	if err != nil || !on || s.ProductID != "air-worker-product-one" || !sameLearningPath(s.RuntimeRoot, runtimeRoot) {
+		t.Fatalf("winner selector was altered: %+v on=%v err=%v", s, on, err)
+	}
+	if _, err := os.Stat(filepath.Join(productTwo, sharedLearningConfigFile)); !os.IsNotExist(err) {
+		t.Fatalf("loser left selector behind: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(productTwo, ".air-learning-owner.json")); !os.IsNotExist(err) {
+		t.Fatalf("loser changed shared-learning owner binding: %v", err)
+	}
+}

@@ -15,12 +15,11 @@ var bootstrapKernel = syscall.NewLazyDLL("kernel32.dll")
 var bootstrapLockFile = bootstrapKernel.NewProc("LockFileEx")
 var bootstrapUnlockFile = bootstrapKernel.NewProc("UnlockFileEx")
 
-func acquireSharedLearningBootstrapLock(product string, timeout time.Duration) (func(), error) {
-	dir := filepath.Join(product, ".air-worker", "learn")
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+func acquireBootstrapFileLock(path string, timeout time.Duration) (func(), error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, err
 	}
-	f, err := os.OpenFile(filepath.Join(dir, "bootstrap.lock"), os.O_CREATE|os.O_RDWR, 0o600)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -44,4 +43,20 @@ func acquireSharedLearningBootstrapLock(product string, timeout time.Duration) (
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+}
+
+func acquireSharedLearningBootstrapLock(product, runtimeRoot string, timeout time.Duration) (func(), error) {
+	productUnlock, err := acquireBootstrapFileLock(filepath.Join(product, ".air-worker", "learn", "bootstrap.lock"), timeout)
+	if err != nil {
+		return nil, err
+	}
+	runtimeUnlock, err := acquireBootstrapFileLock(filepath.Clean(runtimeRoot)+".air-worker-bootstrap.lock", timeout)
+	if err != nil {
+		productUnlock()
+		return nil, err
+	}
+	return func() {
+		runtimeUnlock()
+		productUnlock()
+	}, nil
 }

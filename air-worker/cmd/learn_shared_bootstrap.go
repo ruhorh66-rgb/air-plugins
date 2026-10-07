@@ -579,16 +579,15 @@ func initSharedLearning(product, runtimeRoot, productID string) (sharedLearningI
 	if err != nil {
 		return report, err
 	}
-	unlock, err := acquireSharedLearningBootstrapLock(root, 30*time.Second)
-	if err != nil {
-		return report, err
-	}
-	defer unlock()
-
 	runtimeRoot = filepath.Clean(strings.TrimSpace(runtimeRoot))
 	if !filepath.IsAbs(runtimeRoot) {
 		return report, errors.New("-runtime-root must be an absolute path")
 	}
+	unlock, err := acquireSharedLearningBootstrapLock(root, runtimeRoot, 30*time.Second)
+	if err != nil {
+		return report, err
+	}
+	defer unlock()
 	productID = strings.TrimSpace(productID)
 	if productID == "" {
 		productID = filepath.Base(root)
