@@ -606,3 +606,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-063_learn-p0-fix4-canonical-runtime-identity-lock-on · owner:gpt-airworker-handoff-20261007 · [[N-064_learn-p0-fix5-reject-raw-win32-runtime-aliases-b]] · LEARN-P0-FIX5: reject raw Win32 runtime aliases before normalization
 - [closed] N-064_learn-p0-fix5-reject-raw-win32-runtime-aliases-b · owner:gpt-airworker-handoff-20261007 · [[N-065_learn-p0-fix6-reject-mixed-separator-win32-devic]] · LEARN-P0-FIX6: reject mixed-separator Win32 device aliases
 - [closed] PLAN.md · owner:gpt-airworker-handoff-20261007 · [[N-066_rel-0-11-7-publish-exact-github-publication-gate]] · REL-0.11.7-PUBLISH: exact GitHub publication gate
+- [open] PLAN.md · owner:gpt-airworker-handoff-20261007 · [[N-067_live-0-11-7-promote-marketplace-install-refresh-c]] · LIVE-0.11.7: promote marketplace, install, refresh caches and prove learning
