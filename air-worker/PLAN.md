@@ -609,3 +609,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] PLAN.md · owner:gpt-airworker-handoff-20261007 · [[N-067_live-0-11-7-promote-marketplace-install-refresh-c]] · LIVE-0.11.7: promote marketplace, install, refresh caches and prove learning
 - [closed] N-067_live-0-11-7-promote-marketplace-install-refresh-c · owner:gpt-airworker-handoff-20261007 · [[N-068_hotfix-0-11-8-preserve-lf-aircurator-skill-paylo]] · HOTFIX-0.11.8: preserve LF AirCurator skill payloads in marketplace checkout
 - [open] N-067_live-0-11-7-promote-marketplace-install-refresh-c · owner:gpt-airworker-handoff-20261007 · [[N-069_rel-0-11-8-live-publish-lf-hotfix-and-replace-0-1]] · REL-0.11.8-LIVE: publish LF hotfix and replace 0.11.7
+- [open] N-067_live-0-11-7-promote-marketplace-install-refresh-c · owner:gpt-airworker-handoff-20261007 · [[N-070_handoff-after-0-11-8-publish-shared-learning-0-1]] · HANDOFF: after 0.11.8 publish shared learning 0.1 from air-modules
