@@ -101,8 +101,12 @@ func readSharedLearningSettings(product string) (sharedLearningSettings, bool, e
 		return s, true, fmt.Errorf("invalid %s: explicit product identity, absolute runtime root and managed skill subtree required", sharedLearningConfigFile)
 	}
 	// A configuration file is not approval to disable previously active controls.
+	// The only tolerated overlap is the narrow crash-recovery window of a
+	// durable, fully verified bootstrap intent after selector publication.
 	if err := inspectLegacyLearningRules(product, os.Lstat, os.ReadDir); err != nil {
-		return s, true, err
+		if bootstrapErr := allowSharedLearningBootstrapLegacy(product, s); bootstrapErr != nil {
+			return s, true, fmt.Errorf("%w; bootstrap reconciliation unavailable: %v", err, bootstrapErr)
+		}
 	}
 	return s, true, nil
 }
