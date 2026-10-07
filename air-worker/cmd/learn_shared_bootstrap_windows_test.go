@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -117,14 +118,26 @@ func TestInitSharedLearningWindowsRuntimeAliasCannotBypassOwnership(t *testing.T
 func TestInitSharedLearningRejectsRawWindowsAliasSpellingsBeforeIO(t *testing.T) {
 	base := t.TempDir()
 	runtimeRoot := filepath.Join(base, "runtime-raw-alias")
+	existing, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	forwardExisting := strings.ReplaceAll(existing, `\`, "/")
 	cases := []struct {
 		name string
 		path string
+		want string
 	}{
-		{name: "trailing-space", path: runtimeRoot + " "},
-		{name: "win32-device", path: `\\?\` + runtimeRoot},
-		{name: "win32-dot-device", path: `\\.\` + runtimeRoot},
-		{name: "nt-device", path: `\??\` + runtimeRoot},
+		{name: "trailing-space", path: runtimeRoot + " ", want: "trailing-dot/space"},
+		{name: "win32-device", path: `\\?\` + existing, want: "device-path spelling"},
+		{name: "win32-device-forward", path: `//?/` + forwardExisting, want: "device-path spelling"},
+		{name: "win32-device-mixed", path: `\\?/` + forwardExisting, want: "device-path spelling"},
+		{name: "win32-dot-device", path: `\\.\` + existing, want: "device-path spelling"},
+		{name: "win32-dot-device-forward", path: `//./` + forwardExisting, want: "device-path spelling"},
+		{name: "nt-device", path: `\??\` + existing, want: "device-path spelling"},
+		{name: "nt-device-forward", path: `/??/` + forwardExisting, want: "device-path spelling"},
+		{name: "nt-device-double-forward", path: `//??/` + forwardExisting, want: "device-path spelling"},
+		{name: "nt-device-mixed", path: `\??/` + forwardExisting, want: "device-path spelling"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -134,8 +147,12 @@ func TestInitSharedLearningRejectsRawWindowsAliasSpellingsBeforeIO(t *testing.T)
 			}
 			writeLegacyOperationalRule(t, product, "LP-"+tc.name, tc.name, "operational-procedure-v1")
 
-			if report, err := initSharedLearning(product, tc.path, "air-worker-"+tc.name); err == nil {
+			report, initErr := initSharedLearning(product, tc.path, "air-worker-"+tc.name)
+			if initErr == nil {
 				t.Fatalf("raw alias unexpectedly initialized: %+v", report)
+			}
+			if !strings.Contains(initErr.Error(), tc.want) {
+				t.Fatalf("raw alias reached wrong rejection path: %v; want %q", initErr, tc.want)
 			}
 			if _, err := os.Stat(filepath.Join(product, sharedLearningConfigFile)); !os.IsNotExist(err) {
 				t.Fatalf("raw alias published selector: %v", err)

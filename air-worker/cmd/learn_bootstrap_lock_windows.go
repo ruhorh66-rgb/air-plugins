@@ -17,10 +17,31 @@ var bootstrapKernel = syscall.NewLazyDLL("kernel32.dll")
 var bootstrapLockFile = bootstrapKernel.NewProc("LockFileEx")
 var bootstrapUnlockFile = bootstrapKernel.NewProc("UnlockFileEx")
 
+func isWindowsPathSep(b byte) bool {
+	return b == '\\' || b == '/'
+}
+
+func hasRawWindowsDevicePrefix(path string) bool {
+	// Match device namespaces using either Windows separator spelling, but do
+	// not trim, clean, or otherwise rewrite the caller's raw argument before
+	// deciding whether it is admissible.
+	if len(path) >= 4 && isWindowsPathSep(path[0]) && isWindowsPathSep(path[1]) &&
+		(path[2] == '?' || path[2] == '.') && isWindowsPathSep(path[3]) {
+		return true
+	}
+	if len(path) >= 4 && isWindowsPathSep(path[0]) && path[1] == '?' && path[2] == '?' &&
+		isWindowsPathSep(path[3]) {
+		return true
+	}
+	if len(path) >= 5 && isWindowsPathSep(path[0]) && isWindowsPathSep(path[1]) &&
+		path[2] == '?' && path[3] == '?' && isWindowsPathSep(path[4]) {
+		return true
+	}
+	return false
+}
+
 func validateWindowsBootstrapRuntimeSpelling(path string) error {
-	lower := strings.ToLower(path)
-	if strings.HasPrefix(lower, "\\\\?\\") || strings.HasPrefix(lower, "\\\\.\\") ||
-		strings.HasPrefix(lower, "\\??\\") || strings.HasPrefix(lower, "\\\\??\\") {
+	if hasRawWindowsDevicePrefix(path) {
 		return errors.New("runtime root uses unsupported Windows device-path spelling")
 	}
 	volume := filepath.VolumeName(path)
