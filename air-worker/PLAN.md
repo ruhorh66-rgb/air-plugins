@@ -602,3 +602,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] N-059_rel-0-11-7-p0-include-live-shared-learning-activ · owner:gpt-airworker-handoff-20261007 · [[N-060_learn-p0-fix-bounded-reviewer-deadline-and-desce]] · LEARN-P0-FIX: bounded reviewer deadline and descendant cleanup
 - [open] N-060_learn-p0-fix-bounded-reviewer-deadline-and-desce · owner:gpt-airworker-handoff-20261007 · [[N-061_learn-p0-fix2-crash-safe-serialized-shared-learn]] · LEARN-P0-FIX2: crash-safe serialized shared-learning bootstrap
 - [open] N-061_learn-p0-fix2-crash-safe-serialized-shared-learn · owner:gpt-airworker-handoff-20261007 · [[N-062_learn-p0-fix3-serialize-bootstrap-ownership-by-p]] · LEARN-P0-FIX3: serialize bootstrap ownership by product and runtime
+- [open] N-062_learn-p0-fix3-serialize-bootstrap-ownership-by-p · owner:gpt-airworker-handoff-20261007 · [[N-063_learn-p0-fix4-canonical-runtime-identity-lock-on]] · LEARN-P0-FIX4: canonical runtime identity lock on Windows aliases
