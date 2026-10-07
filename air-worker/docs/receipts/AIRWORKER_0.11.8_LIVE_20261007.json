@@ -1,0 +1,67 @@
+{
+  "schema": "air-worker.0118-live/v1",
+  "status": "PASS",
+  "recorded_at_utc": "2026-10-07T13:01:30Z",
+  "release": {
+    "version": "0.11.8",
+    "source_commit": "cbfa266eefe8d5d1ea67db078bc416f4a928147a",
+    "package_commit": "e1213a6d71e1ccdd3d487e244cf5ad21d9d1e9ae",
+    "tag": "air-worker--v0.11.8",
+    "tag_object": "407e85b03d9cc349eee84331575c2d927cc04f04",
+    "tag_target": "e1213a6d71e1ccdd3d487e244cf5ad21d9d1e9ae",
+    "github_main": "e1213a6d71e1ccdd3d487e244cf5ad21d9d1e9ae",
+    "cli_sha256": "1B4008AF05110214934D46C0AB8C5236341CD1C699F54EFB895C2F9F64A94A94",
+    "tray_sha256": "F9907BB81F104E412F743B40F56AAA669C12015841E30CC17A9D7F8FAE84465E",
+    "source_zip_sha256": "E1F7CDEC3A20A036046EEC23B7D2E4950A73DD4E68FA5B093816BA614A522783",
+    "download_readback": "PASS"
+  },
+  "marketplace": {
+    "claude_version": "0.11.8",
+    "codex_version": "0.11.8",
+    "raw_aircurator_skill_sha_match": true,
+    "crlf_pairs": 0,
+    "package_health": "PASS"
+  },
+  "live": {
+    "version": "0.11.8",
+    "revision": "cbfa266eefe8d5d1ea67db078bc416f4a928147a",
+    "vcs_modified": false,
+    "cli_sha256": "1B4008AF05110214934D46C0AB8C5236341CD1C699F54EFB895C2F9F64A94A94",
+    "tray_sha256": "F9907BB81F104E412F743B40F56AAA669C12015841E30CC17A9D7F8FAE84465E",
+    "single_tray": true,
+    "selfcheck": "PASS",
+    "violations": 0,
+    "warnings": 0
+  },
+  "host_skill_cutover": {
+    "backup": "R:\\-4-\\air-worker\\backups\\0.11.8-host-skill-cutover-20261007",
+    "old_unmanaged_bytes_preserved": true,
+    "managed_mirrors_synced": 6,
+    "sync_status": "PASS"
+  },
+  "installed_learning_smoke": {
+    "product": "R:\\-4-\\air-worker\\work\\live-0118\\air-worker-0.11.8\\air-worker",
+    "runtime": "R:\\-4-\\air-worker\\work\\live-0118\\runtime",
+    "init_shared": "PASS",
+    "migrated_legacy_procedures": 3,
+    "review_outcome": "candidate",
+    "next_run_target": "skills/learned/live-0118-learning-smoke-db53698b.md",
+    "next_run_sha256": "438469b412dc0185b26df0c36558692f482e06babacb3d507768cdb773f3da79",
+    "outcome": "pass",
+    "second_review": "no_candidate",
+    "outcome_receipt": "R:\\-4-\\air-worker\\work\\live-0118\\live-0118-next-001.outcome.json"
+  },
+  "rollback": {
+    "primary": "air-worker--v0.11.7",
+    "primary_cli_sha256": "C3709D1495240C3423316D3459D7A185B644877F270DABF570911E4B767F63E3",
+    "fallback": "air-worker--v0.11.6",
+    "fallback_cli_sha256": "3561965DEEB98AB375889C3F78CF9E86ED8F9D9763ECE305ECB655CAC73FD4A9"
+  },
+  "boundaries": {
+    "reboot": false,
+    "uac": false,
+    "foreign_service_stop": false,
+    "asw_changed": false,
+    "bridges_changed": false
+  }
+}
