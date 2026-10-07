@@ -583,6 +583,10 @@ func initSharedLearning(product, runtimeRoot, productID string) (sharedLearningI
 	if !filepath.IsAbs(runtimeRoot) {
 		return report, errors.New("-runtime-root must be an absolute path")
 	}
+	runtimeRoot, err = canonicalSharedLearningBootstrapRuntime(runtimeRoot)
+	if err != nil {
+		return report, err
+	}
 	unlock, err := acquireSharedLearningBootstrapLock(root, runtimeRoot, 30*time.Second)
 	if err != nil {
 		return report, err

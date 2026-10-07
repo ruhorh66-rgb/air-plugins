@@ -10,6 +10,31 @@ import (
 	"time"
 )
 
+func canonicalSharedLearningBootstrapRuntime(runtimeRoot string) (string, error) {
+	clean := filepath.Clean(runtimeRoot)
+	if st, err := os.Stat(clean); err == nil {
+		if !st.IsDir() {
+			return "", errors.New("runtime root exists and is not a directory")
+		}
+		resolved, err := filepath.EvalSymlinks(clean)
+		if err != nil {
+			return "", err
+		}
+		return filepath.Clean(resolved), nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	parent := filepath.Dir(clean)
+	if err := os.MkdirAll(parent, 0o700); err != nil {
+		return "", err
+	}
+	resolvedParent, err := filepath.EvalSymlinks(parent)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(resolvedParent, filepath.Base(clean)), nil
+}
+
 func acquireBootstrapFileLock(path string, timeout time.Duration) (func(), error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, err
