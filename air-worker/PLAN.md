@@ -600,3 +600,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] Self-learning Hermes parity 20261005 · owner:gpt-airworker-handoff-20261006 · [[N-058_learn-p0-wire-shared-learning-into-live-cli-and-n]] · LEARN-P0: wire shared learning into live CLI and next-run lifecycle
 - [open] N-058_learn-p0-wire-shared-learning-into-live-cli-and-n · owner:gpt-airworker-handoff-20261006 · [[N-059_rel-0-11-7-p0-include-live-shared-learning-activ]] · REL-0.11.7-P0: include live shared-learning activation in next candidate
 - [open] N-059_rel-0-11-7-p0-include-live-shared-learning-activ · owner:gpt-airworker-handoff-20261007 · [[N-060_learn-p0-fix-bounded-reviewer-deadline-and-desce]] · LEARN-P0-FIX: bounded reviewer deadline and descendant cleanup
+- [open] N-060_learn-p0-fix-bounded-reviewer-deadline-and-desce · owner:gpt-airworker-handoff-20261007 · [[N-061_learn-p0-fix2-crash-safe-serialized-shared-learn]] · LEARN-P0-FIX2: crash-safe serialized shared-learning bootstrap
