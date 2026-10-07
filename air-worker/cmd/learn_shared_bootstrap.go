@@ -207,11 +207,11 @@ func initSharedLearning(product, runtimeRoot, productID string) (sharedLearningI
 
 	s := sharedLearningSettings{
 		Schema: "air-worker.shared-learning/v1", ProductID: productID, RuntimeRoot: runtimeRoot,
-		ManagedSkillPrefix: "skills/learned", TimeoutMS: 120000,
+		ManagedSkillPrefix: "skills/learned", TimeoutMS: 300000,
 		ProtectedTargets: []string{"PLAN.md", "cmd", "bin", "hooks", "skills/air-curator", "skills/woody"},
 		Reviewer: &learningProcessAdapter{
-			Executable: "@self", SHA256: "@self", TimeoutMS: 120000,
-			Args: []string{"learning-adapter", "reviewer", "-model", "gpt-6-sol", "-effort", "medium"},
+			Executable: "@self", SHA256: "@self", TimeoutMS: 240000,
+			Args: []string{"learning-adapter", "reviewer", "-model", "gpt-5.6-luna", "-effort", "medium"},
 		},
 	}
 

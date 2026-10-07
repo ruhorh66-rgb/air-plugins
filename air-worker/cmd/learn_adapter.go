@@ -46,7 +46,7 @@ func cmdLearningAdapter(argv []string) int {
 func cmdLearningReviewerAdapter(argv []string) int {
 	fs := flag.NewFlagSet("learning-adapter reviewer", flag.ContinueOnError)
 	productFlag := fs.String("product", "", "managed product root; normally supplied by the parent learning runtime")
-	model := fs.String("model", "gpt-6-sol", "approved Codex reviewer model")
+	model := fs.String("model", "gpt-5.6-luna", "approved Codex reviewer model")
 	effort := fs.String("effort", "medium", "reviewer reasoning effort")
 	if err := fs.Parse(argv); err != nil {
 		return 2

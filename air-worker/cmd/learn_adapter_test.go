@@ -36,7 +36,7 @@ func TestLearningReviewerAdapterProducesManagedProcedure(t *testing.T) {
 	defer func() { os.Stdin = oldIn }()
 
 	code, out := captureLoopOutput(t, func() int {
-		return cmdLearningReviewerAdapter([]string{"-product", product, "-model", "gpt-6-sol", "-effort", "medium"})
+		return cmdLearningReviewerAdapter([]string{"-product", product, "-model", "gpt-5.6-luna", "-effort", "medium"})
 	})
 	if code != 0 {
 		t.Fatalf("adapter exit=%d output=%s", code, out)

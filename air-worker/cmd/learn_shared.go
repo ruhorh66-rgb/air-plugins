@@ -256,14 +256,14 @@ func runLearningProcess(ctx context.Context, product string, a *learningProcessA
 		}
 	}
 	ms := a.TimeoutMS
-	if ms <= 0 || ms > 120000 {
-		ms = 120000
+	if ms <= 0 || ms > 240000 {
+		ms = 240000
 	}
 	childCtx, cancel := context.WithTimeout(ctx, time.Duration(ms)*time.Millisecond)
 	defer cancel()
-	cmd := exec.CommandContext(childCtx, exePath, a.Args...)
+	cmd := exec.Command(exePath, a.Args...)
 	cmd.Stdin = bytes.NewReader(input)
-	cmd.WaitDelay = 2 * time.Second
+	prepareLearningProcessTree(cmd)
 	env := make([]string, 0, len(os.Environ())+1)
 	for _, item := range os.Environ() {
 		name := item
@@ -279,8 +279,23 @@ func runLearningProcess(ctx context.Context, product string, a *learningProcessA
 	var stdout, stderr learningBoundedOutput
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if childCtx.Err() != nil {
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("learning adapter start failed: %w", err)
+	}
+	waitCh := make(chan error, 1)
+	go func() { waitCh <- cmd.Wait() }()
+	var err error
+	select {
+	case err = <-waitCh:
+	case <-childCtx.Done():
+		killErr := terminateLearningProcessTree(cmd)
+		select {
+		case <-waitCh:
+		case <-time.After(3 * time.Second):
+		}
+		if killErr != nil {
+			return nil, fmt.Errorf("%w; learning adapter process-tree cleanup failed: %v", childCtx.Err(), killErr)
+		}
 		return nil, childCtx.Err()
 	}
 	if err != nil {
