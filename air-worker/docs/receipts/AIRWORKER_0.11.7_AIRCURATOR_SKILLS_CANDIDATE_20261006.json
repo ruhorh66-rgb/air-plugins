@@ -1,0 +1,46 @@
+{
+  "schema": "air-worker.0117-release-candidate/v1",
+  "status": "PASS",
+  "version": "0.11.7",
+  "recorded_at_utc": "2026-10-07T10:53:00Z",
+  "source_commit": "c78493bb485bda3f4ecb9d1d28a120400c9eb00f",
+  "package_commit": "e867f3819c98d91d70bc4b498f415d608bc88b95",
+  "binary_sha256": {
+    "cli": "C3709D1495240C3423316D3459D7A185B644877F270DABF570911E4B767F63E3",
+    "tray": "2683334329CB36B76CCA92DFEC31609D612E82F107BA9218E9DA444340077D6D"
+  },
+  "binary_provenance": {
+    "vcs_revision": "c78493bb485bda3f4ecb9d1d28a120400c9eb00f",
+    "vcs_modified": false
+  },
+  "scope": {
+    "aircurator_skill_lifecycle": "PASS",
+    "reviewed_patrol_delta": "PASS",
+    "self_learning_p0": "PASS"
+  },
+  "gates": {
+    "full_go_regression": "R:\\-4-\\air-worker\\work\\learning-p0\\final-c78493b-full-regression.json",
+    "native": "R:\\-4-\\air-worker\\work\\learning-p0\\candidate-e867f38-release\\native-gates.json",
+    "clean_session": "R:\\-4-\\air-worker\\work\\learning-p0\\candidate-e867f38-release\\clean-session-smoke.json",
+    "curator_negative": "R:\\-4-\\air-worker\\work\\learning-p0\\candidate-e867f38-release\\curator-negative-gates.json",
+    "self_learning_candidate": "docs/receipts/AIRWORKER_0.11.7_SELF_LEARNING_CANDIDATE_20261007.json",
+    "independent_astra": {
+      "status": "PASS",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\candidate-e867f38-release\\astra-n065\\receipt.json"
+    }
+  },
+  "rollback": {
+    "version": "0.11.6",
+    "sha256": "3561965DEEB98AB375889C3F78CF9E86ED8F9D9763ECE305ECB655CAC73FD4A9",
+    "vcs_revision": "a25b5d9646c6b173c6a8462cc6159474ec25fbc3"
+  },
+  "boundaries": {
+    "publication_performed": false,
+    "tag_push_performed": false,
+    "live_install_changed": false,
+    "plugin_caches_changed": false,
+    "publication_requires_exact_lpr_gate": true
+  }
+}

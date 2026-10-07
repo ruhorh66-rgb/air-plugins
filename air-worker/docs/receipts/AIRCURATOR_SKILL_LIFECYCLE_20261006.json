@@ -1,0 +1,38 @@
+{
+  "schema": "air-worker.aircurator-skill-lifecycle/v1",
+  "status": "PASS",
+  "recorded_at_utc": "2026-10-07T10:53:00Z",
+  "source_commit": "c78493bb485bda3f4ecb9d1d28a120400c9eb00f",
+  "package_commit": "e867f3819c98d91d70bc4b498f415d608bc88b95",
+  "release_skills": [
+    {"id":"air-curator","sha256":"91c129bfdf4d72682c170dcada1227d248c2b9968565570241ccb72044533cc3"},
+    {"id":"air-curator-resume-interrupted-worker","sha256":"a8be3a2e1c889597d173555df4b69e8cb07d812f5f69fb3027019352dc2774fe"},
+    {"id":"air-curator-review-worker-result","sha256":"a781f1d8e45b4aabe0fec1e973ea0449d90b3cc411fd75f68486854357a304b6"}
+  ],
+  "reviewed_patrol_delta": {
+    "source_commit": "5f4a443c306bc27b16c53c408aa00ea03cba203e",
+    "status": "reviewed_and_applied_exact_semantic_delta"
+  },
+  "gates": {
+    "registry_package_health": "PASS",
+    "clean_session": "PASS",
+    "missing_skill": "PASS",
+    "mirror_drift": "PASS",
+    "destination_collision": "PASS",
+    "marker_collision": "PASS",
+    "hash_drift": "PASS",
+    "frontmatter_name_drift": "PASS",
+    "secret_rejection": "PASS",
+    "payload_snapshot_identity": "PASS",
+    "current_negative_receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\candidate-e867f38-release\\curator-negative-gates.json",
+    "native_receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\candidate-e867f38-release\\native-gates.json",
+    "clean_session_receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\candidate-e867f38-release\\clean-session-smoke.json",
+    "independent_astra": "PASS"
+  },
+  "boundaries": {
+    "host_mirrors_are_derived": true,
+    "publication_performed": false,
+    "live_install_changed": false,
+    "plugin_caches_changed": false
+  }
+}
