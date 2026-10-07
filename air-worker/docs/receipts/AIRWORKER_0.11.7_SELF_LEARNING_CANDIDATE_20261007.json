@@ -1,0 +1,86 @@
+{
+  "schema": "air-worker.0117-self-learning-candidate/v1",
+  "status": "PASS",
+  "recorded_at_utc": "2026-10-07T10:50:46.9954982Z",
+  "version": "0.11.7",
+  "source_commit": "c78493bb485bda3f4ecb9d1d28a120400c9eb00f",
+  "package_commit": "e867f3819c98d91d70bc4b498f415d608bc88b95",
+  "binaries": {
+    "cli_sha256": "C3709D1495240C3423316D3459D7A185B644877F270DABF570911E4B767F63E3",
+    "tray_sha256": "2683334329CB36B76CCA92DFEC31609D612E82F107BA9218E9DA444340077D6D",
+    "vcs_revision": "c78493bb485bda3f4ecb9d1d28a120400c9eb00f",
+    "vcs_modified": false
+  },
+  "learning": {
+    "engine": "github.com/ruhorh66-rgb/air-modules/learning",
+    "shared_module_version": "0.1.0-dev.20261005",
+    "single_writer": true,
+    "init_shared": "PASS",
+    "legacy_operational_procedures_migrated": 3,
+    "reviewer_auto_candidate_apply": "PASS",
+    "next_run_load": "PASS",
+    "loaded_target": "skills/learned/mixed-separator-win32-alias-acceptance-00cb2b1a.md",
+    "loaded_sha256": "195acccb7950659817c78e24285b7f0267e775b06991cfb38e238076226406a9",
+    "loaded_used_flag": false,
+    "separate_outcome": "pass",
+    "grant_gated_executable_rules": "fail_closed"
+  },
+  "hardening": {
+    "bounded_reviewer_descendant_cleanup": "PASS",
+    "crash_safe_bootstrap_recovery": "PASS",
+    "product_and_runtime_serialization": "PASS",
+    "canonical_runtime_identity": "PASS",
+    "trailing_dot_space_aliases": "PASS",
+    "win32_nt_device_aliases": "PASS",
+    "forward_and_mixed_separator_device_aliases": "PASS"
+  },
+  "gates": {
+    "targeted_alias_tests": {
+      "status": "PASS",
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\candidate-e867f38-release\\n065-targeted.json"
+    },
+    "full_go_regression": {
+      "status": "PASS",
+      "go_test_exit": 0,
+      "go_vet_exit": 0,
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\final-c78493b-full-regression.json"
+    },
+    "native": {
+      "status": "PASS",
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\candidate-e867f38-release\\native-gates.json"
+    },
+    "clean_session": {
+      "status": "PASS",
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\candidate-e867f38-release\\clean-session-smoke.json"
+    },
+    "learning_e2e": {
+      "status": "PASS",
+      "runtime_root": "R:\\-4-\\air-worker\\work\\learning-p0\\runtime-e867f38",
+      "outcome_receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\n065-e867f38-next-001.outcome.json"
+    },
+    "independent_semantic": {
+      "status": "PASS",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "findings": [],
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\candidate-e867f38-release\\astra-n065\\receipt.json",
+      "verdict": "R:\\-4-\\air-worker\\work\\learning-p0\\candidate-e867f38-release\\astra-n065\\verdict.json"
+    }
+  },
+  "rollback": {
+    "installed_version": "0.11.6",
+    "installed_path": "C:\\Users\\admin_loc\\AppData\\Local\\air-worker\\bin\\air-worker.exe",
+    "installed_sha256": "3561965DEEB98AB375889C3F78CF9E86ED8F9D9763ECE305ECB655CAC73FD4A9",
+    "installed_vcs_revision": "a25b5d9646c6b173c6a8462cc6159474ec25fbc3"
+  },
+  "boundaries": {
+    "publication_performed": false,
+    "live_install_changed": false,
+    "plugin_caches_changed": false,
+    "production_learning_runtime_changed": false,
+    "reboot_uac_foreign_service_stop": false,
+    "asw_bridge_changed": false,
+    "publication_requires_exact_lpr_gate": true,
+    "post_publication_install_cache_refresh_pre_authorized": true
+  }
+}
