@@ -1,0 +1,83 @@
+{
+  "schema": "air-worker.0118-lf-hotfix-candidate/v1",
+  "status": "PASS",
+  "version": "0.11.8",
+  "recorded_at_utc": "2026-10-07T12:39:27.7416172Z",
+  "source_commit": "cbfa266eefe8d5d1ea67db078bc416f4a928147a",
+  "package_commit": "e1213a6d71e1ccdd3d487e244cf5ad21d9d1e9ae",
+  "binary_sha256": {
+    "cli": "1B4008AF05110214934D46C0AB8C5236341CD1C699F54EFB895C2F9F64A94A94",
+    "tray": "F9907BB81F104E412F743B40F56AAA669C12015841E30CC17A9D7F8FAE84465E"
+  },
+  "binary_provenance": {
+    "vcs_revision": "cbfa266eefe8d5d1ea67db078bc416f4a928147a",
+    "vcs_modified": false
+  },
+  "incident": {
+    "live_version": "0.11.7",
+    "problem": "canonical Claude/Codex GitHub marketplace checkout converted release-owned AirCurator SKILL.md files to CRLF; raw registry SHA failed although CRLF-to-LF bytes matched all three registry SHA values exactly",
+    "content_semantic_drift": false,
+    "manual_cache_rewrite": false
+  },
+  "fix": {
+    "scope": "air-worker/.gitattributes",
+    "rule": "skills/**/SKILL.md text eol=lf",
+    "verifier_weakened": false,
+    "learning_engine_changed": false,
+    "grant_or_permission_semantics_changed": false
+  },
+  "acceptance": {
+    "full_go_regression": {
+      "status": "PASS",
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\hotfix-0118-full-cbfa266.json",
+      "go_test_exit": 0,
+      "go_vet_exit": 0
+    },
+    "fresh_autocrlf_checkout": {
+      "status": "PASS",
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\hotfix-0118-autocrlf-e1213a6-fresh.json",
+      "tree_clean": true,
+      "core_autocrlf": true,
+      "raw_skill_sha_match": true,
+      "crlf_pairs": 0,
+      "package_health": "PASS",
+      "check_plugin": "PASS"
+    },
+    "clean_session": {
+      "status": "PASS",
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\hotfix-0118-package-e1213a6\\clean-session.json"
+    },
+    "shared_learning_regression": {
+      "status": "PASS",
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\hotfix-0118-package-e1213a6\\learning-regression.json"
+    },
+    "independent_astra": {
+      "status": "PASS",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "receipt": "R:\\-4-\\air-worker\\work\\learning-p0\\hotfix-0118-astra\\receipt.json",
+      "verdict": "R:\\-4-\\air-worker\\work\\learning-p0\\hotfix-0118-astra\\verdict.json"
+    }
+  },
+  "live_state": {
+    "installed_version": "0.11.7",
+    "installed_cli_sha256": "C3709D1495240C3423316D3459D7A185B644877F270DABF570911E4B767F63E3",
+    "claude_cache_version": "0.11.7",
+    "codex_cache_version": "0.11.7",
+    "tray_version_source": "installed 0.11.7",
+    "selfcheck_status": "RED only because marketplace checkout EOL changed raw skill bytes"
+  },
+  "rollback": {
+    "published_0_11_7": "air-worker--v0.11.7",
+    "published_0_11_6": "air-worker--v0.11.6",
+    "0_11_6_cli_sha256": "3561965DEEB98AB375889C3F78CF9E86ED8F9D9763ECE305ECB655CAC73FD4A9"
+  },
+  "boundaries": {
+    "publication_performed": false,
+    "installation_performed": false,
+    "cache_refresh_performed": false,
+    "reboot_uac_foreign_service_stop": false,
+    "asw_bridge_changed": false,
+    "requires_exact_lpr_gate": true
+  }
+}
