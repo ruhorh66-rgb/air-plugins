@@ -1,0 +1,61 @@
+{
+  "schema": "air-worker.release-receipt/v1",
+  "release": "0.11.7",
+  "status": "PUBLISHED_VERIFIED",
+  "recorded_at_utc": "2026-10-07T12:14:17Z",
+  "source_commit": "c78493bb485bda3f4ecb9d1d28a120400c9eb00f",
+  "package_commit": "e867f3819c98d91d70bc4b498f415d608bc88b95",
+  "github": {
+    "repository": "ruhorh66-rgb/air-plugins",
+    "tag": "air-worker--v0.11.7",
+    "tag_object": "e124e7849bcff8c1db79f0a539ea4bdebac26d2d",
+    "tag_target": "e867f3819c98d91d70bc4b498f415d608bc88b95",
+    "release_published_at_utc": "2026-10-07T12:14:17Z",
+    "release_url": "https://github.com/ruhorh66-rgb/air-plugins/releases/tag/air-worker--v0.11.7",
+    "assets": [
+      {
+        "name": "air-worker-0.11.7-source.zip",
+        "size": 70737836,
+        "sha256": "9978C3D1B280D51B8BB5BF97C63A9842B3CFBB5FEAB0A7E6CFCB9FC829D3DBCB"
+      },
+      {
+        "name": "air-worker-0.11.7-windows-x64.exe",
+        "size": 9582592,
+        "sha256": "C3709D1495240C3423316D3459D7A185B644877F270DABF570911E4B767F63E3"
+      },
+      {
+        "name": "air-worker-tray-0.11.7-windows-x64.exe",
+        "size": 2527744,
+        "sha256": "2683334329CB36B76CCA92DFEC31609D612E82F107BA9218E9DA444340077D6D"
+      }
+    ],
+    "download_verification": {
+      "path": "R:\\-4-\\air-worker\\release\\0.11.7-download-verify",
+      "zip_tracked_files": 888,
+      "zip_prefix_ok": true,
+      "all_asset_hashes_match": true
+    }
+  },
+  "candidate": {
+    "full_regression": "PASS",
+    "native_package_health": "PASS",
+    "clean_session": "PASS",
+    "self_learning_e2e": "PASS",
+    "curator_negative_gates": "PASS",
+    "independent_astra": "PASS"
+  },
+  "rollback": {
+    "installed_version": "0.11.6",
+    "installed_sha256": "3561965DEEB98AB375889C3F78CF9E86ED8F9D9763ECE305ECB655CAC73FD4A9",
+    "installed_vcs_revision": "a25b5d9646c6b173c6a8462cc6159474ec25fbc3",
+    "rollback_tag": "air-worker--v0.11.6"
+  },
+  "boundaries": {
+    "remote_main_changed": false,
+    "rebuild_after_gate": false,
+    "installation_performed": false,
+    "plugin_caches_changed": false,
+    "reboot_uac_foreign_service_stop": false,
+    "asw_bridge_changed": false
+  }
+}
