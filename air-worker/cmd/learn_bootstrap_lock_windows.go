@@ -18,13 +18,13 @@ var bootstrapLockFile = bootstrapKernel.NewProc("LockFileEx")
 var bootstrapUnlockFile = bootstrapKernel.NewProc("UnlockFileEx")
 
 func validateWindowsBootstrapRuntimeSpelling(path string) error {
-	clean := filepath.Clean(strings.TrimSpace(path))
-	lower := strings.ToLower(clean)
-	if strings.HasPrefix(lower, `\\?\`) || strings.HasPrefix(lower, `\\.\`) {
+	lower := strings.ToLower(path)
+	if strings.HasPrefix(lower, "\\\\?\\") || strings.HasPrefix(lower, "\\\\.\\") ||
+		strings.HasPrefix(lower, "\\??\\") || strings.HasPrefix(lower, "\\\\??\\") {
 		return errors.New("runtime root uses unsupported Windows device-path spelling")
 	}
-	volume := filepath.VolumeName(clean)
-	rest := strings.TrimPrefix(clean, volume)
+	volume := filepath.VolumeName(path)
+	rest := strings.TrimPrefix(path, volume)
 	for _, part := range strings.FieldsFunc(rest, func(r rune) bool { return r == '\\' || r == '/' }) {
 		if strings.HasSuffix(part, ".") || strings.HasSuffix(part, " ") {
 			return fmt.Errorf("runtime root uses unsupported Windows trailing-dot/space alias component %q", part)
@@ -33,11 +33,15 @@ func validateWindowsBootstrapRuntimeSpelling(path string) error {
 	return nil
 }
 
+func validateSharedLearningBootstrapRuntimeInput(runtimeRoot string) error {
+	return validateWindowsBootstrapRuntimeSpelling(runtimeRoot)
+}
+
 func canonicalSharedLearningBootstrapRuntime(runtimeRoot string) (string, error) {
-	clean := filepath.Clean(strings.TrimSpace(runtimeRoot))
-	if err := validateWindowsBootstrapRuntimeSpelling(clean); err != nil {
+	if err := validateWindowsBootstrapRuntimeSpelling(runtimeRoot); err != nil {
 		return "", err
 	}
+	clean := filepath.Clean(runtimeRoot)
 	if st, err := os.Stat(clean); err == nil {
 		if !st.IsDir() {
 			return "", errors.New("runtime root exists and is not a directory")

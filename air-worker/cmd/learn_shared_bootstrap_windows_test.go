@@ -113,3 +113,42 @@ func TestInitSharedLearningWindowsRuntimeAliasCannotBypassOwnership(t *testing.T
 		t.Fatalf("winner state was not preserved: %+v found=%v err=%v", finalIntent, found, err)
 	}
 }
+
+func TestInitSharedLearningRejectsRawWindowsAliasSpellingsBeforeIO(t *testing.T) {
+	base := t.TempDir()
+	runtimeRoot := filepath.Join(base, "runtime-raw-alias")
+	cases := []struct {
+		name string
+		path string
+	}{
+		{name: "trailing-space", path: runtimeRoot + " "},
+		{name: "win32-device", path: `\\?\` + runtimeRoot},
+		{name: "win32-dot-device", path: `\\.\` + runtimeRoot},
+		{name: "nt-device", path: `\??\` + runtimeRoot},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			product := filepath.Join(base, "product-"+tc.name)
+			if err := os.MkdirAll(product, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			writeLegacyOperationalRule(t, product, "LP-"+tc.name, tc.name, "operational-procedure-v1")
+
+			if report, err := initSharedLearning(product, tc.path, "air-worker-"+tc.name); err == nil {
+				t.Fatalf("raw alias unexpectedly initialized: %+v", report)
+			}
+			if _, err := os.Stat(filepath.Join(product, sharedLearningConfigFile)); !os.IsNotExist(err) {
+				t.Fatalf("raw alias published selector: %v", err)
+			}
+			if _, err := os.Stat(filepath.Join(product, ".air-learning-owner.json")); !os.IsNotExist(err) {
+				t.Fatalf("raw alias created owner binding: %v", err)
+			}
+			if _, err := os.Stat(runtimeRoot); !os.IsNotExist(err) {
+				t.Fatalf("raw alias created canonical runtime: %v", err)
+			}
+			if _, err := os.Stat(sharedLearningBootstrapIntentPath(runtimeRoot)); !os.IsNotExist(err) {
+				t.Fatalf("raw alias created bootstrap intent: %v", err)
+			}
+		})
+	}
+}

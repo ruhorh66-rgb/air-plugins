@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+func validateSharedLearningBootstrapRuntimeInput(runtimeRoot string) error { return nil }
+
 func canonicalSharedLearningBootstrapRuntime(runtimeRoot string) (string, error) {
 	clean := filepath.Clean(runtimeRoot)
 	if st, err := os.Stat(clean); err == nil {

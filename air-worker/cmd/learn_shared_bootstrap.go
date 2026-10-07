@@ -579,7 +579,12 @@ func initSharedLearning(product, runtimeRoot, productID string) (sharedLearningI
 	if err != nil {
 		return report, err
 	}
-	runtimeRoot = filepath.Clean(strings.TrimSpace(runtimeRoot))
+	if strings.TrimSpace(runtimeRoot) == "" {
+		return report, errors.New("-runtime-root is required")
+	}
+	if err := validateSharedLearningBootstrapRuntimeInput(runtimeRoot); err != nil {
+		return report, err
+	}
 	if !filepath.IsAbs(runtimeRoot) {
 		return report, errors.New("-runtime-root must be an absolute path")
 	}
