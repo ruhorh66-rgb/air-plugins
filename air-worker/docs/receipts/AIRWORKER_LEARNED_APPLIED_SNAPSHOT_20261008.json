@@ -1,0 +1,54 @@
+{
+    "schema":  "air-worker.learned-procedures.snapshot/v1",
+    "scope":  "Preserve four module-applied non-executable procedures as source-controlled development artifacts",
+    "source_commit_before_snapshot":  "ce180f61238a309292918201726d2999c4019f09",
+    "product_root":  "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006\\air-worker",
+    "learning_product_id":  "air-worker",
+    "learning_runtime_root":  "R:\\-4-\\air-worker\\self-learning",
+    "module_version_pin":  "8fcd458a783e2dbffb1d590ba838e44bedf6dda8",
+    "ledger_reference":  "R:\\-4-\\air-worker\\self-learning\\ledger.jsonl",
+    "ledger_mutated":  false,
+    "procedures":  [
+                       {
+                           "line_ending":  "LF",
+                           "byte_size":  1642,
+                           "content_changed":  false,
+                           "sha256":  "ed1c2ba8b27a421bd872fa04bf0be7233814b4b40640a8958a351abb4eac5f37",
+                           "ledger_status":  "applied",
+                           "target":  "skills/learned/cross-product-reboot-handoff-ownership-e-348f5602.md",
+                           "proposal_id":  "LP-EV-207a4b7b815f43f23cc853ee"
+                       },
+                       {
+                           "line_ending":  "LF",
+                           "byte_size":  1133,
+                           "content_changed":  false,
+                           "sha256":  "e0b274857a6e2a1c3f9a0e5febb2b25acbd083793ce325eccaed02442aa9aec9",
+                           "ledger_status":  "applied",
+                           "target":  "skills/learned/feedback-error-a0309df4.md",
+                           "proposal_id":  "LP-EV-4da418f373d6e032b40ef9c5"
+                       },
+                       {
+                           "line_ending":  "LF",
+                           "byte_size":  699,
+                           "content_changed":  false,
+                           "sha256":  "f6edc33c7bb9b48d74dedec2fef243e37a05dac38a4073a7053fdee0fbffbc2a",
+                           "ledger_status":  "applied",
+                           "target":  "skills/learned/public-approval-surface-53771d27.md",
+                           "proposal_id":  "LP-EV-2bbf601702a1e8200d317e0f"
+                       },
+                       {
+                           "line_ending":  "LF",
+                           "byte_size":  1028,
+                           "content_changed":  false,
+                           "sha256":  "9b1bb1a58a882a0d777ac3c1f346c8168abaea5d59825eccd369f8cebbf8e3c6",
+                           "ledger_status":  "applied",
+                           "target":  "skills/learned/release-host-parity-6c083dd3.md",
+                           "proposal_id":  "LP-EV-999893f36c50d3d873996b30"
+                       }
+                   ],
+    "deployment_authorized":  false,
+    "release_authorized":  false,
+    "service_reboot_authorized":  false,
+    "note":  "Text procedures are not commands or LPR grants; do not execute service/reboot instructions without separate approval",
+    "verified_at_utc":  "2026-10-08T15:53:15.4699047Z"
+}
