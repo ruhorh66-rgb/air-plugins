@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -254,6 +255,57 @@ func TestAirWorkerSelfLearningStopRunsBesideTargetOwner(t *testing.T) {
 	}
 	if sameLearningPath(selfProduct, targetProduct) {
 		t.Fatal("fixture roots unexpectedly identical")
+	}
+}
+
+func TestAirWorkerSelfLearningBlockingProposalStaysPendingLPR(t *testing.T) {
+	selfProduct, settings, _ := selfLearningFixture(t)
+	target := "rules/self-learning-block.json"
+	res, err := executeSharedLearning(selfProduct, settings, "propose", map[string]string{
+		"proposal_id": "LP-self-blocking",
+		"kind":        "check_spec",
+		"target":      target,
+		"pre_sha256":  "",
+		"content":     `{"action":"delete","context":"protected"}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != "PENDING_LPR" {
+		t.Fatalf("blocking proposal status=%q", res.Status)
+	}
+	if _, err := os.Stat(filepath.Join(selfProduct, filepath.FromSlash(target))); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("blocking proposal changed target before LPR grant: %v", err)
+	}
+	if _, err := executeSharedLearning(selfProduct, settings, "apply", map[string]string{"proposal_id": "LP-self-blocking"}); err == nil {
+		t.Fatal("blocking proposal applied without trusted LPR grant")
+	}
+}
+
+func TestAirWorkerSelfLearningSelectorSurvivesFreshProcessAndCacheRefresh(t *testing.T) {
+	_, _, stateDir := selfLearningFixture(t)
+	cmd := exec.Command(os.Args[0], "-test.run=^TestAirWorkerSelfLearningFreshProcessHelper$")
+	cmd.Env = append(os.Environ(),
+		"AW_SELF_LEARNING_FRESH_PROCESS=1",
+		hookStateDirEnv+"="+stateDir,
+		"AIR_WORKER_HOME="+filepath.Join(t.TempDir(), "different-cache-home"),
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("fresh process status failed: %v %s", err, out)
+	}
+	text := string(out)
+	if !strings.Contains(text, `"status":"enabled"`) || !strings.Contains(text, `"configured":true`) {
+		t.Fatalf("fresh process did not resolve persistent selector: %s", text)
+	}
+}
+
+func TestAirWorkerSelfLearningFreshProcessHelper(t *testing.T) {
+	if os.Getenv("AW_SELF_LEARNING_FRESH_PROCESS") != "1" {
+		return
+	}
+	if code := cmdLearnSelf([]string{"status", "-json"}); code != 0 {
+		t.Fatalf("self status code=%d", code)
 	}
 }
 
