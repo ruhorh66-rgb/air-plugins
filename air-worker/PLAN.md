@@ -643,3 +643,5 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] N-083_p1-wal-recover-managed-procedure-transaction-bef · owner:gpt-airworker-release-20261008 · [[N-087_p1-wal-validate-reject-malicious-recovery-mutati]] · P1-WAL-VALIDATE: reject malicious recovery mutation
 - [open] N-084_p1-mcp-nested-diagnostics-cannot-produce-false-p · owner:gpt-airworker-release-20261008 · [[N-088_p1-text-nested-failed-and-nonzero-code-reject-su]] · P1-TEXT: nested failed and nonzero code reject success
 - [open] N-078_p0-self-owner-astra-remediate-seven-release-bloc · owner:gpt-airworker-release-20261008 · [[N-089_p1-receipt-exact-pinned-module-full-regression]] · P1-RECEIPT: exact pinned module full regression
+- [open] N-087_p1-wal-validate-reject-malicious-recovery-mutati · owner:gpt-airworker-release-20261008 · [[N-090_p1-wal-provenance-validate-history-and-immutable]] · P1-WAL-PROVENANCE: validate history and immutable preflight
+- [open] N-088_p1-text-nested-failed-and-nonzero-code-reject-su · owner:gpt-airworker-release-20261008 · [[N-091_p1-mcp-fail-reject-plain-fail-diagnostic-evidenc]] · P1-MCP-FAIL: reject plain fail diagnostic evidence
