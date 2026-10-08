@@ -214,9 +214,14 @@ func TestSharedStopPersistenceFailureIsExplicitAndRetryable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Count(string(body), "stable-shared-stop") != 2 {
-		// one event + one verdict for the single successful retry
+	if strings.Count(string(body), "stable-shared-stop") != 1 {
+		// Stop only persists one completion; review is deferred and must not
+		// synchronously append a verdict while the host is in its 5s hook.
 		t.Fatalf("unexpected retry journal multiplicity:\n%s", body)
+	}
+	pending, err := pendingSharedLearningReviewRuns(product)
+	if err != nil || len(pending) != 1 || pending[0] != "stable-shared-stop" {
+		t.Fatalf("deferred completion not resumable: pending=%v err=%v", pending, err)
 	}
 }
 

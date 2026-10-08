@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"os"
 	"os/exec"
 	"strings"
@@ -28,6 +29,11 @@ func startSharedLearningReviewBatchProcess(jobs []sharedDeferredReviewJob) error
 		if strings.TrimSpace(job.Product) == "" || strings.TrimSpace(job.RunID) == "" {
 			return errors.New("deferred review requires product and run_id")
 		}
+	}
+	// Tests exercise the hook inline; never detach a copy of go test's
+	// own executable. A separate built CLI integration test covers dispatch.
+	if flag.Lookup("test.v") != nil {
+		return nil
 	}
 	b, err := json.Marshal(jobs)
 	if err != nil {
