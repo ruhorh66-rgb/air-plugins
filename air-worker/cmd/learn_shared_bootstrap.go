@@ -389,6 +389,69 @@ func verifySharedBootstrapMigration(product string, s sharedLearningSettings, ru
 	return nil
 }
 
+func verifySharedBootstrapManagedState(product string, s sharedLearningSettings, rule sharedLearningBootstrapRule) error {
+	var migration map[string]any
+	var latest map[string]any
+	err := scanLearnJSONL(filepath.Join(s.RuntimeRoot, "ledger.jsonl"), func(raw []byte) error {
+		var row map[string]any
+		if err := json.Unmarshal(raw, &row); err != nil {
+			return err
+		}
+		kind, _ := row["kind"].(string)
+		target, _ := row["target"].(string)
+		if kind != "procedure" || !strings.EqualFold(filepath.ToSlash(strings.TrimSpace(target)), filepath.ToSlash(rule.Target)) {
+			return nil
+		}
+		latest = row
+		proposalID, _ := row["proposal_id"].(string)
+		status, _ := row["status"].(string)
+		postSHA, _ := row["post_sha256"].(string)
+		if proposalID == rule.MigrationProposalID && status == "applied" && strings.EqualFold(postSHA, rule.ProcedureSHA256) {
+			migration = row
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if migration == nil {
+		return fmt.Errorf("shared migration provenance missing: %s", rule.MigrationProposalID)
+	}
+	if latest == nil {
+		return fmt.Errorf("shared managed procedure ledger missing: %s", rule.Target)
+	}
+	status, _ := latest["status"].(string)
+	if status != "applied" && status != "rolled_back" {
+		return fmt.Errorf("shared managed procedure has unsupported terminal status %q: %s", status, rule.Target)
+	}
+	afterExists, ok := latest["after_exists"].(bool)
+	if !ok {
+		return fmt.Errorf("shared managed procedure ledger lacks after_exists: %s", rule.Target)
+	}
+	expectedSHA, _ := latest["post_sha256"].(string)
+	targetPath := filepath.Join(product, filepath.FromSlash(rule.Target))
+	body, readErr := os.ReadFile(targetPath)
+	if !afterExists {
+		if !errors.Is(readErr, os.ErrNotExist) {
+			if readErr == nil {
+				return fmt.Errorf("rolled-back managed procedure unexpectedly exists: %s", rule.Target)
+			}
+			return readErr
+		}
+		if strings.TrimSpace(expectedSHA) != "" {
+			return fmt.Errorf("rolled-back managed procedure has non-empty post SHA: %s", rule.Target)
+		}
+		return nil
+	}
+	if readErr != nil {
+		return readErr
+	}
+	if !validLearningProcedureMarkdown(string(body)) || !strings.EqualFold(learnSHA(body), expectedSHA) {
+		return fmt.Errorf("managed procedure does not match latest ledger state: %s", rule.Target)
+	}
+	return nil
+}
+
 func verifySharedBootstrapState(product string, s sharedLearningSettings, intent sharedLearningBootstrapIntent) error {
 	if err := validateSharedLearningBootstrapIntent(intent, s.RuntimeRoot); err != nil {
 		return err
@@ -400,7 +463,7 @@ func verifySharedBootstrapState(product string, s sharedLearningSettings, intent
 		if _, _, err := sharedBootstrapLegacyRule(product, rule); err != nil {
 			return err
 		}
-		if err := verifySharedBootstrapMigration(product, s, rule); err != nil {
+		if err := verifySharedBootstrapManagedState(product, s, rule); err != nil {
 			return err
 		}
 	}
@@ -458,9 +521,11 @@ func verifySharedBootstrapLegacyOverlap(product string, intent sharedLearningBoo
 	return nil
 }
 
-// allowSharedLearningBootstrapLegacy permits only the narrow crash-recovery window
-// after the selector is durably published and before every exact legacy source was
-// moved to its provenance archive. Any extra/mutated rule still fails closed.
+// allowSharedLearningBootstrapLegacy permits only exact Git seed rules covered by
+// the immutable bootstrap intent. Shared mode remains the sole active writer: seeds
+// are read-only provenance for fresh-runtime reconstruction, while current managed
+// procedure bytes are validated against the latest ledger state. Any extra or mutated
+// seed still fails closed.
 func allowSharedLearningBootstrapLegacy(product string, s sharedLearningSettings) error {
 	intent, found, err := readSharedLearningBootstrapIntent(s.RuntimeRoot)
 	if err != nil || !found {

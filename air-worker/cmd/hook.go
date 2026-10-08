@@ -121,9 +121,10 @@ type hookInput struct {
 // hookResult — решение обработчика. Reason годится и для stderr харнесса, и для следа —
 // один текст на оба места, а не два формулирования одной причины.
 type hookResult struct {
-	Block   bool
-	Reason  string
-	Context string
+	Block        bool
+	Reason       string
+	Context      string
+	LoadedSkills []sharedLearningCatalogSkill
 }
 
 // hookHandler — обработчик одного события. Ошибка ИЛИ паника здесь — это «решение получить

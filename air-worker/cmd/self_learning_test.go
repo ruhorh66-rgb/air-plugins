@@ -227,6 +227,38 @@ func TestAirWorkerSelfLearningMalformedSelectorIsNotTreatedAsAbsent(t *testing.T
 	}
 }
 
+func TestAirWorkerSelfLearningSelectorRequiresUniqueExplicitEnabled(t *testing.T) {
+	base := airWorkerSelfLearningSelector{
+		Schema: airWorkerSelfLearningSchema, Enabled: true,
+		ProductRoot: t.TempDir(), ProductID: "air-worker", RuntimeRoot: t.TempDir(),
+		ConfigSHA256: strings.Repeat("a", 64), UpdatedAt: "2026-10-08T00:00:00Z",
+	}
+	raw, err := json.MarshalIndent(base, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	delete(doc, "enabled")
+	missing, _ := json.Marshal(doc)
+	nullEnabled := []byte(strings.Replace(string(raw), `"enabled": true`, `"enabled": null`, 1))
+	duplicate := []byte(strings.Replace(string(raw), `"enabled": true`, `"enabled": true, "enabled": false`, 1))
+	for name, candidate := range map[string][]byte{
+		"missing": missing, "null": nullEnabled, "duplicate": duplicate,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := decodeAirWorkerSelfLearningSelector(candidate); err == nil {
+				t.Fatalf("%s enabled selector was accepted: %s", name, candidate)
+			}
+		})
+	}
+	if got, err := decodeAirWorkerSelfLearningSelector(raw); err != nil || !got.Enabled {
+		t.Fatalf("valid explicit enabled selector rejected: %+v %v", got, err)
+	}
+}
+
 func TestAirWorkerSelfLearningStopRunsBesideTargetOwner(t *testing.T) {
 	selfProduct, selfSettings, stateDir := selfLearningFixture(t)
 	targetProduct, targetSettings := sharedProductFixture(t, false)

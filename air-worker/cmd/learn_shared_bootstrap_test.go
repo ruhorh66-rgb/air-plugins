@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -109,6 +111,119 @@ func TestInitSharedLearningRehydratesPackagedManagedProcedure(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(product, "learn", "rules", "LP-packaged-operational.json")); err != nil {
 		t.Fatalf("Git seed rule lost during rehydrate: %v", err)
+	}
+}
+
+func gitFixture(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v %s", args, err, out)
+	}
+}
+
+func TestLearnedProceduresCheckoutLFWithAutoCRLF(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git unavailable")
+	}
+	repo := t.TempDir()
+	gitFixture(t, repo, "init")
+	gitFixture(t, repo, "config", "user.email", "fixture@example.invalid")
+	gitFixture(t, repo, "config", "user.name", "fixture")
+	attrs, err := os.ReadFile(filepath.Join("..", ".gitattributes"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, ".gitattributes"), attrs, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(repo, "skills", "learned", "fixture.md")
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	lf := []byte(`# Fixture
+
+## When to apply
+Always.
+
+## Procedure
+1. Check.
+
+## Pitfalls
+None.
+`)
+	if err := os.WriteFile(target, lf, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitFixture(t, repo, "add", ".")
+	gitFixture(t, repo, "commit", "-m", "fixture")
+	if err := os.Remove(target); err != nil {
+		t.Fatal(err)
+	}
+	gitFixture(t, repo, "-c", "core.autocrlf=true", "checkout", "--", "skills/learned/fixture.md")
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(got, []byte{'\r', '\n'}) || !bytes.Equal(got, lf) {
+		t.Fatalf("learned procedure checkout changed LF bytes: %q", got)
+	}
+}
+
+func TestSharedBootstrapSeedAllowsManagedUpdateAndRollback(t *testing.T) {
+	product := filepath.Join(t.TempDir(), "product")
+	if err := os.MkdirAll(product, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeLegacyOperationalRule(t, product, "LP-seed-evolution", "execution-unknown-no-blind-retry", "operational-procedure-v1")
+	runtimeRoot := filepath.Join(t.TempDir(), "runtime")
+	if _, err := initSharedLearning(product, runtimeRoot, "air-worker-test"); err != nil {
+		t.Fatal(err)
+	}
+	s, on, err := readSharedLearningSettings(product)
+	if err != nil || !on {
+		t.Fatalf("shared settings after init: on=%v err=%v", on, err)
+	}
+	intent, found, err := readSharedLearningBootstrapIntent(runtimeRoot)
+	if err != nil || !found || len(intent.Rules) != 1 {
+		t.Fatalf("bootstrap intent missing: %+v found=%v err=%v", intent, found, err)
+	}
+	target := intent.Rules[0].Target
+	before, err := os.ReadFile(filepath.Join(product, filepath.FromSlash(target)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated := `# Updated execution reconciliation
+
+## When to apply
+When execution state is ambiguous.
+
+## Procedure
+1. Correlate the original operation with machine evidence before retrying.
+
+## Pitfalls
+Do not use unrelated diagnostics as proof.
+`
+	res, err := executeSharedLearning(product, s, "propose", map[string]string{
+		"proposal_id": "LP-seed-update",
+		"kind":        "procedure",
+		"target":      target,
+		"pre_sha256":  learnSHA(before),
+		"content":     updated,
+	})
+	if err != nil || res.Status != "applied" {
+		t.Fatalf("managed update failed: %+v %v", res, err)
+	}
+	if _, on, err := readSharedLearningSettings(product); err != nil || !on {
+		t.Fatalf("seed overlap rejected supported update: on=%v err=%v", on, err)
+	}
+	res, err = executeSharedLearning(product, s, "rollback", map[string]string{"proposal_id": "LP-seed-update"})
+	if err != nil || res.Status != "rolled_back" {
+		t.Fatalf("managed rollback failed: %+v %v", res, err)
+	}
+	if _, on, err := readSharedLearningSettings(product); err != nil || !on {
+		t.Fatalf("seed overlap rejected supported rollback: on=%v err=%v", on, err)
 	}
 }
 

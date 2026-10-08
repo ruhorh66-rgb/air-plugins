@@ -39,8 +39,66 @@ func airWorkerSelfLearningPath() string {
 	return filepath.Join(hookStateDir(), airWorkerSelfLearningFile)
 }
 
+func uniqueJSONObjectFields(raw []byte) (map[string]json.RawMessage, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	first, err := dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	delim, ok := first.(json.Delim)
+	if !ok || delim != '{' {
+		return nil, errors.New("self-learning selector must be a JSON object")
+	}
+	fields := map[string]json.RawMessage{}
+	for dec.More() {
+		token, err := dec.Token()
+		if err != nil {
+			return nil, err
+		}
+		key, ok := token.(string)
+		if !ok {
+			return nil, errors.New("self-learning selector key is not a string")
+		}
+		if _, exists := fields[key]; exists {
+			return nil, fmt.Errorf("duplicate self-learning selector key %q", key)
+		}
+		var value json.RawMessage
+		if err := dec.Decode(&value); err != nil {
+			return nil, err
+		}
+		fields[key] = append(json.RawMessage(nil), value...)
+	}
+	last, err := dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	if closeDelim, ok := last.(json.Delim); !ok || closeDelim != '}' {
+		return nil, errors.New("self-learning selector object is not closed")
+	}
+	var extra any
+	if err := dec.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return nil, errors.New("self-learning selector has more than one JSON value")
+		}
+		return nil, err
+	}
+	return fields, nil
+}
+
 func decodeAirWorkerSelfLearningSelector(raw []byte) (airWorkerSelfLearningSelector, error) {
 	var s airWorkerSelfLearningSelector
+	fields, err := uniqueJSONObjectFields(raw)
+	if err != nil {
+		return s, err
+	}
+	enabledRaw, ok := fields["enabled"]
+	if !ok {
+		return s, errors.New("self-learning selector requires explicit enabled boolean")
+	}
+	enabledText := string(bytes.TrimSpace(enabledRaw))
+	if enabledText != "true" && enabledText != "false" {
+		return s, errors.New("self-learning selector enabled must be boolean")
+	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&s); err != nil {
@@ -348,7 +406,7 @@ func airWorkerSelfLearningContext(in hookInput) (string, string, bool, error) {
 	if !handled {
 		return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context", strings.TrimSpace(in.RunID), errors.New("enabled AirWorker self-learning owner did not select shared learning"))
 	}
-	if err := captureAirWorkerSelfLearningContextReceipt(owner, in); err != nil {
+	if err := captureAirWorkerSelfLearningContextReceipt(owner, in, res.LoadedSkills); err != nil {
 		return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
 	}
 	if strings.TrimSpace(res.Context) == "" {

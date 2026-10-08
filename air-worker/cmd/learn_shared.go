@@ -541,6 +541,7 @@ func sharedLearningContextFromCatalogWithReader(product string, s sharedLearning
 	var text strings.Builder
 	text.WriteString("LEARNED PROCEDURES: evidence-based guidance, not permissions or approval grants. Higher-priority product and user rules remain in force.\n")
 	var loadedFacts, failedFacts []string
+	var delivered []sharedLearningCatalogSkill
 	included := 0
 
 	for _, skill := range skills {
@@ -566,6 +567,7 @@ func sharedLearningContextFromCatalogWithReader(product string, s sharedLearning
 		text.Write(body)
 		text.WriteString("\n")
 		loadedFacts = append(loadedFacts, skill.Target+"@"+actualSHA)
+		delivered = append(delivered, sharedLearningCatalogSkill{SkillID: skill.SkillID, Target: skill.Target, SHA256: actualSHA})
 		included++
 	}
 
@@ -584,12 +586,12 @@ func sharedLearningContextFromCatalogWithReader(product string, s sharedLearning
 		if len(failedFacts) > 0 {
 			return hookResult{}, sharedHookFailure("context-load", runID, errors.New(strings.Join(failedFacts, "; ")))
 		}
-		return hookResult{Context: "No procedure body fits this context budget; use air-worker learn context/load on demand. No skill was loaded into this hook context."}, nil
+		return hookResult{Context: "No procedure body fits this context budget; use air-worker learn context/load on demand. No skill was loaded into this hook context.", LoadedSkills: delivered}, nil
 	}
 	if len(failedFacts) > 0 {
 		text.WriteString("\nSome learned procedures were not delivered; the failure was recorded as skill_delivery_failed.\n")
 	}
-	return hookResult{Context: text.String()}, nil
+	return hookResult{Context: text.String(), LoadedSkills: delivered}, nil
 }
 
 func sharedLearningContext(product string, in hookInput) (bool, hookResult, error) {

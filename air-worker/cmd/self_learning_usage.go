@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -40,19 +41,27 @@ type selfLearningContextReceipt struct {
 }
 
 type selfLearningTriggerReceipt struct {
-	Schema         string                 `json:"schema"`
-	Principal      string                 `json:"principal"`
-	Session        string                 `json:"session"`
-	RunID          string                 `json:"run_id"`
-	Kind           string                 `json:"kind"`
-	Rule           selfLearningLoadedRule `json:"rule"`
-	ToolName       string                 `json:"tool_name"`
-	ToolInputSHA   string                 `json:"tool_input_sha256,omitempty"`
-	ResponseSHA    string                 `json:"tool_response_sha256"`
-	CreatedAt      string                 `json:"created_at"`
-	ConsumedAt     string                 `json:"consumed_at,omitempty"`
-	OutcomeRef     string                 `json:"outcome_ref,omitempty"`
-	DiagnosticTool string                 `json:"diagnostic_tool,omitempty"`
+	Schema             string                 `json:"schema"`
+	Principal          string                 `json:"principal"`
+	Session            string                 `json:"session"`
+	RunID              string                 `json:"run_id"`
+	Kind               string                 `json:"kind"`
+	Rule               selfLearningLoadedRule `json:"rule"`
+	ToolName           string                 `json:"tool_name"`
+	ToolInputSHA       string                 `json:"tool_input_sha256,omitempty"`
+	OperationKey       string                 `json:"operation_key,omitempty"`
+	Node               string                 `json:"node,omitempty"`
+	ProcessIDs         []int64                `json:"process_ids,omitempty"`
+	RequestIDs         []string               `json:"request_ids,omitempty"`
+	ArtifactPathSHA256 []string               `json:"artifact_path_sha256,omitempty"`
+	ResponseSHA        string                 `json:"tool_response_sha256"`
+	CreatedAt          string                 `json:"created_at"`
+	ConsumedAt         string                 `json:"consumed_at,omitempty"`
+	InvalidatedAt      string                 `json:"invalidated_at,omitempty"`
+	InvalidationReason string                 `json:"invalidation_reason,omitempty"`
+	OutcomeRef         string                 `json:"outcome_ref,omitempty"`
+	DiagnosticTool     string                 `json:"diagnostic_tool,omitempty"`
+	DiagnosticEvidence string                 `json:"diagnostic_evidence,omitempty"`
 }
 
 func selfLearningRunID(in hookInput) string {
@@ -160,39 +169,29 @@ func loadedRulesFromObserved(observed string) []selfLearningLoadedRule {
 	return out
 }
 
-func captureAirWorkerSelfLearningContextReceipt(owner selfLearningOwner, in hookInput) error {
-	res, err := executeSharedLearning(owner.Selector.ProductRoot, owner.Settings, "events", map[string]string{"source": "host-context"})
-	if err != nil {
-		return err
-	}
-	var rows []map[string]any
-	if err := json.Unmarshal(res.Data, &rows); err != nil {
-		return err
-	}
-	baseRun := selfLearningRunID(in)
-	prefix := baseRun + ":context-loaded:context:"
-	byID := map[string]selfLearningLoadedRule{}
-	for _, row := range rows {
-		kind, _ := row["kind"].(string)
-		runID, _ := row["run_id"].(string)
-		session, _ := row["session"].(string)
-		if kind != "skill_loaded" || session != in.SessionID || !strings.HasPrefix(runID, prefix) {
-			continue
+func captureAirWorkerSelfLearningContextReceipt(owner selfLearningOwner, in hookInput, skills []sharedLearningCatalogSkill) error {
+	byTarget := map[string]selfLearningLoadedRule{}
+	for _, skill := range skills {
+		target := strings.TrimSpace(skill.Target)
+		sha := strings.ToLower(strings.TrimSpace(skill.SHA256))
+		if target == "" || len(sha) != 64 {
+			return errors.New("current self-learning delivery has invalid target/SHA identity")
 		}
-		observed, _ := row["observed"].(string)
-		for _, rule := range loadedRulesFromObserved(observed) {
-			byID[strings.ToLower(rule.Target)+"@"+rule.SHA256] = rule
+		if _, err := hex.DecodeString(sha); err != nil {
+			return errors.New("current self-learning delivery has invalid SHA")
 		}
+		key := strings.ToLower(filepath.ToSlash(target))
+		if previous, exists := byTarget[key]; exists && !strings.EqualFold(previous.SHA256, sha) {
+			return fmt.Errorf("current self-learning delivery contains multiple SHAs for %s", target)
+		}
+		byTarget[key] = selfLearningLoadedRule{Target: target, SHA256: sha}
 	}
-	loaded := make([]selfLearningLoadedRule, 0, len(byID))
-	for _, rule := range byID {
+	loaded := make([]selfLearningLoadedRule, 0, len(byTarget))
+	for _, rule := range byTarget {
 		loaded = append(loaded, rule)
 	}
 	sort.Slice(loaded, func(i, j int) bool {
-		if loaded[i].Target == loaded[j].Target {
-			return loaded[i].SHA256 < loaded[j].SHA256
-		}
-		return loaded[i].Target < loaded[j].Target
+		return strings.ToLower(filepath.ToSlash(loaded[i].Target)) < strings.ToLower(filepath.ToSlash(loaded[j].Target))
 	})
 	path, err := selfLearningContextReceiptPath(in)
 	if err != nil {
@@ -200,16 +199,12 @@ func captureAirWorkerSelfLearningContextReceipt(owner selfLearningOwner, in hook
 	}
 	rec := selfLearningContextReceipt{
 		Schema: selfLearningContextReceiptSchema, Principal: hookPrincipal(in), Session: in.SessionID,
-		RunID: baseRun, ProductRoot: owner.Selector.ProductRoot, RuntimeRoot: owner.Settings.RuntimeRoot,
+		RunID: selfLearningRunID(in), ProductRoot: owner.Selector.ProductRoot, RuntimeRoot: owner.Settings.RuntimeRoot,
 		Loaded: loaded, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
-	if previous, _, found, readErr := readSelfLearningContextReceipt(in); readErr == nil && found {
-		rec.UsedAt = previous.UsedAt
-		rec.UsedRuleID = previous.UsedRuleID
-		rec.Outcome = previous.Outcome
-		rec.OutcomeRef = previous.OutcomeRef
-		rec.ObservedTool = previous.ObservedTool
-	}
+	// This file is the exact CURRENT delivery snapshot for the run. Never carry
+	// used/outcome fields across a later context refresh; durable historical use
+	// remains in the shared module event journal.
 	return writeSelfLearningContextReceipt(path, rec)
 }
 
@@ -269,11 +264,229 @@ func numericExitCode(v any) (int64, bool) {
 	}
 }
 
+var processIDPattern = regexp.MustCompile(`(?i)\b(?:pid|process[_ ]?id)\s*[:=#]?\s*(\d+)\b`)
+
+func decodeJSONValue(raw []byte) (any, error) {
+	if len(raw) == 0 || !json.Valid(raw) {
+		return nil, errors.New("invalid JSON")
+	}
+	dec := json.NewDecoder(strings.NewReader(string(raw)))
+	dec.UseNumber()
+	var value any
+	if err := dec.Decode(&value); err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+func toolInputObject(raw json.RawMessage) map[string]any {
+	value, err := decodeJSONValue(raw)
+	if err != nil {
+		return nil
+	}
+	obj, _ := value.(map[string]any)
+	return obj
+}
+
+func startProcessOperationIdentity(raw json.RawMessage) (key, node string) {
+	obj := toolInputObject(raw)
+	if obj == nil {
+		return "", ""
+	}
+	node, _ = obj["node"].(string)
+	command, _ := obj["command"].(string)
+	shell, _ := obj["shell"].(string)
+	node = strings.TrimSpace(node)
+	command = strings.TrimSpace(command)
+	shell = strings.TrimSpace(shell)
+	if command == "" {
+		return "", node
+	}
+	canonical, _ := json.Marshal(map[string]string{
+		"node": strings.ToLower(node), "command": command, "shell": strings.ToLower(shell),
+	})
+	return learnSHA(canonical), node
+}
+
+func normalizedEvidencePathHash(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || !filepath.IsAbs(value) {
+		return ""
+	}
+	return learnSHA([]byte(strings.ToLower(filepath.ToSlash(filepath.Clean(value)))))
+}
+
+func collectCorrelationRefs(value any, pids map[int64]bool, requests map[string]bool, paths map[string]bool) {
+	switch x := value.(type) {
+	case map[string]any:
+		for key, item := range x {
+			low := strings.ToLower(strings.TrimSpace(key))
+			switch low {
+			case "pid", "process_id", "processid":
+				if pid, ok := numericExitCode(item); ok && pid > 0 {
+					pids[pid] = true
+				}
+			case "request_id", "requestid":
+				if text, ok := item.(string); ok && strings.TrimSpace(text) != "" {
+					requests[strings.TrimSpace(text)] = true
+				}
+			case "path", "file", "file_path", "artifact", "artifact_path", "receipt", "receipt_path", "output_path":
+				if text, ok := item.(string); ok {
+					if digest := normalizedEvidencePathHash(text); digest != "" {
+						paths[digest] = true
+					}
+				}
+			}
+			collectCorrelationRefs(item, pids, requests, paths)
+		}
+	case []any:
+		for _, item := range x {
+			collectCorrelationRefs(item, pids, requests, paths)
+		}
+	case string:
+		for _, match := range processIDPattern.FindAllStringSubmatch(x, -1) {
+			if len(match) == 2 {
+				if pid, err := strconv.ParseInt(match[1], 10, 64); err == nil && pid > 0 {
+					pids[pid] = true
+				}
+			}
+		}
+	}
+}
+
+func correlationRefs(raw []byte) ([]int64, []string, []string) {
+	value, err := decodeJSONValue(raw)
+	if err != nil {
+		return nil, nil, nil
+	}
+	pidSet := map[int64]bool{}
+	requestSet := map[string]bool{}
+	pathSet := map[string]bool{}
+	collectCorrelationRefs(value, pidSet, requestSet, pathSet)
+	pids := make([]int64, 0, len(pidSet))
+	for pid := range pidSet {
+		pids = append(pids, pid)
+	}
+	sort.Slice(pids, func(i, j int) bool { return pids[i] < pids[j] })
+	requests := make([]string, 0, len(requestSet))
+	for request := range requestSet {
+		requests = append(requests, request)
+	}
+	sort.Strings(requests)
+	paths := make([]string, 0, len(pathSet))
+	for digest := range pathSet {
+		paths = append(paths, digest)
+	}
+	sort.Strings(paths)
+	return pids, requests, paths
+}
+
+func sameStringFold(list []string, value string) bool {
+	for _, item := range list {
+		if strings.EqualFold(item, value) {
+			return true
+		}
+	}
+	return false
+}
+
+func sameInt64(list []int64, value int64) bool {
+	for _, item := range list {
+		if item == value {
+			return true
+		}
+	}
+	return false
+}
+
+func toolInputPaths(obj map[string]any) []string {
+	if obj == nil {
+		return nil
+	}
+	var out []string
+	for _, key := range []string{"path", "file", "file_path", "artifact", "artifact_path", "receipt", "receipt_path", "output_path"} {
+		if value, ok := obj[key].(string); ok {
+			if digest := normalizedEvidencePathHash(value); digest != "" {
+				out = append(out, digest)
+			}
+		}
+	}
+	if values, ok := obj["paths"].([]any); ok {
+		for _, value := range values {
+			if text, ok := value.(string); ok {
+				if digest := normalizedEvidencePathHash(text); digest != "" {
+					out = append(out, digest)
+				}
+			}
+		}
+	}
+	return out
+}
+
+func correlatedExecutionUnknownDiagnostic(in hookInput, trigger selfLearningTriggerReceipt) (string, bool) {
+	obj := toolInputObject(in.ToolInput)
+	if obj == nil {
+		return "", false
+	}
+	node, _ := obj["node"].(string)
+	if strings.TrimSpace(trigger.Node) == "" || !strings.EqualFold(strings.TrimSpace(node), strings.TrimSpace(trigger.Node)) {
+		return "", false
+	}
+	lowTool := strings.ToLower(strings.TrimSpace(in.ToolName))
+	if strings.Contains(lowTool, "read_process_output") {
+		pid, ok := numericExitCode(obj["pid"])
+		if !ok || !sameInt64(trigger.ProcessIDs, pid) {
+			return "", false
+		}
+		return fmt.Sprintf("node=%s pid=%d", trigger.Node, pid), true
+	}
+	for _, token := range []string{"get_file_info", "read_file", "read_multiple_files", "list_directory"} {
+		if !strings.Contains(lowTool, token) {
+			continue
+		}
+		for _, digest := range toolInputPaths(obj) {
+			if sameStringFold(trigger.ArtifactPathSHA256, digest) {
+				return "node=" + trigger.Node + " artifact_sha256=" + digest, true
+			}
+		}
+		return "", false
+	}
+	return "", false
+}
+
+func observableTextOutcome(text string) (bool, bool) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return false, false
+	}
+	low := strings.ToLower(text)
+	for _, token := range []string{
+		"execution_unknown", "access denied", "permission denied", "target_offline",
+		"target_timeout", "timed out", "timeout", " failed", "error:",
+	} {
+		if strings.Contains(low, token) {
+			return false, true
+		}
+	}
+	if strings.Contains(low, "process completed with exit code 0") ||
+		strings.Contains(low, "\"status\":\"online\"") ||
+		strings.Contains(low, "\"status\": \"online\"") {
+		return true, true
+	}
+	return false, false
+}
+
 func observableToolSuccessValue(v any) (bool, bool) {
 	switch x := v.(type) {
 	case map[string]any:
-		if flag, ok := x["is_error"].(bool); ok {
-			return !flag, true
+		explicitNoError := false
+		for _, key := range []string{"isError", "is_error"} {
+			if flag, ok := x[key].(bool); ok {
+				if flag {
+					return false, true
+				}
+				explicitNoError = true
+			}
 		}
 		if value, ok := x["error"]; ok && value != nil {
 			if s, isString := value.(string); !isString || strings.TrimSpace(s) != "" {
@@ -291,59 +504,56 @@ func observableToolSuccessValue(v any) (bool, bool) {
 			switch strings.ToLower(strings.TrimSpace(status)) {
 			case "ok", "success", "passed", "pass", "online", "completed", "ready", "recorded":
 				return true, true
-			case "error", "failed", "fail", "offline", "blocked":
+			case "error", "failed", "fail", "offline", "blocked", "timeout":
 				return false, true
 			}
 		}
-		for _, key := range []string{"result", "data", "content", "output", "text"} {
+		knownSuccess := false
+		for _, key := range []string{"result", "data", "content", "output", "text", "nodes", "results", "files"} {
 			if value, ok := x[key]; ok {
 				if success, known := observableToolSuccessValue(value); known {
-					return success, true
+					if !success {
+						return false, true
+					}
+					knownSuccess = true
 				}
 			}
 		}
-		for _, key := range []string{"nodes", "results", "files"} {
-			if value, ok := x[key]; ok {
-				if arr, ok := value.([]any); ok {
-					return len(arr) > 0, true
-				}
-			}
+		if knownSuccess {
+			return true, true
+		}
+		if explicitNoError {
+			return true, true
 		}
 	case []any:
-		if len(x) > 0 {
+		knownSuccess := false
+		for _, item := range x {
+			success, known := observableToolSuccessValue(item)
+			if !known {
+				continue
+			}
+			if !success {
+				return false, true
+			}
+			knownSuccess = true
+		}
+		if knownSuccess {
 			return true, true
 		}
 	case string:
-		text := strings.TrimSpace(x)
-		if text == "" {
-			return false, false
-		}
-		upper := strings.ToUpper(text)
-		if strings.Contains(upper, "EXECUTION_UNKNOWN") {
-			return false, true
-		}
-		if strings.Contains(strings.ToLower(text), "process completed with exit code 0") ||
-			strings.Contains(strings.ToLower(text), "\"status\":\"online\"") {
-			return true, true
-		}
+		return observableTextOutcome(x)
 	}
 	return false, false
 }
 
 func observableToolSuccess(raw []byte) bool {
-	if len(raw) == 0 || !json.Valid(raw) {
-		return false
-	}
-	dec := json.NewDecoder(strings.NewReader(string(raw)))
-	dec.UseNumber()
-	var value any
-	if dec.Decode(&value) != nil {
+	value, err := decodeJSONValue(raw)
+	if err != nil {
 		return false
 	}
 	success, known := observableToolSuccessValue(value)
 	return known && success
 }
-
 func writeSelfLearningTriggerReceipt(path string, rec selfLearningTriggerReceipt) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
@@ -399,39 +609,60 @@ func handlePostToolUseSelfLearning(in hookInput) (hookResult, error) {
 	if err != nil {
 		return hookResult{}, err
 	}
-	if startProcessTool(in.ToolName) && executionUnknownResponse(rawResponse) {
-		trigger := selfLearningTriggerReceipt{
-			Schema: selfLearningTriggerReceiptSchema, Principal: hookPrincipal(in), Session: in.SessionID,
-			RunID: selfLearningRunID(in), Kind: "execution_unknown", Rule: rule, ToolName: in.ToolName,
-			ToolInputSHA: learnSHA(in.ToolInput), ResponseSHA: learnSHA(rawResponse),
-			CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
-		}
-		if err := writeSelfLearningTriggerReceipt(triggerPath, trigger); err != nil {
-			return hookResult{}, err
-		}
-		return hookResult{}, nil
-	}
-
 	trigger, _, triggerFound, err := readSelfLearningTriggerReceipt(in)
 	if err != nil {
 		return hookResult{}, err
 	}
-	if !triggerFound || trigger.ConsumedAt != "" || trigger.Kind != "execution_unknown" || trigger.RunID != selfLearningRunID(in) {
+
+	if startProcessTool(in.ToolName) {
+		opKey, node := startProcessOperationIdentity(in.ToolInput)
+		if triggerFound && trigger.ConsumedAt == "" && trigger.InvalidatedAt == "" &&
+			opKey != "" && trigger.OperationKey == opKey {
+			trigger.InvalidatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+			trigger.InvalidationReason = "same start_process operation was retried before correlated diagnostic evidence"
+			if err := writeSelfLearningTriggerReceipt(triggerPath, trigger); err != nil {
+				return hookResult{}, err
+			}
+			return hookResult{}, nil
+		}
+		if executionUnknownResponse(rawResponse) && !triggerFound {
+			pids, requestIDs, paths := correlationRefs(rawResponse)
+			trigger = selfLearningTriggerReceipt{
+				Schema: selfLearningTriggerReceiptSchema, Principal: hookPrincipal(in), Session: in.SessionID,
+				RunID: selfLearningRunID(in), Kind: "execution_unknown", Rule: rule, ToolName: in.ToolName,
+				ToolInputSHA: learnSHA(in.ToolInput), OperationKey: opKey, Node: node,
+				ProcessIDs: pids, RequestIDs: requestIDs, ArtifactPathSHA256: paths,
+				ResponseSHA: learnSHA(rawResponse), CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+			}
+			if err := writeSelfLearningTriggerReceipt(triggerPath, trigger); err != nil {
+				return hookResult{}, err
+			}
+		}
 		return hookResult{}, nil
 	}
-	if !executionUnknownDiagnosticTool(in.ToolName) || !observableToolSuccess(rawResponse) {
+
+	if !triggerFound || trigger.ConsumedAt != "" || trigger.InvalidatedAt != "" ||
+		trigger.Kind != "execution_unknown" || trigger.RunID != selfLearningRunID(in) {
 		return hookResult{}, nil
 	}
 	if trigger.Rule.Target != rule.Target || !strings.EqualFold(trigger.Rule.SHA256, rule.SHA256) {
-		return hookResult{}, errors.New("self-learning trigger rule does not match the exact loaded rule")
+		return hookResult{}, errors.New("self-learning trigger rule does not match the exact current loaded rule")
 	}
+	if !observableToolSuccess(rawResponse) {
+		return hookResult{}, nil
+	}
+	correlation, ok := correlatedExecutionUnknownDiagnostic(in, trigger)
+	if !ok {
+		return hookResult{}, nil
+	}
+
 	responseSHA := learnSHA(rawResponse)
 	outcomeRef := filepath.ToSlash(contextPath) + "#tool_response_sha256=" + responseSHA
 	ruleID := rule.Target + "@" + strings.ToLower(rule.SHA256)
-	usageRunID := selfLearningRunID(in) + ":used:" + learnSHA([]byte(trigger.CreatedAt + "\n" + in.ToolName + "\n" + responseSHA))[:20]
+	usageRunID := selfLearningRunID(in) + ":used:" + learnSHA([]byte(trigger.CreatedAt + "\n" + in.ToolName + "\n" + correlation + "\n" + responseSHA))[:20]
 	res, err := executeSharedLearning(owner.Selector.ProductRoot, owner.Settings, "observe", map[string]string{
 		"run_id": usageRunID, "kind": "procedure_used",
-		"observed": "After EXECUTION_UNKNOWN, a diagnostic tool completed before any repeated start was accepted.",
+		"observed": "After EXECUTION_UNKNOWN, correlated machine evidence was inspected before any retry of the same operation.",
 		"class":    "execution-unknown-no-blind-retry", "source": "host-post-tool",
 		"principal": hookPrincipal(in), "session": in.SessionID,
 		"rule_id": ruleID, "outcome": "pass", "outcome_ref": outcomeRef,
@@ -454,6 +685,7 @@ func handlePostToolUseSelfLearning(in hookInput) (hookResult, error) {
 	trigger.ConsumedAt = now
 	trigger.OutcomeRef = outcomeRef
 	trigger.DiagnosticTool = in.ToolName
+	trigger.DiagnosticEvidence = correlation
 	if err := writeSelfLearningTriggerReceipt(triggerPath, trigger); err != nil {
 		return hookResult{}, err
 	}
