@@ -69,6 +69,18 @@
 
 По стандарту `AIR_PRODUCT_DEVELOPMENT_PLAN`: этот план — единственное место для хвостов, дефектов и решений. В переписке они не остаются.
 
+### Текущая authority после восстановления F: — 08.10.2026
+
+Текущий установленный выпуск — **AirWorker 0.11.8**. Единственная активная разработка следующего продукта — **AirWorker 0.11.9** в этой ветке и в нити N-071. Все описания релизов 0.10.x и старые формулы «следующий выпуск/следующий шаг» ниже сохранены как история и **не задают исполняемый порядок 08.10.2026**.
+
+Текущий порядок один:
+1. **N-072 recovery foundation.** N-074 (product vault) и N-075 (shared-module source) уже закрыты по квитанциям. N-072 остаётся открытым umbrella только потому, что его исходный `done_when` включает завершение P0; это не блокирует следующий пункт.
+2. **N-073 → N-076 — срочный P0 собственного self-learning AirWorker.** Это текущая исполняемая работа. AirWorker обязан иметь постоянный self-owner/runtime независимо от продукта, который он разрабатывает.
+3. **N-070 — только выпуск reusable `air-modules/learning 0.1.0`.** Это module-only подзадача N-071 после P0; она не является вторым релизом AirWorker и не дублирует интеграционную работу N-071.
+4. **N-071 — интегрированный AirWorker 0.11.9.** После P0 и N-070 он обновляет pin потребителя, документацию/возможности, закрывает релевантный долг, строит exact candidate и проходит полную приёмку. Tag/GitHub Release/marketplace/live install — отдельные точные гейты ЛПР.
+
+Recovery-path и история WIP зафиксированы N-072; повреждённые restored checkout не становятся authority только из-за наличия на F:. Активные source/vault/module пути берутся из закрытых N-074/N-075 и их receipts.
+
 - **Выпущено:** 0.10.9 DevSpace selector/access evidence hotfix — release commit `3a1df0d`, tag `air-worker--v0.10.9`, origin/main и tag опубликованы 18.09.2026. Claude/Codex caches и live install обновлены без UAC и автозапуска; source/Claude/Codex/live CLI SHA-256 `7FEEACADE7D30841CE6FCD382500D4A380350A1CE514E2FE836E7B302A9B4BC3`. Реальный DevSpace judge больше не возвращает `unknown selector: -Select`; К1 PASS, остальные критерии ждут доказательств продукта. Приёмка: `docs/receipts/AIRWORKER_RELEASE_0.10.9_ACCEPTANCE_2026-09-18.md`.
 - **Канонизация 0.10.9 — указание ЛПР 19.09.2026:** «разрабатывать новый релиз не твоя задача… навести порядок, всё подтянуть, чтобы новые сессии, которые загружают 10.9, у них всё было однозначно»; 0.10.10 и Hermes не трогать. Сделано без изменения кода и без нового выпуска, receipt `docs/receipts/AIRWORKER_0.10.9_CANONICALIZATION_2026-09-19.md`:
   - перепроверка тега `air-worker--v0.10.9` на чистой копии: SHA-256 бинарника равен эталону, `go vet ./...`, `go test ./... -count=1` (main и tray), `git diff --check`, `check-plugin`, goal-file 28/28, reproducible 40/40, selftest 36/36, `goals` 7/73 — PASS. `check-binary.ps1` (проверка судьи «бинарник собран, отвечает и согласен со скриптом») — 3 FAIL; в релизный гейт 0.10.9 по акту приёмки не входила; записана кандидатом `FB-20260919T044427Z-5a14b9d6`;
@@ -618,3 +630,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-072_recovery-0-11-9-restore-one-authoritative-develo · owner:gpt-airworker-release-20261008 · [[N-074_recovery-volt-align-airworker-product-vault-with]] · RECOVERY-VOLT: align AirWorker product vault with active 0.11.9 line
 - [closed] N-072_recovery-0-11-9-restore-one-authoritative-develo · owner:gpt-airworker-release-20261008 · [[N-075_recovery-module-restore-shared-learning-authorit]] · RECOVERY-MODULE: restore shared learning authority from GitHub without overwriting recovered WIP
 - [open] N-073_p0-self-learn-airworker-permanently-learns-from-i · owner:gpt-airworker-release-20261008 · [[N-076_p0-self-owner-persistent-airworker-selector-dual]] · P0-SELF-OWNER: persistent AirWorker selector, dual hook context, automatic use/outcome evidence
+- [open] N-072_recovery-0-11-9-restore-one-authoritative-develo · owner:gpt-airworker-release-20261008 · [[N-077_plan-order-reconcile-current-0-11-9-sequence-aft]] · PLAN-ORDER: reconcile current 0.11.9 sequence after semantic DRIFT
