@@ -1,0 +1,19 @@
+{
+    "schema":  "air-worker.n092.global-judge-blocker/v1",
+    "product":  "AirWorker",
+    "source_head":  "bc330453290d6e2eebbbd7aec74f1f006a35c967",
+    "judge_command":  "air-worker judge -product \u003ccanonical product root\u003e -json",
+    "judge_exit_code":  1,
+    "judge_code":  1,
+    "checks_failed":  2,
+    "verdict_text":  "ЦЕЛЬ НЕ ДОСТИГНУТА: лестница исполнима на всех ступенях (код 1) — [FAIL]  package binary подтверждает Headroom transport; двигатель цели считает расстояние, и его эскалация исполняется (код 2) — [FAIL] нечем проверить: машинного вердикта нет (F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006\\air-worker\\.goal-verdict.json): судья продукта ни разу не прогонялся новой редакцией",
+    "goal_verdict_path":  "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006\\air-worker\\.goal-verdict.json",
+    "goal_verdict_sha256":  "3307c91b82e7320dbe1b32b7bbf615cfe7ecdca989f3066f5b2d7e0852d587ac",
+    "remediation_node":  "N-092_rel-judge-restore-global-product-judge-pass",
+    "scoped_n078_acceptance":  "PASS",
+    "scoped_n078_receipt":  "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006\\air-worker\\docs\\receipts\\AIRWORKER_N078_ACCEPTANCE_bc33045_20261008.json",
+    "release_gate_open":  true,
+    "release_authorized":  false,
+    "install_authorized":  false,
+    "verified_at_utc":  "2026-10-08T15:04:29.2736332Z"
+}

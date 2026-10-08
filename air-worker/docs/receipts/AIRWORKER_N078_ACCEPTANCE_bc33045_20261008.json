@@ -1,0 +1,51 @@
+{
+    "schema":  "air-worker.n078.acceptance/v1",
+    "scope":  "P0-SELF-OWNER-ASTRA N-078 and dependent remediation nodes",
+    "verdict":  "PASS",
+    "source_git_head":  "bc330453290d6e2eebbbd7aec74f1f006a35c967",
+    "module_git_head":  "8fcd458a783e2dbffb1d590ba838e44bedf6dda8",
+    "source_tree_clean":  true,
+    "module_tree_clean":  true,
+    "source_remote_matched":  true,
+    "module_remote_matched":  true,
+    "independent_reviewer":  "gpt-6-astra",
+    "reviewer_effort":  "high",
+    "reviewer_findings":  0,
+    "full_test_exit":  0,
+    "vet_exit":  0,
+    "fresh_checkout_exit":  0,
+    "module_test_exit":  0,
+    "module_vet_exit":  0,
+    "referenced_nodes":  [
+                             "N-080",
+                             "N-081",
+                             "N-082",
+                             "N-083",
+                             "N-084",
+                             "N-085",
+                             "N-086",
+                             "N-087",
+                             "N-088",
+                             "N-089",
+                             "N-090",
+                             "N-091",
+                             "N-078"
+                         ],
+    "source_receipts":  {
+                            "astra":  "R:\\-4-\\air-worker\\work\\0.11.9\\n090\\astra-bc33045\\verdict.json",
+                            "astra_run":  "R:\\-4-\\air-worker\\work\\0.11.9\\n090\\astra-bc33045\\receipt.json",
+                            "full":  "R:\\-4-\\air-worker\\work\\0.11.9\\n090\\consumer-bc33045\\FULL_bc33045.json",
+                            "fresh":  "R:\\-4-\\air-worker\\work\\0.11.9\\n090\\fresh-bc33045-proof\\FRESH_bc33045.json",
+                            "module":  "R:\\-4-\\air-worker\\work\\0.11.9\\n090\\module-8fcd458\\MODULE_FULL_8fcd458.json"
+                        },
+    "source_receipt_sha256":  {
+                                  "astra":  "3ced3eaaefcf8154554ee7d19b8737bfc5c1f6f2421ce29ffcccb66a2de7d9a2",
+                                  "full":  "a4d671bd74cf4d8d554573d8b9443fb91ae9f334b28bc267d12441d5a9f7a9fe",
+                                  "fresh":  "f4f032dbe48b0c097f69d58c62c196961bd13b0976a9d4962907dbe6d634fc73",
+                                  "module":  "e764cd4c6b593dcda68b4ecf88a2980b705e45d13ebb331278e201ff9dd588cf"
+                              },
+    "product_wide_judge":  "FAIL - separate open release gate",
+    "release_authorized":  false,
+    "install_authorized":  false,
+    "verified_at_utc":  "2026-10-08T14:57:59.1087668Z"
+}

@@ -5,11 +5,12 @@ parent: "N-083_p1-wal-recover-managed-procedure-transaction-bef"
 trigger: "Independent GPT-6 Astra high verdict CHANGES_REQUIRED on clean c00c167 (2026-10-08); LPR instructed resume under PLAN."
 owner: "gpt-airworker-release-20261008"
 done_when: "Astra c00c167 finding2: Validate complete WAL schema, ledger kind, target confinement, transaction identity and pre/post/hash before ANY recovery mutation. Invalid WAL missing kind aimed at immutable learn/rules seed must fail closed and leave seed byte-identical. Negative poison-WAL test at module Recover and AirWorker bootstrap, clean exact module test/vet, consumer full test/vet and new independent Astra high PASS. No direct LEARN edits or installation."
-status: "open"
+status: "closed"
 return_to: "N-083_p1-wal-recover-managed-procedure-transaction-bef"
 created_at: "2026-10-08T13:28:34.6551116Z"
-updated_at: "2026-10-08T13:28:34.6551116Z"
+updated_at: "2026-10-08T15:00:10.6740754Z"
 receipts:
+  - "R:\\-4-\\air-worker\\work\\0.11.9\\n090\\N078_ACCEPTANCE_bc33045.json"
 ---
 
 # P1-WAL-VALIDATE: reject malicious recovery mutation

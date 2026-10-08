@@ -5,11 +5,12 @@ parent: "N-078_p0-self-owner-astra-remediate-seven-release-bloc"
 trigger: "ЛПР 08.10.2026 после Astra high CHANGES_REQUIRED 4xP1: дорабатывай план, продолжай работу."
 owner: "gpt-airworker-release-20261008"
 done_when: "Fix Astra P1: selector exact canonical JSON field names only; reject mixed-case alias collision enabled+Enabled and any case-folded unknown aliases/duplicates, missing/null/nonboolean enabled, extra data; valid canonical selector still resolves. Unit/fresh process tests, full regression/vet, semantic Astra high PASS receipt; no release/install."
-status: "open"
+status: "closed"
 return_to: "N-078_p0-self-owner-astra-remediate-seven-release-bloc"
 created_at: "2026-10-08T11:54:01.5111024Z"
-updated_at: "2026-10-08T11:54:01.5111024Z"
+updated_at: "2026-10-08T15:00:43.3908611Z"
 receipts:
+  - "R:\\-4-\\air-worker\\work\\0.11.9\\n090\\N078_ACCEPTANCE_bc33045.json"
 ---
 
 # P1-SELECTOR: reject case-insensitive JSON field ambiguity
