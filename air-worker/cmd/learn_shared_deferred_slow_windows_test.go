@@ -108,6 +108,24 @@ func TestN082SecondStopWhilePreviousReviewerIsBlocked(t *testing.T) {
 	if !active {
 		t.Fatal("first review did not enter slow callback")
 	}
+	// Keep the first reviewer blocked with its already loaded adapter. Switch
+	// only the fixture's subsequent runs to a fast reviewer so this integration
+	// test proves lock freedom without doubling whole-suite latency.
+	selfSettings.Reviewer = learningAdapterFixture(t, "review")
+	if err := writeSharedLearningSettings(self, selfSettings); err != nil {
+		t.Fatal(err)
+	}
+	selector, found, err = readAirWorkerSelfLearningSelector()
+	if err != nil || !found {
+		t.Fatalf("selector refresh: %v", err)
+	}
+	selector.ConfigSHA256, err = selfLearningConfigSHA(self)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeAirWorkerSelfLearningSelector(selector); err != nil {
+		t.Fatal(err)
+	}
 	in.RunID = "n082-running-review-2"
 	elapsed := n082TestHook(t, exe, in)
 	t.Logf("second Stop while first review active: %s", elapsed)
