@@ -1,0 +1,22 @@
+﻿{
+    "schema":  "air-worker.plan-order-review/v1",
+    "recorded_at_utc":  "2026-10-08T04:14:26.3531073Z",
+    "status":  "PASS",
+    "plan_sha256":  "a6191db863cbd1d0fcad72009a99a8d952639a3593eaa82dca28e2ad5c9600c6",
+    "composition_sha256":  "039c006bed8e5ab1cb0916aa4105003bdeab442fa908029e03925bb7d8d1ab4c",
+    "deterministic":  {
+                          "validate":  0,
+                          "plan_lint":  0,
+                          "goals":  0
+                      },
+    "semantic":  {
+                     "verdict":  "PASS",
+                     "findings":  [
+
+                                  ],
+                     "sandbox":  "read-only",
+                     "session_id":  "01a119b5-8c25-7d23-ad74-22c28d390953",
+                     "reviewer":  "codex"
+                 },
+    "next":  "N-076_p0-self-owner-persistent-airworker-selector-dual"
+}
