@@ -1,0 +1,91 @@
+{
+    "schema":  "air-worker.knowledge-learning-audit/v1",
+    "node":  "N-098_knowledge-0-11-9-reconcile-product-wiki-and-nati",
+    "at_utc":  "2026-10-08T16:59:17.4486581Z",
+    "lpr_trigger":  "2026-10-09: approved N-093 \u003e N-096 \u003e N-095 \u003e N-092 \u003e N-071; study KB and learning and continue",
+    "source":  {
+                   "module_pin":  "require github.com/ruhorh66-rgb/air-modules v0.0.0-20261008142557-8fcd458a783e",
+                   "product_head":  "a420c12b9a03ebc544374b496cc97ba0eaae7286",
+                   "installed_version":  "air-worker 0.11.8",
+                   "module_head":  "8fcd458a783e2dbffb1d590ba838e44bedf6dda8"
+               },
+    "knowledge":  {
+                      "stale_pointer":  "Wiki instruction still lists N-080 -\u003e N-078 OPEN, current source N-078 CLOSED; authoritative handoff N-097, next code N-093",
+                      "module_arch":  "F:\\-8-\\_worktrees\\air-modules-n082-20261008\\ARCHITECTURE.md",
+                      "handoff_sha256":  "087017bbe2a90108710823b0d706683ccdeea22f3f82b35c480bc23429af3abd",
+                      "product_instruction_sha256":  "e94576e0283032885ceb803a9e99314c93cf1958488f8cf0333cf0ebd8d86e16",
+                      "wiki_review":  "F:\\-5-\\011_Plugins\\AirWorker_Wiki\\03_REVIEW\\CURATOR_SELF_LEARNING_PLAN_REVIEW_20261005.md",
+                      "product_instruction":  "F:\\-5-\\011_Plugins\\AirWorker_Wiki\\PRODUCT_INSTRUCTION.md",
+                      "handoff":  "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006\\air-worker\\docs\\receipts\\HANDOFF_AIRWORKER_0.11.9_20261008_FINAL.md",
+                      "product_plan":  "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006\\air-worker\\PLAN.md",
+                      "dev_standard":  "F:\\-0-\\AIR_OS\\04_STANDARDS\\AIR_VIBECODING.md"
+                  },
+    "learning":  {
+                     "procedure_used":  0,
+                     "skill_loaded":  2,
+                     "proposals_total":  7,
+                     "ledger_total":  7,
+                     "root":  "R:\\-4-\\air-worker\\self-learning",
+                     "isolated_probe":  "R:\\-4-\\air-worker\\work\\0.11.9\\n073\\real-cycle-bc33045-20261008-01\\n073-real-use-probe.json",
+                     "isolated_skill_sha256":  "df049e85e7b093763a81c21b30dceb5a9379ad87c6ac74ef45144ecab6f05ba2",
+                     "events_total":  59,
+                     "isolated_loaded":  true,
+                     "applied":  [
+                                     {
+                                         "hash_matches":  true,
+                                         "file_sha256":  "ed1c2ba8b27a421bd872fa04bf0be7233814b4b40640a8958a351abb4eac5f37",
+                                         "target":  "skills/learned/cross-product-reboot-handoff-ownership-e-348f5602.md",
+                                         "git_tracked":  true,
+                                         "ledger_sha256":  "ed1c2ba8b27a421bd872fa04bf0be7233814b4b40640a8958a351abb4eac5f37"
+                                     },
+                                     {
+                                         "hash_matches":  true,
+                                         "file_sha256":  "e0b274857a6e2a1c3f9a0e5febb2b25acbd083793ce325eccaed02442aa9aec9",
+                                         "target":  "skills/learned/feedback-error-a0309df4.md",
+                                         "git_tracked":  true,
+                                         "ledger_sha256":  "e0b274857a6e2a1c3f9a0e5febb2b25acbd083793ce325eccaed02442aa9aec9"
+                                     },
+                                     {
+                                         "hash_matches":  true,
+                                         "file_sha256":  "f6edc33c7bb9b48d74dedec2fef243e37a05dac38a4073a7053fdee0fbffbc2a",
+                                         "target":  "skills/learned/public-approval-surface-53771d27.md",
+                                         "git_tracked":  true,
+                                         "ledger_sha256":  "f6edc33c7bb9b48d74dedec2fef243e37a05dac38a4073a7053fdee0fbffbc2a"
+                                     },
+                                     {
+                                         "hash_matches":  true,
+                                         "file_sha256":  "9b1bb1a58a882a0d777ac3c1f346c8168abaea5d59825eccd369f8cebbf8e3c6",
+                                         "target":  "skills/learned/release-host-parity-6c083dd3.md",
+                                         "git_tracked":  true,
+                                         "ledger_sha256":  "9b1bb1a58a882a0d777ac3c1f346c8168abaea5d59825eccd369f8cebbf8e3c6"
+                                     }
+                                 ],
+                     "effect":  "NOT_PROVEN",
+                     "run_completed":  18,
+                     "events_sha256":  "a0ce4280da0c1d147cb342ad7de712b081c4ac0329e51aad25fd0558cf9f6a81",
+                     "isolated_generated_skill":  "skills/learned/completed-turn-d3508106.md",
+                     "proposals_sha256":  "f963923ef831df326a103b2d36e289878c881de9c41c76e3ba654a302517341b",
+                     "isolated_used":  0,
+                     "ledger_sha256":  "f9c739e1cca020f514992a251e4ad0ce689bfffba734ab90d142684550e953ff"
+                 },
+    "architecture":  {
+                         "knowledge":  "Wiki knowledge; one canonical PLAN and plan nodes",
+                         "procedure":  "auto apply safe only with ledger/backups/shas",
+                         "sequence":  [
+                                          "N-093",
+                                          "N-096",
+                                          "N-095",
+                                          "N-092",
+                                          "N-071"
+                                      ],
+                         "evidence":  "loaded != used; verify exact target@SHA, principal/session/run, real operation \u0026 effect; reject untrusted text",
+                         "module":  "shared learning owns runtime R and Git skills F; legacy preserved read-only",
+                         "blocking":  "PENDING_LPR until trusted proposal/diff SHA grant"
+                     },
+    "constraints":  [
+                        "No release/install/reboot/UAC/foreign stop",
+                        "No direct mutation of LEARN journal or plan/N",
+                        "No blind retry on execution unknown"
+                    ],
+    "verdict":  "PASS_KNOWLEDGE_AUDIT_NOT_IMPLEMENTATION"
+}
