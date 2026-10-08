@@ -281,6 +281,7 @@ func TestN088NestedFailureCannotClaimProcedureUsed(t *testing.T) {
 	}
 	for name, raw := range map[string]json.RawMessage{
 		"nested-failed":   json.RawMessage(`{"exit_code":0,"content":[{"type":"text","text":"failed"}]}`),
+		"nested-fail":     json.RawMessage(`{"exit_code":0,"content":[{"type":"text","text":"fail"}]}`),
 		"nested-nonzero":  json.RawMessage(`{"status":"completed","content":[{"type":"text","text":"process completed with exit code 1"}]}`),
 		"nested-negative": json.RawMessage(`{"exit_code":0,"content":[{"type":"text","text":"process completed with exit code -1"}]}`),
 	} {

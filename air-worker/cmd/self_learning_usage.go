@@ -455,7 +455,7 @@ func correlatedExecutionUnknownDiagnostic(in hookInput, trigger selfLearningTrig
 }
 
 var completedProcessExitCode = regexp.MustCompile(`(?i)\bprocess completed with exit code\s+(-?\d+)\b`)
-var failedDiagnosticText = regexp.MustCompile(`(?i)\b(?:failed|failure|error|exception|denied|blocked|offline|timeout)\b`)
+var failedDiagnosticText = regexp.MustCompile(`(?i)\b(?:fail|failed|failure|error|exception|denied|blocked|offline|timeout)\b`)
 
 func observableTextOutcome(text string) (bool, bool) {
 	text = strings.TrimSpace(text)
