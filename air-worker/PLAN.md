@@ -647,3 +647,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-088_p1-text-nested-failed-and-nonzero-code-reject-su · owner:gpt-airworker-release-20261008 · [[N-091_p1-mcp-fail-reject-plain-fail-diagnostic-evidenc]] · P1-MCP-FAIL: reject plain fail diagnostic evidence
 - [open] N-071_rel-0-11-9-next-airworker-release-with-shared-le · owner:gpt-airworker-release-20261008 · [[N-092_rel-judge-restore-global-product-judge-pass]] · REL-JUDGE: restore global product judge PASS
 - [open] N-076_p0-self-owner-persistent-airworker-selector-dual · owner:gpt-airworker-release-20261008 · [[N-093_p0-self-use-verifiable-outcome-for-newly-learned]] · P0-SELF-USE: verifiable outcome for newly learned procedures
+- [open] N-076_p0-self-owner-persistent-airworker-selector-dual · owner:gpt-airworker-release-20261008 · [[N-094_p1-learn-cli-feedback-shared-learning-cli-discov]] · P1-LEARN-CLI-FEEDBACK shared-learning CLI discovery and canonical feedback intake parity
