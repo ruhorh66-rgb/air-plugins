@@ -217,56 +217,149 @@ func productLearningContext(product string, in hookInput) (hookResult, error) {
 }
 
 func handleLearningContext(in hookInput) (hookResult, error) {
+	return handleLearningContextWithReviewBatchStarter(in, startSharedLearningReviewBatchProcess)
+}
+
+func handleLearningContextWithReviewStarter(in hookInput, start func(string, string) error) (hookResult, error) {
+	return handleLearningContextWithReviewBatchStarter(in, func(jobs []sharedDeferredReviewJob) error {
+		if start == nil {
+			return nil
+		}
+		for _, job := range jobs {
+			if err := start(job.Product, job.RunID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func handleLearningContextWithReviewBatchStarter(in hookInput, start func([]sharedDeferredReviewJob) error) (hookResult, error) {
 	selfRoot, selfContext, selfOn, err := airWorkerSelfLearningContext(in)
 	if err != nil {
 		return hookResult{}, err
 	}
-	product, ok := productForLearningHookInput(in)
-	if !ok {
-		return hookResult{Context: selfContext}, nil
+	product, hasProduct := productForLearningHookInput(in)
+	isDistinctTarget := hasProduct && !(selfOn && sameLearningPath(selfRoot, product))
+	text := selfContext
+	if isDistinctTarget {
+		productContext, err := productLearningContext(product, in)
+		if err != nil {
+			return hookResult{}, err
+		}
+		text = mergeLearningContext(text, productContext.Context)
 	}
-	if selfOn && sameLearningPath(selfRoot, product) {
-		return hookResult{Context: selfContext}, nil
+	// Resume after BOTH contexts have been loaded; only one detached dispatcher
+	// is started for this host hook, and it never performs model work inline.
+	var pending []sharedDeferredReviewJob
+	if selfOn {
+		runs, err := pendingSharedLearningReviewRuns(selfRoot)
+		if err != nil {
+			return hookResult{}, sharedHookFailure("deferred-self-review-recovery", in.RunID, err)
+		}
+		for _, id := range runs {
+			pending = append(pending, sharedDeferredReviewJob{Product: selfRoot, RunID: id})
+		}
 	}
-	productContext, err := productLearningContext(product, in)
-	if err != nil {
-		return hookResult{}, err
+	if isDistinctTarget {
+		runs, err := pendingSharedLearningReviewRuns(product)
+		if err != nil {
+			return hookResult{}, sharedHookFailure("deferred-product-review-recovery", in.RunID, err)
+		}
+		for _, id := range runs {
+			pending = append(pending, sharedDeferredReviewJob{Product: product, RunID: id})
+		}
 	}
-	return hookResult{Context: mergeLearningContext(selfContext, productContext.Context)}, nil
+	if start != nil && len(pending) > 0 {
+		if err := start(pending); err != nil {
+			return hookResult{}, sharedHookFailure("deferred-review-batch-recovery", in.RunID, err)
+		}
+	}
+	return hookResult{Context: text}, nil
 }
 
 // handleStopLearning is deliberately proposal-only. It never calls apply and the
 // detached review command has no apply branch. LPR approval remains a foreground
 // transaction even if a reviewer is compromised or prompt-injected by transcript data.
 func handleStopLearning(in hookInput) (hookResult, error) {
+	return handleStopLearningWithReviewBatchStarter(in, startSharedLearningReviewBatchProcess)
+}
+
+// The single-owner launcher is injected by tests; production launches ONE
+// detached dispatcher for both owners to fit the host's five-second deadline.
+func handleStopLearningWithReviewStarter(in hookInput, start func(string, string) error) (hookResult, error) {
+	return handleStopLearningWithReviewBatchStarter(in, func(jobs []sharedDeferredReviewJob) error {
+		if start == nil {
+			return nil
+		}
+		for _, job := range jobs {
+			if err := start(job.Product, job.RunID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// A Stop hook must record BOTH independent owners before any slow reviewer is
+// dispatched. The batch launcher only starts a detached process: it never
+// waits for review and never applies proposals or changes grants.
+func handleStopLearningWithReviewBatchStarter(in hookInput, start func([]sharedDeferredReviewJob) error) (hookResult, error) {
 	if in.StopHookActive {
 		return hookResult{}, nil
 	}
 	if block, reason := judgeCuratorClaim(in.LastAssistantMessage); block {
 		return hookResult{Block: true, Reason: reason}, nil
 	}
+	var failures []error
 	selfOwner, selfOn, err := activeAirWorkerSelfLearningOwner()
 	if err != nil {
-		return hookResult{}, sharedHookFailure("self-selector", strings.TrimSpace(in.RunID), err)
+		// A malformed self selector must be reported, but it cannot suppress
+		// the independent target owner's durable completion.
+		failures = append(failures, sharedHookFailure("self-selector", strings.TrimSpace(in.RunID), err))
+		selfOn = false
 	}
+	var completed []sharedDeferredReviewJob
+	runID := sharedLearningFinalizeRunID(in)
 	selfRoot := ""
 	if selfOn {
 		selfRoot = selfOwner.Selector.ProductRoot
-		if handled, _, stopErr := sharedLearningStop(selfRoot, in); handled {
-			if stopErr != nil {
-				return hookResult{}, stopErr
-			}
+		handled, _, stopErr := sharedLearningStop(selfRoot, in)
+		if stopErr != nil {
+			failures = append(failures, stopErr)
+		} else if !handled {
+			failures = append(failures, sharedHookFailure("self-completion", runID,
+				errors.New("enabled self owner did not persist run_completed")))
+		} else {
+			completed = append(completed, sharedDeferredReviewJob{Product: selfRoot, RunID: runID})
 		}
 	}
-	product, ok := productForLearningHookInput(in)
-	if !ok {
-		return hookResult{}, nil
+	product, hasProduct := productForLearningHookInput(in)
+	targetIsShared := false
+	if hasProduct && !(selfOn && sameLearningPath(selfRoot, product)) {
+		handled, _, stopErr := sharedLearningStop(product, in)
+		targetIsShared = handled
+		if stopErr != nil {
+			failures = append(failures, stopErr)
+		} else if handled {
+			completed = append(completed, sharedDeferredReviewJob{Product: product, RunID: runID})
+		}
 	}
-	if selfOn && sameLearningPath(selfRoot, product) {
-		return hookResult{}, nil
+	if len(failures) > 0 {
+		// The durable completion of one owner does not imply the other succeeded.
+		// A later SessionStart can reconcile independently recorded events.
+		return hookResult{}, errors.Join(failures...)
 	}
-	if handled, res, stopErr := sharedLearningStop(product, in); handled {
-		return res, stopErr
+	if start != nil && len(completed) > 0 {
+		if err := start(completed); err != nil {
+			failures = append(failures, sharedHookFailure("deferred-review-dispatch", runID, err))
+		}
+	}
+	if len(failures) > 0 {
+		return hookResult{}, errors.Join(failures...)
+	}
+	if !hasProduct || (selfOn && sameLearningPath(selfRoot, product)) || targetIsShared {
+		return hookResult{}, nil
 	}
 	transcriptPath := strings.TrimSpace(in.TranscriptPath)
 	if transcriptPath == "" {

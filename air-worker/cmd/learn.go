@@ -375,6 +375,9 @@ func cmdLearn(argv []string) int {
 	if len(argv) > 0 && argv[0] == "init-shared" {
 		return cmdLearnInitShared(argv[1:])
 	}
+	if len(argv) > 0 && argv[0] == "review-batch" {
+		return cmdSharedLearningReviewBatch(argv[1:])
+	}
 	if handled, code := routeSharedLearn(argv); handled {
 		return code
 	}

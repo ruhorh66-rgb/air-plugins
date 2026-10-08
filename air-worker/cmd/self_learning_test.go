@@ -265,8 +265,25 @@ func TestAirWorkerSelfLearningStopRunsBesideTargetOwner(t *testing.T) {
 	in := declareLearningTestSession(t, stateDir, "gpt", "dual-stop", targetProduct)
 	in.RunID = "dual-stop-run"
 	in.LastAssistantMessage = "completed after artifact reconciliation"
-	if _, err := handleStopLearning(in); err != nil {
+	var started []string
+	starter := func(product, runID string) error {
+		// Both owners must be durable before the first review starts.
+		for _, runtime := range []string{selfSettings.RuntimeRoot, targetSettings.RuntimeRoot} {
+			if got := sharedUsageCount(t, runtime, "run_completed"); got != 1 {
+				t.Fatalf("launched review before both completions: %s count=%d", runtime, got)
+			}
+		}
+		if runID != in.RunID {
+			t.Fatalf("review run_id=%q want=%q", runID, in.RunID)
+		}
+		started = append(started, product)
+		return nil
+	}
+	if _, err := handleStopLearningWithReviewStarter(in, starter); err != nil {
 		t.Fatal(err)
+	}
+	if len(started) != 2 || started[0] != selfProduct || started[1] != targetProduct {
+		t.Fatalf("review owners=%v; want self then target", started)
 	}
 	for name, runtime := range map[string]string{"self": selfSettings.RuntimeRoot, "target": targetSettings.RuntimeRoot} {
 		rows := 0

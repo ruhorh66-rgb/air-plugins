@@ -401,24 +401,37 @@ func appendSharedPlanEvents(product string, rows []map[string]any) (bool, error)
 	return true, nil
 }
 
+func sharedLearningFinalizeRunID(in hookInput) string {
+	runID := strings.TrimSpace(in.RunID)
+	if runID == "" && in.TranscriptPath != "" {
+		if st, err := os.Stat(in.TranscriptPath); err == nil && !st.IsDir() {
+			runID = "STOP-" + learnSHA([]byte(fmt.Sprintf("%s\n%s\n%d\n%d", in.SessionID, in.TranscriptPath, st.Size(), st.ModTime().UnixNano())))[:24]
+		}
+	}
+	return runID
+}
+
 func sharedLearningStop(product string, in hookInput) (bool, hookResult, error) {
 	s, on, err := readSharedLearningSettings(product)
-	runID := strings.TrimSpace(in.RunID)
+	runID := sharedLearningFinalizeRunID(in)
 	if err != nil {
 		return on, hookResult{}, sharedHookFailure("finalize-config", runID, err)
 	}
 	if !on {
 		return false, hookResult{}, nil
 	}
-	if runID == "" && in.TranscriptPath != "" {
-		if st, e := os.Stat(in.TranscriptPath); e == nil && !st.IsDir() {
-			runID = "STOP-" + learnSHA([]byte(fmt.Sprintf("%s\n%s\n%d\n%d", in.SessionID, in.TranscriptPath, st.Size(), st.ModTime().UnixNano())))[:24]
-		}
-	}
 	if runID == "" {
 		return true, hookResult{}, sharedHookFailure("finalize", "", errors.New("finalize requires run_id; a Claude transcript is not required for GPT"))
 	}
-	res, err := sharedLearningEvent(product, s, runID, "run_completed", in.LastAssistantMessage, "completed-turn", "host-finalize", hookPrincipal(in), in.SessionID, "", "")
+	// Stop is a five-second host hook: persist the completion without running
+	// the configured 240-second reviewer while the host is waiting. The
+	// shared module owns the durable event; review resumes by run_id later.
+	res, err := executeSharedLearning(product, s, "observe", map[string]any{
+		"run_id": runID, "kind": "run_completed", "observed": in.LastAssistantMessage,
+		"class": "completed-turn", "source": "host-finalize",
+		"principal": hookPrincipal(in), "session": in.SessionID,
+		"defer_review": true,
+	})
 	if errors.Is(err, learning.ErrConflict) && res.Status == "duplicate" {
 		err = nil
 	}
