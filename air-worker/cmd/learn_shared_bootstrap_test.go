@@ -284,8 +284,16 @@ func TestN083InterruptedManagedProcedureRecoversBeforeSeedVerification(t *testin
 			after := []byte("# Updated evidence check\n\n## When to apply\nAmbiguous execution.\n\n## Procedure\n1. Inspect exact machine evidence.\n\n## Pitfalls\nNever retry blindly.\n")
 			afterExists := mode == "update"
 			txID := "TX-n083-" + mode
+			status := "applied"
+			if mode == "rollback" {
+				status = "rolled_back"
+			}
+			// Synthetic interrupted transaction must satisfy the exact module
+			// WAL contract; otherwise preflight must reject it as poisoned.
 			ledger := map[string]any{"schema": "air.learning.ledger/v1", "transaction_id": txID,
-				"proposal_id": "LP-n083-" + mode, "target": target, "kind": "procedure", "status": "applied",
+				"proposal_id": "LP-n083-" + mode, "product_id": "air-worker-test",
+				"at":     time.Now().UTC().Format(time.RFC3339Nano),
+				"target": target, "kind": "procedure", "status": status,
 				"before_exists": true, "after_exists": afterExists, "pre_sha256": learnSHA(before), "post_sha256": ""}
 			if afterExists {
 				ledger["post_sha256"] = learnSHA(after)

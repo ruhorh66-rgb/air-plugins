@@ -454,21 +454,34 @@ func correlatedExecutionUnknownDiagnostic(in hookInput, trigger selfLearningTrig
 	return "", false
 }
 
+var completedProcessExitCode = regexp.MustCompile(`(?i)\bprocess completed with exit code\s+(-?\d+)\b`)
+var failedDiagnosticText = regexp.MustCompile(`(?i)\b(?:failed|failure|error|exception|denied|blocked|offline|timeout)\b`)
+
 func observableTextOutcome(text string) (bool, bool) {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return false, false
 	}
 	low := strings.ToLower(text)
-	for _, token := range []string{
-		"execution_unknown", "access denied", "permission denied", "target_offline",
-		"target_timeout", "timed out", "timeout", " failed", "error:",
-	} {
-		if strings.Contains(low, token) {
+	// A parent exit_code=0 never overrules a nested nonzero completion.
+	matches := completedProcessExitCode.FindAllStringSubmatch(text, -1)
+	if strings.Contains(low, "process completed with exit code") && len(matches) == 0 {
+		return false, true
+	}
+	for _, match := range matches {
+		code, err := strconv.ParseInt(match[1], 10, 64)
+		if err != nil || code != 0 {
 			return false, true
 		}
 	}
-	if strings.Contains(low, "process completed with exit code 0") ||
+	if failedDiagnosticText.MatchString(low) ||
+		strings.Contains(low, "execution_unknown") ||
+		strings.Contains(low, "target_offline") ||
+		strings.Contains(low, "target_timeout") ||
+		strings.Contains(low, "timed out") {
+		return false, true
+	}
+	if len(matches) > 0 ||
 		strings.Contains(low, "\"status\":\"online\"") ||
 		strings.Contains(low, "\"status\": \"online\"") {
 		return true, true

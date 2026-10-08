@@ -239,6 +239,9 @@ func TestAirWorkerSelfLearningObservableToolOutcome(t *testing.T) {
 		"outer-success-nested-error":  json.RawMessage(`{"exit_code":0,"status":"completed","content":[{"type":"text","text":"{\"error\":\"permission denied\"}"}]}`),
 		"outer-status-nested-nonzero": json.RawMessage(`{"status":"completed","result":{"exit_code":1}}`),
 		"outer-zero-nested-failure":   json.RawMessage(`{"exit_code":0,"data":{"status":"failed"}}`),
+		"nested-plain-failed":         json.RawMessage(`{"exit_code":0,"content":[{"type":"text","text":"failed"}]}`),
+		"nested-nonzero-process":      json.RawMessage(`{"status":"completed","content":[{"type":"text","text":"process completed with exit code 1"}]}`),
+		"nested-negative-exit":        json.RawMessage(`{"exit_code":0,"content":[{"type":"text","text":"process completed with exit code -1"}]}`),
 	} {
 		t.Run(name, func(t *testing.T) {
 			if !json.Valid(raw) {
@@ -254,5 +257,61 @@ func TestAirWorkerSelfLearningObservableToolOutcome(t *testing.T) {
 	}
 	if !observableToolSuccess(json.RawMessage(`{"isError":false,"content":[{"type":"text","text":"process completed with exit code 0"}]}`)) {
 		t.Fatal("successful MCP envelope was not observable")
+	}
+}
+
+func TestN088NestedFailureCannotClaimProcedureUsed(t *testing.T) {
+	_, settings, stateDir := selfLearningFixture(t)
+	target := filepath.Join(t.TempDir(), "target")
+	if err := os.MkdirAll(target, 0700); err != nil {
+		t.Fatal(err)
+	}
+	in := declareLearningTestSession(t, stateDir, "claude", "n088-negative", target)
+	in.RunID = "n088-release-run"
+	if _, err := handleLearningContext(in); err != nil {
+		t.Fatal(err)
+	}
+	unknown := in
+	unknown.HookEventName = "PostToolUse"
+	unknown.ToolName = "mcp__AIR_Commander_Test__start_process"
+	unknown.ToolInput = json.RawMessage(`{"node":"SRVLM01","command":"ambiguous operation"}`)
+	unknown.ToolResponse = json.RawMessage(`{"error":"EXECUTION_UNKNOWN","pid":4242,"request_id":"n088-fixture"}`)
+	if _, err := handlePostToolUseSelfLearning(unknown); err != nil {
+		t.Fatal(err)
+	}
+	for name, raw := range map[string]json.RawMessage{
+		"nested-failed":   json.RawMessage(`{"exit_code":0,"content":[{"type":"text","text":"failed"}]}`),
+		"nested-nonzero":  json.RawMessage(`{"status":"completed","content":[{"type":"text","text":"process completed with exit code 1"}]}`),
+		"nested-negative": json.RawMessage(`{"exit_code":0,"content":[{"type":"text","text":"process completed with exit code -1"}]}`),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if !json.Valid(raw) {
+				t.Fatalf("invalid diagnostic fixture: %s", raw)
+			}
+			probe := in
+			probe.HookEventName = "PostToolUse"
+			probe.ToolName = "mcp__AIR_Commander_Test__read_process_output"
+			probe.ToolInput = json.RawMessage(`{"node":"SRVLM01","pid":4242}`)
+			probe.ToolResponse = raw
+			res, err := handlePostToolUseSelfLearning(probe)
+			if err != nil || strings.Contains(res.Context, "procedure_used") {
+				t.Fatalf("nested failure claimed use: res=%+v err=%v", res, err)
+			}
+			if n := countSelfLearningEvent(t, settings.RuntimeRoot, "procedure_used"); n != 0 {
+				t.Fatalf("false procedure_used emitted: %d", n)
+			}
+		})
+	}
+	positive := in
+	positive.HookEventName = "PostToolUse"
+	positive.ToolName = "mcp__AIR_Commander_Test__read_process_output"
+	positive.ToolInput = json.RawMessage(`{"node":"SRVLM01","pid":4242}`)
+	positive.ToolResponse = json.RawMessage(`{"status":"completed","exit_code":0,"content":[{"type":"text","text":"process completed with exit code 0"}]}`)
+	res, err := handlePostToolUseSelfLearning(positive)
+	if err != nil || !strings.Contains(res.Context, "procedure_used") {
+		t.Fatalf("valid correlated success was lost: res=%+v err=%v", res, err)
+	}
+	if n := countSelfLearningEvent(t, settings.RuntimeRoot, "procedure_used"); n != 1 {
+		t.Fatalf("positive correlated diagnostic missing: %d", n)
 	}
 }
