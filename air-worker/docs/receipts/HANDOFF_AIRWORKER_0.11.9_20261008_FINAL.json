@@ -1,0 +1,205 @@
+{
+  "schema": "air-worker.handoff.session-close/v1",
+  "product": "AirWorker",
+  "target_release": "0.11.9",
+  "state": "DEV_SAVED_NOT_RELEASED",
+  "node": "N-097_handoff-0-11-9-verified-github-checkpoint-and-sa",
+  "prepared_on_sgt": "2026-10-08",
+  "authority": {
+    "node": "SRVLM01",
+    "worktree": "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006",
+    "product_root": "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006\\air-worker",
+    "branch": "dev/airworker-curator-skill-lifecycle-20261006",
+    "github_remote": "github",
+    "github_url": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "prior_source_checkpoint": "472db2dc04fc3955422fb14efd0ccdc3ad536be3",
+    "final_head_authority": "R:\\-4-\\air-worker\\work\\0.11.9\\HANDOFF_AIRWORKER_CURRENT_20261008_FINAL.json",
+    "source_code_accepted_commit": "bc330453290d6e2eebbbd7aec74f1f006a35c967",
+    "verify_fresh_local_equals_remote": true,
+    "do_not_pin_pre_handoff_head_as_final": true,
+    "local_origin_is_local_worktree": true
+  },
+  "live": {
+    "installed_version": "0.11.8",
+    "revision": "cbfa266eefe8d5d1ea67db078bc416f4a928147a",
+    "claude_codex_caches": "0.11.8",
+    "native_selfcheck": "PASS",
+    "release_0_11_9_published": false,
+    "release_0_11_9_installed": false
+  },
+  "shared_module": {
+    "root": "F:\\-8-\\_worktrees\\air-modules-n082-20261008",
+    "git_commit": "8fcd458a783e2dbffb1d590ba838e44bedf6dda8",
+    "github_branch": "dev/airworker-n082-lock-20261008",
+    "consumer_go_pin": "v0.0.0-20261008142557-8fcd458a783e",
+    "tests_vet": "PASS",
+    "full_receipt": "R:\\-4-\\air-worker\\work\\0.11.9\\n090\\module-8fcd458\\MODULE_FULL_8fcd458.json",
+    "tag_0_1_0_published": false,
+    "publication_requires_separate_lpr_gate": true
+  },
+  "scoped_acceptance": {
+    "scope": "N-078 and remediation nodes N-080..N-091",
+    "verdict": "PASS",
+    "semantic_reviewer": "gpt-6-astra high",
+    "findings_p0_p1": 0,
+    "code_sha": "bc330453290d6e2eebbbd7aec74f1f006a35c967",
+    "full_go_tests": "PASS",
+    "go_vet": "PASS",
+    "windows_fresh_autocrlf": "PASS",
+    "receipt_repo": "docs/receipts/AIRWORKER_N078_ACCEPTANCE_bc33045_20261008.json",
+    "astra_verdict": "R:\\-4-\\air-worker\\work\\0.11.9\\n090\\astra-bc33045\\verdict.json",
+    "source_code_not_modified_after_scoped_acceptance": true,
+    "not_product_wide_release_judge": true
+  },
+  "handoff_documents": {
+    "markdown": "docs/receipts/HANDOFF_AIRWORKER_0.11.9_20261008_FINAL.md",
+    "machine": "docs/receipts/HANDOFF_AIRWORKER_0.11.9_20261008_FINAL.json",
+    "prior_wiki_handoff_is_historical": true,
+    "external_final_after_push": "R:\\-4-\\air-worker\\work\\0.11.9\\HANDOFF_AIRWORKER_CURRENT_20261008_FINAL.json"
+  },
+  "machine_local_preserve": {
+    "self_learning_runtime": "R:\\-4-\\air-worker\\self-learning",
+    "selector": "R:\\-4-\\air-worker\\work\\0.11.9\\self-hook-state-candidate\\air-worker-self-learning.json",
+    "product_ignored_config": "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006\\air-worker\\learning-module.json",
+    "product_ignored_owner": "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006\\air-worker\\.air-learning-owner.json",
+    "isolated_real_cycle": "R:\\-4-\\air-worker\\work\\0.11.9\\n073\\real-cycle-bc33045-20261008-01",
+    "no_direct_learn_journal_mutation": true,
+    "no_cleanup_reset": true
+  },
+  "learned_checkpoint": {
+    "git_commit": "472db2dc04fc3955422fb14efd0ccdc3ad536be3",
+    "source_receipt": "docs/receipts/AIRWORKER_LEARNED_APPLIED_SNAPSHOT_20261008.json",
+    "files": [
+      {
+        "target": "skills/learned/cross-product-reboot-handoff-ownership-e-348f5602.md",
+        "sha256": "ed1c2ba8b27a421bd872fa04bf0be7233814b4b40640a8958a351abb4eac5f37"
+      },
+      {
+        "target": "skills/learned/feedback-error-a0309df4.md",
+        "sha256": "e0b274857a6e2a1c3f9a0e5febb2b25acbd083793ce325eccaed02442aa9aec9"
+      },
+      {
+        "target": "skills/learned/public-approval-surface-53771d27.md",
+        "sha256": "f6edc33c7bb9b48d74dedec2fef243e37a05dac38a4073a7053fdee0fbffbc2a"
+      },
+      {
+        "target": "skills/learned/release-host-parity-6c083dd3.md",
+        "sha256": "9b1bb1a58a882a0d777ac3c1f346c8168abaea5d59825eccd369f8cebbf8e3c6"
+      }
+    ],
+    "source": "native module ledger last status=applied and exact SHA",
+    "files_modified_for_checkpoint": false,
+    "tracked_in_git": true,
+    "line_endings": "LF",
+    "lpr_grants": false
+  },
+  "real_self_learning": {
+    "scope": "isolated on R, not installed live",
+    "native_error": "tool -which headroom rc=2 health timeout",
+    "stop_run_completed_ms": 56,
+    "reviewer": "@self Codex",
+    "auto_applied_skill": "skills/learned/completed-turn-d3508106.md",
+    "auto_applied_sha256": "df049e85e7b093763a81c21b30dceb5a9379ad87c6ac74ef45144ecab6f05ba2",
+    "pending_after_apply": 0,
+    "fresh_process_loaded_exact_sha": true,
+    "generalized_procedure_used_evidence": false,
+    "measurable_effect_evidence": false,
+    "use_probe_receipt": "R:\\-4-\\air-worker\\work\\0.11.9\\n073\\real-cycle-bc33045-20261008-01\\n073-real-use-probe.json",
+    "rule_only_specific_old_execution_unknown_supported": true
+  },
+  "open_gates": [
+    {
+      "id": "N-093",
+      "priority": "P0",
+      "next": true,
+      "reason": "generalized real used/outcome/effect for newly learned skill not yet verified"
+    },
+    {
+      "id": "N-095",
+      "priority": "P1",
+      "reason": "learn action discovery & missing required -product typed errors"
+    },
+    {
+      "id": "N-096",
+      "priority": "P1",
+      "reason": "shared-mode feedback preserve canonical FB evidence and PLAN candidate as well as learning event"
+    },
+    {
+      "id": "N-094",
+      "priority": "P1",
+      "reason": "parent feedback/CLI parity"
+    },
+    {
+      "id": "N-076",
+      "priority": "P0",
+      "reason": "parent persistent self owner real e2e"
+    },
+    {
+      "id": "N-073",
+      "priority": "P0",
+      "reason": "parent AirWorker self learning milestone"
+    },
+    {
+      "id": "N-092",
+      "priority": "release-block",
+      "reason": "product-wide judge rc1; headroom health and goal drift history check failed"
+    },
+    {
+      "id": "N-071",
+      "priority": "release",
+      "reason": "0.11.9 requires module 0.1 publication gate, full release acceptance, docs, rollback and LPR yes"
+    },
+    {
+      "id": "N-097",
+      "priority": "handoff",
+      "reason": "next session must verify final saved state then native close"
+    }
+  ],
+  "exploitation_feedback": {
+    "node": "N-094",
+    "intake_receipt": "docs/receipts/AIRWORKER_N094_EXPLOITATION_INTAKE_20261008.json",
+    "confirmed_working": "event -> review -> safe autoapply -> pending=0 -> context by exact SHA",
+    "known_failure": "feedback in shared mode skipped immutable FB-*.json and PLAN candidate",
+    "new_nodes": [
+      "N-095",
+      "N-096"
+    ]
+  },
+  "global_judge": {
+    "scope": "release",
+    "exit_code": 1,
+    "receipt": "docs/receipts/AIRWORKER_N092_GLOBAL_JUDGE_FAIL_20261008.json",
+    "failing_checks": [
+      "Headroom transport health timeout, rc2",
+      "goal-drift missing history while original machine verdict first absent"
+    ],
+    "no_bypass": true
+  },
+  "next": {
+    "read_first": [
+      "PRODUCT_INSTRUCTION.md",
+      "PLAN.md",
+      "plan/N-097*",
+      "docs/receipts/HANDOFF_AIRWORKER_0.11.9_20261008_FINAL.md",
+      "plan/N-093*",
+      "plan/N-095*",
+      "plan/N-096*",
+      "plan/N-092*"
+    ],
+    "first_action": "Read-only verify SRVLM01, GitHub remote SHA/local, working tree clean, module pin, receipts; no blind repeat.",
+    "first_measurable_milestone": "N-093 real newly learned procedure correlated use and effect in isolated candidate, with negative tests",
+    "order": [
+      "N-093",
+      "N-095",
+      "N-096",
+      "N-092",
+      "N-071"
+    ]
+  },
+  "restrictions": {
+    "no_tag_or_release_without_separate_lpr_yes": true,
+    "no_install_without_separate_lpr_yes": true,
+    "no_reboot_shutdown_uac_or_foreign_service_stop_without_separate_lpr_yes": true,
+    "no_direct_plan_node_or_learn_journal_edits": true
+  }
+}
