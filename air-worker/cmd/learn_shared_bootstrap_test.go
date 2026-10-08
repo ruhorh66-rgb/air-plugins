@@ -45,8 +45,8 @@ func TestInitSharedLearningMigratesOperationalRule(t *testing.T) {
 	if report.Status != "initialized" || len(report.MigratedRules) != 1 || report.Reviewer != "@self" {
 		t.Fatalf("unexpected init report: %+v", report)
 	}
-	if _, err := os.Stat(filepath.Join(product, "learn", "rules")); !os.IsNotExist(err) {
-		t.Fatalf("active legacy rule directory survived cutover: %v", err)
+	if _, err := os.Stat(filepath.Join(product, "learn", "rules", "LP-test-operational.json")); err != nil {
+		t.Fatalf("Git seed rule did not survive cutover: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(product, "learn", "legacy-rules", "LP-test-operational.json")); err != nil {
 		t.Fatal(err)
@@ -66,6 +66,49 @@ func TestInitSharedLearningMigratesOperationalRule(t *testing.T) {
 	again, err := initSharedLearning(product, runtimeRoot, "air-worker-test")
 	if err != nil || again.Status != "already_initialized" {
 		t.Fatalf("init is not idempotent: %+v %v", again, err)
+	}
+}
+
+func TestInitSharedLearningRehydratesPackagedManagedProcedure(t *testing.T) {
+	product := filepath.Join(t.TempDir(), "product")
+	if err := os.MkdirAll(product, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeLegacyOperationalRule(t, product, "LP-packaged-operational", "execution-unknown-no-blind-retry", "operational-procedure-v1")
+	rules, sourcePaths, err := loadLegacyOperationalProcedures(product)
+	if err != nil || len(rules) != 1 {
+		t.Fatalf("legacy seed discovery: rules=%d err=%v", len(rules), err)
+	}
+	runtimeRoot := filepath.Join(t.TempDir(), "runtime")
+	intent, err := buildSharedLearningBootstrapIntent(product, runtimeRoot, "air-worker-test", rules, sourcePaths)
+	if err != nil || len(intent.Rules) != 1 {
+		t.Fatalf("bootstrap intent: %+v err=%v", intent, err)
+	}
+	procedure := legacyRuleProcedure(rules[0])
+	target := filepath.Join(product, filepath.FromSlash(intent.Rules[0].Target))
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, []byte(procedure), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := initSharedLearning(product, runtimeRoot, "air-worker-test")
+	if err != nil || report.Status != "initialized" {
+		t.Fatalf("prepackaged managed procedure did not rehydrate runtime: %+v %v", report, err)
+	}
+	s, on, err := readSharedLearningSettings(product)
+	if err != nil || !on {
+		t.Fatalf("shared settings after rehydrate: on=%v err=%v", on, err)
+	}
+	if err := verifySharedBootstrapMigration(product, s, intent.Rules[0]); err != nil {
+		t.Fatalf("rehydrated runtime lacks migration provenance: %v", err)
+	}
+	if got, err := os.ReadFile(target); err != nil || string(got) != procedure {
+		t.Fatalf("packaged managed procedure changed: %v %q", err, got)
+	}
+	if _, err := os.Stat(filepath.Join(product, "learn", "rules", "LP-packaged-operational.json")); err != nil {
+		t.Fatalf("Git seed rule lost during rehydrate: %v", err)
 	}
 }
 

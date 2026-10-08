@@ -50,8 +50,8 @@ func TestInitSharedLearningResumesAfterSelectorInterruption(t *testing.T) {
 	if err != nil || report.Status != "recovered" {
 		t.Fatalf("bootstrap did not resume: %+v %v", report, err)
 	}
-	if _, err := os.Stat(filepath.Join(product, "learn", "rules")); !os.IsNotExist(err) {
-		t.Fatalf("legacy active directory survived recovery: %v", err)
+	if _, err := os.Stat(filepath.Join(product, "learn", "rules", "LP-crash-selector.json")); err != nil {
+		t.Fatalf("Git seed rule did not survive recovery: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(product, "learn", "legacy-rules", "LP-crash-selector.json")); err != nil {
 		t.Fatalf("legacy provenance archive missing: %v", err)

@@ -118,8 +118,14 @@ func loadLegacyOperationalProcedures(product string) ([]learnRuleRecord, []strin
 			return nil, nil, fmt.Errorf("legacy rule %s is not an applied operational-procedure-v1 and requires explicit reconciliation", rule.ProposalID)
 		}
 		target := filepath.Join(product, filepath.FromSlash(learningProcedureTarget("skills/learned", rule.Class)))
-		if _, err := os.Stat(target); err == nil {
-			return nil, nil, fmt.Errorf("managed procedure target already exists: %s", target)
+		if existing, err := os.ReadFile(target); err == nil {
+			expected := []byte(legacyRuleProcedure(rule))
+			if learnSHA(existing) != learnSHA(expected) || !bytes.Equal(existing, expected) {
+				return nil, nil, fmt.Errorf("managed procedure target already exists with different bytes: %s", target)
+			}
+			// Exact packaged procedure bytes are a reproducibility seed only. A new
+			// runtime still has to reconstruct ownership/provenance through the
+			// shared module before those bytes can count as managed state.
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return nil, nil, err
 		}
@@ -492,16 +498,17 @@ func archiveSharedBootstrapLegacyRules(product string, intent sharedLearningBoot
 				if learnSHA(existing) != rule.LegacySHA256 || !bytes.Equal(existing, source) {
 					return archiveDir, fmt.Errorf("legacy archive collision: %s", dst)
 				}
-				if err := os.Remove(src); err != nil {
-					return archiveDir, err
-				}
 			} else if errors.Is(err, os.ErrNotExist) {
-				if err := os.Rename(src, dst); err != nil {
+				if err := writeFileAtomicDurable(dst, source); err != nil {
 					return archiveDir, err
 				}
 			} else {
 				return archiveDir, err
 			}
+			// The source rule is a Git-tracked reproducibility seed, not the active
+			// shared-learning writer. Keep it byte-identical so a fresh clone can
+			// reconstruct a new machine-local runtime; shared mode keeps this legacy
+			// state read-only and verifies the exact bootstrap overlap.
 			continue
 		}
 		if !errors.Is(srcErr, os.ErrNotExist) {
@@ -514,10 +521,6 @@ func archiveSharedBootstrapLegacyRules(product string, intent sharedLearningBoot
 			}
 			return archiveDir, err
 		}
-	}
-	rulesDir := filepath.Join(product, "learn", "rules")
-	if entries, err := os.ReadDir(rulesDir); err == nil && len(entries) == 0 {
-		_ = os.Remove(rulesDir)
 	}
 	return archiveDir, nil
 }
@@ -711,9 +714,23 @@ func initSharedLearning(product, runtimeRoot, productID string) (sharedLearningI
 		if err != nil {
 			return report, err
 		}
+		preSHA := ""
+		targetPath := filepath.Join(root, filepath.FromSlash(rule.Target))
+		if existing, readErr := os.ReadFile(targetPath); readErr == nil {
+			if learnSHA(existing) != rule.ProcedureSHA256 || !bytes.Equal(existing, []byte(procedure)) {
+				return report, fmt.Errorf("packaged managed procedure differs from verified legacy seed: %s", rule.Target)
+			}
+			// A release may already contain the exact managed procedure bytes while
+			// this machine has no runtime ledger yet. Re-propose the identical bytes
+			// against their current SHA so the new runtime reconstructs provenance
+			// through the module instead of treating packaged content as proof.
+			preSHA = rule.ProcedureSHA256
+		} else if !errors.Is(readErr, os.ErrNotExist) {
+			return report, readErr
+		}
 		res, execErr := sharedLearningBootstrapExecute(root, s, "propose", map[string]string{
 			"proposal_id": rule.MigrationProposalID,
-			"kind":        "procedure", "target": rule.Target, "pre_sha256": "", "content": procedure,
+			"kind":        "procedure", "target": rule.Target, "pre_sha256": preSHA, "content": procedure,
 		})
 		if execErr != nil {
 			// The shared module may have changed the target and left a WAL before

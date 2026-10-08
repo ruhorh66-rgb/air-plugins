@@ -16,7 +16,7 @@ SessionStart/UserPromptSubmit доставляют self-context параллел
 
 ## Вызовы и границы
 
-- `air-worker learn init-shared -product <root> -runtime-root <absolute-R-path> [-product-id <id>]` — транзакционно выбирает shared writer, переносит только уже APPLIED `operational-procedure-v1` в `skills/learned`, архивирует прежние active rule files и откатывает всё при ошибке. Любой другой активный legacy rule блокирует переход.
+- `air-worker learn init-shared -product <root> -runtime-root <absolute-R-path> [-product-id <id>]` — транзакционно выбирает shared writer и мигрирует только уже APPLIED `operational-procedure-v1` в `skills/learned`. Исходные Git-tracked rule records остаются byte-identical reproducibility seeds; shared mode делает legacy state read-only и проверяет exact overlap с bootstrap intent. Machine-local `learn/legacy-rules/` хранит provenance и не входит в Git. Если релиз уже содержит exact managed procedure bytes, новый пустой RuntimeRoot не доверяет им сам по себе, а повторно строит ownership/ledger через shared module. Любой иной или изменённый legacy rule блокирует переход.
 - `air-worker learn status -product <root>` / `paths` — версия модуля, фактические пути и последний след.
 - `air-worker learn event -product <root> -run-id <id> -class <class> -observed <text> -actor <actor>` — наблюдение и автоматический review завершённого прогона.
 - `air-worker learn finalize -product <root> -run-id <id> -observed <text> -actor <actor>` — штатное завершение внешнего прогона. Для GPT обязателен стабильный run_id; транскрипт Claude не требуется.

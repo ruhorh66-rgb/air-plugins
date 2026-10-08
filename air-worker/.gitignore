@@ -16,3 +16,4 @@ steps.jsonl
 .campaign/
 /.air-learning-owner.json
 /learning-module.json
+/learn/legacy-rules/
