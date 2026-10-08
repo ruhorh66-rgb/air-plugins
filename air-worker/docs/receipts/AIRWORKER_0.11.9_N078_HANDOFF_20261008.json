@@ -1,0 +1,81 @@
+﻿{
+    "schema":  "air-worker.handoff/v1",
+    "recorded_at_utc":  "2026-10-08T09:33:19.1175637Z",
+    "product":  "AirWorker",
+    "target_release":  "0.11.9",
+    "live":  {
+                 "version":  "0.11.8",
+                 "revision":  "cbfa266eefe8d5d1ea67db078bc416f4a928147a",
+                 "selfcheck":  "PASS",
+                 "installed_changed":  false
+             },
+    "active":  {
+                   "worktree":  "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006",
+                   "product_root":  "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006\\air-worker",
+                   "branch":  "dev/airworker-curator-skill-lifecycle-20261006",
+                   "wip_commit":  "46dddab9b4794beeb1b884ef8770aec61d4573e4",
+                   "remote_wip_commit":  "46dddab9b4794beeb1b884ef8770aec61d4573e4",
+                   "handoff_node":  "N-079_handoff-resume-n-078-astra-remediation-from-exac",
+                   "return_to":  "N-078_p0-self-owner-astra-remediate-seven-release-bloc"
+               },
+    "plan_chain":  [
+                       "N-071_rel-0-11-9-next-airworker-release-with-shared-le",
+                       "N-073_p0-self-learn-airworker-permanently-learns-from-i",
+                       "N-076_p0-self-owner-persistent-airworker-selector-dual",
+                       "N-078_p0-self-owner-astra-remediate-seven-release-bloc",
+                       "N-079_handoff-resume-n-078-astra-remediation-from-exac"
+                   ],
+    "astra":  {
+                  "reviewed_commit":  "6d9f973897b1581c400bf62f2197dc4604529dbb",
+                  "verdict":  "CHANGES_REQUIRED",
+                  "severity":  "7xP1",
+                  "verdict_path":  "R:\\-4-\\air-worker\\work\\0.11.9\\astra-6d9f973\\verdict.json",
+                  "verdict_sha256":  "cc13b28a2f09138934f5348ba3bf5bb4194260881fc0fe2e4a5dc5224b50263d",
+                  "findings":  [
+                                   "Windows checkout CRLF can break packaged procedure exact bytes",
+                                   "bootstrap seed verifier must allow supported later update/rollback via ledger history",
+                                   "EXECUTION_UNKNOWN usage evidence must correlate to the same operation/node/request/PID/artifact and blind retry must invalidate proof",
+                                   "MCP error envelopes including isError/is_error/error and failed content must not be classified success",
+                                   "self selector must require explicit boolean enabled and reject duplicate keys",
+                                   "context receipt must represent current exact delivery snapshot and bind principal/session/run",
+                                   "Stop must persist both owners completion before slow review; review must not block 5s hook"
+                               ]
+              },
+    "wip_validation":  {
+                           "targeted":  "PASS: go test ./... -run TestAirWorkerSelfLearning|TestInitSharedLearning",
+                           "diff_check":  "PASS",
+                           "gofmt":  "PASS at final checkpoint",
+                           "full_regression":  "NOT_PROVEN",
+                           "full_regression_reason":  "A full run overlapped a neighboring mutation and later timed out; its diagnostic receipt must not be used as acceptance. Rerun full suite on immutable 46dddab with no parallel mutation.",
+                           "diagnostic_receipt":  "R:\\-4-\\air-worker\\work\\0.11.9\\handoff-20261008-session-end\\WIP_REGRESSION_FINAL.json"
+                       },
+    "candidate_state":  {
+                            "self_selector":  "R:\\-4-\\air-worker\\work\\0.11.9\\self-hook-state-candidate\\air-worker-self-learning.json",
+                            "self_selector_sha256":  "364f4a06c7a91077ec1c848d261d357bf134c9760a61c37a626eefd2f728646f",
+                            "learning_config":  "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006\\air-worker\\learning-module.json",
+                            "learning_config_sha256":  "3382ed38bba3b41c548f6acbbf9a5b6d7f27d4f719dad63db47925607b13e5db",
+                            "runtime_root":  "R:\\-4-\\air-worker\\self-learning",
+                            "bootstrap_sha256":  "f02d63dea3f4ad8cae9706be5e8171285b38180c4ba73318ff6b32da5e8dd051",
+                            "note":  "candidate machine-local state only; installed 0.11.8 was not switched; preserve and reconcile, do not delete/reset blindly"
+                        },
+    "checkpoints":  {
+                        "final_patch":  "R:\\-4-\\air-worker\\work\\0.11.9\\handoff-20261008-session-end\\FINAL_WIP.patch",
+                        "final_patch_sha256":  "c16c40efc70e3ffa742a8990ec6a4fdde35bb05bd5171b76005803a1a6884d99",
+                        "state":  "R:\\-4-\\air-worker\\work\\0.11.9\\handoff-20261008-session-end\\FINAL_WIP_STATE.json"
+                    },
+    "next_actions":  [
+                         "Verify SRVLM01 online, worktree/branch/local HEAD/remote HEAD and clean tree; read PLAN spine, N-078 and N-079 before mutation.",
+                         "Do not rerun the old 6d9f973 Astra review; use its seven findings as N-078 input.",
+                         "First technical action: full go test ./... -count=1 -timeout=180s plus go vet ./... on immutable 46dddab with no concurrent writer.",
+                         "Reconcile each of the seven P1 findings against code/tests; repair remaining defects.",
+                         "Run fresh-checkout/core.autocrlf bootstrap E2E and self/product dual-hook E2E.",
+                         "Create a new clean immutable commit, run independent gpt-6-astra high, and close N-078 only on PASS with receipt.",
+                         "Then return through N-076/N-073; reusable learning N-070 and integrated AirWorker 0.11.9 N-071 remain later work."
+                     ],
+    "forbidden":  [
+                      "Do not close N-078/N-076/N-073 without PASS",
+                      "Do not reset/clean over recovery state or machine-local self-learning state",
+                      "Do not tag/release/publish/install 0.11.9 without the separate exact LPR gate",
+                      "Do not reboot/UAC/stop foreign services/ASW/bridge"
+                  ]
+}
