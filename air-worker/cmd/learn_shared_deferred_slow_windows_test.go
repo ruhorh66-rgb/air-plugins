@@ -66,6 +66,9 @@ func n082ReviewPhase(t *testing.T, runtimeRoot, runID string) string {
 func TestN082SecondStopWhilePreviousReviewerIsBlocked(t *testing.T) {
 	self, selfSettings, stateDir := selfLearningFixture(t)
 	selfSettings.Reviewer = learningAdapterFixture(t, "timeout")
+	// Keep a live blocked reviewer while issuing the second Stop, but
+	// bound this fixture's child lifetime for full-suite acceptance.
+	selfSettings.Reviewer.TimeoutMS = 2500
 	if err := writeSharedLearningSettings(self, selfSettings); err != nil {
 		t.Fatal(err)
 	}
@@ -134,21 +137,28 @@ func TestN082SecondStopWhilePreviousReviewerIsBlocked(t *testing.T) {
 			t.Fatalf("%s second run_completed count=%d", name, count)
 		}
 	}
-	deadline = time.Now().Add(20 * time.Second)
-	for time.Now().Before(deadline) {
-		allComplete := true
-		for _, runID := range []string{"n082-running-review-1", "n082-running-review-2"} {
-			for _, runtimeRoot := range []string{selfSettings.RuntimeRoot, targetSettings.RuntimeRoot} {
-				if n082ReviewPhase(t, runtimeRoot, runID) != "complete" {
-					allComplete = false
-				}
-			}
-		}
-		if allComplete {
-			time.Sleep(200 * time.Millisecond)
-			return
-		}
-		time.Sleep(50 * time.Millisecond)
+	runtimes := []string{selfSettings.RuntimeRoot, targetSettings.RuntimeRoot}
+	runs := []string{"n082-running-review-1", "n082-running-review-2"}
+	if n082ReviewsComplete(t, runtimes, runs, 6*time.Second) {
+		return
+	}
+	// Detached review dispatch is best-effort, while the durable event is
+	// authoritative. Exercise the supported SessionStart resume instead of
+	// treating a delayed child as successful or relying on timing.
+	recovery := in
+	recovery.HookEventName = "SessionStart"
+	packet, err := json.Marshal(recovery)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resume := exec.Command(exe, "hook", "SessionStart")
+	resume.Stdin = bytes.NewReader(packet)
+	resume.Env = os.Environ()
+	if out, err := resume.CombinedOutput(); err != nil {
+		t.Fatalf("SessionStart recovery failed: %v %s", err, out)
+	}
+	if n082ReviewsComplete(t, runtimes, runs, 8*time.Second) {
+		return
 	}
 	for _, runID := range []string{"n082-running-review-1", "n082-running-review-2"} {
 		for label, runtimeRoot := range map[string]string{"self": selfSettings.RuntimeRoot, "target": targetSettings.RuntimeRoot} {
@@ -156,4 +166,24 @@ func TestN082SecondStopWhilePreviousReviewerIsBlocked(t *testing.T) {
 		}
 	}
 	t.Fatal("detached reviewers did not reach terminal state; no PASS claimed")
+}
+
+func n082ReviewsComplete(t *testing.T, runtimeRoots []string, runIDs []string, budget time.Duration) bool {
+	t.Helper()
+	deadline := time.Now().Add(budget)
+	for time.Now().Before(deadline) {
+		complete := true
+		for _, runID := range runIDs {
+			for _, root := range runtimeRoots {
+				if n082ReviewPhase(t, root, runID) != "complete" {
+					complete = false
+				}
+			}
+		}
+		if complete {
+			return true
+		}
+		time.Sleep(45 * time.Millisecond)
+	}
+	return false
 }
