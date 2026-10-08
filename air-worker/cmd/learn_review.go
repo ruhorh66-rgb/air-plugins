@@ -171,7 +171,7 @@ func productForLearningHook(sessionID string) (string, bool) {
 func handleUserPromptLearning(in hookInput) (hookResult, error) {
 	product, ok := productForLearningHookInput(in)
 	if !ok {
-		return hookResult{}, nil
+		return handleLearningContext(in)
 	}
 	if _, on, err := readSharedLearningSettings(product); on || err != nil {
 		if err != nil {
@@ -193,11 +193,7 @@ func handleUserPromptLearning(in hookInput) (hookResult, error) {
 	return handleLearningContext(in)
 }
 
-func handleLearningContext(in hookInput) (hookResult, error) {
-	product, ok := productForLearningHookInput(in)
-	if !ok {
-		return hookResult{}, nil
-	}
+func productLearningContext(product string, in hookInput) (hookResult, error) {
 	if handled, res, err := sharedLearningContext(product, in); handled {
 		return res, err
 	}
@@ -220,6 +216,25 @@ func handleLearningContext(in hookInput) (hookResult, error) {
 	return hookResult{Context: "APPROVED AIRCURATOR SKILL INDEX (ledger-verified; load body on demand):\n" + text}, nil
 }
 
+func handleLearningContext(in hookInput) (hookResult, error) {
+	selfRoot, selfContext, selfOn, err := airWorkerSelfLearningContext(in)
+	if err != nil {
+		return hookResult{}, err
+	}
+	product, ok := productForLearningHookInput(in)
+	if !ok {
+		return hookResult{Context: selfContext}, nil
+	}
+	if selfOn && sameLearningPath(selfRoot, product) {
+		return hookResult{Context: selfContext}, nil
+	}
+	productContext, err := productLearningContext(product, in)
+	if err != nil {
+		return hookResult{}, err
+	}
+	return hookResult{Context: mergeLearningContext(selfContext, productContext.Context)}, nil
+}
+
 // handleStopLearning is deliberately proposal-only. It never calls apply and the
 // detached review command has no apply branch. LPR approval remains a foreground
 // transaction even if a reviewer is compromised or prompt-injected by transcript data.
@@ -230,12 +245,28 @@ func handleStopLearning(in hookInput) (hookResult, error) {
 	if block, reason := judgeCuratorClaim(in.LastAssistantMessage); block {
 		return hookResult{Block: true, Reason: reason}, nil
 	}
+	selfOwner, selfOn, err := activeAirWorkerSelfLearningOwner()
+	if err != nil {
+		return hookResult{}, sharedHookFailure("self-selector", strings.TrimSpace(in.RunID), err)
+	}
+	selfRoot := ""
+	if selfOn {
+		selfRoot = selfOwner.Selector.ProductRoot
+		if handled, _, stopErr := sharedLearningStop(selfRoot, in); handled {
+			if stopErr != nil {
+				return hookResult{}, stopErr
+			}
+		}
+	}
 	product, ok := productForLearningHookInput(in)
 	if !ok {
 		return hookResult{}, nil
 	}
-	if handled, res, err := sharedLearningStop(product, in); handled {
-		return res, err
+	if selfOn && sameLearningPath(selfRoot, product) {
+		return hookResult{}, nil
+	}
+	if handled, res, stopErr := sharedLearningStop(product, in); handled {
+		return res, stopErr
 	}
 	transcriptPath := strings.TrimSpace(in.TranscriptPath)
 	if transcriptPath == "" {

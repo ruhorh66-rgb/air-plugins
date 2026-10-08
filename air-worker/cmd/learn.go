@@ -369,6 +369,9 @@ func findLearnLedger(rows []learnLedgerRecord, id string) *learnLedgerRecord {
 }
 
 func cmdLearn(argv []string) int {
+	if len(argv) > 0 && argv[0] == "self" {
+		return cmdLearnSelf(argv[1:])
+	}
 	if len(argv) > 0 && argv[0] == "init-shared" {
 		return cmdLearnInitShared(argv[1:])
 	}
