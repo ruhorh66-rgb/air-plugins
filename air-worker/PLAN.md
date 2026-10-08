@@ -634,3 +634,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] N-076_p0-self-owner-persistent-airworker-selector-dual · owner:gpt-airworker-release-20261008 · [[N-078_p0-self-owner-astra-remediate-seven-release-bloc]] · P0-SELF-OWNER-ASTRA: remediate seven release blockers from 6d9f973 review
 - [closed] N-078_p0-self-owner-astra-remediate-seven-release-bloc · owner:next-airworker-release-session · [[N-079_handoff-resume-n-078-astra-remediation-from-exac]] · HANDOFF: resume N-078 Astra remediation from exact WIP 46dddab
 - [open] N-078_p0-self-owner-astra-remediate-seven-release-bloc · owner:next-airworker-release-session · [[N-080_handoff-final-resume-n-078-from-synchronized-bra]] · HANDOFF-FINAL: resume N-078 from synchronized branch authority
+- [open] N-078_p0-self-owner-astra-remediate-seven-release-bloc · owner:gpt-airworker-release-20261008 · [[N-081_p0-stop-durable-dual-owner-completion-and-deferr]] · P0-STOP: durable dual-owner completion and deferred review
