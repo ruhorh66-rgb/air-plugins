@@ -8,6 +8,12 @@
 
 Конфигурация схемы `air-worker.shared-learning/v1` явно задаёт `product_id`, абсолютный `runtime_root` (в AIR — на R:), `managed_skill_prefix` (например, `skills/learned`) и защищённые `protected_targets`. Один физический GitRoot имеет одного владельца RuntimeRoot: локальный файл адресации `.air-learning-owner.json` не включается в Git. Это адресация, не журнал; события, review, ledger, backup и диагностические следы остаются в RuntimeRoot. Смена владельца — отдельный контролируемый переход.
 
+### Собственное самообучение AirWorker — кандидат 0.11.9
+
+`air-worker learn self enable -product <AirWorker-GitRoot> -runtime-root <absolute-R-path>` включает **тот же shared-learning engine**, но публикует отдельный host-level selector `air-worker.self-learning/v1` в состоянии AirWorker. Поэтому собственный learning AirWorker остаётся доступен, когда активная сессия разрабатывает Vera, AirWiki, AirCurator или другой продукт без собственного `learning-module.json`. `learn self status` проверяет ProductRoot/ProductID/RuntimeRoot и exact SHA конфигурации; повреждение или незаявленная смена конфигурации дают ошибку, а не молчаливое отключение. `learn self disable` и `learn self rollback` выключают только host selector и не удаляют Git-процедуры или runtime-журнал.
+
+SessionStart/UserPromptSubmit доставляют self-context параллельно product-context; одинаковый физический root не загружается дважды. Stop записывает завершённый run обоим владельцам, если они различны. Для self-owner host хранит отдельную per-session/run квитанцию точных `target@SHA`, реально переданных в контекст. `loaded` не считается `used`: применение записывается только после последующего машинно наблюдаемого результата. Первый реализованный evidence-adapter для `execution-unknown-no-blind-retry` принимает `EXECUTION_UNKNOWN` как trigger, отвергает слепой повтор `start_process` как доказательство и записывает `procedure_used`/`outcome=pass` только после успешного диагностического readback с тем же exact `target@SHA`.
+
 ## Вызовы и границы
 
 - `air-worker learn init-shared -product <root> -runtime-root <absolute-R-path> [-product-id <id>]` — транзакционно выбирает shared writer, переносит только уже APPLIED `operational-procedure-v1` в `skills/learned`, архивирует прежние active rule files и откатывает всё при ошибке. Любой другой активный legacy rule блокирует переход.

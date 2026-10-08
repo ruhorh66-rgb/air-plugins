@@ -55,7 +55,7 @@ func selfLearningFixture(t *testing.T) (product string, settings sharedLearningS
 	if _, err := executeSharedLearning(product, settings, "propose", map[string]string{
 		"proposal_id": "LP-self-fixture",
 		"kind":        "procedure",
-		"target":      "skills/learned/self-fixture.md",
+		"target":      "skills/learned/execution-unknown-no-blind-retry-6b72186f.md",
 		"pre_sha256":  "",
 		"content":     selfLearningProcedure,
 	}); err != nil {

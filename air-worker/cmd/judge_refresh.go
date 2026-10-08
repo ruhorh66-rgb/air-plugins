@@ -133,5 +133,9 @@ func handlePostToolUse(in hookInput) (hookResult, error) {
 	if err != nil {
 		return hookResult{}, err
 	}
-	return mergeHookContexts(lint, refresh), nil
+	selfLearning, err := handlePostToolUseSelfLearning(in)
+	if err != nil {
+		return hookResult{}, err
+	}
+	return mergeHookContexts(mergeHookContexts(lint, refresh), selfLearning), nil
 }

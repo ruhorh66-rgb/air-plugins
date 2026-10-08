@@ -379,7 +379,7 @@ func cmdLearn(argv []string) int {
 		return code
 	}
 	if len(argv) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: air-worker learn init-shared|add|event|migrate-legacy|propose|pending|apply|effect|usage|weekly|context|rollback ...")
+		fmt.Fprintln(os.Stderr, "usage: air-worker learn self|init-shared|add|event|migrate-legacy|propose|pending|apply|effect|usage|weekly|context|rollback ...")
 		return 2
 	}
 	switch argv[0] {

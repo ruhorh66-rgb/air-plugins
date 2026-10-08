@@ -125,8 +125,10 @@ func usage() {
         Capture operational feedback as immutable product evidence plus a non-executable
         candidate in the canonical PLAN. Full success or explicit PARTIAL with nonzero exit.
 
+  air-worker learn self enable|status|disable|rollback ...
+        Постоянный self-learning самого AirWorker: host-level selector переживает смену разрабатываемого продукта и не зависит от его learning-module.json. enable использует тот же shared-learning bootstrap; disable/rollback не удаляют runtime.
   air-worker learn init-shared|add|event|finalize|status|paths|propose|pending|diff|approve|apply|effect|context|rollback|summary ...
-        Петля самообучения AirCurator. init-shared транзакционно включает общий learning; процедуры могут применяться автоматически, executable rules требуют доверенного grant.
+        Общая петля самообучения продуктов. init-shared транзакционно включает один shared writer; безопасные процедуры могут применяться автоматически, executable/blocking rules требуют доверенного grant ЛПР.
   air-worker learning-adapter reviewer
         Release-owned process adapter для shared-learning; штатно вызывается самим модулем через @self.
         "да <id>" принимается только из доверенного UserPromptSubmit активной сессии и создаёт

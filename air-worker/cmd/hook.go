@@ -111,6 +111,8 @@ type hookInput struct {
 	HookEventName        string          `json:"hook_event_name"`
 	ToolName             string          `json:"tool_name,omitempty"`
 	ToolInput            json.RawMessage `json:"tool_input,omitempty"`
+	ToolResponse         json.RawMessage `json:"tool_response,omitempty"`
+	ToolResult           json.RawMessage `json:"tool_result,omitempty"`
 	Prompt               string          `json:"prompt,omitempty"`
 	StopHookActive       bool            `json:"stop_hook_active,omitempty"`
 	LastAssistantMessage string          `json:"last_assistant_message,omitempty"`

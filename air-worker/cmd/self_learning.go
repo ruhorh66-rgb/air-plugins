@@ -348,6 +348,9 @@ func airWorkerSelfLearningContext(in hookInput) (string, string, bool, error) {
 	if !handled {
 		return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context", strings.TrimSpace(in.RunID), errors.New("enabled AirWorker self-learning owner did not select shared learning"))
 	}
+	if err := captureAirWorkerSelfLearningContextReceipt(owner, in); err != nil {
+		return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
+	}
 	if strings.TrimSpace(res.Context) == "" {
 		return owner.Selector.ProductRoot, "", true, nil
 	}
