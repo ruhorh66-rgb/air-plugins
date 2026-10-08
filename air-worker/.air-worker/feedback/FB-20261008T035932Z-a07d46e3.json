@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20261008T035932Z-a07d46e3",
+  "created_at": "2026-10-08T03:59:32.403086Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.11.8",
+  "type": "defect",
+  "severity": "P1",
+  "observed": "air-worker plan-review with executor=codex selected hard-coded claude-sonnet-5-5; Claude CLI returned [claude-code:unrecognized_model], leaving the semantic reviewer process without a usable terminal verdict.",
+  "expected": "Semantic reviewer model selection must use supported configured/discovered model identities or bounded fallback and terminate NOT_PROVEN promptly on unsupported model; it must not hang a release review.",
+  "evidence": ".woody/jobs/legacy-default-plan-semantic-reviewer.receipt.json",
+  "reproduction": "air-worker plan-review -product \u003cAirWorker 0.11.9 root\u003e -executor codex -force -json; receipt legacy-default-plan-semantic-reviewer shows runner=claude model=claude-sonnet-5-5 and output contains unrecognized_model.",
+  "workaround": "Use executor=claude so the opposite reviewer is Codex for this review; do not count the failed Claude review as PASS.",
+  "proposed_outcome": "0.11.9 fixes semantic reviewer model fallback/unsupported-model termination."
+}
