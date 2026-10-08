@@ -1,0 +1,15 @@
+{
+  "feedback_id": "FB-20261008T035021Z-d5e79569",
+  "created_at": "2026-10-08T03:50:21.3117515Z",
+  "status": "candidate",
+  "product": "air-worker",
+  "source_version": "0.11.8",
+  "type": "defect",
+  "severity": "P0",
+  "observed": "AirWorker shared-learning is only selected from the current session product learning-module.json. Real 0.11.8 work on other products therefore has no independent AirWorker self-learning owner/runtime and cannot prove automatic review -\u003e safe procedure auto-apply -\u003e exact-SHA next-run load -\u003e used/outcome.",
+  "expected": "AirWorker always has its own product-owned self-learning configuration/runtime independent of the product being developed; safe procedures learn automatically, blocking rules remain gated by trusted LPR approval.",
+  "evidence": "docs/receipts/AIRWORKER_SELF_LEARNING_P0_AUDIT_20261008.json",
+  "reproduction": "Use AirWorker 0.11.8 to develop a product without learning-module.json; run plan node/validate/goals/recovery workflow; inspect AirWorker learning state and observe only target-product/legacy telemetry, no AirWorker-owned shared-learning cycle.",
+  "workaround": "none; current correct behavior may come from model/session context and is NOT_PROVEN as AirWorker learning",
+  "proposed_outcome": "AirWorker 0.11.9 host-level self-learning owner/runtime with real automatic E2E acceptance"
+}

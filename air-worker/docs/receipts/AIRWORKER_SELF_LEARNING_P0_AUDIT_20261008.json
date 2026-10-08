@@ -1,0 +1,27 @@
+{
+  "schema": "air-worker.self-learning-p0-audit/v1",
+  "recorded_at_utc": "2026-10-08T03:55:00Z",
+  "status": "DEFECT_CONFIRMED",
+  "live_version": "0.11.8",
+  "live_revision": "cbfa266eefe8d5d1ea67db078bc416f4a928147a",
+  "selfcheck": "PASS",
+  "exploitation_observation": "real AirWorker development work produced plan-node telemetry but no automatic lesson/review/proposal/applied/loaded/used/effect chain attributable to AirWorker self-learning",
+  "config_presence": {
+    "AirWorker_Wiki_learning_module": false,
+    "AirCurator_Wiki_learning_module": false,
+    "installed_air_worker_learning_module": false,
+    "R_runtime_learning_module": false
+  },
+  "code_root_cause": {
+    "product_resolution": "cmd/learn_review.go productForLearningHookInput resolves only the active session product",
+    "selector": "cmd/learn_shared.go readSharedLearningSettings reads only <active-product>/learning-module.json",
+    "effect": "when AirWorker develops another product, AirWorker has no independent self-learning owner/runtime"
+  },
+  "existing_applied_legacy_procedures": [
+    "process-stall-diagnosis",
+    "execution-unknown-no-blind-retry",
+    "file-lock-before-code-patch"
+  ],
+  "required_outcome": "host-level AirWorker self-learning owner/runtime independent of the developed product, automatic safe procedure learning and exact-SHA next-run context; blocking rules still require trusted LPR grant",
+  "release_blocker": "N-073_p0-self-learn-airworker-permanently-learns-from-i"
+}
