@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -282,7 +283,40 @@ func TestN083InterruptedManagedProcedureRecoversBeforeSeedVerification(t *testin
 				t.Fatal(err)
 			}
 			after := []byte("# Updated evidence check\n\n## When to apply\nAmbiguous execution.\n\n## Procedure\n1. Inspect exact machine evidence.\n\n## Pitfalls\nNever retry blindly.\n")
-			afterExists := mode == "update"
+			// Real producer order: durable proposal + content/diff, then
+			// an apply or rollback WAL. A synthetic WAL without a proposal
+			// is correctly rejected by the hardened module.
+			proposalID := "custom-update-" + mode
+			proposalDir := filepath.Join(runtimeRoot, "proposals")
+			if err := os.MkdirAll(proposalDir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			diff := n083FixtureDiff(target, before, after)
+			if err := os.WriteFile(filepath.Join(proposalDir, proposalID+".content"), after, 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(proposalDir, proposalID+".diff"), diff, 0600); err != nil {
+				t.Fatal(err)
+			}
+			proposal := map[string]any{
+				"schema": "air.learning.proposal/v1", "proposal_id": proposalID,
+				"product_id": "air-worker-test", "kind": "procedure", "status": "PENDING_LPR",
+				"target": target, "before_exists": true,
+				"pre_sha256": learnSHA(before), "post_sha256": learnSHA(after),
+				"content_ref": "proposals/" + proposalID + ".content", "diff_ref": "proposals/" + proposalID + ".diff",
+				"diff_sha256": learnSHA(diff), "at": time.Now().UTC().Format(time.RFC3339Nano),
+			}
+			proposalRaw, err := json.Marshal(proposal)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(runtimeRoot, "proposals.jsonl"), append(proposalRaw, '\n'), 0600); err != nil {
+				t.Fatal(err)
+			}
+			mutationBefore, mutationAfter := before, after
+			if mode == "rollback" {
+				mutationBefore, mutationAfter = after, before
+			}
 			txID := "TX-n083-" + mode
 			status := "applied"
 			if mode == "rollback" {
@@ -291,20 +325,46 @@ func TestN083InterruptedManagedProcedureRecoversBeforeSeedVerification(t *testin
 			// Synthetic interrupted transaction must satisfy the exact module
 			// WAL contract; otherwise preflight must reject it as poisoned.
 			ledger := map[string]any{"schema": "air.learning.ledger/v1", "transaction_id": txID,
-				"proposal_id": "LP-n083-" + mode, "product_id": "air-worker-test",
+				"proposal_id": proposalID, "product_id": "air-worker-test",
 				"at":     time.Now().UTC().Format(time.RFC3339Nano),
 				"target": target, "kind": "procedure", "status": status,
-				"before_exists": true, "after_exists": afterExists, "pre_sha256": learnSHA(before), "post_sha256": ""}
-			if afterExists {
-				ledger["post_sha256"] = learnSHA(after)
+				"before_exists": true, "after_exists": true,
+				"pre_sha256": learnSHA(mutationBefore), "post_sha256": learnSHA(mutationAfter)}
+			if mode == "rollback" {
+				// A rollback requires an earlier committed apply of the same
+				// proposal. Seed history remains intact and immutable.
+				prior := map[string]any{
+					"schema": "air.learning.ledger/v1", "transaction_id": "TX-n083-prior",
+					"product_id": "air-worker-test", "proposal_id": proposalID,
+					"target": target, "kind": "procedure", "status": "applied",
+					"at":            time.Now().UTC().Format(time.RFC3339Nano),
+					"before_exists": true, "after_exists": true,
+					"pre_sha256": learnSHA(before), "post_sha256": learnSHA(after),
+				}
+				priorRaw, err := json.Marshal(prior)
+				if err != nil {
+					t.Fatal(err)
+				}
+				ledgerFile, err := os.OpenFile(filepath.Join(runtimeRoot, "ledger.jsonl"), os.O_APPEND|os.O_WRONLY, 0600)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, writeErr := ledgerFile.Write(append(priorRaw, '\n'))
+				closeErr := ledgerFile.Close()
+				if writeErr != nil {
+					t.Fatal(writeErr)
+				}
+				if closeErr != nil {
+					t.Fatal(closeErr)
+				}
 			}
-			backupRel := "backups/" + learnSHA(before)
+			backupRel := "backups/" + learnSHA(mutationBefore)
 			ledger["backup_ref"] = backupRel
 			backup := filepath.Join(runtimeRoot, filepath.FromSlash(backupRel))
 			if err := os.MkdirAll(filepath.Dir(backup), 0700); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.WriteFile(backup, before, 0600); err != nil {
+			if err := os.WriteFile(backup, mutationBefore, 0600); err != nil {
 				t.Fatal(err)
 			}
 			transactionDir := filepath.Join(runtimeRoot, "transactions")
@@ -320,21 +380,17 @@ func TestN083InterruptedManagedProcedureRecoversBeforeSeedVerification(t *testin
 			if err := os.WriteFile(walPath, raw, 0600); err != nil {
 				t.Fatal(err)
 			}
-			if afterExists {
-				if err := os.WriteFile(path, after, 0600); err != nil {
-					t.Fatal(err)
-				}
-			} else {
-				if err := os.Remove(path); err != nil {
-					t.Fatal(err)
-				}
+			// Emulate the crash after the target was written but before
+			// its terminal ledger append, preserving the pre-transaction backup.
+			if err := os.WriteFile(path, mutationAfter, 0600); err != nil {
+				t.Fatal(err)
 			}
 			got, on, err := readSharedLearningSettings(product)
 			if err != nil || !on || got.RuntimeRoot != runtimeRoot {
 				t.Fatalf("recovery blocked settings: on=%v err=%v", on, err)
 			}
 			restored, err := os.ReadFile(path)
-			if err != nil || !bytes.Equal(restored, before) {
+			if err != nil || !bytes.Equal(restored, mutationBefore) {
 				t.Fatalf("recovery bytes=%q err=%v", restored, err)
 			}
 			if _, err := os.Stat(walPath); !os.IsNotExist(err) {
@@ -342,4 +398,39 @@ func TestN083InterruptedManagedProcedureRecoversBeforeSeedVerification(t *testin
 			}
 		})
 	}
+}
+
+func n083FixtureDiff(target string, before, after []byte) []byte {
+	lines := func(b []byte) []string {
+		if len(b) == 0 {
+			return nil
+		}
+		s := strings.Split(string(b), "\n")
+		if s[len(s)-1] == "" {
+			s = s[:len(s)-1]
+		}
+		return s
+	}
+	a, z := lines(before), lines(after)
+	lineStart := func(n int) int {
+		if n == 0 {
+			return 0
+		}
+		return 1
+	}
+	var out strings.Builder
+	fmt.Fprintf(&out, "--- a/%s\n+++ b/%s\n@@ -%d,%d +%d,%d @@\n", target, target, lineStart(len(a)), len(a), lineStart(len(z)), len(z))
+	for _, line := range a {
+		out.WriteString("-" + line + "\n")
+	}
+	if len(before) > 0 && before[len(before)-1] != '\n' {
+		out.WriteString("\\ No newline at end of file\n")
+	}
+	for _, line := range z {
+		out.WriteString("+" + line + "\n")
+	}
+	if len(after) > 0 && after[len(after)-1] != '\n' {
+		out.WriteString("\\ No newline at end of file\n")
+	}
+	return []byte(out.String())
 }
