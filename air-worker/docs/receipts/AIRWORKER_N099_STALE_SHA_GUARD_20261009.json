@@ -1,0 +1,52 @@
+{
+    "schema":  "air-worker.n099.stale-sha-protection/v1",
+    "node":  "N-099_p0-self-use-id-invalidate-stale-loaded-target-sh",
+    "parent":  "N-093_p0-self-use-verifiable-outcome-for-newly-learned",
+    "at_utc":  "2026-10-08T17:15:23.7163434Z",
+    "base_head":  "9b0f6f146c2250497a1a3393436543c2f4c842d8",
+    "source_branch":  "dev/airworker-curator-skill-lifecycle-20261006",
+    "source_files":  [
+                         {
+                             "sha256":  "23f783f6304df43cef422d945d5827371d801af8f9a0787fae5e0c5ac155bc27",
+                             "path":  "cmd/self_learning_rule_identity.go"
+                         },
+                         {
+                             "sha256":  "8d15ae9b1df49c148a173f86a015f0c57897da29ec7f77e88968175155666940",
+                             "path":  "cmd/self_learning_rule_identity_test.go"
+                         },
+                         {
+                             "sha256":  "5c4c40f42e7a6f0ef3a6a83c7ab9d15da18b1adb90b9823e6580a14d34259aa6",
+                             "path":  "cmd/self_learning_usage.go"
+                         }
+                     ],
+    "factual_verdict":  "PASS_SCOPED_SAFETY_PROPERTY",
+    "checks":  {
+                   "full_go_test_log_sha256":  "fda0b58ab75af758cabe3c25ef2e110c7b22a8a3b6b786375af4ae08d3ef577a",
+                   "plan_validate_criteria":  62,
+                   "stale_before_trigger":  "PASS: no trigger/event if managed target bytes change after SessionStart",
+                   "go_vet_log_sha256":  "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+                   "plan_validate_goals":  7,
+                   "legacy_positive":  "PASS: verified correlated execution-unknown still emits used when rule SHA current",
+                   "go_vet_exit":  0,
+                   "stale_after_trigger":  "PASS: correlated diagnostic cannot claim used after skill bytes drift",
+                   "plan_validate_problems":  0,
+                   "gofmt_violations":  0,
+                   "full_go_test_receipt_sha256":  "eb2e4c8d421905825060d38b7cacbcf3b38a48fe2892069de9a80d2d0f1aeb6a",
+                   "full_go_test_receipt":  "R:\\-4-\\air-worker\\work\\0.11.9\\n099\\FULL_GO_RETEST.json",
+                   "unsafe_paths":  "PASS: reject traversal/non-canonical/unmanaged/backslash/foreign SHA",
+                   "full_go_test_duration_seconds":  166.321,
+                   "full_go_test_rc":  0,
+                   "plan_lint_warnings":  0
+               },
+    "applicability":  [
+                          "DEV-130/R05 current-run machine evidence",
+                          "DEV-130/R07 identity/provenance of managed resource",
+                          "DEV-130/R08 one machine result"
+                      ],
+    "runtime_install":  "AirWorker 0.11.8 unchanged",
+    "limitations":  [
+                        "N-093 generalized newly generated procedure used/outcome/effect remains NOT_PROVEN",
+                        "No live 0.11.9 installation, release or global judge PASS asserted",
+                        "No independent Astra high for N-093 parent in this scoped step"
+                    ]
+}

@@ -634,7 +634,8 @@ func handlePostToolUseSelfLearning(in hookInput) (hookResult, error) {
 		return hookResult{}, nil
 	}
 	rule, hasRule := executionUnknownLoadedRule(contextRec)
-	if !hasRule {
+	if !hasRule || !currentSelfLearningRuleBytes(owner, rule) {
+		// A remembered load, stale bytes or a replaced target cannot prove use.
 		return hookResult{}, nil
 	}
 	rawResponse := hookResponseBytes(in)
