@@ -50,6 +50,14 @@ func uniqueJSONObjectFields(raw []byte) (map[string]json.RawMessage, error) {
 		return nil, errors.New("self-learning selector must be a JSON object")
 	}
 	fields := map[string]json.RawMessage{}
+	// Go's struct decoder accepts case-insensitive aliases (e.g. Enabled).
+	// The selector is a security-relevant machine contract: accept only
+	// canonical tag spellings, not ambiguous case-folded equivalents.
+	allowed := map[string]bool{
+		"schema": true, "enabled": true, "product_root": true,
+		"product_id": true, "runtime_root": true, "config_sha256": true,
+		"updated_at": true, "disabled_at": true, "disable_cause": true,
+	}
 	for dec.More() {
 		token, err := dec.Token()
 		if err != nil {
@@ -61,6 +69,9 @@ func uniqueJSONObjectFields(raw []byte) (map[string]json.RawMessage, error) {
 		}
 		if _, exists := fields[key]; exists {
 			return nil, fmt.Errorf("duplicate self-learning selector key %q", key)
+		}
+		if !allowed[key] {
+			return nil, fmt.Errorf("noncanonical or unknown self-learning selector key %q", key)
 		}
 		var value json.RawMessage
 		if err := dec.Decode(&value); err != nil {

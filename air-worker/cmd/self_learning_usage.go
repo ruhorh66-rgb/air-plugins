@@ -476,74 +476,97 @@ func observableTextOutcome(text string) (bool, bool) {
 	return false, false
 }
 
-func observableToolSuccessValue(v any) (bool, bool) {
+// Recursively collect positive and negative facts. A parent exit_code=0 or
+// isError=false cannot override a failure inside MCP content. Plain text
+// without recognizable evidence never counts as success.
+func observableToolEvidence(v any, depth int) (positive, negative bool) {
+	if depth > 12 {
+		return false, true
+	}
 	switch x := v.(type) {
 	case map[string]any:
-		explicitNoError := false
 		for _, key := range []string{"isError", "is_error"} {
-			if flag, ok := x[key].(bool); ok {
-				if flag {
-					return false, true
+			if value, present := x[key]; present {
+				flag, ok := value.(bool)
+				if !ok || flag {
+					negative = true
 				}
-				explicitNoError = true
 			}
 		}
 		if value, ok := x["error"]; ok && value != nil {
 			if s, isString := value.(string); !isString || strings.TrimSpace(s) != "" {
-				return false, true
+				negative = true
 			}
 		}
 		for _, key := range []string{"exit_code", "exitCode", "code"} {
-			if value, ok := x[key]; ok {
-				if n, valid := numericExitCode(value); valid {
-					return n == 0, true
-				}
-			}
-		}
-		if status, ok := x["status"].(string); ok {
-			switch strings.ToLower(strings.TrimSpace(status)) {
-			case "ok", "success", "passed", "pass", "online", "completed", "ready", "recorded":
-				return true, true
-			case "error", "failed", "fail", "offline", "blocked", "timeout":
-				return false, true
-			}
-		}
-		knownSuccess := false
-		for _, key := range []string{"result", "data", "content", "output", "text", "nodes", "results", "files"} {
-			if value, ok := x[key]; ok {
-				if success, known := observableToolSuccessValue(value); known {
-					if !success {
-						return false, true
+			if value, present := x[key]; present {
+				if n, ok := numericExitCode(value); ok {
+					if n == 0 {
+						positive = true
+					} else {
+						negative = true
 					}
-					knownSuccess = true
+				} else {
+					negative = true
 				}
 			}
 		}
-		if knownSuccess {
-			return true, true
+		if value, exists := x["status"]; exists {
+			status, ok := value.(string)
+			if !ok {
+				negative = true
+			} else {
+				switch strings.ToLower(strings.TrimSpace(status)) {
+				case "ok", "success", "passed", "pass", "online", "completed", "ready", "recorded":
+					positive = true
+				case "error", "failed", "fail", "offline", "blocked", "timeout", "execution_unknown":
+					negative = true
+				}
+			}
 		}
-		if explicitNoError {
-			return true, true
+		for _, key := range []string{"result", "data", "content", "output", "text", "nodes", "results", "files"} {
+			if value, exists := x[key]; exists {
+				pos, neg := observableToolEvidence(value, depth+1)
+				positive = positive || pos
+				negative = negative || neg
+			}
 		}
 	case []any:
-		knownSuccess := false
 		for _, item := range x {
-			success, known := observableToolSuccessValue(item)
-			if !known {
-				continue
-			}
-			if !success {
-				return false, true
-			}
-			knownSuccess = true
-		}
-		if knownSuccess {
-			return true, true
+			pos, neg := observableToolEvidence(item, depth+1)
+			positive = positive || pos
+			negative = negative || neg
 		}
 	case string:
-		return observableTextOutcome(x)
+		text := strings.TrimSpace(x)
+		if strings.HasPrefix(text, "{") || strings.HasPrefix(text, "[") {
+			// A malformed embedded JSON document is not positive evidence.
+			if !json.Valid([]byte(text)) {
+				return false, true
+			}
+			parsed, err := decodeJSONValue([]byte(text))
+			if err != nil {
+				return false, true
+			}
+			return observableToolEvidence(parsed, depth+1)
+		}
+		if success, known := observableTextOutcome(text); known {
+			if success {
+				positive = true
+			} else {
+				negative = true
+			}
+		}
 	}
-	return false, false
+	return positive, negative
+}
+
+func observableToolSuccessValue(v any) (bool, bool) {
+	positive, negative := observableToolEvidence(v, 0)
+	if negative {
+		return false, true
+	}
+	return positive, positive
 }
 
 func observableToolSuccess(raw []byte) bool {

@@ -230,13 +230,20 @@ func TestAirWorkerSelfLearningObservableToolOutcome(t *testing.T) {
 		t.Fatal("structured success was not observable")
 	}
 	for name, raw := range map[string]json.RawMessage{
-		"unknown":        json.RawMessage(`{"error":"EXECUTION_UNKNOWN"}`),
-		"nonzero":        json.RawMessage(`{"exit_code":1}`),
-		"camel-error":    json.RawMessage(`{"isError":true,"content":[{"type":"text","text":"Access denied"}]}`),
-		"snake-error":    json.RawMessage(`{"is_error":true,"content":[{"type":"text","text":"failed"}]}`),
-		"array-no-proof": json.RawMessage(`{"content":[{"type":"text","text":"some output"}]}`),
+		"unknown":                     json.RawMessage(`{"error":"EXECUTION_UNKNOWN"}`),
+		"nonzero":                     json.RawMessage(`{"exit_code":1}`),
+		"camel-error":                 json.RawMessage(`{"isError":true,"content":[{"type":"text","text":"Access denied"}]}`),
+		"snake-error":                 json.RawMessage(`{"is_error":true,"content":[{"type":"text","text":"failed"}]}`),
+		"array-no-proof":              json.RawMessage(`{"content":[{"type":"text","text":"some output"}]}`),
+		"nested-json-failed":          json.RawMessage(`{"isError":false,"content":[{"type":"text","text":"{\"status\":\"failed\"}"}]}`),
+		"outer-success-nested-error":  json.RawMessage(`{"exit_code":0,"status":"completed","content":[{"type":"text","text":"{\"error\":\"permission denied\"}"}]}`),
+		"outer-status-nested-nonzero": json.RawMessage(`{"status":"completed","result":{"exit_code":1}}`),
+		"outer-zero-nested-failure":   json.RawMessage(`{"exit_code":0,"data":{"status":"failed"}}`),
 	} {
 		t.Run(name, func(t *testing.T) {
+			if !json.Valid(raw) {
+				t.Fatalf("%s invalid negative fixture cannot prove fail-closed: %s", name, raw)
+			}
 			if observableToolSuccess(raw) {
 				t.Fatalf("%s was treated as observable success: %s", name, raw)
 			}

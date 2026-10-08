@@ -245,8 +245,12 @@ func TestAirWorkerSelfLearningSelectorRequiresUniqueExplicitEnabled(t *testing.T
 	missing, _ := json.Marshal(doc)
 	nullEnabled := []byte(strings.Replace(string(raw), `"enabled": true`, `"enabled": null`, 1))
 	duplicate := []byte(strings.Replace(string(raw), `"enabled": true`, `"enabled": true, "enabled": false`, 1))
+	caseAlias := []byte(strings.Replace(string(raw), `"enabled": true`, `"enabled": true, "Enabled": false`, 1))
+	caseOnly := []byte(strings.Replace(string(raw), `"enabled": true`, `"Enabled": false`, 1))
+	rootAlias := []byte(strings.Replace(string(raw), `"product_root":`, `"Product_root":`, 1))
 	for name, candidate := range map[string][]byte{
 		"missing": missing, "null": nullEnabled, "duplicate": duplicate,
+		"case_alias_enabled": caseAlias, "case_only_enabled": caseOnly, "noncanonical_root": rootAlias,
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := decodeAirWorkerSelfLearningSelector(candidate); err == nil {
