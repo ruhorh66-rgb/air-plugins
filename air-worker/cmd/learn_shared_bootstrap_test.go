@@ -258,3 +258,80 @@ func TestRunLearningProcessSelfBound(t *testing.T) {
 		t.Fatalf("self-bound adapter failed: %s %v", out, err)
 	}
 }
+
+func TestN083InterruptedManagedProcedureRecoversBeforeSeedVerification(t *testing.T) {
+	for _, mode := range []string{"update", "rollback"} {
+		t.Run(mode, func(t *testing.T) {
+			product := filepath.Join(t.TempDir(), "product")
+			if err := os.MkdirAll(product, 0700); err != nil {
+				t.Fatal(err)
+			}
+			writeLegacyOperationalRule(t, product, "LP-n083-seed", "execution-unknown-no-blind-retry", "operational-procedure-v1")
+			runtimeRoot := filepath.Join(t.TempDir(), "runtime")
+			if _, err := initSharedLearning(product, runtimeRoot, "air-worker-test"); err != nil {
+				t.Fatal(err)
+			}
+			intent, found, err := readSharedLearningBootstrapIntent(runtimeRoot)
+			if err != nil || !found || len(intent.Rules) != 1 {
+				t.Fatalf("intent=%+v err=%v", intent, err)
+			}
+			target := intent.Rules[0].Target
+			path := filepath.Join(product, filepath.FromSlash(target))
+			before, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			after := []byte("# Updated evidence check\n\n## When to apply\nAmbiguous execution.\n\n## Procedure\n1. Inspect exact machine evidence.\n\n## Pitfalls\nNever retry blindly.\n")
+			afterExists := mode == "update"
+			txID := "TX-n083-" + mode
+			ledger := map[string]any{"schema": "air.learning.ledger/v1", "transaction_id": txID,
+				"proposal_id": "LP-n083-" + mode, "target": target, "kind": "procedure", "status": "applied",
+				"before_exists": true, "after_exists": afterExists, "pre_sha256": learnSHA(before), "post_sha256": ""}
+			if afterExists {
+				ledger["post_sha256"] = learnSHA(after)
+			}
+			backupRel := "backups/" + learnSHA(before)
+			ledger["backup_ref"] = backupRel
+			backup := filepath.Join(runtimeRoot, filepath.FromSlash(backupRel))
+			if err := os.MkdirAll(filepath.Dir(backup), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(backup, before, 0600); err != nil {
+				t.Fatal(err)
+			}
+			transactionDir := filepath.Join(runtimeRoot, "transactions")
+			if err := os.MkdirAll(transactionDir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			wal := map[string]any{"schema": "air.learning.transaction/v1", "product_id": "air-worker-test", "ledger": ledger}
+			raw, err := json.Marshal(wal)
+			if err != nil {
+				t.Fatal(err)
+			}
+			walPath := filepath.Join(transactionDir, txID+".json")
+			if err := os.WriteFile(walPath, raw, 0600); err != nil {
+				t.Fatal(err)
+			}
+			if afterExists {
+				if err := os.WriteFile(path, after, 0600); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if err := os.Remove(path); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, on, err := readSharedLearningSettings(product)
+			if err != nil || !on || got.RuntimeRoot != runtimeRoot {
+				t.Fatalf("recovery blocked settings: on=%v err=%v", on, err)
+			}
+			restored, err := os.ReadFile(path)
+			if err != nil || !bytes.Equal(restored, before) {
+				t.Fatalf("recovery bytes=%q err=%v", restored, err)
+			}
+			if _, err := os.Stat(walPath); !os.IsNotExist(err) {
+				t.Fatalf("pending WAL after recovery: %v", err)
+			}
+		})
+	}
+}

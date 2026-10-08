@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -459,10 +460,29 @@ func verifySharedBootstrapState(product string, s sharedLearningSettings, intent
 	if intent.ProductID != s.ProductID || intent.ManagedSkillPrefix != s.ManagedSkillPrefix {
 		return errors.New("shared-learning bootstrap/settings identity mismatch")
 	}
+	// Validate the immutable seed first. A malformed/modified seed must not
+	// cause any WAL mutation, even when an interrupted transaction exists.
 	for _, rule := range intent.Rules {
 		if _, _, err := sharedBootstrapLegacyRule(product, rule); err != nil {
 			return err
 		}
+	}
+	// The module writes managed targets before their terminal ledger record.
+	// After a crash the target can correctly differ from the *last committed*
+	// ledger while a valid WAL waits. Module-owned recovery must run first;
+	// otherwise hook/status/bootstrap preflight would permanently lock it out.
+	pending, err := filepath.Glob(filepath.Join(s.RuntimeRoot, "transactions", "TX-*.json"))
+	if err != nil {
+		return err
+	}
+	if len(pending) > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		defer cancel()
+		if err := learning.Recover(ctx, sharedLearningConfig(product, s)); err != nil {
+			return fmt.Errorf("shared bootstrap module recovery before ledger verification: %w", err)
+		}
+	}
+	for _, rule := range intent.Rules {
 		if err := verifySharedBootstrapManagedState(product, s, rule); err != nil {
 			return err
 		}

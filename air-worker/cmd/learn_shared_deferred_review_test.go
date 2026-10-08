@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -13,16 +14,27 @@ import (
 func deferredReviewEvents(t *testing.T, runtime, runID string) []map[string]any {
 	t.Helper()
 	var selected []map[string]any
-	err := scanLearnJSONL(filepath.Join(runtime, "events.jsonl"), func(raw []byte) error {
-		var row map[string]any
-		if err := json.Unmarshal(raw, &row); err != nil {
-			return err
+	var err error
+	for attempt := 0; attempt < 12; attempt++ {
+		selected = nil
+		err = scanLearnJSONL(filepath.Join(runtime, "events.jsonl"), func(raw []byte) error {
+			var row map[string]any
+			if decodeErr := json.Unmarshal(raw, &row); decodeErr != nil {
+				return decodeErr
+			}
+			if row["kind"] == "run_completed" && row["run_id"] == runID {
+				selected = append(selected, row)
+			}
+			return nil
+		})
+		if (errors.Is(err, syscall.Errno(32)) || errors.Is(err, syscall.Errno(33))) && attempt < 11 {
+			// A concurrent Windows atomic journal replacement can deny
+			// readers briefly; reset partial results on retry.
+			time.Sleep(10 * time.Millisecond)
+			continue
 		}
-		if row["kind"] == "run_completed" && row["run_id"] == runID {
-			selected = append(selected, row)
-		}
-		return nil
-	})
+		break
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
