@@ -1,0 +1,32 @@
+{
+  "schema": "air-worker.recovery-shared-module/v1",
+  "recorded_at_utc": "2026-10-08T03:47:00Z",
+  "status": "PASS",
+  "damaged_checkout": "F:\\-8-\\_worktrees\\air-modules-airworker-20261005",
+  "damaged_checkout_checkpoint": "R:\\-4-\\air-worker\\work\\recovery-20261008-1128\\air-modules",
+  "damaged_head": "7bdbce903bdecd1962364f9390c955f4cfa7d9d1",
+  "recovered_clean_worktree": "F:\\-8-\\_worktrees\\air-modules-release-20261008",
+  "branch": "dev/airworker-learning-20261005",
+  "github_head": "6b716ca3d7fe0314df64c80e12c283ef1a0c38db",
+  "contains_exact_number_fix": "7bdbce903bdecd1962364f9390c955f4cfa7d9d1",
+  "later_commits_preserved": 4,
+  "receipts_present": [
+    "docs/receipts/LEARNING_LOAD_EXACT_NUMBER_ACCEPTANCE_20261007.json",
+    "docs/receipts/LEARNING_FOUNDATION_RECONCILIATION_20261007.json",
+    "docs/receipts/AIR_TASKS_SHARED_LEARNING_CONSUMER_20261007.json"
+  ],
+  "plan_facts": {
+    "N-020": "closed",
+    "N-021": "closed",
+    "N-023": "closed",
+    "N-024": "closed",
+    "N-022": "open"
+  },
+  "verification": {
+    "git_tree": "clean",
+    "go_test_all": 0,
+    "go_vet_all": 0
+  },
+  "active_module_worktree_for_N070": "F:\\-8-\\_worktrees\\air-modules-release-20261008",
+  "release_or_install_performed": false
+}
