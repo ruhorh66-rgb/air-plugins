@@ -1,0 +1,23 @@
+{
+  "schema": "air-worker.recovery-vault/v1",
+  "recorded_at_utc": "2026-10-08T03:44:00Z",
+  "status": "PASS",
+  "active_release": "0.11.9",
+  "active_plan_root": "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006\\air-worker",
+  "active_plan_commit": "cd5896d7e594892315df81b26ec7863e241c3af7",
+  "product_vault": "F:\\-5-\\011_Plugins\\AirWorker_Wiki",
+  "product_vault_commit": "2197bbd1e6113ab87dfb37ee8aaf638106c270e2",
+  "product_vault_branch": "dev/airworker-curator-0.10.14",
+  "instruction": "PRODUCT_INSTRUCTION.md",
+  "curator_backlog": "01_TASKS/BACKLOG_CURATOR_SHARED_LEARNING_20261008.md",
+  "self_learning_p0_node": "N-073_p0-self-learn-airworker-permanently-learns-from-i",
+  "curator_learning_relation": "consumer-case inside 0.11.9; does not replace AirWorker self-learning P0",
+  "live_airworker": {
+    "version": "0.11.8",
+    "revision": "cbfa266eefe8d5d1ea67db078bc416f4a928147a",
+    "selfcheck": "PASS"
+  },
+  "historical_handoff_preserved": "03_REVIEW/HANDOFF_AIRWORKER_SELF_LEARNING_20261005.md",
+  "checkpoint_root": "R:\\-4-\\air-worker\\work\\recovery-20261008-1128",
+  "release_or_install_performed": false
+}
