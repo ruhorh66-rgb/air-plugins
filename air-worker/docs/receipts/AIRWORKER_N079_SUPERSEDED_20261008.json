@@ -1,0 +1,11 @@
+{
+  "schema": "air-worker.handoff-superseded/v1",
+  "status": "SUPERSEDED",
+  "node": "N-079_handoff-resume-n-078-astra-remediation-from-exac",
+  "reason": "N-079 hard-coded 46dddab as branch HEAD; committing the handoff advanced the branch to 4ee4fb4, so the check became self-invalidating.",
+  "successor": "N-080_handoff-final-resume-n-078-from-synchronized-bra",
+  "preserved_code_wip": "46dddab9b4794beeb1b884ef8770aec61d4573e4",
+  "first_handoff_commit": "4ee4fb4f5f8e472baba53a7ea330859bdc9a6601",
+  "rule": "New session verifies local HEAD equals remote branch HEAD and contains preserved checkpoints as ancestors; it does not require a self-referential hard-coded branch HEAD.",
+  "release_or_install_performed": false
+}
