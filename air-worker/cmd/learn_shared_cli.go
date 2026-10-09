@@ -317,6 +317,7 @@ func routeSharedFeedback(argv []string) (bool, int) {
 	source := fs.String("source", "worker", "источник")
 	ref := fs.String("ref", "", "ссылка на квитанцию")
 	rid := fs.String("run-id", "", "ID этой записи для повторной доставки")
+	useProcedure := fs.String("use-procedure", "", "явно выбранный ранее выученный безопасный target@SHA256 для машинно проверяемой штатной операции feedback")
 	oldObserved := fs.String("observed", "", "совместимый старый параметр")
 	oldEvidence := fs.String("evidence", "", "совместимый старый параметр")
 	legacyFields := map[string]*string{}
@@ -373,6 +374,19 @@ func routeSharedFeedback(argv []string) (bool, int) {
 	if err != nil {
 		return true, printSharedLearning(learning.Response{}, err)
 	}
+	if *useProcedure != "" {
+		// Stable source/run ownership spans selection, native operation and
+		// usage evidence. The lock is OS-backed and cross-process on Windows.
+		useLock, acquired := acquireLock(lockName("native-feedback-use", *source+"\n"+*rid))
+		if !acquired {
+			return true, printSharedLearning(learning.Response{}, errors.New("another learned feedback use owns this source/run_id"))
+		}
+		defer useLock.release()
+	}
+	claim, err := prepareNativeFeedbackUse(*useProcedure, *source, *rid, s)
+	if err != nil {
+		return true, printSharedLearning(learning.Response{}, err)
+	}
 	res, err := executeSharedLearning(root, s, "observe", map[string]string{"run_id": *rid, "kind": "run_completed", "observed": *text, "class": "feedback-" + *kind, "source": "feedback", "principal": *source, "outcome_ref": *ref, "feedback": string(encoded)})
 	if err != nil && !(errors.Is(err, learning.ErrConflict) && res.Status == "duplicate") {
 		// A reviewer/model error may occur AFTER the shared module durably
@@ -393,6 +407,16 @@ func routeSharedFeedback(argv []string) (bool, int) {
 	if err != nil {
 		res.Status = "partial"
 		return true, printSharedLearning(res, fmt.Errorf("learning event persisted but canonical feedback candidate needs recovery (run_id=%s): %w", *rid, err))
+	}
+	if claim != nil {
+		event, evidenceErr := findSharedFeedbackEvent(s.RuntimeRoot, *rid, string(encoded), *text, *source)
+		if evidenceErr == nil {
+			evidenceErr = recordNativeFeedbackProcedureUse(claim, root, event["event_id"])
+		}
+		if evidenceErr != nil {
+			res.Status = "partial"
+			return true, printSharedLearning(res, fmt.Errorf("native learned feedback use not proven (run_id=%s): %w", *rid, evidenceErr))
+		}
 	}
 	if res.Status == "duplicate" {
 		res.Status = "recorded"

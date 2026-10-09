@@ -130,10 +130,20 @@ func preserveCanonicalSharedFeedback(root string, s sharedLearningSettings, runI
 	}
 	defer planLock.release()
 	var cfg runConfig
-	if err := readJSON(filepath.Join(root, "run-config.json"), &cfg); err != nil {
-		return feedbackWriteResult{}, fmt.Errorf("cannot resolve canonical feedback PLAN: %w", err)
+	configErr := readJSON(filepath.Join(root, "run-config.json"), &cfg)
+	if configErr != nil && !errors.Is(configErr, os.ErrNotExist) {
+		return feedbackWriteResult{}, fmt.Errorf("cannot resolve canonical feedback PLAN: %w", configErr)
 	}
 	plan := planFilePath(root, cfg)
+	if _, statErr := os.Stat(plan); statErr != nil {
+		if errors.Is(statErr, os.ErrNotExist) && errors.Is(configErr, os.ErrNotExist) {
+			// A raw shared-learning consumer is not necessarily an AirWorker
+			// product with a PLAN. Keep its historical event-only feedback
+			// contract. Do NOT invent a product PLAN or claim a candidate.
+			return feedbackWriteResult{FeedbackID: rec.FeedbackID}, nil
+		}
+		return feedbackWriteResult{}, fmt.Errorf("canonical feedback PLAN unavailable: %w", statErr)
+	}
 	return writeFeedbackWithIO(root, plan, rec, feedbackIO{
 		writeEvidence: writeSharedFeedbackImmutable,
 		writePlan:     writeFileAtomic,

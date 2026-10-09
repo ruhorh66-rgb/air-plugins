@@ -130,6 +130,11 @@ func cmdLearningReviewerAdapter(argv []string) int {
 		fmt.Fprintln(os.Stderr, "learning reviewer: proposed procedure is missing required Markdown sections")
 		return 2
 	}
+	answer.Content, err = bindNativeFeedbackProof(class, answer.Content)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "learning reviewer:", err)
+		return 2
+	}
 	// A distinct exact-content target avoids semantic overwrite and stays
 	// deterministic for duplicate reviewer callbacks. The shared module still
 	// enforces product ownership, managed-target limits and atomic ledger writes.
@@ -216,6 +221,7 @@ func buildLearningReviewerPrompt(target string, before, packet []byte) string {
 		"If there is no reusable procedural lesson, return apply=false and empty content.\n" +
 		"If apply=true, return a concise, distinct Markdown procedure. It must contain: a # title, ## When to apply, ## Procedure, and ## Pitfalls.\n" +
 		"Existing guidance is immutable: NEVER overwrite or rephrase an unrelated existing lesson. If the run teaches nothing new, apply=false. A new content-hash target is allocated after review; do not invent evidence.\n" +
+		"If a new lesson genuinely teaches reporting a defect by the native air-worker feedback add command with stable -run-id, include that as an explicit positive numbered Procedure step. The binary alone decides whether this step can have a limited machine-verified use contract. Do not assert generic use, effect, remediation, or any blocking approval.\n" +
 		"Return only JSON matching the provided schema.\n\n" +
 		"Managed target: " + target + "\n\nExisting target bytes:\n---\n" + existing + "\n---\n\nRun evidence:\n" + string(packet)
 }

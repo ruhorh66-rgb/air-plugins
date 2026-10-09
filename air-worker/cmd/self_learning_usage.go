@@ -633,11 +633,6 @@ func handlePostToolUseSelfLearning(in hookInput) (hookResult, error) {
 	if !found {
 		return hookResult{}, nil
 	}
-	// A separately verified safe learned procedure may supply a machine
-	// observation profile. Unsupported procedures stay loaded-only.
-	if observed, handled, err := handleHealthProcedureEvidence(owner, contextRec, contextPath, in); err != nil || handled {
-		return observed, err
-	}
 	rule, hasRule := executionUnknownLoadedRule(contextRec)
 	if !hasRule || !currentSelfLearningRuleBytes(owner, rule) {
 		// A remembered load, stale bytes or a replaced target cannot prove use.

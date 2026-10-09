@@ -1,0 +1,77 @@
+{
+    "schema":  "air-worker.n103-n104.native-evidence-candidate/v1",
+    "started_at_utc":  "2026-10-09T04:43:25.2291904Z",
+    "base_head":  "b5154f45acf5e800583bd589ce05e61ae192623b",
+    "source_branch":  "dev/airworker-curator-skill-lifecycle-20261006",
+    "p0_owner":  "gpt-airworker-release-20261009",
+    "scope":  "isolated candidate only, install/release forbidden without exact LPR approval",
+    "components":  [
+                       {
+                           "sha256":  "9663320cbeb43ea64c197f84d5add97e15441fc9bce6b6a5fb214ef0c481643e",
+                           "path":  "cmd/feedback_shared_intake.go"
+                       },
+                       {
+                           "sha256":  "89c271263238e58e0312abcea6e765e0f33b41f2168be1150b5bcdc74f76be0f",
+                           "path":  "cmd/feedback_shared_intake_test.go"
+                       },
+                       {
+                           "sha256":  "1709024674424ad26979d34a72a6cc305dd5d2c04e7b07cc0c2373c29a6a389b",
+                           "path":  "cmd/feedback_native_use.go"
+                       },
+                       {
+                           "sha256":  "46993842b860e280dc32e0df11b8242101ea565173e9b5feb4f8f6e7e243eaa2",
+                           "path":  "cmd/feedback_native_use_test.go"
+                       },
+                       {
+                           "sha256":  "2bb614f25047e2889118cd965484ced11e37cadf34280aa67a416ec70481a315",
+                           "path":  "cmd/learn_adapter.go"
+                       },
+                       {
+                           "sha256":  "3377b2e615afd0a5c48b59ccbadeaa416720232f87285550f7dc2216eb7ecc24",
+                           "path":  "cmd/learn_shared_cli.go"
+                       },
+                       {
+                           "sha256":  "5c4c40f42e7a6f0ef3a6a83c7ab9d15da18b1adb90b9823e6580a14d34259aa6",
+                           "path":  "cmd/self_learning_usage.go"
+                       }
+                   ],
+    "corrected_regression":  {
+                                 "base_commit":  "b5154f45acf5e800583bd589ce05e61ae192623b",
+                                 "targeted_fixture_test":  "TestSharedLegacyFeedbackMetadataPreserved + TestN096RawSharedLearningConsumerWithoutPlanKeepsLegacyEventContract",
+                                 "failure":  "TestSharedLegacyFeedbackMetadataPreserved: raw shared consumer with no run-config/PLAN incorrectly rejected by new canonical FB",
+                                 "fix":  "for raw shared consumers lacking both run-config and PLAN, preserve event-only compatibility; managed AirWorker product still requires FB+PLAN",
+                                 "exact_full_exit":  1
+                             },
+    "native_usage":  {
+                         "negative_tests":  [
+                                                "missing owner",
+                                                "foreign SHA",
+                                                "stale bytes",
+                                                "unselected text",
+                                                "unsupported machine action",
+                                                "retroactive selection",
+                                                "second procedure for same source/run",
+                                                "duplicate idempotency",
+                                                "feedback review error"
+                                            ],
+                         "supported_action":  "air-worker.feedback.add/v1",
+                         "owner":  "persistent AirWorker self-learning selector in candidate only",
+                         "proven_effect":  "native shared feedback event, immutable typed FB receipt and exactly one matching PLAN candidate",
+                         "model":  "explicit CLI selected current managed procedure target@SHA; no generic free-text attribution",
+                         "cross_product":  "self owner independent from target product"
+                     },
+    "removed_unsafe":  [
+                           "cmd/self_learning_health_proof.go",
+                           "cmd/self_learning_health_proof_test.go"
+                       ],
+    "removed_reason":  "N-100 free-text health observer had 5 P1 + 3 P2 independent Astra findings; untrusted text cannot attest machine procedure_used",
+    "prior_native_tests":  "TestN095|TestN096|TestN102|TestN104|TestSharedLegacyFeedbackMetadataPreserved",
+    "targeted_go_exit":  0,
+    "go_vet_exit":  0,
+    "go_build_exit":  0,
+    "plan_lint_warnings":  0,
+    "full_exact":  "PENDING current source HEAD after commit",
+    "independent_astra":  "PENDING on clean exact commit",
+    "live_0118":  "unchanged",
+    "final_verdict":  "WIP_SCOPED_NATIVE_FEEDBACK_PROOF_NOT_FULL_AUTO_LEARN"
+}

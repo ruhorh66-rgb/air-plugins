@@ -156,3 +156,38 @@ func TestN096FeedbackIntakeSurvivesReviewerFailure(t *testing.T) {
 		t.Fatalf("feedback candidate not retained: %v", err)
 	}
 }
+
+func TestN096RawSharedLearningConsumerWithoutPlanKeepsLegacyEventContract(t *testing.T) {
+	product, settings := sharedProductFixture(t, false)
+	if _, err := os.Stat(filepath.Join(product, "PLAN.md")); !os.IsNotExist(err) {
+		t.Fatal("raw learning fixture unexpectedly has PLAN")
+	}
+	runID := "N096-raw-shared-no-plan"
+	code, output := captureLoopOutput(t, func() int {
+		return cmdFeedback([]string{
+			"add", "-product", product, "-kind", "error",
+			"-source", "worker", "-text", "bounded learning without a project PLAN",
+			"-run-id", runID,
+		})
+	})
+	if code != 0 {
+		t.Fatalf("raw shared-learning consumer lost compatibility: code=%d %s", code, output)
+	}
+	if _, err := os.Stat(filepath.Join(product, "PLAN.md")); !os.IsNotExist(err) {
+		t.Fatalf("invented a bogus product PLAN: %v", err)
+	}
+	matching := 0
+	err := scanLearnJSONL(filepath.Join(settings.RuntimeRoot, "events.jsonl"), func(b []byte) error {
+		var row map[string]any
+		if err := json.Unmarshal(b, &row); err != nil {
+			return err
+		}
+		if row["schema"] == "air.learning.event/v1" && row["run_id"] == runID {
+			matching++
+		}
+		return nil
+	})
+	if err != nil || matching != 1 {
+		t.Fatalf("raw shared event was not recorded once: n=%d err=%v", matching, err)
+	}
+}
