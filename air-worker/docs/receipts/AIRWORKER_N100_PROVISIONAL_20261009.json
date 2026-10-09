@@ -1,0 +1,56 @@
+{
+    "schema":  "air-worker.n100.provisional-implementation/v1",
+    "at_utc":  "2026-10-09T02:27:13.2770583Z",
+    "node":  "N-100_p0-machine-effect-proof-of-safe-learned-health-f",
+    "source_head_before":  "be39d1cb513ec1381dc7c57bb1f02eff10b2bce8",
+    "implementation_status":  "SCOPED_TESTS_PASS_PARENT_N093_OPEN",
+    "source_files":  [
+                         {
+                             "sha256":  "1cb6745958fa7ec378fd82c18d95d0edf27fb76fb4cd7c7facd09a73f027cdff",
+                             "path":  "cmd/self_learning_health_proof.go"
+                         },
+                         {
+                             "sha256":  "c235eae8e3386014cc6a3641180635af13ef9861adb5dcbf18ac2894cb0bfb66",
+                             "path":  "cmd/self_learning_health_proof_test.go"
+                         },
+                         {
+                             "sha256":  "c6a4941d95bf0186843f3fb22ef841bf0e47890d519076686d7dacf1b898bd76",
+                             "path":  "cmd/self_learning_usage.go"
+                         }
+                     ],
+    "verified":  {
+                     "headroom_real_now":  "ready, exit 0",
+                     "host_event_replay":  "REJECTED as missing trusted provenance; no false learned event",
+                     "targeted_go_exit":  0,
+                     "targeted_log_sha256":  "4e1fc6fa54d3a35d3e3fbbead2a17a49dde53332629b524fa5b6bd820759dc99",
+                     "isolated_fixture_negatives":  [
+                                                        "wrong PID",
+                                                        "wrong node",
+                                                        "stale SHA",
+                                                        "spoofed file content",
+                                                        "unrelated exit zero",
+                                                        "blind retry",
+                                                        "legacy procedures still passing"
+                                                    ],
+                     "full_go_log_sha256":  "ec1250e2e520326f7c0cd8e6c996c3e8d158622674337cb685eb88ceed2c7899",
+                     "installed_version":  "0.11.8 remains live",
+                     "go_vet_exit":  0,
+                     "full_go_log_output":  "both packages ok",
+                     "isolated_fixture_positive":  "new safe procedure (not filename hardcoded) + same-node/PID failure + exact current SHA + consulted machine receipt -\u003e procedure_used",
+                     "native_validate_goals":  7,
+                     "source_gofmt":  "PASS",
+                     "full_go_exit":  "NOT_PROVEN: parent process lost final exit receipt; regenerate on exact commit",
+                     "native_validate_problems":  0,
+                     "plan_lint_warnings":  0,
+                     "native_validate_criteria":  62
+                 },
+    "limits":  [
+                   "No production reviewer auto apply -\u003e genuine host future used/outcome/effect proven",
+                   "No real health failure in installed Headroom: it is healthy",
+                   "No independent Astra high on N100",
+                   "No product-wide judge PASS",
+                   "No module tag/release or AirWorker install"
+               ],
+    "next":  "native exact-commit full Go and independent review; genuine host E2E requires supported trusted host adapter, not manually replayed hook JSON",
+    "verdict":  "SCOPED_FIXTURE_PASS_REAL_EFFECT_NOT_PROVEN"
+}
