@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -50,7 +51,7 @@ type feedbackIO struct {
 func defaultFeedbackIO() feedbackIO {
 	return feedbackIO{
 		writeEvidence: writeImmutableFeedbackFile,
-		writePlan:     writeFileAtomic,
+		writePlan:     writeFileAtomicDurable,
 	}
 }
 
@@ -117,7 +118,7 @@ func planWithFeedbackCandidate(raw []byte, r feedbackRecord, rel string) []byte 
 		nl = "\r\n"
 	}
 	line := feedbackCandidateLine(r, rel)
-	if strings.Contains(s, r.FeedbackID) {
+	if active, err := canonicalFeedbackCandidateState(raw, r, rel); err == nil && active {
 		return raw
 	}
 	if i := strings.Index(s, feedbackMarker); i >= 0 {
@@ -138,7 +139,7 @@ func writeImmutableFeedbackFile(path string, data []byte) error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	return writeFileAtomic(path, data)
+	return writeFileAtomicDurable(path, data)
 }
 
 func writeFeedbackWithIO(root, planPath string, r feedbackRecord, io feedbackIO) (feedbackWriteResult, error) {
@@ -156,15 +157,30 @@ func writeFeedbackWithIO(root, planPath string, r feedbackRecord, io feedbackIO)
 	if err := io.writeEvidence(res.EvidencePath, body); err != nil {
 		return res, fmt.Errorf("evidence write failed: %w", err)
 	}
+	checkEvidence, readErr := os.ReadFile(res.EvidencePath)
+	if readErr != nil || !bytes.Equal(checkEvidence, body) {
+		return res, fmt.Errorf("feedback evidence was not durable and identical on readback: %v", readErr)
+	}
 	res.EvidenceWritten = true
 
 	planRaw, err := os.ReadFile(planPath)
 	if err != nil {
 		return res, fmt.Errorf("plan write missing: cannot read %s: %w", planPath, err)
 	}
+	if _, err := canonicalFeedbackCandidateState(planRaw, r, rel); err != nil {
+		return res, fmt.Errorf("existing PLAN candidate conflicts with exact typed feedback: %w", err)
+	}
 	updated := planWithFeedbackCandidate(planRaw, r, rel)
 	if err := io.writePlan(planPath, updated); err != nil {
 		return res, fmt.Errorf("plan write failed: %w", err)
+	}
+	checkPlan, readErr := os.ReadFile(planPath)
+	if readErr != nil || !bytes.Equal(checkPlan, updated) {
+		return res, fmt.Errorf("PLAN bytes were not durably published as expected: %v", readErr)
+	}
+	present, verifyErr := canonicalFeedbackCandidateState(checkPlan, r, rel)
+	if verifyErr != nil || !present {
+		return res, fmt.Errorf("exact feedback PLAN candidate not present on readback: %v", verifyErr)
 	}
 	res.PlanWritten = true
 	return res, nil

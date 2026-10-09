@@ -78,12 +78,22 @@ func sharedFeedbackRecord(root, runID string, event map[string]string, kind, tex
 		}
 		return "not supplied"
 	}
-	fieldType := "idea"
-	if kind == "error" {
-		fieldType = "defect"
+	fieldType := label("type")
+	if fieldType == "not supplied" {
+		fieldType = "idea"
+		if kind == "error" {
+			fieldType = "defect"
+		}
+		if kind == "lesson" {
+			fieldType = "friction"
+		}
 	}
-	if kind == "lesson" {
-		fieldType = "friction"
+	// Explicit type must remain distinguishable from the broader learning
+	// kind: a friction report may legitimately use feedback-error.
+	if (fieldType == "defect" && kind != "error") ||
+		(fieldType == "idea" && kind != "idea") ||
+		(fieldType == "friction" && kind != "error" && kind != "lesson") {
+		return feedbackRecord{}, errors.New("feedback type contradicts learning kind")
 	}
 	severity := strings.ToUpper(label("severity"))
 	if severity == "NOT SUPPLIED" {
@@ -103,7 +113,7 @@ func sharedFeedbackRecord(root, runID string, event map[string]string, kind, tex
 		InputSHA256: inputSHA, CreatedAt: event["at"], Status: "candidate",
 		Product:       filepath.Base(filepath.Clean(root)),
 		SourceVersion: label("source-version"), Type: fieldType,
-		Severity: severity, Observed: strings.TrimSpace(text),
+		Severity: severity, Observed: text,
 		Expected: label("expected"), Evidence: evidence,
 		Reproduction: label("reproduction"), Workaround: label("workaround"),
 		ProposedOutcome: label("proposed-outcome"),
@@ -150,6 +160,6 @@ func preserveCanonicalSharedFeedback(root string, s sharedLearningSettings, runI
 	}
 	return writeFeedbackWithIO(root, plan, rec, feedbackIO{
 		writeEvidence: writeSharedFeedbackImmutable,
-		writePlan:     writeFileAtomic,
+		writePlan:     writeFileAtomicDurable,
 	})
 }

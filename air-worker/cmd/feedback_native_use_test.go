@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -19,13 +22,37 @@ const n104SafeFeedbackProcedure = "# Capture a real defect through native AirWor
 func n104Setup(t *testing.T) (string, sharedLearningSettings, string, string, string) {
 	t.Helper()
 	selfRoot, selfSettings, _ := selfLearningFixture(t)
+	// A manually proposed Markdown action is not self-learning provenance.
+	// Seed through the actual owned review/apply API with a bounded native
+	// adapter fixture instead, which persists reviewer, event and ledger.
+	selfSettings.Reviewer = learningAdapterFixture(t, "review-native-feedback")
+	if err := writeSharedLearningSettings(selfRoot, selfSettings); err != nil {
+		t.Fatal(err)
+	}
+	selector, found, err := readAirWorkerSelfLearningSelector()
+	if err != nil || !found {
+		t.Fatalf("self selector absent: %v", err)
+	}
+	selector.ConfigSHA256, err = selfLearningConfigSHA(selfRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeAirWorkerSelfLearningSelector(selector); err != nil {
+		t.Fatal(err)
+	}
 	skill := "skills/learned/native-feedback-lesson-n104.md"
-	res, err := executeSharedLearning(selfRoot, selfSettings, "propose", map[string]string{
-		"proposal_id": "LP-N104-skill", "kind": "procedure", "target": skill,
-		"pre_sha256": "", "content": n104SafeFeedbackProcedure,
+	res, err := executeSharedLearning(selfRoot, selfSettings, "observe", map[string]string{
+		"run_id": "N104-real-review-fixture",
+		"kind":   "run_completed", "class": "feedback-error",
+		"source": "feedback", "principal": "gpt-n104-fixture",
+		"observed": "actual AirWorker feedback native artifact and error run-id",
 	})
-	if err != nil || res.Status != "applied" {
-		t.Fatalf("seed governed safe skill failed: %+v %v", res, err)
+	if err != nil || res.Status != "recorded" {
+		t.Fatalf("native reviewer did not record controlled lesson: %+v %v", res, err)
+	}
+	if !currentSelfLearningRuleBytes(selfLearningOwner{Selector: selector, Settings: selfSettings},
+		selfLearningLoadedRule{Target: skill, SHA256: learnSHA([]byte(n104SafeFeedbackProcedure))}) {
+		t.Fatal("reviewer failed to apply expected exact skill")
 	}
 	product, _ := sharedProductFixture(t, false)
 	if err := os.WriteFile(filepath.Join(product, "run-config.json"), []byte(`{"plan":"PLAN.md"}`), 0o600); err != nil {
@@ -80,8 +107,8 @@ func TestN104NativeSelectedSafeProcedureRecordsVerifiedEffect(t *testing.T) {
 	if got := n104Events(t, selfSettings.RuntimeRoot, "procedure_used"); got != 1 {
 		t.Fatalf("expected one machine-verified used event, got %d", got)
 	}
-	if got := n104Events(t, selfSettings.RuntimeRoot, "run_completed"); got != 0 {
-		t.Fatalf("the self-owner was polluted by product feedback: %d", got)
+	if got := n104Events(t, selfSettings.RuntimeRoot, "run_completed"); got != 1 {
+		t.Fatalf("self-owner must retain only its initial own learning trigger, not target product feedback: %d", got)
 	}
 	id := "FB-" + learnSHA([]byte("air-worker.feedback/v1\n" + runID))[:24]
 	file := filepath.Join(target, filepath.FromSlash(feedbackEvidenceRel(id)))
@@ -206,4 +233,129 @@ func TestN104CannotClaimRetroactiveOrDifferentLearnedRule(t *testing.T) {
 	if used := n104Events(t, settings.RuntimeRoot, "procedure_used"); used != 1 {
 		t.Fatalf("two procedure uses were counted for one selection: %d", used)
 	}
+}
+
+func TestN108NativeUseLockIdentityIndependentOfCWD(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("named mutex is Windows-specific")
+	}
+	dir := t.TempDir()
+	t.Setenv("AIR_WORKER_HOOK_STATE_DIR", filepath.Join(dir, "hook-state"))
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(orig)
+	one := filepath.Join(dir, "cwd-a")
+	two := filepath.Join(dir, "cwd-b")
+	for _, p := range []string{one, two} {
+		if err := os.MkdirAll(p, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Chdir(one); err != nil {
+		t.Fatal(err)
+	}
+	first := nativeFeedbackUseLockName("gpt-airworker", "same-run")
+	if err := os.Chdir(two); err != nil {
+		t.Fatal(err)
+	}
+	second := nativeFeedbackUseLockName("gpt-airworker", "same-run")
+	if first != second {
+		t.Fatalf("CWD changed native use lock: %q != %q", first, second)
+	}
+	if first == nativeFeedbackUseLockName("gpt-airworker", "other-run") {
+		t.Fatal("run-id not in lock identity")
+	}
+	if first == nativeFeedbackUseLockName("different-principal", "same-run") {
+		t.Fatal("principal not in lock identity")
+	}
+	l, ok := acquireLock(first)
+	if !ok {
+		t.Fatal("cannot acquire isolated cross-process lock")
+	}
+	defer l.release()
+	if next, ok := acquireLock(second); ok {
+		next.release()
+		t.Fatal("duplicate source/run acquired independent mutex")
+	}
+}
+
+func TestN108RejectsManuallyProposedOrNegatedFakeLearningProof(t *testing.T) {
+	root, settings, target, _, _ := n104Setup(t)
+	fakeTarget := "skills/learned/manually-forged-native-feedback.md"
+	res, err := executeSharedLearning(root, settings, "propose", map[string]string{
+		"proposal_id": "LP-n108-not-reviewed",
+		"kind":        "procedure", "target": fakeTarget, "pre_sha256": "",
+		"content": n104SafeFeedbackProcedure,
+	})
+	if err != nil || res.Status != "applied" {
+		t.Fatalf("cannot set up native proposal negative: %+v %v", res, err)
+	}
+	code, _ := n104CLI(t, target, "N108-fake-review", fakeTarget+"@"+learnSHA([]byte(n104SafeFeedbackProcedure)))
+	if code == 0 {
+		t.Fatal("manually proposed Markdown with Action marker was falsely treated as an auto-reviewed procedure")
+	}
+	if n := n104Events(t, settings.RuntimeRoot, "procedure_used"); n != 0 {
+		t.Fatalf("unreviewed skill created %d use events", n)
+	}
+	negative := "# Never blindly use feedback\n\n## When to apply\nWhen an error is unknown.\n\n" +
+		"## Procedure\n1. Avoid calling air-worker feedback add with a stable -run-id.\n\n" +
+		"## Pitfalls\nDo not report a false fix.\n"
+	bound, err := bindNativeFeedbackProof("feedback-error", negative)
+	if err != nil || strings.Contains(bound, nativeFeedbackUseAction) {
+		t.Fatalf("negated procedure got executable evidence marker: %v %q", err, bound)
+	}
+	if _, err := bindNativeFeedbackProof("feedback-error", n104SafeFeedbackProcedure); err == nil {
+		t.Fatal("model-supplied native Action marker was accepted")
+	}
+}
+
+func TestN108NativeLockHeldAcrossProcessesWithDifferentCWD(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows native mutex contract")
+	}
+	root := t.TempDir()
+	state := filepath.Join(root, "same-hook-state")
+	t.Setenv("AIR_WORKER_HOOK_STATE_DIR", state)
+	otherDir := filepath.Join(root, "different-cwd")
+	if err := os.MkdirAll(otherDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	name := nativeFeedbackUseLockName("n108-principal", "n108-run")
+	held, ok := acquireLock(name)
+	if !ok {
+		t.Fatal("could not acquire native lock for the first process")
+	}
+	defer held.release()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	child := exec.Command(exe, "-test.run=^TestN108ChildNativeFeedbackMutex$")
+	child.Dir = otherDir
+	child.Env = append(os.Environ(),
+		"AW_N108_MUTEX_CHILD=1",
+		"AIR_WORKER_HOOK_STATE_DIR="+state,
+	)
+	output, err := child.CombinedOutput()
+	if err != nil {
+		t.Fatalf("other working directory acquired duplicate mutex: %v %s", err, output)
+	}
+	if !strings.Contains(string(output), "N108_BUSY") {
+		t.Fatalf("other process did not confirm shared native mutex: %s", output)
+	}
+}
+
+func TestN108ChildNativeFeedbackMutex(t *testing.T) {
+	if os.Getenv("AW_N108_MUTEX_CHILD") != "1" {
+		t.Skip("isolated subprocess only")
+	}
+	name := nativeFeedbackUseLockName("n108-principal", "n108-run")
+	lock, ok := acquireLock(name)
+	if ok {
+		lock.release()
+		t.Fatal("a separate process with different CWD acquired the same source/run lock")
+	}
+	fmt.Println("N108_BUSY")
 }

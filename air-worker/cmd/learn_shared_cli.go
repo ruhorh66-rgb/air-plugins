@@ -398,6 +398,16 @@ func routeSharedFeedback(argv []string) (bool, int) {
 	if *kind != "error" && *kind != "idea" && *kind != "lesson" {
 		return true, printSharedLearning(learning.Response{}, errors.New("feedback kind must be error, idea or lesson"))
 	}
+	// Validate the ENTIRE canonical feedback record BEFORE observe/reviewer
+	// can bind a run_id or auto-apply a safe procedure. A malformed P-level
+	// or contradictory type must never create an immutable module event.
+	_, preflightErr := sharedFeedbackRecord(root, *rid, map[string]string{
+		"event_id": "PREFLIGHT_NOT_PUBLISHED",
+		"at":       time.Now().UTC().Format(time.RFC3339Nano),
+	}, *kind, *text, *source, *ref, legacyFields)
+	if preflightErr != nil {
+		return true, printSharedLearning(learning.Response{}, preflightErr)
+	}
 	metadata := map[string]string{"kind": *kind, "source": *source, "text": *text, "ref": *ref}
 	for name, value := range legacyFields {
 		if *value != "" {
@@ -411,7 +421,7 @@ func routeSharedFeedback(argv []string) (bool, int) {
 	if *useProcedure != "" {
 		// Stable source/run ownership spans selection, native operation and
 		// usage evidence. The lock is OS-backed and cross-process on Windows.
-		useLock, acquired := acquireLock(lockName("native-feedback-use", *source+"\n"+*rid))
+		useLock, acquired := acquireLock(nativeFeedbackUseLockName(*source, *rid))
 		if !acquired {
 			return true, printSharedLearning(learning.Response{}, errors.New("another learned feedback use owns this source/run_id"))
 		}
@@ -445,7 +455,11 @@ func routeSharedFeedback(argv []string) (bool, int) {
 	if claim != nil {
 		event, evidenceErr := findSharedFeedbackEvent(s.RuntimeRoot, *rid, string(encoded), *text, *source)
 		if evidenceErr == nil {
-			evidenceErr = recordNativeFeedbackProcedureUse(claim, root, event["event_id"])
+			var expected feedbackRecord
+			expected, evidenceErr = sharedFeedbackRecord(root, *rid, event, *kind, *text, *source, *ref, legacyFields)
+			if evidenceErr == nil {
+				evidenceErr = recordNativeFeedbackProcedureUse(claim, root, event["event_id"], expected)
+			}
 		}
 		if evidenceErr != nil {
 			res.Status = "partial"

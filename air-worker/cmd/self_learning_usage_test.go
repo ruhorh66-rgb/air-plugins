@@ -67,7 +67,7 @@ func TestAirWorkerSelfLearningExecutionUnknownUseNeedsCorrelatedDiagnosticOutcom
 	if err != nil || !found || len(contextRec.Loaded) != 1 {
 		t.Fatalf("loaded receipt: found=%v err=%v rec=%+v", found, err, contextRec)
 	}
-	ruleID := contextRec.Loaded[0].Target + "@" + contextRec.Loaded[0].SHA256
+	// A loaded SHA is guidance only, never a machine-certified use.
 
 	unknown := in
 	unknown.HookEventName = "PostToolUse"
@@ -106,24 +106,23 @@ func TestAirWorkerSelfLearningExecutionUnknownUseNeedsCorrelatedDiagnosticOutcom
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(res.Context, "procedure_used") || !strings.Contains(res.Context, ruleID) {
-		t.Fatalf("usage context missing exact rule id: %+v", res)
+	if strings.Contains(res.Context, "procedure_used") || strings.TrimSpace(res.Context) != "" {
+		t.Fatalf("untrusted diagnostic content claimed native use: %+v", res)
 	}
-	if got := countSelfLearningEvent(t, settings.RuntimeRoot, "procedure_used"); got != 1 {
-		t.Fatalf("correlated diagnostic outcome created %d used events", got)
+	if got := countSelfLearningEvent(t, settings.RuntimeRoot, "procedure_used"); got != 0 {
+		t.Fatalf("untrusted diagnostic credited %d uses", got)
 	}
 
 	used, gotPath, found, err := readSelfLearningContextReceipt(in)
 	if err != nil || !found || gotPath != contextPath {
 		t.Fatalf("used receipt readback: found=%v path=%s err=%v", found, gotPath, err)
 	}
-	if used.UsedRuleID != ruleID || used.Outcome != "pass" || used.UsedAt == "" ||
-		!strings.Contains(used.OutcomeRef, "tool_response_sha256=") ||
-		used.ObservedTool != diagnostic.ToolName {
-		t.Fatalf("usage evidence incomplete: %+v", used)
+	if used.UsedRuleID != "" || used.Outcome != "" || used.UsedAt != "" ||
+		used.OutcomeRef != "" || used.ObservedTool != "" {
+		t.Fatalf("false native use was published from PostToolUse: %+v", used)
 	}
 	trigger, _, found, err := readSelfLearningTriggerReceipt(in)
-	if err != nil || !found || trigger.ConsumedAt == "" ||
+	if err != nil || !found || trigger.ConsumedAt != "" ||
 		trigger.DiagnosticTool != diagnostic.ToolName ||
 		!strings.Contains(trigger.DiagnosticEvidence, "pid=4242") {
 		t.Fatalf("trigger was not consumed by correlated evidence: found=%v err=%v trigger=%+v", found, err, trigger)
@@ -309,10 +308,10 @@ func TestN088NestedFailureCannotClaimProcedureUsed(t *testing.T) {
 	positive.ToolInput = json.RawMessage(`{"node":"SRVLM01","pid":4242}`)
 	positive.ToolResponse = json.RawMessage(`{"status":"completed","exit_code":0,"content":[{"type":"text","text":"process completed with exit code 0"}]}`)
 	res, err := handlePostToolUseSelfLearning(positive)
-	if err != nil || !strings.Contains(res.Context, "procedure_used") {
-		t.Fatalf("valid correlated success was lost: res=%+v err=%v", res, err)
+	if err != nil || strings.Contains(res.Context, "procedure_used") {
+		t.Fatalf("external diagnostic made unverified credit: res=%+v err=%v", res, err)
 	}
-	if n := countSelfLearningEvent(t, settings.RuntimeRoot, "procedure_used"); n != 1 {
-		t.Fatalf("positive correlated diagnostic missing: %d", n)
+	if n := countSelfLearningEvent(t, settings.RuntimeRoot, "procedure_used"); n != 0 {
+		t.Fatalf("untrusted correlated result credited use: %d", n)
 	}
 }

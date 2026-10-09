@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -15,21 +13,7 @@ import (
 // to the learning reviewer. Reject duplicate keys and unknown fields before
 // any native shared-learning event, review, or managed file mutation.
 func readNativeFeedbackRequest(path string) (map[string]string, string, error) {
-	if !filepath.IsAbs(path) {
-		return nil, "", errors.New("feedback -data-file must be absolute")
-	}
-	info, err := os.Lstat(path)
-	if err != nil {
-		return nil, "", err
-	}
-	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 ||
-		info.Size() < 2 || info.Size() > 64*1024 {
-		return nil, "", errors.New("feedback data file must be bounded regular JSON")
-	}
-	if _, err := os.Readlink(path); err == nil {
-		return nil, "", errors.New("feedback data file may not be a reparse/symlink")
-	}
-	b, err := readLearningBounded(path, 64*1024)
+	b, err := readNativeFeedbackDataSafe(path, 64*1024)
 	if err != nil {
 		return nil, "", err
 	}

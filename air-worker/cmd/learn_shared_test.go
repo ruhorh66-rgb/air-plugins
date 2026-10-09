@@ -90,6 +90,13 @@ func TestLearningProcessHelper(t *testing.T) {
 			break
 		}
 		json.NewEncoder(os.Stdout).Encode(map[string]string{"kind": "procedure", "target": "skills/learned/evidence.md", "pre_sha256": "", "content": sharedFixtureProcedure})
+	case "review-native-feedback":
+		json.NewEncoder(os.Stdout).Encode(map[string]string{
+			"kind":       "procedure",
+			"target":     "skills/learned/native-feedback-lesson-n104.md",
+			"pre_sha256": "",
+			"content":    n104SafeFeedbackProcedure,
+		})
 	case "delivery":
 		h := sha256.Sum256(b)
 		json.NewEncoder(os.Stdout).Encode(map[string]string{"sha256": hex.EncodeToString(h[:]), "channel_ref": "fixture/loopback", "message_id": "fixture-message"})

@@ -191,3 +191,72 @@ func TestN096RawSharedLearningConsumerWithoutPlanKeepsLegacyEventContract(t *tes
 		t.Fatalf("raw shared event was not recorded once: n=%d err=%v", matching, err)
 	}
 }
+
+func TestN108InvalidFeedbackSeverityDoesNotBindLearningRunID(t *testing.T) {
+	_, settings, args, runID := n096Fixture(t)
+	bad := append([]string(nil), args...)
+	for i := 0; i+1 < len(bad); i++ {
+		if bad[i] == "-severity" {
+			bad[i+1] = "urgent"
+			break
+		}
+	}
+	code, output := captureLoopOutput(t, func() int { return cmdFeedback(bad) })
+	if code == 0 || !strings.Contains(output, "severity") {
+		t.Fatalf("invalid severity accepted rc=%d out=%s", code, output)
+	}
+	events := filepath.Join(settings.RuntimeRoot, "events.jsonl")
+	if _, err := os.Stat(events); !os.IsNotExist(err) {
+		t.Fatalf("invalid feedback created event %v", err)
+	}
+	code, output = captureLoopOutput(t, func() int { return cmdFeedback(args) })
+	if code != 0 {
+		t.Fatalf("same stable runID cannot recover from preflight: %d %s", code, output)
+	}
+	found := 0
+	if err := scanLearnJSONL(events, func(raw []byte) error {
+		var row map[string]any
+		if err := json.Unmarshal(raw, &row); err != nil {
+			return err
+		}
+		if row["schema"] == "air.learning.event/v1" && row["run_id"] == runID {
+			found++
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if found != 1 {
+		t.Fatalf("expected one corrected canonical event, got %d", found)
+	}
+}
+
+func TestN108FeedbackFrictionAndOriginalWhitespaceRemainLossless(t *testing.T) {
+	product, _, args, runID := n096Fixture(t)
+	original := " \nActual AirWorker failure with leading whitespace \n "
+	changed := append([]string(nil), args...)
+	for i := 0; i+1 < len(changed); i++ {
+		switch changed[i] {
+		case "-type":
+			changed[i+1] = "friction"
+		case "-text":
+			changed[i+1] = original
+		}
+	}
+	rc, output := captureLoopOutput(t, func() int { return cmdFeedback(changed) })
+	if rc != 0 {
+		t.Fatalf("friction feedback failed rc=%d output=%s", rc, output)
+	}
+	id := "FB-" + learnSHA([]byte("air-worker.feedback/v1\n" + runID))[:24]
+	b, err := os.ReadFile(filepath.Join(product, filepath.FromSlash(feedbackEvidenceRel(id))))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rec feedbackRecord
+	if err := json.Unmarshal(b, &rec); err != nil {
+		t.Fatal(err)
+	}
+	if rec.Type != "friction" || rec.Observed != original {
+		t.Fatalf("canonical feedback lost original type/whitespace: type=%q observed=%q", rec.Type, rec.Observed)
+	}
+}

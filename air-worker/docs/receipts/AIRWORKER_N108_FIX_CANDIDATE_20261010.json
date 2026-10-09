@@ -1,0 +1,104 @@
+{
+    "schema":  "air-worker.n108.fix-candidate-checkpoint/v1",
+    "at_utc":  "2026-10-09T16:01:54.5211618Z",
+    "plan_node":  "N-108_p0-astra-remediation-fix-n105-independent-review",
+    "owner":  "gpt-airworker-release-20261009",
+    "base_head":  "07d3cc3cb2269be3713b808fdb0943d269efd182",
+    "purpose":  "fastest intermediate gate: independent clean-commit review plus one full regression; N108 remains OPEN until both PASS",
+    "original_astra_verdict":  "CHANGES_REQUIRED",
+    "original_astra_sha256":  "605f1ea8cd2206a0c9f94c3703fc8a169ced1e65814f17e8b3ca885c8b1589e7",
+    "remediated_but_independent_pass_not_yet_claimed":  [
+                                                            "P1 auto-review source/ledger plus SHA provenance and strict positive imperative, no manually forged Action grant",
+                                                            "P1 stable OS mutex independent of CWD, cross-process test and unique loaded selection recheck",
+                                                            "P1 external EXECUTION_UNKNOWN tool text may not produce procedure_used PASS",
+                                                            "P1 canonical FB candidate exact status/source/evidence one section and readback",
+                                                            "P1 complete feedback preflight before observe",
+                                                            "P1 durable atomic FB/PLAN and readback",
+                                                            "P2 preserve typed friction and whitespace",
+                                                            "P2 reject parent junction and opened-file identity/size swaps"
+                                                        ],
+    "source_files":  [
+                         {
+                             "sha256":  "fb585bf9a29316f306e5e7e4c0b7ef821c3e7b90e39a2758c255438057078e5c",
+                             "path":  "cmd/feedback.go"
+                         },
+                         {
+                             "sha256":  "50b22e661aa5ed47a1c5fa18c15e16de16fa3bbe27315874eaf95ae9ff963d8d",
+                             "path":  "cmd/feedback_native_use.go"
+                         },
+                         {
+                             "sha256":  "352eac9617c149ca0a9fe652bcea700721b5ea6b72e2fa7795147fa38bb02f02",
+                             "path":  "cmd/feedback_native_use_test.go"
+                         },
+                         {
+                             "sha256":  "6b114fc3dc9fd11b7ad7f0edd2cd9b0433990eb374f0906be624579e9da9350e",
+                             "path":  "cmd/feedback_native_provenance.go"
+                         },
+                         {
+                             "sha256":  "bb8fea8e6d7af397aec1cb0141abc28275aa37d9498af9833b72a9013ed7fa30",
+                             "path":  "cmd/feedback_shared_intake.go"
+                         },
+                         {
+                             "sha256":  "8d19759c192ba1ed0ebb17c3dee2cad3bd81473c6faa4cf15ac6772a4baab305",
+                             "path":  "cmd/feedback_shared_intake_test.go"
+                         },
+                         {
+                             "sha256":  "eae6b97106c1fece13e16343f782acc728ddf3153e41825affedb8fe8befd941",
+                             "path":  "cmd/feedback_candidate_verify.go"
+                         },
+                         {
+                             "sha256":  "36329bca2c33fe8c12b70ce3bcdb3eeb9d1053493c2c6f8eab4cbae796fd9b8b",
+                             "path":  "cmd/feedback_candidate_verify_test.go"
+                         },
+                         {
+                             "sha256":  "561b201d92998f3db4aae449af916f4a90bae5eb1c8830197855c3949ed40ed1",
+                             "path":  "cmd/feedback_data_file.go"
+                         },
+                         {
+                             "sha256":  "5606485f0e93673cc8ba422c21041e7d572429191f7cb833b80d5da7fcd3dee3",
+                             "path":  "cmd/feedback_data_file_guard.go"
+                         },
+                         {
+                             "sha256":  "051438a44a044b38cd5c9e96275c40956bdf02964b086ea382ec2540beb6719a",
+                             "path":  "cmd/feedback_data_file_guard_test.go"
+                         },
+                         {
+                             "sha256":  "1536a0896138ced1d3dad0d0b9ed7525fa7ce795183c745c2482121c15201bb6",
+                             "path":  "cmd/learn_shared_cli.go"
+                         },
+                         {
+                             "sha256":  "c1367a58356e5ba193a37f7aea5b5e1af0a888bde8563aab8e241ad36e9fcb5b",
+                             "path":  "cmd/learn_shared_test.go"
+                         },
+                         {
+                             "sha256":  "b7c0aa1d5b26db4073e5659809222a3e2b347c9eb1353073be61e61c88097eb7",
+                             "path":  "cmd/self_learning_usage.go"
+                         },
+                         {
+                             "sha256":  "a222ab144d8ba710795b14b9ab211df0b808d9eb62a4a6429dfb56394870bf92",
+                             "path":  "cmd/self_learning_usage_test.go"
+                         }
+                     ],
+    "checks":  {
+                   "native_plan_validate_criteria":  62,
+                   "native_plan_validate_problems":  0,
+                   "native_installed_0118":  "UNCHANGED",
+                   "vet_exit":  0,
+                   "astra_high_exact_commit":  "PENDING",
+                   "targeted_log_sha256":  "6a9acb41c051429724e044631674601374e04e9af08b480cdd1d9f2ce34a52a8",
+                   "git_diff_check":  "PASS",
+                   "plan_lint_warnings":  0,
+                   "native_plan_validate_goals":  7,
+                   "targeted_go_exit":  0,
+                   "full_go_exact_commit":  "PENDING",
+                   "targeted_log":  "R:\\-4-\\air-worker\\work\\0.11.9\\n105-real\\N108_CROSSPROCESS_REGRESSION.txt"
+               },
+    "requirements_remaining":  [
+                                   "full Go PASS exact HEAD",
+                                   "independent Astra High PASS exact HEAD",
+                                   "post-review isolated real self-learning E2E on fixed candidate",
+                                   "global judge N092 separately",
+                                   "release/install separate explicit LPR yes"
+                               ],
+    "status":  "SAFE_CHECKPOINT_FOR_FULL_REGRESSION_NOT_RELEASE"
+}

@@ -626,7 +626,7 @@ func handlePostToolUseSelfLearning(in hookInput) (hookResult, error) {
 	if !on {
 		return hookResult{}, nil
 	}
-	contextRec, contextPath, found, err := readSelfLearningContextReceipt(in)
+	contextRec, _, found, err := readSelfLearningContextReceipt(in)
 	if err != nil {
 		return hookResult{}, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
 	}
@@ -685,6 +685,15 @@ func handlePostToolUseSelfLearning(in hookInput) (hookResult, error) {
 	if trigger.Rule.Target != rule.Target || !strings.EqualFold(trigger.Rule.SHA256, rule.SHA256) {
 		return hookResult{}, errors.New("self-learning trigger rule does not match the exact current loaded rule")
 	}
+	// External PostToolUse content is not independently authenticated as an
+	// operation result. The old implementation accepted arbitrary JSON/file
+	// text with status=pass and credited procedure_used. That is not machine
+	// evidence, even after a genuine EXECUTION_UNKNOWN trigger.
+	//
+	// Preserve correlated diagnostic inspection ONLY, without claiming
+	// successful procedure use or consuming the trigger. A later deliberate
+	// native AirWorker operation may earn typed measured use separately.
+	// A definitely failing nested response is not even a valid diagnostic.
 	if !observableToolSuccess(rawResponse) {
 		return hookResult{}, nil
 	}
@@ -692,39 +701,14 @@ func handlePostToolUseSelfLearning(in hookInput) (hookResult, error) {
 	if !ok {
 		return hookResult{}, nil
 	}
-
-	responseSHA := learnSHA(rawResponse)
-	outcomeRef := filepath.ToSlash(contextPath) + "#tool_response_sha256=" + responseSHA
-	ruleID := rule.Target + "@" + strings.ToLower(rule.SHA256)
-	usageRunID := selfLearningRunID(in) + ":used:" + learnSHA([]byte(trigger.CreatedAt + "\n" + in.ToolName + "\n" + correlation + "\n" + responseSHA))[:20]
-	res, err := executeSharedLearning(owner.Selector.ProductRoot, owner.Settings, "observe", map[string]string{
-		"run_id": usageRunID, "kind": "procedure_used",
-		"observed": "After EXECUTION_UNKNOWN, correlated machine evidence was inspected before any retry of the same operation.",
-		"class":    "execution-unknown-no-blind-retry", "source": "host-post-tool",
-		"principal": hookPrincipal(in), "session": in.SessionID,
-		"rule_id": ruleID, "outcome": "pass", "outcome_ref": outcomeRef,
-	})
-	if err != nil {
-		return hookResult{}, err
+	if trigger.DiagnosticTool != "" && (trigger.DiagnosticTool != in.ToolName ||
+		trigger.DiagnosticEvidence != correlation) {
+		return hookResult{}, errors.New("conflicting EXECUTION_UNKNOWN diagnostic for one trigger")
 	}
-	if res.Status != "recorded" && res.Status != "duplicate" {
-		return hookResult{}, fmt.Errorf("unexpected self-learning usage status %q", res.Status)
-	}
-	now := time.Now().UTC().Format(time.RFC3339Nano)
-	contextRec.UsedAt = now
-	contextRec.UsedRuleID = ruleID
-	contextRec.Outcome = "pass"
-	contextRec.OutcomeRef = outcomeRef
-	contextRec.ObservedTool = in.ToolName
-	if err := writeSelfLearningContextReceipt(contextPath, contextRec); err != nil {
-		return hookResult{}, err
-	}
-	trigger.ConsumedAt = now
-	trigger.OutcomeRef = outcomeRef
 	trigger.DiagnosticTool = in.ToolName
 	trigger.DiagnosticEvidence = correlation
 	if err := writeSelfLearningTriggerReceipt(triggerPath, trigger); err != nil {
 		return hookResult{}, err
 	}
-	return hookResult{Context: "AIRWORKER SELF-LEARNING: procedure_used " + ruleID + " outcome=pass"}, nil
+	return hookResult{}, nil
 }

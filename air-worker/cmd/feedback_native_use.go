@@ -76,6 +76,9 @@ func prepareNativeFeedbackUse(spec, source, runID string, productSettings shared
 	if count != 1 || !validLearningProcedureMarkdown(string(body)) {
 		return nil, errors.New("selected skill has no unique supported feedback-use contract")
 	}
+	if err := checkedAutoReviewedFeedbackRule(owner, rule, body); err != nil {
+		return nil, fmt.Errorf("selected procedure is not uniquely bound to a trusted native auto-review: %w", err)
+	}
 	// Stable source/run selection forbids a replay claiming a second skill.
 	loadID := "NW-LOADED-" + learnSHA([]byte(source + "\n" + runID))[:24]
 	found, err := nativeSelfSkillLoaded(owner.Settings.RuntimeRoot, loadID, rule)
@@ -146,7 +149,7 @@ func nativeSelfSkillLoaded(root, runID string, rule selfLearningLoadedRule) (boo
 	return found, err
 }
 
-func nativeFeedbackCandidateEffect(root, runID, eventID string) (string, error) {
+func nativeFeedbackCandidateEffect(root, runID, eventID string, expected feedbackRecord) (string, error) {
 	id := "FB-" + learnSHA([]byte("air-worker.feedback/v1\n" + runID))[:24]
 	path := filepath.Join(root, filepath.FromSlash(feedbackEvidenceRel(id)))
 	b, err := readLearningBounded(path, 512*1024)
@@ -157,7 +160,7 @@ func nativeFeedbackCandidateEffect(root, runID, eventID string) (string, error) 
 	if err := json.Unmarshal(b, &rec); err != nil {
 		return "", err
 	}
-	if rec.FeedbackID != id || rec.RunID != runID || rec.EventID != eventID || rec.Status != "candidate" {
+	if rec.FeedbackID != id || rec.RunID != runID || rec.EventID != eventID || rec.Status != "candidate" || rec != expected {
 		return "", errors.New("feedback receipt does not match the native event")
 	}
 	var cfg runConfig
@@ -169,13 +172,14 @@ func nativeFeedbackCandidateEffect(root, runID, eventID string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	if strings.Count(string(p), "- feedback `"+id+"`") != 1 {
-		return "", errors.New("native feedback candidate does not exist exactly once in canonical PLAN")
+	present, err := canonicalFeedbackCandidateState(p, rec, feedbackEvidenceRel(id))
+	if err != nil || !present {
+		return "", fmt.Errorf("native feedback PLAN candidate has different status/type/source/evidence: %w", err)
 	}
 	return filepath.ToSlash(path) + "#sha256=" + learnSHA(b), nil
 }
 
-func recordNativeFeedbackProcedureUse(plan *nativeFeedbackUsePlan, productRoot, eventID string) error {
+func recordNativeFeedbackProcedureUse(plan *nativeFeedbackUsePlan, productRoot, eventID string, expected feedbackRecord) error {
 	if plan == nil {
 		return nil
 	}
@@ -188,7 +192,15 @@ func recordNativeFeedbackProcedureUse(plan *nativeFeedbackUsePlan, productRoot, 
 		!currentSelfLearningRuleBytes(owner, plan.Rule) {
 		return errors.New("self-owner or learned skill identity changed before use")
 	}
-	ref, err := nativeFeedbackCandidateEffect(productRoot, plan.RunID, eventID)
+	loadID := "NW-LOADED-" + learnSHA([]byte(plan.Source + "\n" + plan.RunID))[:24]
+	confirmedLoad, err := nativeSelfSkillLoaded(owner.Settings.RuntimeRoot, loadID, plan.Rule)
+	if err != nil {
+		return fmt.Errorf("learned rule selection is not unique: %w", err)
+	}
+	if !confirmedLoad {
+		return errors.New("self-owned source/run has no exact durable loaded rule")
+	}
+	ref, err := nativeFeedbackCandidateEffect(productRoot, plan.RunID, eventID, expected)
 	if err != nil {
 		return err
 	}
@@ -247,8 +259,10 @@ func bindNativeFeedbackProof(class, content string) (string, error) {
 			markerCount++
 		}
 	}
-	if markerCount > 1 {
-		return "", errors.New("duplicate native feedback proof marker")
+	if markerCount != 0 {
+		// A model or ordinary native propose may not self-issue the authority
+		// to claim a machine-verifiable action. Only this adapter adds it.
+		return "", errors.New("reviewer-supplied native action proof marker is forbidden")
 	}
 	if class != "feedback-error" {
 		if markerCount != 0 {
@@ -267,31 +281,52 @@ func bindNativeFeedbackProof(class, content string) (string, error) {
 	}
 	eligible := false
 	for _, line := range strings.Split(proc, "\n") {
-		trim := strings.TrimSpace(line)
-		if !(strings.HasPrefix(trim, "1.") || strings.HasPrefix(trim, "2.") ||
-			strings.HasPrefix(trim, "3.") || strings.HasPrefix(trim, "4.") ||
-			strings.HasPrefix(trim, "5.") || strings.HasPrefix(trim, "6.")) {
+		trim := strings.TrimSpace(strings.ReplaceAll(line, "`", ""))
+		if len(trim) < 4 || trim[0] < '1' || trim[0] > '6' || trim[1] != '.' {
 			continue
 		}
-		verbs := strings.Contains(trim, "submit") || strings.Contains(trim, "call") ||
-			strings.Contains(trim, "record") || strings.Contains(trim, "file")
-		action := strings.Contains(trim, "native feedback path") ||
-			strings.Contains(trim, "air-worker feedback add")
-		stable := strings.Contains(trim, "stable run") || strings.Contains(trim, "-run-id")
-		if verbs && action && stable && !strings.Contains(trim, "do not") &&
-			!strings.Contains(trim, "never") {
+		step := strings.TrimSpace(trim[2:])
+		words := strings.Fields(step)
+		if len(words) == 0 {
+			continue
+		}
+		// Bind only a positive imperative first verb. A substring such as
+		// "avoid calling" or "never call" is not permission to credit use.
+		switch strings.Trim(words[0], ":;,.") {
+		case "call", "submit", "report", "record", "file":
+		default:
+			continue
+		}
+		forbidden := false
+		for _, negation := range []string{
+			"do not", "don't", "never", "avoid", "without", "refrain",
+			"skip", "prohibit", "not call", "not submit", "not report", "not record",
+		} {
+			if strings.Contains(" "+step+" ", negation) {
+				forbidden = true
+				break
+			}
+		}
+		action := strings.Contains(step, "native feedback path") ||
+			strings.Contains(step, "air-worker feedback add")
+		stable := strings.Contains(step, "stable run") || strings.Contains(step, "-run-id")
+		if !forbidden && action && stable {
 			eligible = true
 		}
 	}
 	if !eligible {
-		if markerCount > 0 {
-			return "", errors.New("native feedback proof asserted without supported positive procedure")
-		}
 		return content, nil
 	}
-	if markerCount == 0 {
-		content = strings.TrimSpace(content) + "\n\n## Machine-verifiable action\n" +
-			nativeFeedbackUseAction + "\n"
-	}
+	content = strings.TrimSpace(content) + "\n\n## Machine-verifiable action\n" +
+		nativeFeedbackUseAction + "\n"
 	return content, nil
+}
+
+// A stable absolute selector directory, not caller CWD, owns this mutex.
+// The source/run tuple is hashed with a separator, so two working dirs
+// cannot choose different learned rules for the same observed operation.
+func nativeFeedbackUseLockName(source, runID string) string {
+	selector := airWorkerSelfLearningPath()
+	id := learnSHA([]byte(source + "\x00" + runID))
+	return lockName("native-feedback-use", filepath.Join(filepath.Dir(selector), "feedback-use-"+id[:32]))
 }
