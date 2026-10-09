@@ -90,13 +90,17 @@ func sharedFeedbackRecord(root, runID string, event map[string]string, kind, tex
 		severity = "P3"
 	}
 	id := "FB-" + learnSHA([]byte("air-worker.feedback/v1\n" + runID))[:24]
+	inputSHA := ""
+	if value, exists := extra["input-sha256"]; exists && value != nil {
+		inputSHA = strings.TrimSpace(*value)
+	}
 	evidence := strings.TrimSpace(ref)
 	if evidence == "" {
 		evidence = "shared learning event " + event["event_id"]
 	}
 	rec := feedbackRecord{
 		FeedbackID: id, RunID: runID, EventID: event["event_id"],
-		CreatedAt: event["at"], Status: "candidate",
+		InputSHA256: inputSHA, CreatedAt: event["at"], Status: "candidate",
 		Product:       filepath.Base(filepath.Clean(root)),
 		SourceVersion: label("source-version"), Type: fieldType,
 		Severity: severity, Observed: strings.TrimSpace(text),

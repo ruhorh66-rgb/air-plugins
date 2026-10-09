@@ -317,6 +317,7 @@ func routeSharedFeedback(argv []string) (bool, int) {
 	source := fs.String("source", "worker", "источник")
 	ref := fs.String("ref", "", "ссылка на квитанцию")
 	rid := fs.String("run-id", "", "ID этой записи для повторной доставки")
+	dataFile := fs.String("data-file", "", "абсолютный путь к ограниченному JSON вводу без потери кавычек")
 	useProcedure := fs.String("use-procedure", "", "явно выбранный ранее выученный безопасный target@SHA256 для машинно проверяемой штатной операции feedback")
 	oldObserved := fs.String("observed", "", "совместимый старый параметр")
 	oldEvidence := fs.String("evidence", "", "совместимый старый параметр")
@@ -327,7 +328,40 @@ func routeSharedFeedback(argv []string) (bool, int) {
 	if err := fs.Parse(args); err != nil {
 		return true, 2
 	}
+	if fs.NArg() != 0 {
+		return true, printSharedLearning(learning.Response{}, errors.New("feedback: unexpected positional argument; nested Windows quoting may have truncated -text; use -data-file JSON"))
+	}
+	dataInputSHA := ""
+	if *dataFile != "" {
+		var invalidFlag string
+		fs.Visit(func(f *flag.Flag) {
+			if f.Name != "product" && f.Name != "json" && f.Name != "data-file" {
+				invalidFlag = f.Name
+			}
+		})
+		if invalidFlag != "" {
+			return true, printSharedLearning(learning.Response{}, fmt.Errorf("feedback -data-file conflicts with inline -%s", invalidFlag))
+		}
+		values, sha, readErr := readNativeFeedbackRequest(*dataFile)
+		if readErr != nil {
+			return true, printSharedLearning(learning.Response{}, readErr)
+		}
+		dataInputSHA = sha
+		*text, *kind, *source, *ref, *rid, *useProcedure = values["text"], values["kind"], values["source"], values["ref"], values["run_id"], values["use_procedure"]
+		if *source == "" {
+			*source = "worker"
+		}
+		for name, ptr := range legacyFields {
+			if value, exists := values[name]; exists {
+				*ptr = value
+			}
+		}
+		legacyFields["input-sha256"] = &dataInputSHA
+	}
 	if action == "list" {
+		if *dataFile != "" {
+			return true, printSharedLearning(learning.Response{}, errors.New("feedback list does not accept -data-file"))
+		}
 		return true, printSharedLearning(executeSharedLearning(root, s, "events", map[string]string{"source": "feedback"}))
 	}
 	if action != "add" {

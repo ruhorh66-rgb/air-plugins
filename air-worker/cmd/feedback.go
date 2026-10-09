@@ -19,6 +19,7 @@ type feedbackRecord struct {
 	FeedbackID      string `json:"feedback_id"`
 	RunID           string `json:"run_id,omitempty"`
 	EventID         string `json:"event_id,omitempty"`
+	InputSHA256     string `json:"input_sha256,omitempty"`
 	CreatedAt       string `json:"created_at"`
 	Status          string `json:"status"`
 	Product         string `json:"product"`

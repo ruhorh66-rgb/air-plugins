@@ -1,0 +1,51 @@
+{
+    "schema":  "air-worker.n105.lossless-feedback-intake/v1",
+    "node":  "N-105_p0-feedback-input-lossless-bounded-json-and-no-s",
+    "at_utc":  "2026-10-09T04:52:23.0160346Z",
+    "base_source_head":  "b864278837bd8a5cf59e1ef52afbc70c4a27be97",
+    "first_review":  {
+                         "observed_problem":  "Windows native argument parsing truncated feedback -text at embedded double quotes and ignored positional tail; CLI returned 0",
+                         "run_id":  "AW-N104-REAL-REVIEW-20261009-1",
+                         "real_lesson_sha256":  "3fe022dc47ed915e2e99263812e44acb5804ba494b8fc65e5fabeb7aef768723",
+                         "evidence":  "R:\\-4-\\air-worker\\work\\0.11.9\\n104\\real-self-learning\\REAL_REVIEW_FEEDBACK.json",
+                         "true_auto_review":  true,
+                         "real_event_id":  "EV-d06daea6f58d31a979f41259",
+                         "candidate_sha256":  "39d48c663c14b60b1f499a4b05f52c4197ce226a28069e3966f55f9a04373a5a",
+                         "reviewer_outcome":  "candidate"
+                     },
+    "fixed":  {
+                  "live_installed_0_11_8":  "unchanged",
+                  "go_vet_exit":  0,
+                  "integrity":  "input_sha256 preserved in native metadata and immutable FB",
+                  "strict_input":  "bounded \u003c=64KiB regular JSON; one object, whitelisted string fields, duplicate and trailing data rejected",
+                  "independent_astra":  "PENDING",
+                  "full_go":  "PENDING current exact commit",
+                  "exact_targeted_tests":  "TestN105|TestN104|TestN102|TestN096|TestN095|TestSharedLegacyFeedbackMetadataPreserved",
+                  "use":  "native feedback add -product \u003croot\u003e -data-file \u003cabsolute JSON file\u003e",
+                  "targeted_go_exit":  0,
+                  "source_files":  [
+                                       {
+                                           "sha256":  "47f67a078dca9eabcc028eb07a1e964b7d0b6804c04c297d5a6bd66990f9ff0e",
+                                           "path":  "cmd/feedback_data_file.go"
+                                       },
+                                       {
+                                           "sha256":  "a12d3db20c3c415788a44df2be0f7f3be567b74528b29cd41f0e0d483b94c72e",
+                                           "path":  "cmd/feedback_data_file_test.go"
+                                       },
+                                       {
+                                           "sha256":  "5e240b594884dcfdec1f1d083b789c33f001f6fc955dc995cd336ab6ec39faf0",
+                                           "path":  "cmd/feedback.go"
+                                       },
+                                       {
+                                           "sha256":  "ac5684c5dcac1c1f7a89e5da8d2e52f8dc03da4210bd1b7a1162636b5fae474d",
+                                           "path":  "cmd/feedback_shared_intake.go"
+                                       },
+                                       {
+                                           "sha256":  "7d9d1dd203ea22b0266ad23da12fe51aa1c4098834ccaa739854a883a3a528bf",
+                                           "path":  "cmd/learn_shared_cli.go"
+                                       }
+                                   ],
+                  "fail_closed":  "unrecognized positional tail and -data-file with inline metadata flags returns rc2 before module mutation"
+              },
+    "scope":  "NOT RELEASE: exact-commit regression, independent Astra and real next-run use still required"
+}
