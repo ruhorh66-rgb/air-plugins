@@ -1,0 +1,34 @@
+{
+    "schema":  "air-worker.cross-product-learning-consumer-check/v1",
+    "node":  "N-106_p0-consumer-finance-exploitation-knowledge-card-i",
+    "checked_at_utc":  "2026-10-09T06:49:12.1263130Z",
+    "source_head_before_audit":  "b5ef9494d16d22b34b981cee7a428ef4006771e4",
+    "consumer":  "034 Finance Audit (external AirWorker consumer)",
+    "consumer_wiki_root":  "E:\\-5-\\034_Finance_Audit_Wiki",
+    "consumer_case_details_path":  "R:\\-4-\\air-worker\\work\\0.11.9\\n106\\FINANCE_CONSUMER_LEARNING_AUDIT_20261009_PRIVATE.json",
+    "consumer_case_details_sha256":  "7e80860223ea1bf129a68b963c9f079cab936c9a62e81d152b162d4c656a1838",
+    "case_cards_verified_count":  3,
+    "case_documents_content_omitted_from_product_git":  true,
+    "permitted_factual_claim":  "Blocked operational handoff card exists at an accepted local Wiki location, includes proper safe stop and linked source cards",
+    "case_card_SHA":  "6b23fa5bf8216a286f557e0407924ec04ac2f3ac9c4e87d28a4069faa3368c61",
+    "records":  {
+                    "finance_native_learning_sqlite_feedback_rows":  0,
+                    "finance_automation_wiki_historical_rows":  4,
+                    "finance_native_learning_sqlite_patterns_rows":  0,
+                    "finance_graph_manifest_matches":  0,
+                    "airworker_case_specific_completed_learning_events":  0,
+                    "airworker_live_installed_version":  "0.11.8",
+                    "finance_automation_runtime_learning_rows":  0,
+                    "finance_knowledge_registry_matches":  0
+                },
+    "scope_limitations":  [
+                              "Not a live mail-provider audit; official confirmation grant and native provider mutations remain BLOCKED",
+                              "File creation does not prove AirWorker native event/reviewer/proposal/ledger nor actual lesson use/outcome/effect",
+                              "Finance Audit local Wiki deliberately has no Git; do not copy sensitive case content or mail artifacts into product code",
+                              "Missing registry/graph reference does not by itself prove AirStorage/RAGFlow retrieval is impossible; query/index owner separately",
+                              "Do not directly edit Finance Audit wiki learning journal, AirWorker LEARN ledger, or foreign services"
+                          ],
+    "next_measurable_gate":  "N-106: supported cross-product native AirWorker self-learning on a REAL blocked product run -\u003e safe procedure applies -\u003e fresh process verifies loaded SHA and genuine native use/effect; Finance knowledge recovery handled by its own owner",
+    "audit_status":  "PASS_READ_ONLY_AUDIT",
+    "implementation_status":  "OPEN_NOT_PROVEN"
+}
