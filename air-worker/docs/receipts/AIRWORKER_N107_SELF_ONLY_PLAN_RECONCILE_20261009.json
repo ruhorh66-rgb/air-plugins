@@ -1,0 +1,56 @@
+{
+  "schema": "air-worker.n107.scope-correction/v1",
+  "date_sgt": "2026-10-09",
+  "node": "N-107_p0-scope-correction-prove-airworker-own-learning",
+  "lpr_direction": "Only the AirWorker product's own learning base, self-owner, native automatic review/apply, actual later use/outcome/effect and release gates. No Finance Audit or other external consumer work.",
+  "source_base_head": "4e151c5a9975d66ae5fac42e1aa22e3b0bb5d973",
+  "installed": {
+    "version": "0.11.8",
+    "persistent_self_owner": "absent in installed release",
+    "new_candidate_not_installed": true
+  },
+  "airworker_learning_baseline": {
+    "events_observed": 77,
+    "proposals_observed": 9,
+    "ledger_observed": 10,
+    "native_procedure_used_pass_at_baseline": 0,
+    "remark": "point-in-time count before current isolated positive run and scope-plan events; no claim about current count"
+  },
+  "n105_isolated_real_reviewer": {
+    "input_path": "R:\\-4-\\air-worker\\work\\0.11.9\\n105-real\\source-feedback-n105.json",
+    "input_sha256": "b70439b0e1eb6a10881c759b4f1e1a46e6a3e27fefc2147a8dd24c7c2a621f0e",
+    "input_characters": 1278,
+    "event_id": "EV-4215e240e52afd3c4acab350",
+    "procedure_target": "skills/learned/feedback-error-a0309df4-644343bef87f6c26.md",
+    "procedure_sha256": "644343bef87f6c26095b7c9345af5e0a58b5c3a9623fea0d7f01229f42a9f3e5",
+    "auto_review_and_apply": "PASS in isolated candidate only"
+  },
+  "n104_isolated_next_native_process": {
+    "run_id": "AW-N104-AUTO-LEARNED-NEXT-PROCESS-20261009-01",
+    "native_feedback_exit_code": 0,
+    "native_event_id": "EV-53276fde0d467083d500c154",
+    "native_self_learning_used_event_id": "NW-USED-f1d6181a78d42f158cde601e",
+    "exact_sha_skill_loaded": true,
+    "procedure_used_outcome": "pass",
+    "effect": "One bounded real AirWorker feedback event, one immutable FB JSON with input SHA, one matching PLAN candidate",
+    "readback_verdict": "PASS",
+    "selection_constraint": "An explicit target@SHA was passed; autonomous selection and genuine trusted host delivery not yet proven"
+  },
+  "critical_path": [
+    "N-105: lossless input and independent review acceptance",
+    "N-104 and N-093: general self-owned next-run loaded/used/outcome/effect, verify limits",
+    "N-102: prevent overwrite of prior learned procedures",
+    "N-103: independent high adversarial review of replacement of unsafe text heuristic",
+    "N-095 and N-096: native CLI and canonical feedback safeguards",
+    "N-092: full global judge PASS",
+    "N-071: approved GitHub release and later separate installed release"
+  ],
+  "noncritical_old_node": "N-106 stays OPEN but is not LPR-approved AirWorker release critical path. Do not close falsely or execute it.",
+  "gates": [
+    "Independent Astra high verdict PASS on exact source",
+    "fresh native review and next-run effect evidence",
+    "full exact Go tests/vet plus product judge",
+    "release/tag and install each only after separate exact LPR approval"
+  ],
+  "verdict": "SCOPE_AND_AIRWORKER_FACTS_PASS__RELEASE_NOT_PROVEN"
+}
