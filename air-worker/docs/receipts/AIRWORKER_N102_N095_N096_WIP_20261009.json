@@ -1,0 +1,73 @@
+{
+    "schema":  "air-worker.n102-n095-n096.code-checkpoint/v1",
+    "recorded_at_utc":  "2026-10-09T04:27:45.3964991Z",
+    "base_head":  "a4a61a61ea196d1f849f005c003ad5a5a7ea9dd3",
+    "source_branch":  "dev/airworker-curator-skill-lifecycle-20261006",
+    "scope":  "candidate source only, no release/install",
+    "source_files":  [
+                         {
+                             "sha256":  "490fa529eb882dd05cc5d1ea844f2fc82e9579fbcc148547f1bae4649035079a",
+                             "path":  "cmd/learn_adapter.go"
+                         },
+                         {
+                             "sha256":  "856732103b29b2a45455177112d6b48c74dc4aaa19e3929a1b64a60e9e46e7fa",
+                             "path":  "cmd/learn_adapter_retention_test.go"
+                         },
+                         {
+                             "sha256":  "8c2acddd7948f8ab2a94541052fb49a393b5bbb8acc4266ff031215cd53c8ba7",
+                             "path":  "cmd/learn_shared_recency.go"
+                         },
+                         {
+                             "sha256":  "dc9a02d5447448957ebf3bc8d1bfba7d96b670871915916d76fd3718255ba86c",
+                             "path":  "cmd/learn_shared_recency_test.go"
+                         },
+                         {
+                             "sha256":  "2524d7304a332e4e325696fc05a7c016c9a885db7b26b93761f96258835ca198",
+                             "path":  "cmd/learn_shared.go"
+                         },
+                         {
+                             "sha256":  "f32193ad527660e7bcd785b4bd5610560cd19864a01ad0109c06488eee62a1fa",
+                             "path":  "cmd/learn.go"
+                         },
+                         {
+                             "sha256":  "1eceb5272cddc26b2f087f4fae512458aa1e40c7a6e464afba1949674c1d2b69",
+                             "path":  "cmd/learn_shared_cli.go"
+                         },
+                         {
+                             "sha256":  "91174f9966630368198289cf29b47d7ec521b67fcb052d79af57475ab007ea40",
+                             "path":  "cmd/learn_shared_discovery_test.go"
+                         },
+                         {
+                             "sha256":  "d0dd3f4ae577572dfc4e017fd2dac701c854d61474792dfaceefdb75b054391c",
+                             "path":  "cmd/feedback.go"
+                         },
+                         {
+                             "sha256":  "6d748539505e3c20398163db48551f61cf448d57fdae87cfbc9fff91e1edf388",
+                             "path":  "cmd/feedback_shared_intake.go"
+                         },
+                         {
+                             "sha256":  "5bafdb338859eb67db16990448f75c8ddec3a6f39b3a4dbf2f03796f2c682729",
+                             "path":  "cmd/feedback_shared_intake_test.go"
+                         }
+                     ],
+    "native_nodes":  [
+                         "N-102",
+                         "N-095",
+                         "N-096",
+                         "N-104"
+                     ],
+    "checks":  {
+                   "targeted_go_selectors":  "TestN095|TestN096|TestN102|TestLearningReviewerAdapter",
+                   "plan_validate_goals":  7,
+                   "go_vet_exit":  0,
+                   "independent_astra":  "PENDING",
+                   "full_go":  "PENDING exact-commit",
+                   "plan_lint_warnings":  0,
+                   "plan_validate_criteria":  62,
+                   "health_prototype":  "N-103 CHANGES_REQUIRED",
+                   "targeted_go_exit":  0,
+                   "self_procedure_use":  "N-093/N-104 NOT_PROVEN"
+               },
+    "learning_safety":  "Automatic reviewer picks content-hash unique new managed target; prior procedure remains immutable. Shared feedback creates native event plus immutable FB evidence and PLAN candidate, idempotent by run-id.",
+    "gates":  "No LPR approval for release/tag/install; installed 0.11.8 unchanged."
+}

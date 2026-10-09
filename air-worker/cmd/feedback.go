@@ -17,6 +17,8 @@ const feedbackMarker = "<!-- air-worker:feedback-candidates -->"
 
 type feedbackRecord struct {
 	FeedbackID      string `json:"feedback_id"`
+	RunID           string `json:"run_id,omitempty"`
+	EventID         string `json:"event_id,omitempty"`
 	CreatedAt       string `json:"created_at"`
 	Status          string `json:"status"`
 	Product         string `json:"product"`

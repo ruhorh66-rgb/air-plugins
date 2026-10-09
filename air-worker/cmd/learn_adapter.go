@@ -96,21 +96,21 @@ func cmdLearningReviewerAdapter(argv []string) int {
 	if class == "" {
 		class = "general"
 	}
-	target := learningProcedureTarget(settings.ManagedSkillPrefix, class)
-	fullTarget := filepath.Join(root, filepath.FromSlash(target))
+	// An existing per-class skill is a historical fact, not a mutable scratch
+	// file. The 0.11.8 reviewer replaced useful CLI guidance with an unrelated
+	// self-owner lesson because it shared the class "feedback-error".
+	// Show the old guidance to the reviewer for deduplication, but NEVER
+	// delegate an automatic overwrite of its managed target.
+	classTarget := learningProcedureTarget(settings.ManagedSkillPrefix, class)
 	before := []byte(nil)
-	if b, readErr := readLearningBounded(fullTarget, 64*1024); readErr == nil {
+	if b, readErr := readSharedContextSkill(root, classTarget, 64*1024); readErr == nil {
 		before = b
 	} else if !errors.Is(readErr, os.ErrNotExist) {
-		fmt.Fprintln(os.Stderr, "learning reviewer: cannot read managed target:", readErr)
+		fmt.Fprintln(os.Stderr, "learning reviewer: cannot read existing class guidance:", readErr)
 		return 2
 	}
-	preSHA := ""
-	if before != nil {
-		preSHA = learnSHA(before)
-	}
 	packetJSON, _ := json.MarshalIndent(packet, "", "  ")
-	prompt := buildLearningReviewerPrompt(target, before, packetJSON)
+	prompt := buildLearningReviewerPrompt(classTarget, before, packetJSON)
 	raw, err := learningReviewerInvoke(root, prompt, strings.TrimSpace(*model), strings.TrimSpace(*effort))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "learning reviewer:", err)
@@ -130,10 +130,30 @@ func cmdLearningReviewerAdapter(argv []string) int {
 		fmt.Fprintln(os.Stderr, "learning reviewer: proposed procedure is missing required Markdown sections")
 		return 2
 	}
+	// A distinct exact-content target avoids semantic overwrite and stays
+	// deterministic for duplicate reviewer callbacks. The shared module still
+	// enforces product ownership, managed-target limits and atomic ledger writes.
+	contentSHA := learnSHA([]byte(answer.Content))
+	target := strings.TrimSuffix(classTarget, ".md") + "-" + contentSHA[:16] + ".md"
+	existing, readErr := readSharedContextSkill(root, target, 64*1024)
+	switch {
+	case readErr == nil:
+		if learnSHA(existing) != contentSHA {
+			fmt.Fprintln(os.Stderr, "learning reviewer: managed digest target has conflicting bytes")
+			return 2
+		}
+		// Already present. Never rewrite it or synthesize a second applied
+		// transaction for the same procedure.
+		fmt.Println("{}")
+		return 0
+	case !errors.Is(readErr, os.ErrNotExist):
+		fmt.Fprintln(os.Stderr, "learning reviewer: cannot inspect generated target:", readErr)
+		return 2
+	}
 	out := map[string]string{
 		"kind":       "procedure",
 		"target":     target,
-		"pre_sha256": preSHA,
+		"pre_sha256": "",
 		"content":    answer.Content,
 	}
 	if err := json.NewEncoder(os.Stdout).Encode(out); err != nil {
@@ -194,8 +214,8 @@ func buildLearningReviewerPrompt(target string, before, packet []byte) string {
 		"Decide whether this completed run contains a durable, reusable PROCEDURE lesson.\n" +
 		"Do not propose code changes, permissions, grants, executable blocking rules, policy changes, secrets, or case-specific facts.\n" +
 		"If there is no reusable procedural lesson, return apply=false and empty content.\n" +
-		"If apply=true, return a concise Markdown procedure for the fixed managed target below. It must contain: a # title, ## When to apply, ## Procedure, and ## Pitfalls.\n" +
-		"Preserve useful existing guidance when updating an existing target; do not invent evidence.\n" +
+		"If apply=true, return a concise, distinct Markdown procedure. It must contain: a # title, ## When to apply, ## Procedure, and ## Pitfalls.\n" +
+		"Existing guidance is immutable: NEVER overwrite or rephrase an unrelated existing lesson. If the run teaches nothing new, apply=false. A new content-hash target is allocated after review; do not invent evidence.\n" +
 		"Return only JSON matching the provided schema.\n\n" +
 		"Managed target: " + target + "\n\nExisting target bytes:\n---\n" + existing + "\n---\n\nRun evidence:\n" + string(packet)
 }

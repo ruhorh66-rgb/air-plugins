@@ -369,6 +369,10 @@ func findLearnLedger(rows []learnLedgerRecord, id string) *learnLedgerRecord {
 }
 
 func cmdLearn(argv []string) int {
+	if len(argv) == 0 || argv[0] == "--help" || argv[0] == "-help" || argv[0] == "-h" || argv[0] == "help" {
+		fmt.Fprintln(os.Stdout, "AirWorker learn: self status|enable|disable|rollback; status|paths|context|load|event|finalize|propose|pending|diff|approve|reject|apply|rollback|effect|summary -product <root>; init-shared. Use air-worker learn <action> -help for action options. Safe procedures apply automatically; blocking rules require trusted LPR approval.")
+		return 0
+	}
 	if len(argv) > 0 && argv[0] == "self" {
 		return cmdLearnSelf(argv[1:])
 	}

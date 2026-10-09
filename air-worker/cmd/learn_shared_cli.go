@@ -86,6 +86,21 @@ func routeSharedLearn(argv []string) (bool, int) {
 		return true, printSharedLearning(learning.Response{}, routeErr)
 	}
 	if root == "" {
+		// Shared commands require an explicit product. The legacy parser must
+		// not misreport a recognized action as an unknown action.
+		switch argv[0] {
+		case "status", "paths", "context", "load", "index", "events",
+			"finalize", "summary", "module", "event", "add", "propose",
+			"pending", "diff", "apply", "approve", "reject", "rollback",
+			"effect", "review":
+			for _, arg := range argv[1:] {
+				if arg == "-h" || arg == "-help" || arg == "--help" {
+					fmt.Fprintf(os.Stdout, "Usage: air-worker learn %s -product <root> [action options]\nThe -product flag is required for shared learning.\n", argv[0])
+					return true, 0
+				}
+			}
+			return true, printSharedLearning(learning.Response{}, errors.New("learn "+argv[0]+": -product is required; see air-worker learn --help"))
+		}
 		return false, 0
 	}
 	root, err := filepath.Abs(root)
@@ -326,6 +341,9 @@ func routeSharedFeedback(argv []string) (bool, int) {
 	if strings.TrimSpace(*text) == "" {
 		return true, printSharedLearning(learning.Response{}, errors.New("feedback text is required"))
 	}
+	if len([]byte(*text)) > 64*1024 {
+		return true, printSharedLearning(learning.Response{}, errors.New("feedback text exceeds the bounded immutable receipt limit"))
+	}
 	if *rid == "" {
 		*rid, err = newLearnID("FB", time.Now().UTC())
 		if err != nil {
@@ -356,5 +374,28 @@ func routeSharedFeedback(argv []string) (bool, int) {
 		return true, printSharedLearning(learning.Response{}, err)
 	}
 	res, err := executeSharedLearning(root, s, "observe", map[string]string{"run_id": *rid, "kind": "run_completed", "observed": *text, "class": "feedback-" + *kind, "source": "feedback", "principal": *source, "outcome_ref": *ref, "feedback": string(encoded)})
-	return true, printSharedLearning(res, err)
+	if err != nil && !(errors.Is(err, learning.ErrConflict) && res.Status == "duplicate") {
+		// A reviewer/model error may occur AFTER the shared module durably
+		// records this feedback. Preserve that real event as a canonical
+		// candidate even when review is deferred or failed. Never treat
+		// the model error as an applied lesson or a passing review.
+		_, intakeErr := preserveCanonicalSharedFeedback(root, s, *rid, string(encoded), *kind, *text, *source, *ref, legacyFields)
+		res.Status = "partial"
+		if intakeErr != nil {
+			return true, printSharedLearning(res, errors.Join(err, intakeErr))
+		}
+		return true, printSharedLearning(res, fmt.Errorf("canonical feedback candidate recorded; learning review remains incomplete: %w", err))
+	}
+	// Complete the product's canonical immutable defect intake only after
+	// the shared module durably recorded the exact event. On a partial
+	// failure, the same run-id can resume without another event or overwrite.
+	_, err = preserveCanonicalSharedFeedback(root, s, *rid, string(encoded), *kind, *text, *source, *ref, legacyFields)
+	if err != nil {
+		res.Status = "partial"
+		return true, printSharedLearning(res, fmt.Errorf("learning event persisted but canonical feedback candidate needs recovery (run_id=%s): %w", *rid, err))
+	}
+	if res.Status == "duplicate" {
+		res.Status = "recorded"
+	}
+	return true, printSharedLearning(res, nil)
 }

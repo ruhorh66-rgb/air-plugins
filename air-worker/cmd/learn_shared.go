@@ -632,7 +632,13 @@ func sharedLearningContext(product string, in hookInput) (bool, hookResult, erro
 	if len(catalog.Skills) == 0 {
 		return true, hookResult{}, nil
 	}
-	res, err := sharedLearningContextFromCatalog(product, s, in, runID, catalog.Skills)
+	// Preserve the newest reviewed lessons inside the host's bounded
+	// context instead of hiding them behind older alphabetical entries.
+	ordered, orderErr := prioritizeSharedSkills(s.RuntimeRoot, catalog.Skills)
+	if orderErr != nil {
+		return true, hookResult{}, sharedHookFailure("context-recency", runID, orderErr)
+	}
+	res, err := sharedLearningContextFromCatalog(product, s, in, runID, ordered)
 	return true, res, err
 }
 
