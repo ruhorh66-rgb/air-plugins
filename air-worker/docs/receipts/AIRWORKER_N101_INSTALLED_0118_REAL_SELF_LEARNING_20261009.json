@@ -1,0 +1,129 @@
+{
+    "schema":  "air-worker.n101.real-session-learning-acceptance/v1",
+    "product":  "AirWorker",
+    "recorded_at_utc":  "2026-10-09T02:56:19.5255837Z",
+    "lpr_priority":  "09.10.2026: verify actual self-learning of installed 0.11.8 on this sessions own defects before next release",
+    "node":  "N-101_self-0-11-8-learn-real-session-failures-and-veri",
+    "operating_environment":  {
+                                  "node":  "SRVLM01",
+                                  "module_runtime_root":  "R:\\-4-\\air-worker\\self-learning",
+                                  "installed_binary_sha256":  "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+                                  "installed_revision":  "f1cde6a6e6c0d31a2910cda78ae5aa5f78c04a25",
+                                  "shared_module_head":  "8fcd458a783e2dbffb1d590ba838e44bedf6dda8",
+                                  "source_head_at_start":  "f1cde6a6e6c0d31a2910cda78ae5aa5f78c04a25",
+                                  "installed_version":  "0.11.8",
+                                  "source_branch":  "dev/airworker-curator-skill-lifecycle-20261006"
+                              },
+    "confirmed_0118_gap":  {
+                               "native_shared_status_exit":  0,
+                               "native_learn_help_exit":  2,
+                               "native_self_status_error":  "unknown learn action self",
+                               "native_self_status_exit":  2,
+                               "baseline_receipt":  "R:\\-4-\\air-worker\\work\\0.11.9\\n101\\AW0118_SELF_CAPABILITY_BASELINE.json",
+                               "conclusion":  "Product-scoped shared-learning present; own persistent cross-product self-learning selector ABSENT in installed 0.11.8"
+                           },
+    "actual_native_learning":  {
+                                   "run_id":  "AW-N101-SELF0118-MISSING-OWNER-20261009-1",
+                                   "native_feedback_list_contains_runid":  true,
+                                   "event_source":  "feedback",
+                                   "reviewer_effort":  "medium",
+                                   "before_sha256":  "e0b274857a6e2a1c3f9a0e5febb2b25acbd083793ce325eccaed02442aa9aec9",
+                                   "native_auto_proposal_id":  "LP-EV-19bb67345c8773671359b538",
+                                   "review_outcome":  "candidate",
+                                   "native_feedback_return_code":  "NOT_PROVEN: one-shot PowerShell caller never returned after native process completion; state and stdout were independently reconciled, no duplicate retry",
+                                   "native_auto_apply_transaction":  "TX-4de9c4dc4b91ecdd7e3904de",
+                                   "trigger_kind":  "real session P0 self-owner CLI defect, manually delivered once via installed feedback add with stable run_id",
+                                   "event_id":  "EV-19bb67345c8773671359b538",
+                                   "automatically_applied_sha256":  "6ff81af995e5df9256830e181db2e4004859f16b5e5d7cc15e9c7d7e55fa880d",
+                                   "reviewer_model":  "gpt-5.6-luna",
+                                   "note":  "automatic reviewer and safe procedure apply DID happen, though input was explicitly supplied by the operator",
+                                   "native_feedback_list_exit":  0,
+                                   "review_id":  "RV-88d2909a0596fd3e2ccecd3d"
+                               },
+    "newly_discovered_product_defects":  [
+                                             {
+                                                 "scope":  "installed 0.11.8",
+                                                 "id":  "N-073",
+                                                 "problem":  "no persistent self-learning owner, cross-product autonomy not operational"
+                                             },
+                                             {
+                                                 "scope":  "installed 0.11.8",
+                                                 "id":  "N-102",
+                                                 "problem":  "safe auto-review overwrites previously useful unrelated guidance at shared feedback-error target despite preserve instruction"
+                                             },
+                                             {
+                                                 "scope":  "installed 0.11.8",
+                                                 "id":  "N-096",
+                                                 "problem":  "shared feedback emitted event/review but not immutable native FB JSON or non-executable PLAN candidate"
+                                             },
+                                             {
+                                                 "scope":  "installed 0.11.8",
+                                                 "id":  "N-095",
+                                                 "problem":  "learn --help rejects recognized command and shared missing-product actions are not discoverable"
+                                             },
+                                             {
+                                                 "scope":  "unreleased 0.11.9 source f1cde6a6",
+                                                 "id":  "N-103",
+                                                 "problem":  "independent Astra high CHANGES_REQUIRED, 5 P1 and 3 P2 false procedure-use risk"
+                                             },
+                                             {
+                                                 "scope":  "live learning and candidate",
+                                                 "id":  "N-093",
+                                                 "problem":  "no machine-proven newly learned procedure_used/outcome/effect across normal host session"
+                                             },
+                                             {
+                                                 "scope":  "our test wrapper, root cause unknown",
+                                                 "id":  "N-101",
+                                                 "problem":  "one-shot host shell stayed CPU-active after feedback native subprocess ended, cleaned own process only, exact native exit NOT_PROVEN"
+                                             }
+                                         ],
+    "nondestructive_correction":  {
+                                      "original_target":  "skills/learned/feedback-error-a0309df4.md",
+                                      "native_rollback_verified":  true,
+                                      "preserved_new_target":  "skills/learned/self-owner-verification-6ff81af9.md",
+                                      "original_restored_sha256":  "e0b274857a6e2a1c3f9a0e5febb2b25acbd083793ce325eccaed02442aa9aec9",
+                                      "new_skill_sha256":  "6ff81af995e5df9256830e181db2e4004859f16b5e5d7cc15e9c7d7e55fa880d",
+                                      "native_manual_retarget_receipt":  "R:\\-4-\\air-worker\\work\\0.11.9\\n101\\N102_NEW_SAFE_SKILL.json",
+                                      "native_manual_propose_verified":  true,
+                                      "original_and_new_present":  true,
+                                      "manual_proposal_transaction":  "TX-73f29b536f23df82fb34cf1e",
+                                      "native_rollback_receipt":  "R:\\-4-\\air-worker\\work\\0.11.9\\n101\\N102_NATIVE_ROLLBACK.json"
+                                  },
+    "fresh_process_load":  {
+                               "real_procedure_used_count":  0,
+                               "used":  false,
+                               "load_status":  "loaded",
+                               "loaded_sha256":  "6ff81af995e5df9256830e181db2e4004859f16b5e5d7cc15e9c7d7e55fa880d",
+                               "load_rc":  0,
+                               "use_outcome":  "NOT_PROVEN",
+                               "module_skill_loaded_event":  "EV-c0bff8d702390f502273419b",
+                               "meaningful_effect":  "NOT_PROVEN",
+                               "receipt":  "R:\\-4-\\air-worker\\work\\0.11.9\\n101\\N101_FRESH_LOAD_0118.json"
+                           },
+    "product_feedback_gap":  {
+                                 "status":  "PARTIAL: feedback learning recorded, canonical FB evidence and PLAN candidate missing",
+                                 "metadata_preserved_in_module_event":  true,
+                                 "native_fb_files_created_today":  0,
+                                 "canonical_plan_feedback_id_present":  false,
+                                 "native_fb_files_total":  22
+                             },
+    "related_current_state":  {
+                                  "active_control_rules_approved_this_session":  0,
+                                  "release_or_install_authorized":  false,
+                                  "ledger_total":  10,
+                                  "installed_binary_mutated":  false,
+                                  "independent_n100_astra_P1":  5,
+                                  "events_total":  71,
+                                  "independent_n100_astra_P2":  3,
+                                  "independent_n100_astra_verdict":  "CHANGES_REQUIRED",
+                                  "proposals_total":  9
+                              },
+    "receipt_sources":  {
+                            "feedback_list":  "R:\\-4-\\air-worker\\work\\0.11.9\\n101\\N101_FEEDBACK_LIST.json",
+                            "wrapper_cleanup":  "R:\\-4-\\air-worker\\work\\0.11.9\\n101\\N101_OWNED_WRAPPER_CLEANUP.json",
+                            "astra":  "R:\\-4-\\air-worker\\work\\0.11.9\\n100\\astra-review-verdict.json",
+                            "reviewer_file":  "R:\\-4-\\air-worker\\self-learning\\reviews\\RV-88d2909a0596fd3e2ccecd3d.json",
+                            "feedback_stdout":  "R:\\-4-\\air-worker\\work\\0.11.9\\n101\\feedback-0118.stdout.json"
+                        },
+    "verdict":  "PASS_SCOPED_NATIVE_SHARED_LEARNING__AUTONOMOUS_SELF_USE_NOT_PROVEN"
+}
