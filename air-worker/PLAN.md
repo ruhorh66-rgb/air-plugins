@@ -6,6 +6,8 @@
 
 **Все указания ЛПР по продукту записываются в этот план в том же рабочем цикле.** ЛПР 14.09.2026: «Все мои указания должны попадать в план разработки продукта».
 
+**ПРИОРИТЕТ ЛПР 11.10.2026 SGT — блок самообучения.** Один разработчик GPT, независимый семантический судья Codex `gpt-6-sol:low` для текущих проверок; прежние точные релизные гейты N-071/N-092 не объявлять PASS без их собственных квитанций. Критический путь: сначала общий `air-modules/learning` 0.1.0 в канонической изолированной ветке `dev/air-learning-v0.1.0-airvera-20261010` (N-027, N-026, N-012, отдельный гейт публикации N-013); затем AirWorker N-110 -> N-093/N-073 с реальным автообнаружением ошибки, reviewer, безопасным auto-apply, новой сессией, `loaded/used/outcome/effect` и независимым судьёй. Релиз 0.11.9 — N-071 с N-092 только после отделения Hermes/Nous (новый N-116) в будущую ветку и полного QA. Коммиты/receipts отдельно в двух репозиториях, LEARN и plan/N-* только штатным ядром, source-only работы разрешены, tag/GitHub Release/marketplace/install/reboot/UAC — только после отдельного точного да ЛПР.
+
 **Установка и обновление — только штатным путём из GitHub.** ЛПР 14.09.2026: «Только один путь верный — установка из GitHub… все другие попытки обновления неприемлемы… только штатный механизм обновления по аналогии с AIR Kill Switch, либо переустановка бинарника напрямую с правами — чтобы каждая сессия не правила код и не заливала то, чего ей хочется». Держится кодом, шаг 66.
 
 **Архитектура, повторно утверждённая ЛПР 14.09.2026:** **Manifest подключает. Adapter доставляет. Binary решает. Models работают. Skill объясняет.**
@@ -677,3 +679,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] N-071_rel-0-11-9-next-airworker-release-with-shared-le · owner:gpt-airworker-release-20261010 · [[N-113_p1-canonicalize-windows-profile-aliases-in-distr]] · P1: canonicalize Windows profile aliases in distribution selfcheck
 - [open] PLAN.md · owner:gpt-airworker-next-release-20261010 · [[N-114_next-rel-portal-nous-portal-omniroute-study-and-l]] · NEXT-REL-PORTAL: Nous Portal / OmniRoute study and LPR approval after AirWorker 0.11.9
 - [closed] N-114_next-rel-portal-nous-portal-omniroute-study-and-l · owner:gpt-airworker-release-20261010 · [[N-115_next-rel-nous-portal-sonnet-opus-5-5-semantic-ju]] · NEXT-REL: Nous Portal Sonnet/Opus 5.5 semantic judges via Hermes
+- [open] N-071_rel-0-11-9-next-airworker-release-with-shared-le · owner:gpt-airworker-self-learning-20261011 · [[N-116_rel-0-11-9-isolation-separate-hermes-nous-future]] · REL-0.11.9 ISOLATION: separate Hermes Nous future-release WIP
