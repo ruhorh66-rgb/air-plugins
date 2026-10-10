@@ -270,27 +270,21 @@ func bindNativeFeedbackProof(class, content string) (string, error) {
 		}
 		return content, nil
 	}
-	low := strings.ToLower(content)
-	_, p, ok := strings.Cut(low, "## procedure")
-	if !ok {
-		return "", errors.New("feedback procedure section missing")
+	steps, err := nativeFeedbackProcedureVisibleLines(content)
+	if err != nil {
+		return "", err
 	}
-	proc, _, ok := strings.Cut(p, "## pitfalls")
-	if !ok {
-		return "", errors.New("feedback pitfalls section missing")
-	}
-	if nativeFeedbackProcedureContradictory(proc) {
-		// One negative line anywhere in the same procedure invalidates
-		// apparently-positive wording on another line.
+	if nativeFeedbackProcedureContradictory(steps) {
+		// No machine proof if any visible Procedure line negates a
+		// command or refers negatively to an earlier executable step.
 		return content, nil
 	}
 	eligible := false
-	for _, line := range strings.Split(proc, "\n") {
-		step := strings.TrimSpace(strings.ReplaceAll(line, "`", ""))
-		if len(step) < 4 || step[0] < '1' || step[0] > '6' || step[1] != '.' {
+	for _, line := range steps {
+		if len(line) < 4 || line[0] < '1' || line[0] > '6' || line[1] != '.' {
 			continue
 		}
-		if nativePositiveFeedbackStep(strings.TrimSpace(step[2:])) {
+		if nativePositiveFeedbackStep(strings.TrimSpace(line[2:])) {
 			eligible = true
 		}
 	}

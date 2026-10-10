@@ -96,3 +96,47 @@ func TestN108DurableFeedbackReadbackRejectsNoopPlanWriter(t *testing.T) {
 		t.Fatal("durable evidence should be persisted before PLAN failure")
 	}
 }
+
+func TestN108NestedFourBacktickAndHTMLExamplesCannotProveFeedback(t *testing.T) {
+	rec := n108CanonicalRecord()
+	rel := feedbackEvidenceRel(rec.FeedbackID)
+	line := feedbackCandidateLine(rec, rel)
+	examples := map[string]string{
+		"four-backtick-inner-three": "# Product\n\n````md\n```\n" + feedbackSectionHeading + "\n" + feedbackMarker + "\n" + line + "\n````\n",
+		"pre-block":                 "# Product\n\n<pre>\n" + feedbackSectionHeading + "\n" + feedbackMarker + "\n" + line + "\n</pre>\n",
+		"block-quote":               "# Product\n\n> " + feedbackSectionHeading + "\n> " + feedbackMarker + "\n> " + line + "\n",
+	}
+	for name, source := range examples {
+		t.Run(name, func(t *testing.T) {
+			exists, err := canonicalFeedbackCandidateState([]byte(source), rec, rel)
+			if exists || err == nil {
+				t.Fatalf("false PLAN receipt from quoted example: exists=%v err=%v", exists, err)
+			}
+		})
+	}
+}
+
+func TestN108QuotedMarkdownMarkerPreservesExampleOnRealInsertion(t *testing.T) {
+	rec := n108CanonicalRecord()
+	rel := feedbackEvidenceRel(rec.FeedbackID)
+	examples := map[string]string{
+		"four-backtick": "# Product\n\n````md\n```\n" + feedbackSectionHeading + "\n" + feedbackMarker + "\n````\n",
+		"pre-block":     "# Product\n\n<pre>\n" + feedbackSectionHeading + "\n" + feedbackMarker + "\n</pre>\n",
+	}
+	for name, source := range examples {
+		t.Run(name, func(t *testing.T) {
+			had, err := canonicalFeedbackCandidateState([]byte(source), rec, rel)
+			if err != nil || had {
+				t.Fatalf("untrusted marker was used: %v", err)
+			}
+			updated := planWithFeedbackCandidate([]byte(source), rec, rel)
+			present, err := canonicalFeedbackCandidateState(updated, rec, rel)
+			if err != nil || !present {
+				t.Fatalf("true inserted section missing: %v", err)
+			}
+			if !strings.Contains(string(updated), source) {
+				t.Fatal("insertion erased old example")
+			}
+		})
+	}
+}

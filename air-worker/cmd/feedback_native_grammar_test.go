@@ -49,3 +49,46 @@ func TestN108NativeFeedbackContradictionDeniesAction(t *testing.T) {
 		t.Fatalf("conflicting procedure got native evidence: %v", err)
 	}
 }
+
+func TestN108ReferenceNegationAndDocumentationCannotGainMachineUse(t *testing.T) {
+	safe := "1. Call air-worker feedback add with a stable -run-id, correct product and real error evidence."
+	cases := map[string]string{
+		"negative-next-line":      safe + "\n2. Never execute the preceding command.",
+		"mixed-referenced-action": safe + "\n2. Do not invoke that action.",
+		"documentation-only":      "1. Report the defect in the documentation describing air-worker feedback add and its stable -run-id.",
+		"preceding-command-void":  safe + "\n2. Skip the previous command.",
+		"positive-only-fenced":    "```md\n" + safe + "\n```",
+		"positive-only-pre":       "<pre>\n" + safe + "\n</pre>",
+		"quote-example":           "> " + safe,
+	}
+	for name, procedure := range cases {
+		t.Run(name, func(t *testing.T) {
+			text := "# Host feedback lesson\n\n## When to apply\nAfter real error.\n\n## Procedure\n" +
+				procedure + "\n\n## Pitfalls\nDo not invent machine evidence.\n"
+			bound, err := bindNativeFeedbackProof("feedback-error", text)
+			if err != nil || strings.Contains(bound, nativeFeedbackUseAction) {
+				t.Fatalf("untrusted procedure %s granted native use: err=%v content=%q", name, err, bound)
+			}
+		})
+	}
+}
+
+func TestN108RealReviewerLessonStillGetsTrustedNarrowMarker(t *testing.T) {
+	real := "# Record CLI Defects as Durable Feedback\n\n## When to apply\n\n" +
+		"When a real AirWorker CLI error or behavioral defect is observed and needs to become reusable learning evidence.\n\n" +
+		"## Procedure\n\n" +
+		"1. Report the defect with the native `air-worker feedback add` command, using a stable `-run-id` and bounded `-data-file` JSON containing the exact error.\n" +
+		"2. Confirm the newly recorded event, its immutable `FB-*.json` receipt, and one matching PLAN candidate.\n" +
+		"3. Preserve the source evidence and installed version alongside the report.\n" +
+		"4. Select the exact SHA-pinned procedure deliberately in the next session and verify its effect independently; loading a skill alone does not prove it was used.\n\n" +
+		"## Pitfalls\n\n- Do not reuse a feedback-error target for independent lessons.\n"
+	bound, err := bindNativeFeedbackProof("feedback-error", real)
+	if err != nil || strings.Count(bound, nativeFeedbackUseAction) != 1 {
+		t.Fatalf("previous real auto-review positive lost: %v len=%d", err, strings.Count(bound, nativeFeedbackUseAction))
+	}
+	markerless := strings.TrimSuffix(bound, "\n\n## Machine-verifiable action\n"+nativeFeedbackUseAction+"\n") + "\n"
+	again, err := bindNativeFeedbackProof("feedback-error", markerless)
+	if err != nil || again != bound {
+		t.Fatalf("real auto-review deterministic marker regression: err=%v same=%v", err, again == bound)
+	}
+}

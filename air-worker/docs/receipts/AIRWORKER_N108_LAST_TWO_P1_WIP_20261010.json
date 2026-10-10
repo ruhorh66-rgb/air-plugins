@@ -1,0 +1,56 @@
+{
+    "schema":  "air-worker.n108.remaining-semantic-fixes-checkpoint/v1",
+    "checkpoint_utc":  "2026-10-10T06:21:10.3283971Z",
+    "scope":  "AirWorker own self-learning only",
+    "plan_node":  "N-108_p0-astra-remediation-fix-n105-independent-review",
+    "source_parent_head":  "53051680d1dc8bc0a83467f9e189c6b9f1964bdd",
+    "original_astra_file":  "R:\\-4-\\air-worker\\work\\0.11.9\\n108-5305168\\ASTRA_VERDICT.json",
+    "original_astra_sha256":  "bbd75f03cfbc86efc1b4c0c9d7d64ad8fa67883411ae4e431c1b0f87b8f83c25",
+    "findings_remaining_before_work":  2,
+    "corrections":  [
+                        "Restrict native learning use marker to explicit affirmative feedback imperative, visible in the actual Procedure section; deny any negative reference to preceding command; examples never carry authority",
+                        "Use a common Markdown control parser for real feedback heading/marker and learned procedure: nested four-backtick fenced samples, HTML pre/code/blockquote and quoted text never count as event/PLAN evidence"
+                    ],
+    "source_files":  [
+                         {
+                             "sha256":  "67fcb78e166c5c30c08af5c99218fa6a09d3be520ff00799f1b050ea4b53ada4",
+                             "path":  "cmd/markdown_control_surface.go"
+                         },
+                         {
+                             "sha256":  "0282201bf619706943b3b04cc432f9d0c9efe606db1413dd207debc937533ddc",
+                             "path":  "cmd/feedback_native_grammar.go"
+                         },
+                         {
+                             "sha256":  "1fa2f90d98eff9b8b6838c074ee4d6b34e3838277db608ae78c2f9d154058a18",
+                             "path":  "cmd/feedback_native_grammar_test.go"
+                         },
+                         {
+                             "sha256":  "67631b8d841c6fe92a7f6c38c764b0219ebed3057ad4e2f88290653c3461da00",
+                             "path":  "cmd/feedback_native_use.go"
+                         },
+                         {
+                             "sha256":  "eaf71b342eec9eb93be676eb199ac3fcc372a0bb94da218f29419b533dc3a203",
+                             "path":  "cmd/feedback_candidate_verify.go"
+                         },
+                         {
+                             "sha256":  "179b049dca4d4ba2fd2df65cf4bf744b6b14180430c0c18ff1e4d7e7dc446948",
+                             "path":  "cmd/feedback_candidate_verify_test.go"
+                         }
+                     ],
+    "verified_scoped_tests":  "TestN108Reference|TestN108RealReviewer|TestN108NestedFour|TestN108QuotedMarkdown|TestN108Canonical|TestN108NativeFeedback|TestN104ReviewerOnly",
+    "verified_scoped_exit":  0,
+    "verified_wide_tests":  "TestN108|TestN104|TestN105|TestN096|TestN102|TestN095|TestAirWorkerSelfLearningExecutionUnknownUseNeedsCorrelatedDiagnosticOutcome|TestN088NestedFailureCannotClaimProcedureUsed",
+    "verified_wide_exit":  0,
+    "go_vet_exit":  0,
+    "git_diff_check":  "PASS",
+    "native_validate":  "PASS 7 goals/62 criteria/0 problems",
+    "plan_lint":  "PASS 0 warnings",
+    "full_go_on_checkpoint":  "PENDING",
+    "independent_astra_high_on_checkpoint":  "PENDING",
+    "native_e2e_on_checkpoint":  "PENDING",
+    "product_global_judge":  "PENDING N-092",
+    "installed_live_version":  "0.11.8 unchanged",
+    "user_release_and_install_approval":  "NOT_GRANTED",
+    "node_status":  "N-108 OPEN until exact Go regression, independent PASS and evidence receipt",
+    "status":  "WIP_CHECKPOINT_READY_FOR_FULL_GATES"
+}

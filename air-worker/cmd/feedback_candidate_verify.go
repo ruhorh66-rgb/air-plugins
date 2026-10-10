@@ -8,18 +8,17 @@ import (
 
 const feedbackSectionHeading = "## Operational feedback candidates"
 
-// The byte offset points after the one real, non-fenced marker.
-// A quoted example is never an authoritative control-plane candidate.
+// An exact feedback row is authoritative only inside the real section.
+// A quotation, nested/four-backtick fence, HTML block or comment must never
+// be used as a machine result. The byte offset is after the real marker.
 func canonicalFeedbackCandidatePlacement(raw []byte, rec feedbackRecord, relativePath string) (bool, int, error) {
-	text := string(raw)
 	expected := feedbackCandidateLine(rec, relativePath)
 	candidatePrefix := "- feedback " + string(rune(96)) + rec.FeedbackID + string(rune(96))
-	inFence, inComment := false, false
-	fenceKind := ""
+	var surface markdownControlSurface
 	atHeading, seenHeading := false, false
 	markerEnd, markers, count := -1, 0, 0
 	offset := 0
-	for _, segment := range strings.SplitAfter(text, "\n") {
+	for _, segment := range strings.SplitAfter(string(raw), "\n") {
 		if segment == "" {
 			continue
 		}
@@ -27,50 +26,21 @@ func canonicalFeedbackCandidatePlacement(raw []byte, rec feedbackRecord, relativ
 		trimmed := strings.TrimSpace(line)
 		start := offset
 		offset += len(segment)
-		if strings.HasPrefix(trimmed, "~~~") || strings.HasPrefix(trimmed, "```") {
-			kind := trimmed[:3]
-			if !inFence {
-				inFence = true
-				fenceKind = kind
-			} else if fenceKind == kind {
-				inFence = false
-			}
-			continue
-		}
-		if inFence {
+		if surface.hidden(line, feedbackMarker) {
 			if strings.Contains(line, candidatePrefix) {
-				return false, -1, errors.New("feedback candidate only exists inside a fenced code example")
+				return false, -1, errors.New("feedback candidate inside a Markdown or HTML example is not machine evidence")
 			}
 			continue
 		}
-		if inComment {
-			if strings.Contains(line, candidatePrefix) {
-				return false, -1, errors.New("feedback candidate quoted inside an HTML comment")
-			}
-			if strings.Contains(line, "-->") {
-				inComment = false
-			}
-			continue
-		}
-		// feedbackMarker is a comment: trusted ONLY beneath the real H2.
 		if trimmed == feedbackMarker {
 			if !atHeading {
-				return false, -1, errors.New("feedback marker is outside the real Operational feedback candidates section")
+				return false, -1, errors.New("feedback marker outside the real Operational feedback candidates section")
 			}
 			markers++
 			if markers != 1 {
-				return false, -1, errors.New("duplicate feedback marker")
+				return false, -1, errors.New("duplicate canonical feedback marker")
 			}
 			markerEnd = start + len(line)
-			continue
-		}
-		if strings.HasPrefix(trimmed, "<!--") {
-			if strings.Contains(line, candidatePrefix) {
-				return false, -1, errors.New("feedback candidate quoted inside HTML comment")
-			}
-			if !strings.Contains(trimmed, "-->") {
-				inComment = true
-			}
 			continue
 		}
 		if strings.HasPrefix(trimmed, "## ") {
@@ -84,16 +54,16 @@ func canonicalFeedbackCandidatePlacement(raw []byte, rec feedbackRecord, relativ
 		}
 		if strings.Contains(line, candidatePrefix) {
 			if !atHeading || markerEnd < 0 || line != expected {
-				return false, -1, fmt.Errorf("misplaced or conflicting feedback candidate %s", rec.FeedbackID)
+				return false, -1, fmt.Errorf("misplaced or conflicting candidate for %s", rec.FeedbackID)
 			}
 			count++
 		}
 	}
 	if count > 1 {
-		return false, -1, fmt.Errorf("duplicate canonical feedback candidate %s", rec.FeedbackID)
+		return false, -1, fmt.Errorf("duplicate canonical candidate for %s", rec.FeedbackID)
 	}
 	if markers == 0 && count != 0 {
-		return false, -1, errors.New("feedback candidate exists without an authoritative marker")
+		return false, -1, errors.New("feedback candidate without authoritative marker")
 	}
 	return count == 1, markerEnd, nil
 }
