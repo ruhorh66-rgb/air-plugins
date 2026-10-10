@@ -16,6 +16,7 @@ import (
 type nativeInputPart struct {
 	path string
 	info os.FileInfo
+	id   nativeInputIdentity
 }
 
 func inspectNativeInputPath(path string, max int) ([]nativeInputPart, error) {
@@ -58,7 +59,11 @@ func inspectNativeInputPath(path string, max int) ([]nativeInputPart, error) {
 		} else if !info.Mode().IsRegular() || info.Size() < 2 || info.Size() > int64(max) {
 			return nil, errors.New("feedback data file must be a bounded regular JSON document")
 		}
-		seen = append(seen, nativeInputPart{path: current, info: info})
+		id, err := nativeInputPathIdentity(current)
+		if err != nil {
+			return nil, fmt.Errorf("cannot capture Windows file identity of feedback input %s: %w", current, err)
+		}
+		seen = append(seen, nativeInputPart{path: current, info: info, id: id})
 	}
 	return seen, nil
 }
@@ -83,10 +88,14 @@ func readNativeFeedbackDataSafeWithOpen(path string, max int, opener func(string
 	if err != nil {
 		return nil, err
 	}
-	final := seen[len(seen)-1].info
+	final := seen[len(seen)-1]
+	openedID, err := nativeInputOpenedIdentity(file)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read feedback opened handle identity: %w", err)
+	}
 	if !opened.Mode().IsRegular() || opened.Size() < 2 || opened.Size() > int64(max) ||
-		opened.Size() != final.Size() || !opened.ModTime().Equal(final.ModTime()) ||
-		!os.SameFile(final, opened) {
+		opened.Size() != final.info.Size() || !opened.ModTime().Equal(final.info.ModTime()) ||
+		!nativeInputSameIdentity(final.id, openedID) {
 		return nil, errors.New("feedback data file changed identity before its handle was opened")
 	}
 	body, err := io.ReadAll(io.LimitReader(file, int64(max)+1))
@@ -105,6 +114,10 @@ func readNativeFeedbackDataSafeWithOpen(path string, max int, opener func(string
 		}
 		if _, err := os.Readlink(part.path); err == nil {
 			return nil, fmt.Errorf("feedback data-file acquired junction after read: %s", part.path)
+		}
+		actualID, idErr := nativeInputPathIdentity(part.path)
+		if idErr != nil || !nativeInputSameIdentity(part.id, actualID) {
+			return nil, fmt.Errorf("feedback path changed actual file ID after read: %s: %v", part.path, idErr)
 		}
 	}
 	return body, nil

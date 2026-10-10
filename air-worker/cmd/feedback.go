@@ -118,12 +118,15 @@ func planWithFeedbackCandidate(raw []byte, r feedbackRecord, rel string) []byte 
 		nl = "\r\n"
 	}
 	line := feedbackCandidateLine(r, rel)
-	if active, err := canonicalFeedbackCandidateState(raw, r, rel); err == nil && active {
+	active, markerOffset, err := canonicalFeedbackCandidatePlacement(raw, r, rel)
+	if err == nil && active {
 		return raw
 	}
-	if i := strings.Index(s, feedbackMarker); i >= 0 {
-		insertAt := i + len(feedbackMarker)
-		return []byte(s[:insertAt] + nl + line + s[insertAt:])
+	// Reuse only the recognized, unfenced marker inside its real heading.
+	// A Markdown example containing copied marker text cannot redirect
+	// durable feedback into the example.
+	if err == nil && markerOffset >= 0 {
+		return []byte(s[:markerOffset] + nl + line + s[markerOffset:])
 	}
 	if !strings.HasSuffix(s, "\n") {
 		s += nl

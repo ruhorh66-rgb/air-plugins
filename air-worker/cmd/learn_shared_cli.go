@@ -421,8 +421,11 @@ func routeSharedFeedback(argv []string) (bool, int) {
 	if *useProcedure != "" {
 		// Stable source/run ownership spans selection, native operation and
 		// usage evidence. The lock is OS-backed and cross-process on Windows.
-		useLock, acquired := acquireLock(nativeFeedbackUseLockName(*source, *rid))
-		if !acquired {
+		useLock, acquired, lockErr := acquireNativeFeedbackUseLock(nativeFeedbackUseLockName(*source, *rid))
+		if lockErr != nil {
+			return true, printSharedLearning(learning.Response{}, fmt.Errorf("trusted native feedback lock failed closed: %w", lockErr))
+		}
+		if !acquired || useLock == nil {
 			return true, printSharedLearning(learning.Response{}, errors.New("another learned feedback use owns this source/run_id"))
 		}
 		defer useLock.release()

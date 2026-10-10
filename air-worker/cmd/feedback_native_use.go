@@ -279,38 +279,18 @@ func bindNativeFeedbackProof(class, content string) (string, error) {
 	if !ok {
 		return "", errors.New("feedback pitfalls section missing")
 	}
+	if nativeFeedbackProcedureContradictory(proc) {
+		// One negative line anywhere in the same procedure invalidates
+		// apparently-positive wording on another line.
+		return content, nil
+	}
 	eligible := false
 	for _, line := range strings.Split(proc, "\n") {
-		trim := strings.TrimSpace(strings.ReplaceAll(line, "`", ""))
-		if len(trim) < 4 || trim[0] < '1' || trim[0] > '6' || trim[1] != '.' {
+		step := strings.TrimSpace(strings.ReplaceAll(line, "`", ""))
+		if len(step) < 4 || step[0] < '1' || step[0] > '6' || step[1] != '.' {
 			continue
 		}
-		step := strings.TrimSpace(trim[2:])
-		words := strings.Fields(step)
-		if len(words) == 0 {
-			continue
-		}
-		// Bind only a positive imperative first verb. A substring such as
-		// "avoid calling" or "never call" is not permission to credit use.
-		switch strings.Trim(words[0], ":;,.") {
-		case "call", "submit", "report", "record", "file":
-		default:
-			continue
-		}
-		forbidden := false
-		for _, negation := range []string{
-			"do not", "don't", "never", "avoid", "without", "refrain",
-			"skip", "prohibit", "not call", "not submit", "not report", "not record",
-		} {
-			if strings.Contains(" "+step+" ", negation) {
-				forbidden = true
-				break
-			}
-		}
-		action := strings.Contains(step, "native feedback path") ||
-			strings.Contains(step, "air-worker feedback add")
-		stable := strings.Contains(step, "stable run") || strings.Contains(step, "-run-id")
-		if !forbidden && action && stable {
+		if nativePositiveFeedbackStep(strings.TrimSpace(step[2:])) {
 			eligible = true
 		}
 	}

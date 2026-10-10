@@ -270,14 +270,16 @@ func TestN108NativeUseLockIdentityIndependentOfCWD(t *testing.T) {
 	if first == nativeFeedbackUseLockName("different-principal", "same-run") {
 		t.Fatal("principal not in lock identity")
 	}
-	l, ok := acquireLock(first)
-	if !ok {
-		t.Fatal("cannot acquire isolated cross-process lock")
+	l, ok, err := acquireNativeFeedbackUseLock(first)
+	if err != nil || !ok {
+		t.Fatalf("cannot acquire strict native evidence lock: %v", err)
 	}
 	defer l.release()
-	if next, ok := acquireLock(second); ok {
-		next.release()
-		t.Fatal("duplicate source/run acquired independent mutex")
+	if next, got, err := acquireNativeFeedbackUseLock(second); got || err != nil {
+		if next != nil {
+			next.release()
+		}
+		t.Fatalf("duplicate source/run acquired independent strict mutex: got=%v err=%v", got, err)
 	}
 }
 
@@ -323,9 +325,9 @@ func TestN108NativeLockHeldAcrossProcessesWithDifferentCWD(t *testing.T) {
 		t.Fatal(err)
 	}
 	name := nativeFeedbackUseLockName("n108-principal", "n108-run")
-	held, ok := acquireLock(name)
-	if !ok {
-		t.Fatal("could not acquire native lock for the first process")
+	held, ok, err := acquireNativeFeedbackUseLock(name)
+	if err != nil || !ok {
+		t.Fatalf("could not acquire strict native lock: %v", err)
 	}
 	defer held.release()
 	exe, err := os.Executable()
@@ -352,10 +354,12 @@ func TestN108ChildNativeFeedbackMutex(t *testing.T) {
 		t.Skip("isolated subprocess only")
 	}
 	name := nativeFeedbackUseLockName("n108-principal", "n108-run")
-	lock, ok := acquireLock(name)
-	if ok {
-		lock.release()
-		t.Fatal("a separate process with different CWD acquired the same source/run lock")
+	lock, ok, err := acquireNativeFeedbackUseLock(name)
+	if ok || err != nil {
+		if lock != nil {
+			lock.release()
+		}
+		t.Fatalf("separate process acquired or failed native lock: acquired=%v err=%v", ok, err)
 	}
 	fmt.Println("N108_BUSY")
 }

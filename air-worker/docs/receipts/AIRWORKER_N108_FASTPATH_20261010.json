@@ -1,0 +1,102 @@
+{
+    "schema":  "air-worker.n108.optimized-acceptance-candidate/v1",
+    "at_utc":  "2026-10-10T02:17:57.9123363Z",
+    "owner":  "gpt-airworker-release-20261010",
+    "plan_node":  "N-108_p0-astra-remediation-fix-n105-independent-review",
+    "base_head":  "e42d1f52b09f59ec17445ccca4282b368110f349",
+    "plan_priority":  "10.10.2026 LPR: fastest measurable self-learning acceptance N108; only AirWorker own LEARN",
+    "source_file_sha":  [
+                            {
+                                "sha256":  "6ba7ec1d3133be55f69f900fc5259be4d7d4bbf2fad39156e885f5313d0ca52c",
+                                "path":  "cmd/feedback.go"
+                            },
+                            {
+                                "sha256":  "e582427db5ca58f8329dd9fe3379735e81aa28c687ab481dc2fe38bee6e893b1",
+                                "path":  "cmd/feedback_candidate_verify.go"
+                            },
+                            {
+                                "sha256":  "07f0c83a3abcf108c72695c1960ef157b406f4b8d0a43c9fed109e2e37e3de13",
+                                "path":  "cmd/feedback_candidate_verify_test.go"
+                            },
+                            {
+                                "sha256":  "5f61eab96f69426923adeb062b8cc6249f08961e6ef6377c2e03b086311ebeea",
+                                "path":  "cmd/feedback_data_file_guard.go"
+                            },
+                            {
+                                "sha256":  "b2db16f72eb3ade18134513572dca6c6e54595ae60546ca8400d31d294ff63b7",
+                                "path":  "cmd/feedback_data_file_guard_test.go"
+                            },
+                            {
+                                "sha256":  "5c68f27b2bae86d14b49fa4841ac3b8b2e0b52158098291935eae7de0d7848fc",
+                                "path":  "cmd/feedback_data_file_identity_windows.go"
+                            },
+                            {
+                                "sha256":  "4a785a611f14f0d6394d050f1b418d85aa350323ecc078bdea2b065b750604b9",
+                                "path":  "cmd/feedback_data_file_identity_other.go"
+                            },
+                            {
+                                "sha256":  "9480b464f261c2f82ec1e05ee9a384a8c70193c0f2cb667e3190ad0f2c31df1a",
+                                "path":  "cmd/feedback_native_use.go"
+                            },
+                            {
+                                "sha256":  "84bae1b15ef82a52d441b1b88af0c979d5b225efbaa6f8c4e5f6d179885bc532",
+                                "path":  "cmd/feedback_native_use_test.go"
+                            },
+                            {
+                                "sha256":  "65f4476ebc922fec3f834fd40c2d806ef14e6aa130e0032c1bb6177b5f1e2233",
+                                "path":  "cmd/feedback_native_grammar.go"
+                            },
+                            {
+                                "sha256":  "2b8ee00132aac752743dcf9084d371c10b0938082607b6c8bd8f0a7171519ece",
+                                "path":  "cmd/feedback_native_grammar_test.go"
+                            },
+                            {
+                                "sha256":  "70db5059d09df5cb8f54652f60fe3720ebabbb1e7293f6ca1efb4007baa65f46",
+                                "path":  "cmd/feedback_use_lock_windows.go"
+                            },
+                            {
+                                "sha256":  "c6b751d84600c290debfa82d8e0f01bee9ccc7a774520c3bd22dd814c3e992d8",
+                                "path":  "cmd/feedback_use_lock_other.go"
+                            },
+                            {
+                                "sha256":  "1cb115694277b03c08d9bb28aa2b33345dde66d9416c1843881e18992a0e08dc",
+                                "path":  "cmd/feedback_use_lock_windows_test.go"
+                            },
+                            {
+                                "sha256":  "4e943ae55159043c400f369502da3a7297216b0368584ba4d035a7f7bcf786d4",
+                                "path":  "cmd/learn_shared_cli.go"
+                            },
+                            {
+                                "sha256":  "2946334b0177829a3417aa076fada346fef7ad62eb6d677eb2340ab9b0a53106",
+                                "path":  "PLAN.md"
+                            }
+                        ],
+    "previous_independent_verdict":  {
+                                         "P1":  3,
+                                         "verdict":  "CHANGES_REQUIRED",
+                                         "sha256":  "8f7dc2be90caf835b63779254ffa8aa8fb05da257b8825984f4b0589fcbb3894",
+                                         "receipt_path":  "R:\\-4-\\air-worker\\work\\0.11.9\\n108\\ASTRA_VERDICT.json",
+                                         "P2":  1
+                                     },
+    "newly_addressed":  [
+                            "P1: negative/mixed procedural steps no longer auto-grant Action; narrow grammar and adverse tests",
+                            "P1: real feedback heading and marker required outside Markdown fences and comments; exact candidate readback",
+                            "P1: dedicated fail-closed Windows mutex for proof-bearing use; other AirWorker lock semantics unchanged",
+                            "P2: Windows volume/file ID captured from GetFileInformationByHandle and compared before/after actual opened JSON; same-length and restored timestamp test"
+                        ],
+    "checks":  {
+                   "astra_high_exact_commit":  "PENDING",
+                   "plan_validate_problems":  0,
+                   "go_vet_exit":  0,
+                   "git_diff_check":  "PASS",
+                   "plan_lint_warnings":  0,
+                   "targeted_negative_go_exit":  0,
+                   "plan_validate_criteria":  62,
+                   "plan_validate_goals":  7,
+                   "full_go_exact_commit":  "PENDING"
+               },
+    "next_measurable_gate":  "one exact immutable commit -\u003e one full Go run without parallel LLM -\u003e independent Astra High -\u003e native node close only if both PASS",
+    "installed_version":  "0.11.8 unchanged",
+    "live_tag_or_install_authorized":  false,
+    "status":  "READY_FOR_EXACT_COMMIT_FULL_AND_INDEPENDENT_REVIEW__N108_OPEN"
+}

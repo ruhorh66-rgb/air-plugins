@@ -81,3 +81,36 @@ func TestN108NativeFeedbackInputSameSizeSwapFailsClosed(t *testing.T) {
 		t.Fatal("same-size replacement evaded opened-file and path identity verification")
 	}
 }
+
+func TestN108NativeFeedbackSwapSameLengthAndRestoredTimestamp(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "real-input.json")
+	original := []byte(`{"kind":"error","text":"TRUE"}`)
+	impostor := []byte(`{"kind":"error","text":"FAKE"}`)
+	if len(original) != len(impostor) {
+		t.Fatal("fixture length drift")
+	}
+	if err := os.WriteFile(path, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = readNativeFeedbackDataSafeWithOpen(path, 64*1024, func(name string) (*os.File, error) {
+		if err := os.Rename(name, name+".saved"); err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(name, impostor, 0o600); err != nil {
+			return nil, err
+		}
+		// P2: metadata validation alone accepts this forged replacement.
+		if err := os.Chtimes(name, before.ModTime(), before.ModTime()); err != nil {
+			return nil, err
+		}
+		return os.Open(name)
+	})
+	if err == nil {
+		t.Fatal("changed file ID with identical size and mtime was accepted")
+	}
+}
