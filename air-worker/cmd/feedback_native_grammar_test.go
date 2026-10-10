@@ -117,3 +117,28 @@ func TestN108IndirectNegationAndHiddenProcedureExamplesNeverGainAction(t *testin
 		})
 	}
 }
+
+func TestN108WrappedNegationAndHTMLAuthorityFailClosed(t *testing.T) {
+	permitted := "1. Report the defect with the native `air-worker feedback add` command, using a stable `-run-id` and bounded `-data-file` JSON containing the exact error."
+	cases := map[string]string{
+		"wrapped-four-space":     permitted + "\n2. Do\n    not carry out the preceding step.",
+		"wrapped-tab":            permitted + "\n2. Do\n\tnot carry out the preceding step.",
+		"wrapped-previous":       permitted + "\n2. Never\n    run it.",
+		"html-div-positive":      "<div>\n" + permitted + "\n</div>",
+		"html-nested-div":        "<div><div>\n" + permitted + "\n</div>\n</div>",
+		"html-section":           "<section>\n" + permitted + "\n</section>",
+		"html-custom":            "<sample-action>\n" + permitted + "\n</sample-action>",
+		"indented-contradictory": permitted + "\n    2. Never run it.",
+		"fenced-faux-heading":    "````md\n" + permitted + "\n````",
+	}
+	for label, procedure := range cases {
+		t.Run(label, func(t *testing.T) {
+			lesson := "# Unsafe reviewer claim\n\n## When to apply\nAfter a real error.\n\n## Procedure\n" +
+				procedure + "\n\n## Pitfalls\nDo not invent effect.\n"
+			processed, err := bindNativeFeedbackProof("feedback-error", lesson)
+			if err != nil || strings.Contains(processed, nativeFeedbackUseAction) {
+				t.Fatalf("ambiguous or hidden instruction became machine action: label=%s err=%v", label, err)
+			}
+		})
+	}
+}

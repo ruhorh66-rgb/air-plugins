@@ -186,3 +186,53 @@ func TestN108IndentedCloserOrHTMLExampleMarkerCannotRedirectInsertion(t *testing
 		})
 	}
 }
+
+func TestN108GenericHTMLCannotClaimCanonicalPLAN(t *testing.T) {
+	rec := n108CanonicalRecord()
+	rel := feedbackEvidenceRel(rec.FeedbackID)
+	row := feedbackCandidateLine(rec, rel)
+	copyText := feedbackSectionHeading + "\n" + feedbackMarker + "\n" + row + "\n"
+	cases := map[string]string{
+		"div":                "<div>\n" + copyText + "</div>\n",
+		"div-with-attribute": "<div class=\"demo\">\n" + copyText + "</div>\n",
+		"nested-div":         "<div><div>\n</div>\n" + copyText + "</div>\n",
+		"section":            "<section>\n" + copyText + "</section>\n",
+		"custom":             "<custom-card>\n" + copyText + "</custom-card>\n",
+	}
+	for label, html := range cases {
+		t.Run(label, func(t *testing.T) {
+			plan := "# Product\n\n" + html
+			found, err := canonicalFeedbackCandidateState([]byte(plan), rec, rel)
+			if found || err == nil {
+				t.Fatalf("untrusted HTML example used as canonical PLAN receipt: %s found=%v err=%v", label, found, err)
+			}
+		})
+	}
+}
+
+func TestN108GenericHTMLMarkerCannotRedirectPLANInsertion(t *testing.T) {
+	rec := n108CanonicalRecord()
+	rel := feedbackEvidenceRel(rec.FeedbackID)
+	marker := feedbackSectionHeading + "\n" + feedbackMarker + "\n"
+	plans := map[string]string{
+		"div":      "# Product\n\n<div>\n" + marker + "</div>\n",
+		"nested":   "# Product\n\n<div><div>\n</div>\n" + marker + "</div>\n",
+		"textarea": "# Product\n\n<textarea>\n" + marker + "</textarea>\n",
+	}
+	for label, plan := range plans {
+		t.Run(label, func(t *testing.T) {
+			active, err := canonicalFeedbackCandidateState([]byte(plan), rec, rel)
+			if err != nil || active {
+				t.Fatalf("HTML-only copied marker should be inert: %s err=%v", label, err)
+			}
+			written := planWithFeedbackCandidate([]byte(plan), rec, rel)
+			active, err = canonicalFeedbackCandidateState(written, rec, rel)
+			if err != nil || !active {
+				t.Fatalf("could not create actual candidate outside HTML: %s err=%v", label, err)
+			}
+			if !strings.Contains(string(written), plan) {
+				t.Fatalf("canonical insertion destroyed HTML example for %s", label)
+			}
+		})
+	}
+}

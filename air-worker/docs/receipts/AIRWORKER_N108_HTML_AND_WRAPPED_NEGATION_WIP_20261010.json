@@ -1,0 +1,58 @@
+{
+    "schema":  "air-worker.n108.independent-two-p1-followup/v1",
+    "recorded_at_utc":  "2026-10-10T07:53:39.7428906Z",
+    "owner":  "gpt-airworker-release-20261010",
+    "canonical_plan_node":  "N-108_p0-astra-remediation-fix-n105-independent-review",
+    "base_head":  "5e8042198d81890e48472d76c3c91b634bb15705",
+    "prior_independent_verdict":  "CHANGES_REQUIRED",
+    "prior_independent_verdict_sha256":  "5576ca3796b62e30640c12828ffb3a368655b1a2bf42293ef5ae91ecd4cb2d12",
+    "prior_open_P1":  2,
+    "prior_open_P2":  0,
+    "changes":  [
+                    "P1: fail closed on any invisible/indented/fenced/HTML Procedure content when binding a machine-use Action, including 2. Do newline four-space not carry out preceding step",
+                    "P1: dynamically track nested generic raw HTML tags (div, section, custom, textarea and others) and treat copied heading, marker, row or Procedure in HTML as nonauthoritative",
+                    "Only the source-reviewed applied exact SHA plus explicit native feedback and readback may earn a procedure_used record"
+                ],
+    "file_sha256":  [
+                        {
+                            "sha256":  "671d91b1a5853aa0480908da766b68ebd225bfece59d0ca3230882f0f82fceea",
+                            "path":  "cmd/markdown_control_surface.go"
+                        },
+                        {
+                            "sha256":  "9631cdb5695f92864a38571fc7af54b62d46a68cbe977886a637f2cf9d1badf6",
+                            "path":  "cmd/markdown_html_surface.go"
+                        },
+                        {
+                            "sha256":  "4f1e08c50a687fda26cfa3cdbc655bf3ba9fb448e2247ff8e314191126677ed2",
+                            "path":  "cmd/feedback_native_use.go"
+                        },
+                        {
+                            "sha256":  "e0ec2d5b31a638a3c1408c918b5c98d892bba3da165779f7d3a4c65366bc0d26",
+                            "path":  "cmd/feedback_native_grammar_test.go"
+                        },
+                        {
+                            "sha256":  "663684fa5ccb5ba44e0f426ec28fe8ba45545d65d37ee239024317d382d97361",
+                            "path":  "cmd/feedback_candidate_verify_test.go"
+                        }
+                    ],
+    "checks":  {
+                   "full_exact_commit_go":  "PENDING",
+                   "independent_astra_high":  "PENDING",
+                   "go_vet_exit":  0,
+                   "n108_adversarial_go_test_exit":  0,
+                   "native_plan_lint_warnings":  0,
+                   "git_diff_check":  "PASS",
+                   "native_plan_validate":  "7 goals / 62 criteria / 0 problems",
+                   "wide_go_test_exit":  0,
+                   "isolated_real_e2e":  "PENDING"
+               },
+    "unresolved":  [
+                       "N-108 remains OPEN until full exact Go and Astra PASS",
+                       "N-093 general autonomous selection NOT_PROVEN",
+                       "N-092 global product judge OPEN",
+                       "N-071 release/install requires separate exact LPR consent"
+                   ],
+    "installed_live_version":  "0.11.8 UNCHANGED",
+    "scope":  "Only AirWorker own self-learning, not consumer products or Windows services",
+    "status":  "WIP_SAFE_FOR_NEW_EXACT_COMMIT__NOT_RELEASE"
+}

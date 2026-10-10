@@ -272,7 +272,9 @@ func bindNativeFeedbackProof(class, content string) (string, error) {
 	}
 	steps, err := nativeFeedbackProcedureVisibleLines(content)
 	if err != nil {
-		return "", err
+		// The lesson may remain informational, but ambiguous Markdown is
+		// NEVER granted a machine-use Action by an automatic reviewer.
+		return content, nil
 	}
 	if nativeFeedbackProcedureContradictory(steps) {
 		// No machine proof if any visible Procedure line negates a

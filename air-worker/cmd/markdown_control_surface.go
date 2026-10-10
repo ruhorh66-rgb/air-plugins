@@ -13,10 +13,11 @@ func errNativeFeedbackProcedure(msg string) error {
 // Opening fence length must match an equal-or-longer *closing* fence; an
 // interior three-backtick line never closes a four-backtick example.
 type markdownControlSurface struct {
-	fenceChar byte
-	fenceLen  int
-	htmlBlock string
-	comment   bool
+	fenceChar     byte
+	fenceLen      int
+	htmlStack     []string
+	htmlMalformed bool
+	comment       bool
 }
 
 func markdownFenceLine(line string) (byte, int, bool) {
@@ -49,7 +50,6 @@ func markdownFenceLine(line string) (byte, int, bool) {
 }
 func (s *markdownControlSurface) hidden(line string, allowMarker string) bool {
 	trimmed := strings.TrimSpace(line)
-	lower := strings.ToLower(trimmed)
 	if s.fenceLen > 0 {
 		c, n, ok := markdownFenceLine(line)
 		if ok && c == s.fenceChar && n >= s.fenceLen && strings.TrimSpace(trimmed[n:]) == "" {
@@ -58,10 +58,10 @@ func (s *markdownControlSurface) hidden(line string, allowMarker string) bool {
 		}
 		return true
 	}
-	if s.htmlBlock != "" {
-		if strings.Contains(lower, "</"+s.htmlBlock+">") {
-			s.htmlBlock = ""
-		}
+	if len(s.htmlStack) > 0 || s.htmlMalformed {
+		// The entire raw HTML subtree remains non-authoritative. Track
+		// nested tags rather than closing at the first </div>.
+		s.consumeHTMLTags(line)
 		return true
 	}
 	if s.comment {
@@ -84,13 +84,8 @@ func (s *markdownControlSurface) hidden(line string, allowMarker string) bool {
 		s.fenceLen = n
 		return true
 	}
-	for _, tag := range []string{"pre", "code", "blockquote", "textarea", "script", "style", "xmp", "listing", "plaintext"} {
-		if strings.Contains(lower, "<"+tag) {
-			if !strings.Contains(lower, "</"+tag+">") {
-				s.htmlBlock = tag
-			}
-			return true
-		}
+	if s.consumeHTMLTags(line) {
+		return true
 	}
 	if strings.HasPrefix(trimmed, "<!--") && trimmed != allowMarker {
 		if !strings.Contains(trimmed, "-->") {
@@ -107,6 +102,13 @@ func nativeFeedbackProcedureVisibleLines(content string) ([]string, error) {
 	var steps []string
 	for _, line := range strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n") {
 		if state.hidden(line, "") {
+			// A hidden continuation can negate an earlier instruction:
+			// "2. Do\n    not carry out the preceding step".
+			// Never infer a typed safe action from a Procedure containing
+			// code, raw HTML, indented/quoted continuations or examples.
+			if inProc {
+				return nil, errNativeFeedbackProcedure("ambiguous hidden or indented Procedure continuation")
+			}
 			continue
 		}
 		trimmed := strings.TrimSpace(line)
