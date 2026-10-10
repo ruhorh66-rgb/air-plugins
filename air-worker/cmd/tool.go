@@ -157,12 +157,6 @@ func toolNamesForProduct(root string) []string {
 	}
 	if cfg.ModelPolicy.Schema != "" {
 		names = append([]string{"ponytail", "headroom"}, names...)
-		for _, lane := range cfg.ModelPolicy.Judges {
-			if lane.Kind == "hermes" {
-				names = append(names, "hermes")
-				break
-			}
-		}
 	}
 	for _, rung := range cfg.Ladder {
 		if resolveRunner(cfg, rung).Kind == "router" {
@@ -184,7 +178,7 @@ func toolNamesForProduct(root string) []string {
 // есть ровно той валютой, которую мы весь день отказывались принимать.
 func cmdTool(argv []string) int {
 	fs := flag.NewFlagSet("tool", flag.ContinueOnError)
-	which := fs.String("which", "", "какой исполнитель: claude, codex, hermes, opencode, router, headroom, ponytail")
+	which := fs.String("which", "", "какой исполнитель: claude, codex, opencode, router, headroom, ponytail")
 	product := fs.String("product", ".", "корень продукта для активной ladder")
 	if err := fs.Parse(argv); err != nil {
 		return 2

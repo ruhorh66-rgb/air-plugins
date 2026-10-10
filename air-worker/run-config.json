@@ -115,22 +115,19 @@
     },
     "judges": {
       "default": {
-        "kind": "hermes",
-        "provider": "nous",
-        "model": "anthropic/claude-sonnet-5.5",
-        "efforts": ["medium"]
+        "model": "claude-sonnet-5-5",
+        "efforts": ["low", "medium", "high"],
+        "fallbacks": ["claude-sonnet-5", "claude-sonnet-4-6"]
       },
       "complex": {
-        "kind": "hermes",
-        "provider": "nous",
-        "model": "anthropic/claude-opus-5.5",
-        "efforts": ["medium"]
+        "model": "claude-opus-5-5",
+        "efforts": ["low", "medium", "high"],
+        "fallbacks": ["claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6"]
       },
       "arbitration": {
-        "kind": "hermes",
-        "provider": "nous",
-        "model": "anthropic/claude-opus-5.5",
-        "efforts": ["medium"]
+        "model": "claude-fable-5-1",
+        "efforts": ["low", "medium", "high"],
+        "fallbacks": ["claude-fable-5"]
       }
     }
   },

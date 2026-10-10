@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -191,31 +190,7 @@ func TestRunReceiptedFailsClosedWhenPIDRegistrationFails(t *testing.T) {
 // тестовый бинарник спит AW_JOB_RECEIPT_HELPER_DELAY_MS миллисекунд и пишет в stdout
 // известный маркер, который потом проверяется и как возврат runReceipted, и как содержимое
 // output_path.
-func TestRunReceiptedWithMetaPreservesSeparateStderr(t *testing.T) {
-	root := setupSessionProduct(t)
-	scope := newScope(root, sessionIdentity{"hermes", "sess-stderr"})
-	t.Setenv("AW_JOB_RECEIPT_HELPER", "1")
-	t.Setenv("AW_JOB_RECEIPT_HELPER_DELAY_MS", "1")
-	t.Setenv("AW_JOB_RECEIPT_STDERR", "1")
-	cmd := exec.Command(os.Args[0], "-test.run=TestJobReceiptSlowHelperProcess", "--")
-	stderr := &bytes.Buffer{}
-	cmd.Stderr = stderr
-	out, err := runReceiptedWithMeta(context.Background(), scope, "73", "semantic-reviewer", cmd, jobReceiptMeta{
-		Runner: "hermes", Provider: "nous", Model: "anthropic/claude-sonnet-5.5", Effort: "medium",
-	})
-	if err != nil {
-		t.Fatalf("runReceiptedWithMeta: %v", err)
-	}
-	if string(out) != jobReceiptStdoutMarker {
-		t.Fatalf("stdout must remain JSONL-only, got %q", out)
-	}
-	if stderr.String() != jobReceiptStderrMarker {
-		t.Fatalf("stderr was not kept separate: %q", stderr.String())
-	}
-}
-
 const jobReceiptStdoutMarker = "JOB-RECEIPT-STDOUT-OK"
-const jobReceiptStderrMarker = "JOB-RECEIPT-STDERR-ONLY"
 
 func TestJobReceiptSlowHelperProcess(t *testing.T) {
 	if os.Getenv("AW_JOB_RECEIPT_HELPER") != "1" {
@@ -227,9 +202,6 @@ func TestJobReceiptSlowHelperProcess(t *testing.T) {
 	}
 	time.Sleep(time.Duration(ms) * time.Millisecond)
 	fmt.Print(jobReceiptStdoutMarker)
-	if os.Getenv("AW_JOB_RECEIPT_STDERR") == "1" {
-		fmt.Fprint(os.Stderr, jobReceiptStderrMarker)
-	}
 	os.Exit(0)
 }
 

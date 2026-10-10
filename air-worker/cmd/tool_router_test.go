@@ -7,18 +7,6 @@ import (
 	"testing"
 )
 
-func TestProductToolInventoryIncludesHermesForHermesJudge(t *testing.T) {
-	root := t.TempDir()
-	raw := []byte(`{"model_policy":{"schema":"air-worker.model-policy/v1","judges":{"default":{"kind":"hermes","provider":"nous","model":"anthropic/claude-sonnet-5.5","efforts":["medium"]}}}}`)
-	if err := os.WriteFile(filepath.Join(root, "run-config.json"), raw, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	active := strings.Join(toolNamesForProduct(root), ",")
-	if !strings.Contains(active, "hermes") {
-		t.Fatalf("default tool report missed Hermes semantic judge: %s", active)
-	}
-}
-
 func TestCriterion70RouterToolDiagnostics(t *testing.T) {
 	joined := strings.Join(routerToolDiagnosticLines(), "\n")
 	for _, want := range []string{"runner=router", "shell=opencode", "AirLLMRouter"} {

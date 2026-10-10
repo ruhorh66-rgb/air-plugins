@@ -191,9 +191,7 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 		return nil, err
 	}
 	cmd.Stdout = outFile
-	if cmd.Stderr == nil {
-		cmd.Stderr = outFile
-	}
+	cmd.Stderr = outFile
 	if err := cmd.Start(); err != nil {
 		outFile.Close()
 		_ = finishJobReceipt(receiptPath, jobStatusFailed)

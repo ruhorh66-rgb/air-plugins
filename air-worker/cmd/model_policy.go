@@ -8,8 +8,6 @@ import (
 const modelPolicySchemaV1 = "air-worker.model-policy/v1"
 
 type modelJudgeLane struct {
-	Kind      string   `json:"kind,omitempty"`
-	Provider  string   `json:"provider,omitempty"`
 	Model     string   `json:"model"`
 	Efforts   []string `json:"efforts"`
 	Fallbacks []string `json:"fallbacks,omitempty"`
@@ -84,11 +82,7 @@ func judgeLaneRunner(cfg runConfig, class string) (runnerSpec, error) {
 	if strings.TrimSpace(lane.Model) == "" || len(lane.Efforts) == 0 {
 		return runnerSpec{}, fmt.Errorf("judge class %q is incomplete", class)
 	}
-	kind := strings.TrimSpace(lane.Kind)
-	if kind == "" {
-		kind = "claude"
-	}
-	return runnerSpec{Kind: kind, Provider: strings.TrimSpace(lane.Provider), Model: lane.Model, Effort: lane.Efforts[0]}, nil
+	return runnerSpec{Kind: "claude", Model: lane.Model, Effort: lane.Efforts[0]}, nil
 }
 
 func validateModelPolicy(cfg runConfig) error {
@@ -133,22 +127,6 @@ func validateModelPolicy(cfg runConfig) error {
 		}
 		if strings.TrimSpace(lane.Model) == "" {
 			return fmt.Errorf("judge class %q has no model", class)
-		}
-		if lane.Kind == "hermes" {
-			wantModel := "anthropic/claude-opus-5.5"
-			if class == "default" {
-				wantModel = "anthropic/claude-sonnet-5.5"
-			}
-			if lane.Provider != "nous" || lane.Model != wantModel || len(lane.Efforts) != 1 || lane.Efforts[0] != "medium" || len(lane.Fallbacks) != 0 {
-				return fmt.Errorf("Hermes judge class %q must use Nous %s with medium effort and no fallbacks", class, wantModel)
-			}
-			continue
-		}
-		if lane.Kind != "" && lane.Kind != "claude" {
-			return fmt.Errorf("judge class %q has unsupported runner kind %q", class, lane.Kind)
-		}
-		if lane.Provider != "" {
-			return fmt.Errorf("judge class %q declares provider without Hermes runner", class)
 		}
 		if len(lane.Efforts) == 0 || lane.Efforts[0] != "low" || lane.Efforts[len(lane.Efforts)-1] != "high" {
 			return fmt.Errorf("judge class %q must start low and end high", class)

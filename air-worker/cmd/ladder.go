@@ -7,11 +7,10 @@ import "strings"
 // script -> haiku -> codex -> opus, если так решено для продукта.
 
 type runnerSpec struct {
-	Kind     string   `json:"kind"`
-	Provider string   `json:"provider,omitempty"`
-	Model    string   `json:"model"`
-	Effort   string   `json:"effort"`
-	AddDirs  []string `json:"add_dirs,omitempty"`
+	Kind    string   `json:"kind"`
+	Model   string   `json:"model"`
+	Effort  string   `json:"effort"`
+	AddDirs []string `json:"add_dirs,omitempty"`
 }
 
 type ladderMatch struct {
