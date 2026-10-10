@@ -69,7 +69,7 @@ func pendingSharedLearningReviewRuns(product string) ([]string, error) {
 			return nil, err
 		}
 		if event.Schema != "air.learning.event/v1" || event.Kind != "run_completed" ||
-			event.Source != "host-finalize" {
+			(event.Source != "host-finalize" && event.Source != "air-worker-cli") {
 			continue
 		}
 		if !strings.HasPrefix(event.EventID, "EV-") || event.RunID == "" {

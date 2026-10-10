@@ -1,0 +1,145 @@
+{
+    "schema":  "air-worker.20261011.comprehensive-wip-handoff/v1",
+    "created_at_utc":  "2026-10-10T17:24:20.4978232Z",
+    "source_root":  "F:\\-7-\\_worktrees\\airworker-curator-skill-lifecycle-20261006",
+    "handoff_branch":  "wip/airworker-complete-handoff-20261011",
+    "source_parent_head":  "4f9ca27d56bf2822ee859f10d931f75005ada673",
+    "source_file_count":  27,
+    "files":  [
+                  {
+                      "sha256":  "c0ade391b651f65893c823a68dcc5902bad132085a032de83cebc0372da0bd94",
+                      "path":  "PLAN.md"
+                  },
+                  {
+                      "sha256":  "95b74650c1844299a557910935a6b6bcf09e0c53e981fcbebc48723eeacb6f68",
+                      "path":  "run-config.json"
+                  },
+                  {
+                      "sha256":  "ad048afb7a65c0847b7c5d1a22234c8f840181a0f9b20f2bda04acc27cbb48b6",
+                      "path":  "cmd/job_receipt.go"
+                  },
+                  {
+                      "sha256":  "40ddf6a41e50105e183f0f6d1cc08829475e41b8542a9ed7ed68b4cadd87e6e6",
+                      "path":  "cmd/job_receipt_test.go"
+                  },
+                  {
+                      "sha256":  "d81d290fe63165d14cd0347914359c35ecb006f15a0871f6107d9f2f19257e70",
+                      "path":  "cmd/ladder.go"
+                  },
+                  {
+                      "sha256":  "b4d6de63087716c98687a5105c1c0f47fd23fd610c655164395b86c9f659afb7",
+                      "path":  "cmd/learn_shared_deferred_recovery.go"
+                  },
+                  {
+                      "sha256":  "fd9fbceede5d19d91c3167584184ab74d4c7428e4d1d8008ad7fcad835902f77",
+                      "path":  "cmd/main.go"
+                  },
+                  {
+                      "sha256":  "069c3cc542a7fe8e529d8f4018abfceb722ae81d04430dddb39311cf02abd848",
+                      "path":  "cmd/model_policy.go"
+                  },
+                  {
+                      "sha256":  "4c34e40ab914542523e12ae3d36f68992688104ffb5cdb8d3bb3e4a08056612b",
+                      "path":  "cmd/model_policy_test.go"
+                  },
+                  {
+                      "sha256":  "cf0a29b834bf5049372df2ea45ab270cb099f0ada2d814c3e0a972a46aa650d3",
+                      "path":  "cmd/plan_nodes.go"
+                  },
+                  {
+                      "sha256":  "c32a536bf9616975eb67fd3def8169dd1b674e653bed347162431701b9a4fb09",
+                      "path":  "cmd/semantic.go"
+                  },
+                  {
+                      "sha256":  "cfcecd988095f4e60cfca2659e68247a2a3997571f238b1a68c6de1955c1a3bf",
+                      "path":  "cmd/semantic_hermes_test.go"
+                  },
+                  {
+                      "sha256":  "cd829f4d5dc6ee1c96d9e99afdbd7362bc753b13dae7fdf7f3c07ecbfb197a61",
+                      "path":  "cmd/tool.go"
+                  },
+                  {
+                      "sha256":  "6bb3f58570c15bc150b0024057b429cc3e39364349563eb55eb8edcbdb83fc41",
+                      "path":  "cmd/tool_router_test.go"
+                  },
+                  {
+                      "sha256":  "39290bc9b9ed7a2f805d7db5917a04c4d933046c7a381e30b71974fc7e06c1a2",
+                      "path":  "cmd/plan_nodes_reparent.go"
+                  },
+                  {
+                      "sha256":  "02cda0724c561e3ed02aba56a80ed1f214ce0bc4f02978bff2a68d6cc4f7cb46",
+                      "path":  "cmd/plan_nodes_reparent_test.go"
+                  },
+                  {
+                      "sha256":  "525c9a3c4ceb253cff75300407ad866681ba94012f38c058ac73765b3d23490f",
+                      "path":  "cmd/plan_parent_integrity.go"
+                  },
+                  {
+                      "sha256":  "89642d3acf4cfe9e1a31649142435ef5e2d6810b879c67ec721c6e592a3f02aa",
+                      "path":  "cmd/self_cli_failure.go"
+                  },
+                  {
+                      "sha256":  "a1a9d50e85e766d771a7cd37dcae1cd4ced8c7c04b7b3063a6722ec5f8fe5074",
+                      "path":  "cmd/self_cli_failure_test.go"
+                  },
+                  {
+                      "sha256":  "381defcccf8191c796b50816b7776902d75ebc01c058c6939998c4760c70937c",
+                      "path":  "plan/N-110_p0-auto-capture-persist-every-real-airworker-ses.md"
+                  },
+                  {
+                      "sha256":  "2127c97b2955e3b3f67e4467bd58eadcd2e48ace15c4dd9192d7e5fc13ac0f71",
+                      "path":  "plan/N-111_p1-operational-lessons-safe-help-model-identity-e.md"
+                  },
+                  {
+                      "sha256":  "c9322456a9a5ee432e491e038232b4053cc405dd22292be2db66838a4df07692",
+                      "path":  "plan/N-112_p0-native-parent-validate-and-atomically-repair-p.md"
+                  },
+                  {
+                      "sha256":  "1936b67b776da827c3aad9628720ccd72bc8656abea3a9674f08f279e566af08",
+                      "path":  "plan/N-113_p1-canonicalize-windows-profile-aliases-in-distr.md"
+                  },
+                  {
+                      "sha256":  "603ffa38720c6d2f421e297fd1ed05f201fc9b805fa9db555d83749382b66659",
+                      "path":  "plan/N-114_next-rel-portal-nous-portal-omniroute-study-and-l.md"
+                  },
+                  {
+                      "sha256":  "1a8232bcdedda56c70d84f6c3e6f7b2211768cd51f046171ef762ce90f6ceb20",
+                      "path":  "plan/N-115_next-rel-nous-portal-sonnet-opus-5-5-semantic-ju.md"
+                  },
+                  {
+                      "sha256":  "a00094a9959bb009d51813106739a0978edaedcf8b56dc62abc4fa90e59c587e",
+                      "path":  "skills/learned/plan-node-9c553a82-a00094a9959bb009.md"
+                  },
+                  {
+                      "sha256":  "68ec224adad9673a2ad9e37eb896a6b920ac134aeeddafd4ec427091d7ce4604",
+                      "path":  "docs/receipts/AIRWORKER_WIP_HANDOFF_20261011.md"
+                  }
+              ],
+    "native_plan_validate":  {
+                                 "criteria":  62,
+                                 "problems":  0,
+                                 "goals":  7
+                             },
+    "native_plan_lint_warnings":  0,
+    "scoped_go_test_exit":  0,
+    "go_vet_exit":  0,
+    "full_source_go_regression":  "NOT_PROVEN_ON_NEW_WIP",
+    "independent_judge":  "NOT_PROVEN_ON_NEW_WIP",
+    "self_learning_N110":  "OPEN_NARROW_CLI_CAPTURE_TESTED_REAL_AUTONOMOUS_LEARN_NOT_PROVEN",
+    "plan_N112":  "OPEN_NATIVE_REPARENT_REAL_READBACK_PASS_TARGETED",
+    "hermes_nous":  "PRESERVED_ONLY_FUTURE_RELEASE_NOT_AUTHORIZED_IN_0.11.9",
+    "model_providers":  {
+                            "independent_this_head":  "NOT_PROVEN",
+                            "requested":  "gpt-6-sol low"
+                        },
+    "installed":  "air-worker 0.11.8 unchanged",
+    "linked_module_wip_head":  "3735138ef575a0334630ee46713d4a796b9a4699",
+    "linked_module_branch":  "dev/air-learning-v0.1.0-airvera-20261010",
+    "airvera_N059":  "OPEN_BLOCKED_EXTERNAL_MODULE_TAG_AND_CENTRAL_REGISTRY",
+    "gates":  [
+                  "N108/N109/N110/N112 N092 JUDGE full regression independently",
+                  "Do not release Nous Portal in 0.11.9",
+                  "All tag/publish/install require separate LPR explicit YES"
+              ],
+    "status":  "WIP_PRESERVED_NOT_RELEASE_READY"
+}

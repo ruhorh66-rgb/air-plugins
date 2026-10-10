@@ -58,25 +58,50 @@ func TestReleaseModelPolicy0113(t *testing.T) {
 func TestReleaseJudgePolicy0113(t *testing.T) {
 	cfg := loadReleaseModelPolicy(t)
 	want := map[string]string{
-		"default":     "claude-sonnet-5-5",
-		"complex":     "claude-opus-5-5",
-		"arbitration": "claude-fable-5-1",
+		"default":     "anthropic/claude-sonnet-5.5",
+		"complex":     "anthropic/claude-opus-5.5",
+		"arbitration": "anthropic/claude-opus-5.5",
 	}
 	for class, model := range want {
 		lane := cfg.ModelPolicy.Judges[class]
-		if lane.Model != model || !reflect.DeepEqual(lane.Efforts, []string{"low", "medium", "high"}) {
+		if lane.Model != model || lane.Kind != "hermes" || lane.Provider != "nous" || !reflect.DeepEqual(lane.Efforts, []string{"medium"}) || len(lane.Fallbacks) != 0 {
 			t.Fatalf("%s lane=%+v", class, lane)
 		}
 	}
-	for _, lane := range cfg.ModelPolicy.Judges {
-		for _, effort := range lane.Efforts {
-			if effort == "max" || effort == "ultra" || effort == "xhigh" {
-				t.Fatalf("forbidden judge effort %q", effort)
-			}
+}
+
+func TestReleaseJudgeRoutesSimpleToNousSonnetAndComplexToNousOpus(t *testing.T) {
+	cfg := loadReleaseModelPolicy(t)
+	want := map[string]runnerSpec{
+		"default":     {Kind: "hermes", Provider: "nous", Model: "anthropic/claude-sonnet-5.5", Effort: "medium"},
+		"complex":     {Kind: "hermes", Provider: "nous", Model: "anthropic/claude-opus-5.5", Effort: "medium"},
+		"arbitration": {Kind: "hermes", Provider: "nous", Model: "anthropic/claude-opus-5.5", Effort: "medium"},
+	}
+	for class, expected := range want {
+		got, err := judgeLaneRunner(cfg, class)
+		if err != nil || got.Kind != expected.Kind || got.Model != expected.Model || got.Effort != expected.Effort {
+			t.Fatalf("judge lane %q = %+v, %v; want %+v", class, got, err, expected)
 		}
 	}
-	if got := cfg.ModelPolicy.Judges["default"].Fallbacks; !reflect.DeepEqual(got, []string{"claude-sonnet-5", "claude-sonnet-4-6"}) {
-		t.Fatalf("default judge fallbacks=%v", got)
+}
+
+func TestSemanticJudgeClassRoutesAstraStepsToComplexLane(t *testing.T) {
+	cases := []struct {
+		name     string
+		step     workStep
+		executor runnerSpec
+		want     string
+	}{
+		{name: "ordinary tier", step: workStep{Tier: "gpt6-luna:low"}, executor: runnerSpec{Kind: "codex", Model: "gpt-6-luna"}, want: "default"},
+		{name: "declared complex tier", step: workStep{Tier: "gpt6-astra:high"}, executor: runnerSpec{Kind: "codex", Model: "gpt-6-astra"}, want: "complex"},
+		{name: "complex execution after fallback", step: workStep{Tier: "gpt6-sol:medium"}, executor: runnerSpec{Kind: "codex", Model: "gpt-6-astra"}, want: "complex"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := semanticJudgeClass(tc.step, tc.executor); got != tc.want {
+				t.Fatalf("semanticJudgeClass()=%q want %q", got, tc.want)
+			}
+		})
 	}
 }
 

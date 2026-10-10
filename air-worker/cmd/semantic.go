@@ -79,6 +79,7 @@ type semanticRecord struct {
 	ExecutorVendor  string           `json:"executor_vendor"`
 	ReviewerVendor  string           `json:"reviewer_vendor"`
 	ReviewerModel   string           `json:"reviewer_model,omitempty"`
+	ReviewerEffort  string           `json:"reviewer_effort,omitempty"`
 	ReviewerRole    string           `json:"reviewer_role,omitempty"`
 	ReviewerSandbox string           `json:"reviewer_sandbox,omitempty"`
 	Session         string           `json:"session_id,omitempty"`
@@ -210,6 +211,39 @@ func semanticClaudeCommand(exePath, root, prompt string, reviewer runnerSpec) *e
 	return cmd
 }
 
+func semanticHermesCommand(ctx context.Context, exePath, root, prompt string, reviewer runnerSpec) *exec.Cmd {
+	args := []string{
+		"chat", "--query-file", "-", "--oneshot", "--max-turns", "1", "--run-budget", "120",
+		"--provider", "nous", "--model", reviewer.Model, "--reasoning", "medium",
+		"--toolsets", "bot_room", "--safe-mode", "--ignore-user-config", "--ignore-rules",
+		"--format", "stream-json", "--source", "tool",
+	}
+	cmd := exec.CommandContext(ctx, exePath, args...)
+	cmd.Dir = root
+	cmd.Stdin = strings.NewReader(prompt)
+	cmd.Env = semanticHermesEnv()
+	return cmd
+}
+
+func semanticHermesEnv() []string {
+	blocked := map[string]struct{}{
+		"ANTHROPIC_API_KEY": {}, "ANTHROPIC_AUTH_TOKEN": {}, "ANTHROPIC_TOKEN": {},
+		"ANTHROPIC_BASE_URL": {}, "CLAUDE_CODE_OAUTH_TOKEN": {},
+		"HERMES_IGNORE_USER_CONFIG": {}, "HERMES_IGNORE_RULES": {}, "HERMES_SAFE_MODE": {},
+	}
+	env := make([]string, 0, len(os.Environ())+3)
+	for _, item := range os.Environ() {
+		key, _, ok := strings.Cut(item, "=")
+		if !ok {
+			continue
+		}
+		if _, drop := blocked[strings.ToUpper(key)]; !drop {
+			env = append(env, item)
+		}
+	}
+	return append(env, "HERMES_IGNORE_USER_CONFIG=1", "HERMES_IGNORE_RULES=1", "HERMES_SAFE_MODE=1")
+}
+
 func semanticCodexCommand(exePath, root, prompt string, reviewer runnerSpec, schemaPath string) *exec.Cmd {
 	cmd := semanticCommand(exePath, semanticCodexArgs(root, reviewer, schemaPath)...)
 	cmd.Dir = root
@@ -335,6 +369,104 @@ func invokeSemanticClaude(scope sessionScope, exePath, prompt string, reviewer r
 	return strings.TrimSpace(res.Result), res.SessionID, res.TotalCostUSD, res.NumTurns, nil
 }
 
+type semanticHermesEvent struct {
+	Type      string `json:"type"`
+	Subtype   string `json:"subtype"`
+	Model     string `json:"model"`
+	SessionID string `json:"session_id"`
+	ExitCode  *int   `json:"exit_code"`
+	Text      string `json:"text"`
+	Error     string `json:"error"`
+}
+
+func parseSemanticHermesOutput(raw []byte, requestedModel string) (string, string, error) {
+	if len(raw) == 0 || len(raw) > 64*1024 {
+		return "", "", errors.New("Hermes semantic stream is empty or too large")
+	}
+	var model, session, answer string
+	initialized, finished := false, false
+	lines := strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var event semanticHermesEvent
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			return "", "", errors.New("Hermes semantic stream contains non-JSON output")
+		}
+		switch event.Type {
+		case "system":
+			if event.Subtype != "init" || initialized {
+				return "", "", errors.New("Hermes semantic stream has an invalid init event")
+			}
+			initialized, model, session = true, event.Model, event.SessionID
+		case "text":
+			if finished {
+				return "", "", errors.New("Hermes semantic stream continued after completion")
+			}
+		case "tool_use", "tool_result":
+			return "", "", errors.New("Hermes semantic judge attempted tool use")
+		case "result":
+			if finished {
+				return "", "", errors.New("Hermes semantic stream has multiple result events")
+			}
+			finished = true
+			if event.ExitCode == nil || *event.ExitCode != 0 {
+				code := -1
+				if event.ExitCode != nil {
+					code = *event.ExitCode
+				}
+				return "", "", fmt.Errorf("Hermes semantic judge failed with exit code %d", code)
+			}
+			if strings.TrimSpace(event.Error) != "" {
+				return "", "", errors.New("Hermes semantic stream reports an error")
+			}
+			answer = strings.TrimSpace(event.Text)
+			if event.SessionID != "" {
+				session = event.SessionID
+			}
+		default:
+			return "", "", fmt.Errorf("Hermes semantic stream has unexpected event %q", event.Type)
+		}
+	}
+	if !initialized || model != requestedModel {
+		return "", "", errors.New("Hermes semantic model did not match the requested Nous model")
+	}
+	if !finished || answer == "" || session == "" {
+		return "", "", errors.New("Hermes semantic stream is incomplete")
+	}
+	return answer, session, nil
+}
+
+func invokeSemanticHermes(scope sessionScope, exePath, prompt string, reviewer runnerSpec, step string) (string, string, *int, error) {
+	allowedModel := reviewer.Model == "anthropic/claude-sonnet-5.5" || reviewer.Model == "anthropic/claude-opus-5.5"
+	if reviewer.Kind != "hermes" || reviewer.Provider != "nous" || reviewer.Effort != "medium" || !allowedModel {
+		return "", "", nil, errors.New("Hermes semantic reviewer must be a pinned Nous Sonnet/Opus 5.5 medium lane")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 135*time.Second)
+	defer cancel()
+	cmd := semanticHermesCommand(ctx, exePath, scope.Root, prompt, reviewer)
+	stderr := &bytes.Buffer{}
+	cmd.Stderr = stderr
+	out, runErr := runReceiptedWithMeta(ctx, scope, step, "semantic-reviewer", cmd, jobReceiptMeta{
+		Runner: reviewer.Kind, Provider: reviewer.Provider, Model: reviewer.Model, Effort: reviewer.Effort,
+		Role: "semantic-reviewer", Sandbox: "read-only",
+	})
+	turns := intPtr(1)
+	if runErr != nil {
+		return "", "", turns, errors.New("Hermes semantic reviewer process failed")
+	}
+	if strings.Contains(strings.ToLower(stderr.String()), "fallback") {
+		return "", "", turns, errors.New("Hermes fallback detected; refusing semantic result")
+	}
+	answer, session, err := parseSemanticHermesOutput(out, reviewer.Model)
+	if err != nil {
+		return "", session, turns, err
+	}
+	return answer, session, turns, nil
+}
+
 func semanticWorkspace(root string) (string, string) {
 	statusCmd := exec.Command("git", "status", "--short", "--", ".")
 	statusCmd.Dir = root
@@ -411,16 +543,37 @@ func publishSemantic(root string, rec semanticRecord) {
 	}
 }
 
+func semanticJudgeClass(step workStep, executor runnerSpec) string {
+	stepTier := strings.ToLower(strings.TrimSpace(tierName(step.Tier)))
+	executorModel := strings.ToLower(strings.TrimSpace(executor.Model))
+	if stepTier == "complex" || stepTier == "hardest" || stepTier == "gpt6-astra" || stepTier == "gpt-6-astra" ||
+		executorModel == "gpt6-astra" || executorModel == "gpt-6-astra" {
+		return "complex"
+	}
+	return "default"
+}
+
 func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factual semanticFactualPacket, executorClaim string) semanticRun {
-	reviewer, err := oppositeSemanticReviewer(executor)
+	var reviewer runnerSpec
+	var err error
+	if c.Cfg.ModelPolicy.Schema == modelPolicySchemaV1 {
+		reviewer, err = judgeLaneRunner(c.Cfg, semanticJudgeClass(step, executor))
+	} else {
+		reviewer, err = oppositeSemanticReviewer(executor)
+	}
 	run := semanticRun{Reviewer: reviewer}
+	vendor := reviewer.Provider
+	if vendor == "" {
+		vendor = reviewer.Kind
+	}
 	rec := semanticRecord{
 		At:             time.Now().UTC().Format(time.RFC3339Nano),
 		Subject:        "step",
 		Step:           step.Num,
 		ExecutorVendor: executor.Kind,
-		ReviewerVendor: reviewer.Kind,
+		ReviewerVendor: vendor,
 		ReviewerModel:  reviewer.Model,
+		ReviewerEffort: reviewer.Effort,
 		ReviewerRole:   "semantic-reviewer",
 		FactualCode:    factual.Code,
 	}
@@ -448,6 +601,8 @@ func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factual sema
 		raw, run.Session, run.Cost, run.Turns, err = invokeSemanticCodex(c.scope(), exePath, prompt, reviewer, step.Num)
 	case "claude":
 		raw, run.Session, run.Cost, run.Turns, err = invokeSemanticClaude(c.scope(), exePath, prompt, reviewer, step.Num)
+	case "hermes":
+		raw, run.Session, run.Turns, err = invokeSemanticHermes(c.scope(), exePath, prompt, reviewer, step.Num)
 	default:
 		err = fmt.Errorf("unsupported semantic reviewer %q", reviewer.Kind)
 	}

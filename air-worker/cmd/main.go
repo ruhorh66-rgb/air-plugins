@@ -230,7 +230,17 @@ func usage() {
 // ветвь больше не может завершить процесс молча нулём.
 func main() {
 	setConsoleUTF8()
-	os.Exit(run(os.Args[1:]))
+	argv := os.Args[1:]
+	code := run(argv)
+	if code != 0 {
+		// The process's ORIGINAL exit code always wins. Only the native
+		// AirWorker self-owner may record a bounded factual CLI failure;
+		// internal reviewers, hooks and foreign products are not captured.
+		if err := autoCaptureOwnCLIExit(argv, code); err != nil {
+			fmt.Fprintln(os.Stderr, "air-worker self-learning capture incomplete:", err)
+		}
+	}
+	os.Exit(code)
 }
 
 // run — разбор подкоманды в код возврата, БЕЗ os.Exit. Отделён от main ровно ради кода

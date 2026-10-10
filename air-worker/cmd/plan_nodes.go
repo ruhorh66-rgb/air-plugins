@@ -371,12 +371,14 @@ func updateNodeInSpine(planPath string, n planNode) error {
 
 func cmdPlanNode(argv []string) int {
 	if len(argv) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: air-worker plan node <new|close|list>")
+		fmt.Fprintln(os.Stderr, "usage: air-worker plan node <new|reparent|close|list>")
 		return 2
 	}
 	switch argv[0] {
 	case "new":
 		return cmdPlanNodeNew(argv[1:])
+	case "reparent":
+		return cmdPlanNodeReparent(argv[1:])
 	case "close":
 		return cmdPlanNodeClose(argv[1:])
 	case "list":
@@ -428,6 +430,10 @@ func cmdPlanNodeNew(argv []string) int {
 	}
 	eventActor, err := resolveMutationActor(*actorKind, *actor, *owner)
 	if err != nil {
+		fmt.Fprintln(os.Stderr, "plan node new:", err)
+		return 2
+	}
+	if err := validateExistingPlanParent(root, *parent, ""); err != nil {
 		fmt.Fprintln(os.Stderr, "plan node new:", err)
 		return 2
 	}
