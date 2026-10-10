@@ -75,10 +75,18 @@ func TestN110OwnCLIFailureDurablyCapturedAndPrivate(t *testing.T) {
 	if err := json.Unmarshal(raw, &receipt); err != nil {
 		t.Fatal(err)
 	}
+	key, err := ownCLIPrivateKey(settings.RuntimeRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantMAC := ownCLIInvocationMAC(key, n110CLIArgs())
+	for i := range key {
+		key[i] = 0
+	}
 	if receipt.Schema != ownCLIFailureSchema || receipt.RunID != run ||
 		receipt.Action != "plan node new" || receipt.ExitCode != 2 ||
-		receipt.InvocationSHA256 != ownCLIInvocationSHA256(n110CLIArgs()) ||
-		len(receipt.InvocationSHA256) != 64 ||
+		receipt.InvocationMAC != wantMAC ||
+		len(receipt.InvocationMAC) != 64 ||
 		receipt.Principal != "air-worker" ||
 		strings.Contains(string(raw), "WORKER-SECRET") {
 		t.Fatalf("invalid or private immutable CLI receipt: %s", raw)

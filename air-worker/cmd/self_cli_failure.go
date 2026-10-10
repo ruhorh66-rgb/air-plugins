@@ -13,7 +13,7 @@ import (
 	"github.com/ruhorh66-rgb/air-modules/learning"
 )
 
-const ownCLIFailureSchema = "air-worker.self-learning.cli-failure/v1"
+const ownCLIFailureSchema = "air-worker.self-learning.cli-failure/v2"
 
 type ownCLIFailureReceipt struct {
 	Schema   string `json:"schema"`
@@ -21,12 +21,12 @@ type ownCLIFailureReceipt struct {
 	Action   string `json:"action"`
 	ExitCode int    `json:"exit_code"`
 	// Exact argv identity without storing raw arguments, paths, or secrets.
-	InvocationSHA256 string `json:"invocation_sha256"`
-	Source           string `json:"source"`
-	Principal        string `json:"principal"`
-	Version          string `json:"version"`
-	ProcessID        int    `json:"process_id"`
-	CapturedAt       string `json:"captured_at_utc"`
+	InvocationMAC string `json:"invocation_hmac_sha256"`
+	Source        string `json:"source"`
+	Principal     string `json:"principal"`
+	Version       string `json:"version"`
+	ProcessID     int    `json:"process_id"`
+	CapturedAt    string `json:"captured_at_utc"`
 }
 
 // Only native AirWorker command CLASS is recorded, never positional
@@ -81,13 +81,6 @@ func autoCaptureOwnCLIExit(argv []string, rc int) error {
 	return autoCaptureOwnCLIExitWithRunID(argv, rc, runID, startSharedLearningReviewBatchProcess)
 }
 
-func ownCLIInvocationSHA256(argv []string) string {
-	// JSON is unambiguous for argv boundaries: ["a", "b"] differs from ["a b"].
-	// Store only the domain-separated digest, never the sensitive arguments.
-	raw, _ := json.Marshal(argv)
-	return learnSHA(append([]byte("air-worker.cli.argv/v1\n"), raw...))
-}
-
 func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start func([]sharedDeferredReviewJob) error) error {
 	action, ok := ownCLIFailureAction(argv)
 	if rc == 0 || !ok {
@@ -97,7 +90,6 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 		strings.IndexFunc(runID, func(c rune) bool { return c == 32 || c == 13 || c == 10 || c == 47 || c == 92 }) >= 0 {
 		return errors.New("self-learning CLI failure requires a bounded native exit and stable safe run_id")
 	}
-	invocationSHA := ownCLIInvocationSHA256(argv)
 	owner, on, err := activeAirWorkerSelfLearningOwner()
 	if err != nil {
 		return err
@@ -110,6 +102,14 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 		return errors.New("another own CLI learning event is already being recorded")
 	}
 	defer lock.release()
+	key, err := ownCLIPrivateKey(owner.Settings.RuntimeRoot)
+	if err != nil {
+		return err
+	}
+	invocationMAC := ownCLIInvocationMAC(key, argv)
+	for i := range key {
+		key[i] = 0
+	}
 
 	recPath := filepath.Join(owner.Settings.RuntimeRoot, "cli-failures", runID+".json")
 	var rec ownCLIFailureReceipt
@@ -120,7 +120,7 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 			return err
 		}
 		if rec.Schema != ownCLIFailureSchema || rec.RunID != runID ||
-			rec.ExitCode != rc || rec.Action != action || rec.InvocationSHA256 != invocationSHA || rec.Source != "air-worker-cli" ||
+			rec.ExitCode != rc || rec.Action != action || rec.InvocationMAC != invocationMAC || rec.Version != version || rec.Source != "air-worker-cli" ||
 			rec.Principal != "air-worker" {
 			return errors.New("owned CLI failure run_id has conflicting immutable evidence")
 		}
@@ -129,7 +129,7 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 			return readErr
 		}
 		rec = ownCLIFailureReceipt{
-			Schema: ownCLIFailureSchema, RunID: runID, Action: action, ExitCode: rc, InvocationSHA256: invocationSHA,
+			Schema: ownCLIFailureSchema, RunID: runID, Action: action, ExitCode: rc, InvocationMAC: invocationMAC,
 			Source: "air-worker-cli", Principal: "air-worker", Version: version,
 			ProcessID: os.Getpid(), CapturedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		}

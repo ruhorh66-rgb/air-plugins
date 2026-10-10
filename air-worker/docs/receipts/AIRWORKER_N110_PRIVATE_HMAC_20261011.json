@@ -1,0 +1,24 @@
+{
+    "schema":  "air-worker.n110.private-hmac-tdd/v1",
+    "created_utc":  "2026-10-10T19:16:16.6982104Z",
+    "status":  "SCOPED_PASS_NOT_N110_COMPLETE",
+    "source_parent":  "c2133fd59b4aacf5d81e5483b175f515fc2b35eb",
+    "independent_previous_verdict":  "CHANGES_REQUIRED_1P1_1P2",
+    "previous_verdict_file_sha256":  "e173f3fb1824a01489fa53376bd4ea9ee1781985f6cc4b7e1a51b1b048d8d99b",
+    "changes":  [
+                    "DPAPI CurrentUser protected 32-byte per-runtime HMAC key in separate immutable file",
+                    "HMAC SHA256 keyed and domain separated for JSON argv",
+                    "Replay requires exact key MAC and binary version",
+                    "Fails closed on damaged/deleted protected key with prior receipts",
+                    "Fresh process replay and tamper negatives"
+                ],
+    "scoped_test_command":  "go test -p 1 ./... -run TestN110|TestAirWorkerSelfLearning -count=1 -parallel=2 -timeout=240s",
+    "scoped_test_exit":  0,
+    "scoped_test_log":  "R:\\-4-\\air-worker\\work\\0.11.9\\n110-hmac-c2133fd\\N110_DPAPI_TARGETED_FINAL.txt",
+    "scoped_test_log_sha256":  "532d00c29b7aaf04c6c64748aa8c60a2fd22d809882457d8fa1b1cb216f89a43",
+    "source_full_regression":  "PENDING_CLEAN_SHA",
+    "independent_gpt6_sol_low":  "PENDING_NEW_SHA",
+    "real_reviewer_auto_apply_future_use_effect":  "NOT_PROVEN",
+    "installed_air_worker":  "0.11.8 unchanged",
+    "no_release_or_install":  true
+}
