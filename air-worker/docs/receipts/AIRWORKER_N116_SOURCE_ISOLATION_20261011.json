@@ -1,0 +1,40 @@
+{
+  "schema": "air-worker.n116.source-isolation-handoff/v1",
+  "at_sgt_date": "2026-10-11",
+  "node": "SRVLM01",
+  "status": "N116_CLOSED_SOURCE_ONLY",
+  "product": "AirWorker",
+  "source_repo": "ruhorh66-rgb/air-plugins",
+  "new_branch": "dev/airworker-0.11.9-selflearning-only-20261011",
+  "exact_tested_source_head": "3cbe17fa86afea78775bdb571af46d103d69b812",
+  "protected_future_wip_branch": "wip/airworker-complete-handoff-20261011",
+  "protected_future_wip_head": "4bec085be1ae436f05f2569451299f1450590deb",
+  "basis_non_nous_head": "4f9ca27d56bf2822ee859f10d931f75005ada673",
+  "negative_routing": "No active Hermes/Nous model policy, provider, or enabled config; core scoped paths equal approved pre-Nous baseline",
+  "native_plan_close": "PASS",
+  "go_test_exit": 0,
+  "go_vet_exit": 0,
+  "independent_judge": {
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "sandbox": "read-only",
+    "verdict": "PASS",
+    "p0": 0,
+    "p1": 0
+  },
+  "machine_acceptance": {
+    "path": "R:\\-4-\\air-worker\\work\\0.11.9\\n116-3cbe17f\\N116_SOURCE_ACCEPTANCE.json",
+    "sha256": "9aa880eb90c09f234d2aaf0aafa3794f0673138be8f1be1e947a212ac50c693a"
+  },
+  "pending": {
+    "N110": "P0 own autonomous learning real review->autoapply->new-session use/outcome/effect NOT_PROVEN",
+    "N092": "global product judge OPEN",
+    "N071": "integrated 0.11.9 release OPEN",
+    "N114": "future Hermes/Nous decision pending LPR"
+  },
+  "constraints": [
+    "No tag/Release, marketplace promotion, binary installation, reboot, UAC or foreign services stop without separate LPR yes",
+    "Installed AirWorker 0.11.8 unchanged",
+    "Plan and LEARN modified only through native AirWorker core"
+  ]
+}
