@@ -1,0 +1,47 @@
+{
+    "schema":  "air-worker.n108.final-two-adversarial-fixes/v1",
+    "recorded_at_utc":  "2026-10-10T06:44:55.4474133Z",
+    "parent_head":  "17e58996ecb5e4fb79bf59ccba8230215f7aa234",
+    "lpr_scope":  "Only AirWorker own self-learning; minimize critical path to N108 independent PASS",
+    "plan_node":  "N-108_p0-astra-remediation-fix-n105-independent-review",
+    "prior_read_only_verdict":  "CHANGES_REQUIRED",
+    "prior_verdict_sha":  "50c67d1827ee80e03d09c909537c62c6334c20324ba6fc65dad15710d041c5c8",
+    "prior_p1":  2,
+    "prior_p2":  0,
+    "fixes":  [
+                  "Fail closed on any visible negation or ambiguous step reference, preserving only exact genuine historical loaded-vs-used safe caution",
+                  "Preserve CommonMark fence delimiter indentation/length and hide four-space/tab code, HTML raw-text textarea and visible examples for both feedback action and canonical PLAN marker",
+                  "Negative regressions: 2. Do not carry out preceding step; 2. Never run it; documentation-only; tab/four-space positive; indented 4-backtick closer; textarea-wrapped heading/marker/candidate, insertion/replay"
+              ],
+    "source_files":  [
+                         {
+                             "sha256":  "454a9f139f40268bbe9efc1cb5c783988640252b445826a7cc0d4d1db8a7c5c9",
+                             "path":  "cmd/feedback_native_grammar.go"
+                         },
+                         {
+                             "sha256":  "fbeb595a482f3b025c9a2d8e2308420c5dbf2a9702159ca979d9307460ad9836",
+                             "path":  "cmd/feedback_native_grammar_test.go"
+                         },
+                         {
+                             "sha256":  "1571c0c335b78aa123ed332b034b6b85976d4ef86c5c0bb46cf8f0e54adc4cd5",
+                             "path":  "cmd/markdown_control_surface.go"
+                         },
+                         {
+                             "sha256":  "c4c563a78f15af7b7d86fe29580ee4903f07fb6aad750f6e4d7365df88220b09",
+                             "path":  "cmd/feedback_candidate_verify_test.go"
+                         }
+                     ],
+    "targeted_n108_exit":  0,
+    "wide_go_exit":  0,
+    "go_vet_exit":  0,
+    "git_diff_check":  "PASS",
+    "native_validate":  "PASS 7 goals/62 criteria/0 problems",
+    "native_plan_lint":  "PASS 0 warnings",
+    "full_go_current_exact_commit":  "PENDING",
+    "astra_high_current_exact_commit":  "PENDING",
+    "native_e2e_current_exact_commit":  "PENDING",
+    "full_autonomous_selection":  "NOT_PROVEN",
+    "live_installed_version":  "0.11.8 unchanged",
+    "tag_release_install_authorized":  false,
+    "status":  "SCOPED_WIP_READY_FOR_FULL_AND_INDEPENDENT_JUDGE"
+}

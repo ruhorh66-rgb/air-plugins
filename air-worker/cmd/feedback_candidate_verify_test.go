@@ -140,3 +140,49 @@ func TestN108QuotedMarkdownMarkerPreservesExampleOnRealInsertion(t *testing.T) {
 		})
 	}
 }
+
+func TestN108IndentedFenceAndTextareaCannotForgeCanonicalPLAN(t *testing.T) {
+	rec := n108CanonicalRecord()
+	rel := feedbackEvidenceRel(rec.FeedbackID)
+	row := feedbackCandidateLine(rec, rel)
+	copied := feedbackSectionHeading + "\n" + feedbackMarker + "\n" + row + "\n"
+	examples := map[string]string{
+		"four-backtick-with-indented-closer":       "# Product\n\n````markdown\n    ````\n" + copied + "````\n",
+		"four-backtick-with-three-backtick-closer": "# Product\n\n````markdown\n```\n" + copied + "````\n",
+		"html-textarea": "# Product\n\n<textarea>\n" + copied + "</textarea>\n",
+	}
+	for label, text := range examples {
+		t.Run(label, func(t *testing.T) {
+			found, err := canonicalFeedbackCandidateState([]byte(text), rec, rel)
+			if found || err == nil {
+				t.Fatalf("example-only PLAN got machine credit: found=%v err=%v", found, err)
+			}
+		})
+	}
+}
+
+func TestN108IndentedCloserOrHTMLExampleMarkerCannotRedirectInsertion(t *testing.T) {
+	rec := n108CanonicalRecord()
+	rel := feedbackEvidenceRel(rec.FeedbackID)
+	marker := feedbackSectionHeading + "\n" + feedbackMarker + "\n"
+	examples := map[string]string{
+		"four-backtick-indented-closer": "# Product\n\n````markdown\n    ````\n" + marker + "````\n",
+		"textarea":                      "# Product\n\n<textarea>\n" + marker + "</textarea>\n",
+	}
+	for label, example := range examples {
+		t.Run(label, func(t *testing.T) {
+			present, err := canonicalFeedbackCandidateState([]byte(example), rec, rel)
+			if err != nil || present {
+				t.Fatalf("example marker already authoritative: present=%v err=%v", present, err)
+			}
+			appended := planWithFeedbackCandidate([]byte(example), rec, rel)
+			present, err = canonicalFeedbackCandidateState(appended, rec, rel)
+			if err != nil || !present {
+				t.Fatalf("valid separate PLAN candidate not inserted: %v", err)
+			}
+			if strings.Count(string(appended), feedbackMarker) != 2 {
+				t.Fatalf("untrusted example was rewritten or no real marker added")
+			}
+		})
+	}
+}

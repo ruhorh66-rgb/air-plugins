@@ -38,24 +38,24 @@ func nativePositiveFeedbackStep(raw string) bool {
 // real Procedure section voids the positive line. Unrelated cautions about
 // evidence (e.g. "loading is not using") do not void a valid positive step.
 func nativeFeedbackProcedureContradictory(steps []string) bool {
+	// Fail closed on ANY visible negative or ambiguous instruction within
+	// the actual Procedure, not a finite blacklist of referents. "it",
+	// "preceding step", "that operation", and split instructions must never
+	// become a bypass for machine use attribution.
+	//
+	// Only the exact previously observed harmless caution in the genuine
+	// reviewer lesson is exempt. It describes the loaded-vs-used boundary,
+	// and does not negate or modify the native feedback action.
+	const harmless = "4. select the exact sha-pinned procedure deliberately in the next session and verify its effect independently; loading a skill alone does not prove it was used"
 	for _, raw := range steps {
 		line := normalizeNativeFeedbackStep(raw)
 		if !nativeFeedbackNegativeWord.MatchString(line) {
 			continue
 		}
-		for _, subject := range []string{
-			"air-worker feedback add", "native feedback path",
-			"preceding command", "previous command", "above command",
-			"the command", "that command", "this command",
-			"preceding action", "previous action", "above action",
-			"that action", "this action",
-			"execute", "invoke", "run the", "call the", "perform the",
-			"step 1", "step 2",
-		} {
-			if strings.Contains(line, subject) {
-				return true
-			}
+		if line == harmless {
+			continue
 		}
+		return true
 	}
 	return false
 }

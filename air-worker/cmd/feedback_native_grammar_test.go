@@ -92,3 +92,28 @@ func TestN108RealReviewerLessonStillGetsTrustedNarrowMarker(t *testing.T) {
 		t.Fatalf("real auto-review deterministic marker regression: err=%v same=%v", err, again == bound)
 	}
 }
+
+func TestN108IndirectNegationAndHiddenProcedureExamplesNeverGainAction(t *testing.T) {
+	good := "1. Report the defect with the native `air-worker feedback add` command, using a stable `-run-id` and bounded `-data-file` JSON containing the exact error."
+	candidates := map[string]string{
+		"preceding-step":             good + "\n2. Do not carry out the preceding step.",
+		"pronoun-it":                 good + "\n2. Never run it.",
+		"previous-step":              good + "\n2. Do not execute the earlier instruction.",
+		"unsupported-docs":           "1. Report the defect in the documentation describing air-worker feedback add and its stable -run-id.",
+		"four-space-indented":        "    " + good,
+		"tab-indented":               "\t" + good,
+		"fence-with-indented-closer": "````text\n    ````\n" + good + "\n````",
+		"textarea":                   "<textarea>\n" + good + "\n</textarea>",
+		"blockquote":                 "> " + good,
+	}
+	for label, steps := range candidates {
+		t.Run(label, func(t *testing.T) {
+			lesson := "# Tricky review\n\n## When to apply\nAfter a defect.\n\n## Procedure\n" +
+				steps + "\n\n## Pitfalls\nDo not invent success.\n"
+			marked, err := bindNativeFeedbackProof("feedback-error", lesson)
+			if err != nil || strings.Contains(marked, nativeFeedbackUseAction) {
+				t.Fatalf("%s gave machine authority: err=%v marked=%q", label, err, marked)
+			}
+		})
+	}
+}

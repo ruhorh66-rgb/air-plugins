@@ -20,7 +20,17 @@ type markdownControlSurface struct {
 }
 
 func markdownFenceLine(line string) (byte, int, bool) {
-	s := strings.TrimSpace(line)
+	// CommonMark permits at most three leading spaces before a fenced
+	// delimiter. Four spaces or a tab make this an indented code example,
+	// not a closer for the currently active fence.
+	indent := 0
+	for indent < len(line) && line[indent] == ' ' {
+		indent++
+	}
+	if indent > 3 || indent >= len(line) || line[indent] == '\t' {
+		return 0, 0, false
+	}
+	s := line[indent:]
 	if len(s) < 3 {
 		return 0, 0, false
 	}
@@ -41,7 +51,7 @@ func (s *markdownControlSurface) hidden(line string, allowMarker string) bool {
 	trimmed := strings.TrimSpace(line)
 	lower := strings.ToLower(trimmed)
 	if s.fenceLen > 0 {
-		c, n, ok := markdownFenceLine(trimmed)
+		c, n, ok := markdownFenceLine(line)
 		if ok && c == s.fenceChar && n >= s.fenceLen && strings.TrimSpace(trimmed[n:]) == "" {
 			s.fenceChar = 0
 			s.fenceLen = 0
@@ -63,12 +73,18 @@ func (s *markdownControlSurface) hidden(line string, allowMarker string) bool {
 	if strings.HasPrefix(trimmed, ">") {
 		return true
 	}
-	if c, n, ok := markdownFenceLine(trimmed); ok {
+	// Four-space and tab-indented lines are Markdown code examples, not
+	// affirmative learned instructions or canonical feedback records.
+	prefix := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+	if len(prefix) >= 4 || strings.Contains(prefix, "\t") {
+		return true
+	}
+	if c, n, ok := markdownFenceLine(line); ok {
 		s.fenceChar = c
 		s.fenceLen = n
 		return true
 	}
-	for _, tag := range []string{"pre", "code", "blockquote"} {
+	for _, tag := range []string{"pre", "code", "blockquote", "textarea", "script", "style", "xmp", "listing", "plaintext"} {
 		if strings.Contains(lower, "<"+tag) {
 			if !strings.Contains(lower, "</"+tag+">") {
 				s.htmlBlock = tag
@@ -113,7 +129,9 @@ func nativeFeedbackProcedureVisibleLines(content string) ([]string, error) {
 			}
 		}
 		if inProc {
-			steps = append(steps, trimmed)
+			// Do not erase indentation here: the native action binding must
+			// reject hidden or indented "1. Call ..." examples.
+			steps = append(steps, line)
 		}
 	}
 	if !foundProc || !foundPitfalls {
