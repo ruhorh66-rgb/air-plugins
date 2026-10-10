@@ -1,0 +1,24 @@
+{
+    "schema":  "air-worker.n110.run-id-binding-tdd/v1",
+    "recorded_utc":  "2026-10-10T19:02:31.7607085Z",
+    "status":  "SCOPED_TDD_PASS_NOT_N110_COMPLETE",
+    "source_parent_head":  "a169d719fc325b3bd0588184847cd55aac4e3621",
+    "branch":  "dev/airworker-0.11.9-selflearning-only-20261011",
+    "code_files":  [
+                       "air-worker/cmd/self_cli_failure.go",
+                       "air-worker/cmd/self_cli_failure_test.go"
+                   ],
+    "defect":  "Same run_id and native action/exit accepted distinct private argv, falsely crediting unrelated invocation",
+    "fix":  "Bind each immutable failure receipt to a domain-separated argv JSON digest, compare exact digest on replay, never persist plaintext arguments",
+    "tdd_red_file":  "R:\\-4-\\air-worker\\work\\0.11.9\\n110-a169d71\\TDD_RED.txt",
+    "tdd_red_sha256":  "c3cd5a46295bb47bfa4bc55d8e00cc7b4e01889b9881ec0f1bdbf812f803e07d",
+    "tdd_red_exit":  1,
+    "tdd_green_file":  "R:\\-4-\\air-worker\\work\\0.11.9\\n110-a169d71\\TDD_GREEN.txt",
+    "tdd_green_sha256":  "19eb0818a0d04dcd7b1530b4ca16174199887a1119784dae9a6fde61abd1f6c6",
+    "tdd_green_exit":  0,
+    "judge":  "NOT_RUN_ON_THIS_PATCH",
+    "full_go_regression":  "NOT_RUN_ON_THIS_PATCH",
+    "autonomous_review_apply_new_session_effect":  "NOT_PROVEN",
+    "installed_version":  "air-worker 0.11.8 unchanged",
+    "release_or_install_performed":  false
+}

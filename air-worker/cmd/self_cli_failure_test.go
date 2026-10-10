@@ -77,6 +77,8 @@ func TestN110OwnCLIFailureDurablyCapturedAndPrivate(t *testing.T) {
 	}
 	if receipt.Schema != ownCLIFailureSchema || receipt.RunID != run ||
 		receipt.Action != "plan node new" || receipt.ExitCode != 2 ||
+		receipt.InvocationSHA256 != ownCLIInvocationSHA256(n110CLIArgs()) ||
+		len(receipt.InvocationSHA256) != 64 ||
 		receipt.Principal != "air-worker" ||
 		strings.Contains(string(raw), "WORKER-SECRET") {
 		t.Fatalf("invalid or private immutable CLI receipt: %s", raw)
@@ -123,6 +125,13 @@ func TestN110ExactIdempotencyAndConflictingRunFailClosed(t *testing.T) {
 	}
 	if err := autoCaptureOwnCLIExitWithRunID([]string{"validate", "-product", "other"}, 2, run, starter); err == nil {
 		t.Fatal("same stable run accepted different CLI action")
+	}
+	// Distinct invocations of the SAME command class and exit status cannot
+	// silently reuse a previous run_id. Otherwise one failure receipt could
+	// falsely describe a different product or command with private arguments.
+	otherArgs := append(append([]string{}, args...), "-product", "another-synthetic-product")
+	if err := autoCaptureOwnCLIExitWithRunID(otherArgs, 2, run, starter); err == nil {
+		t.Fatal("same action/exit with different argv reused the original immutable run")
 	}
 	if calls != 1 {
 		t.Fatal("conflicting run id relaunched reviewer")
