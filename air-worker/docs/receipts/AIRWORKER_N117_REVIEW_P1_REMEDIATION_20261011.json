@@ -1,0 +1,28 @@
+{
+  "schema": "air-worker.n117.review-p1-remediation-tdd/v1",
+  "status": "SCOPED_PASS_NOT_NODE_CLOSED",
+  "source_parent_head": "501f731bca37a2e7e47001709128433fcec86677",
+  "reviewer": "gpt-6-sol",
+  "effort": "low",
+  "previous_review": "CHANGES_REQUIRED_1P1",
+  "previous_review_path": "R:\\-4-\\air-worker\\work\\0.11.9\\n117-501f731\\SOL_LOW_VERDICT.json",
+  "defect": "Classifier treated cfg.Plan differently from nativePlanPath when plan whitespace-only, risking false missing-PLAN cause",
+  "fix": "Use strings.TrimSpace(cfg.Plan) and default PLAN.md, identical to nativePlanPath before checking read-only OS identity",
+  "tdd_red": {
+    "exit": 1,
+    "path": "R:\\-4-\\air-worker\\work\\0.11.9\\n117-501f731\\N117_REVIEW_P1_RED.txt",
+    "sha256": "70f0485285efa707727ae8350e41404e86b3ed9b8c0d087ee146be69897b501c"
+  },
+  "tdd_green": {
+    "exit": 0,
+    "path": "R:\\-4-\\air-worker\\work\\0.11.9\\n117-501f731\\N117_REVIEW_P1_GREEN.txt",
+    "sha256": "738e9f72fe682dd57b05f6d24a2d4fb310fa7efb44d7f160b9601f4dd24e5f04"
+  },
+  "full_exact_go_qa": "PENDING_CLEAN_SHA",
+  "independent_semantic_judge": "PENDING",
+  "actual_production_reviewer_and_future_use": "NOT_PROVEN",
+  "N117": "OPEN",
+  "N110": "OPEN",
+  "installed_version": "0.11.8_UNCHANGED",
+  "release_installed": false
+}

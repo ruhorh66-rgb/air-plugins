@@ -32,6 +32,21 @@ func TestN117TrustedPreflightCauseFromActualFilesystem(t *testing.T) {
 	if got := ownCLITrustedFailureCause(args, 2); got != "" {
 		t.Fatalf("failure code alone generated a false cause: %q", got)
 	}
+	// Native validate trims cfg.Plan before resolving the effective file.
+	// A whitespace-only plan and existing PLAN.md must NOT become a
+	// spurious trusted "plan missing" cause for an unrelated native rc2.
+	if err := os.WriteFile(filepath.Join(root, "run-config.json"), []byte(`{"plan":"   "}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if got := ownCLITrustedFailureCause(args, 2); got != "" {
+		t.Fatalf("whitespace plan invented a missing PLAN cause: %q", got)
+	}
+	if err := os.Remove(filepath.Join(root, "PLAN.md")); err != nil {
+		t.Fatal(err)
+	}
+	if got := ownCLITrustedFailureCause(args, 2); got != "validate-plan-missing" {
+		t.Fatalf("whitespace plan must resolve default missing PLAN: %q", got)
+	}
 }
 
 func TestN117TypedCausePersistedAndReplayStaysImmutable(t *testing.T) {

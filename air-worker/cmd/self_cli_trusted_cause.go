@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // A small typed precondition classifier can safely provide evidence missing
@@ -52,7 +53,9 @@ func ownCLITrustedFailureCause(argv []string, rc int) string {
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return ""
 	}
-	plan := cfg.Plan
+	// Match the canonical nativePlanPath normalization before comparing
+	// filesystem facts. A whitespace-only plan resolves to PLAN.md.
+	plan := strings.TrimSpace(cfg.Plan)
 	if plan == "" {
 		plan = "PLAN.md"
 	}
