@@ -16,8 +16,10 @@ type markdownControlSurface struct {
 	fenceChar     byte
 	fenceLen      int
 	htmlStack     []string
+	htmlPending   string
 	htmlMalformed bool
 	comment       bool
+	inlineRun     int
 }
 
 func markdownFenceLine(line string) (byte, int, bool) {
@@ -58,15 +60,22 @@ func (s *markdownControlSurface) hidden(line string, allowMarker string) bool {
 		}
 		return true
 	}
-	if len(s.htmlStack) > 0 || s.htmlMalformed {
-		// The entire raw HTML subtree remains non-authoritative. Track
-		// nested tags rather than closing at the first </div>.
-		s.consumeHTMLTags(line)
-		return true
-	}
 	if s.comment {
 		if strings.Contains(trimmed, "-->") {
 			s.comment = false
+		}
+		return true
+	}
+	if len(s.htmlStack) > 0 || s.htmlPending != "" || s.htmlMalformed {
+		// HTML owns its complete multiline continuation before Markdown
+		// blockquotes, indentation or code fences can reinterpret it.
+		visible, _ := s.visibleMarkdownOutsideCode(line)
+		s.consumeHTMLTags(visible)
+		return true
+	}
+	if strings.Contains(trimmed, "<!--") && trimmed != allowMarker {
+		if !strings.Contains(trimmed, "-->") {
+			s.comment = true
 		}
 		return true
 	}
@@ -84,13 +93,13 @@ func (s *markdownControlSurface) hidden(line string, allowMarker string) bool {
 		s.fenceLen = n
 		return true
 	}
-	if s.consumeHTMLTags(line) {
+	visible, hadCode := s.visibleMarkdownOutsideCode(line)
+	if s.inlineRun != 0 || (hadCode && strings.TrimSpace(visible) == "") {
+		// A complete line quoted as inline code is an example, not a live
+		// Procedure step or PLAN marker. An unclosed span fails closed.
 		return true
 	}
-	if strings.HasPrefix(trimmed, "<!--") && trimmed != allowMarker {
-		if !strings.Contains(trimmed, "-->") {
-			s.comment = true
-		}
+	if s.consumeHTMLTags(visible) {
 		return true
 	}
 	return false

@@ -13,7 +13,15 @@ func normalizeNativeFeedbackStep(raw string) string {
 	return strings.TrimSuffix(strings.Join(strings.Fields(strings.TrimSpace(lower)), " "), ".")
 }
 
+// For EXECUTABLE evidence, keep every Markdown delimiter. Normalizing all
+// backticks away would convert a whole inline-code example into permission.
+func normalizeNativeFeedbackRawStep(raw string) string {
+	lower := strings.ToLower(raw)
+	return strings.TrimSuffix(strings.Join(strings.Fields(strings.TrimSpace(lower)), " "), ".")
+}
+
 const n108StepReportFull = "report the defect with the native air-worker feedback add command, using a stable -run-id and bounded -data-file json containing the exact error"
+const n108StepReportFullMarkdown = "report the defect with the native `air-worker feedback add` command, using a stable `-run-id` and bounded `-data-file` json containing the exact error"
 const n108StepCall = "call air-worker feedback add with a stable -run-id, correct product and real error evidence"
 const n108StepReportShort = "report the defect with native feedback path and a stable run id"
 const n108StepSubmit = "submit any defect through the native feedback path with a stable run id"
@@ -23,7 +31,7 @@ const n108StepSubmit = "submit any defect through the native feedback path with 
 func nativeFeedbackProcedureApproved(steps []string) bool {
 	var got []string
 	for _, raw := range steps {
-		s := normalizeNativeFeedbackStep(raw)
+		s := normalizeNativeFeedbackRawStep(raw)
 		if s != "" {
 			got = append(got, s)
 		}
@@ -33,13 +41,14 @@ func nativeFeedbackProcedureApproved(steps []string) bool {
 	}
 	allowed := [][]string{
 		{"1. " + n108StepReportFull},
+		{"1. " + n108StepReportFullMarkdown},
 		{"2. " + n108StepCall},
 		{"1. " + n108StepReportShort},
 		{"1. " + n108StepSubmit},
 		// Actual auto-reviewed AirWorker 0.11.9 lesson. A new arbitrary
 		// sentence cannot silently alter its native contract.
-		{"1. " + n108StepReportFull,
-			"2. confirm the newly recorded event, its immutable fb-*.json receipt, and one matching plan candidate",
+		{"1. " + n108StepReportFullMarkdown,
+			"2. confirm the newly recorded event, its immutable `fb-*.json` receipt, and one matching plan candidate",
 			"3. preserve the source evidence and installed version alongside the report",
 			"4. select the exact sha-pinned procedure deliberately in the next session and verify its effect independently; loading a skill alone does not prove it was used"},
 		// Release-owned positive fixture verifies isolated native use.

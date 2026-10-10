@@ -1,64 +1,120 @@
 package main
 
-import (
-	"regexp"
-	"strings"
-)
+import "strings"
 
-// A copied feedback heading/row or executable-looking Procedure step is not
-// authority when enclosed by ANY real HTML element. Recognize generic tag
-// names (not a mutable block-tag whitelist) and keep nesting balanced.
-// Unknown/mismatched HTML conservatively hides all following content.
-var nativeHTMLTagPattern = regexp.MustCompile("(?i)<(/?)([a-z][a-z0-9:-]*)(?:[ \t]+[^<>]*?)?[ \t]*/?>")
+// Machine-authoritative feedback is never inferred from arbitrary raw HTML.
+// The parser accepts only bounded, COMPLETE tag tokens on one line. Any
+// multiline opening tag (including <div class="demo" + newline + >),
+// mismatched nesting, or unfinished attribute quote is ambiguous and makes
+// subsequent machine credit fail closed. Markdown inline code is removed
+// BEFORE calling this parser.
+func nativeHTMLName(c byte) bool {
+	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z'
+}
 
-// An HTML opener may be split between lines: "<div\\nclass=...>".
-// Recognize its incomplete prefix before interpreting subsequent text as
-// Markdown headings, feedback candidates or native actionable instructions.
-var nativeHTMLIncompleteOpenPattern = regexp.MustCompile("(?i)<([a-z][a-z0-9:-]*)[ \t]*$")
+func nativeHTMLNamePart(c byte) bool {
+	return nativeHTMLName(c) || c >= '0' && c <= '9' || c == ':' || c == '-'
+}
 
 func nativeVoidHTMLElement(name string) bool {
 	switch name {
-	case "area", "base", "br", "col", "embed", "hr", "img", "input",
-		"link", "meta", "param", "source", "track", "wbr":
+	case "area", "base", "br", "col", "embed", "hr", "img",
+		"input", "link", "meta", "param", "source", "track", "wbr":
 		return true
 	}
 	return false
 }
 
 func (s *markdownControlSurface) consumeHTMLTags(line string) bool {
-	tags := nativeHTMLTagPattern.FindAllStringSubmatch(line, -1)
-	incomplete := nativeHTMLIncompleteOpenPattern.FindAllStringSubmatch(line, -1)
-	if len(tags) == 0 && len(incomplete) == 0 {
-		return false
+	if s.htmlPending != "" {
+		if len(s.htmlPending)+len(line)+1 > 4096 {
+			s.htmlMalformed = true
+			return true
+		}
+		line = s.htmlPending + string(byte(10)) + line
+		s.htmlPending = ""
 	}
-	for _, match := range tags {
-		raw := match[0]
-		closing := match[1] == "/"
-		tag := strings.ToLower(match[2])
-		if closing {
-			if len(s.htmlStack) == 0 || s.htmlStack[len(s.htmlStack)-1] != tag {
-				// Wrong close tag is ambiguous; never credit later text.
-				s.htmlMalformed = true
+	found := false
+	for i := 0; i < len(line); {
+		index := strings.IndexByte(line[i:], '<')
+		if index < 0 {
+			break
+		}
+		start := i + index
+		j := start + 1
+		closing := false
+		if j < len(line) && line[j] == '/' {
+			closing = true
+			j++
+		}
+		if j >= len(line) || !nativeHTMLName(line[j]) {
+			i = start + 1
+			continue
+		}
+		nameStart := j
+		for j < len(line) && nativeHTMLNamePart(line[j]) {
+			j++
+		}
+		name := strings.ToLower(line[nameStart:j])
+		if j < len(line) && line[j] != ' ' && line[j] != '\t' && line[j] != '\n' && line[j] != '\r' &&
+			line[j] != '/' && line[j] != '>' {
+			// E.g. <event+foo> is not a supported authority.
+			s.htmlMalformed = true
+			return true
+		}
+		found = true
+		var quote byte
+		end := -1
+		for k := j; k < len(line); k++ {
+			c := line[k]
+			if quote != 0 {
+				if c == quote {
+					quote = 0
+				}
 				continue
 			}
+			if c == '\'' || c == '"' {
+				quote = c
+				continue
+			}
+			if c == '>' {
+				end = k
+				break
+			}
+			if c == '<' {
+				// An unquoted nested opener inside attributes is ambiguous.
+				s.htmlMalformed = true
+				return true
+			}
+		}
+		if end < 0 {
+			if len(line)-start > 4096 {
+				s.htmlMalformed = true
+			} else {
+				s.htmlPending = line[start:]
+			}
+			return true
+		}
+		if end-start > 4096 {
+			s.htmlMalformed = true
+			return true
+		}
+		raw := line[start : end+1]
+		if closing {
+			if len(s.htmlStack) == 0 || s.htmlStack[len(s.htmlStack)-1] != name {
+				s.htmlMalformed = true
+				return true
+			}
 			s.htmlStack = s.htmlStack[:len(s.htmlStack)-1]
-			continue
+		} else if !strings.HasSuffix(strings.TrimSpace(strings.TrimSuffix(raw, ">")), "/") &&
+			!nativeVoidHTMLElement(name) {
+			if len(s.htmlStack) >= 32 {
+				s.htmlMalformed = true
+				return true
+			}
+			s.htmlStack = append(s.htmlStack, name)
 		}
-		if strings.HasSuffix(strings.TrimSpace(raw), "/>") || nativeVoidHTMLElement(tag) {
-			continue
-		}
-		if len(s.htmlStack) >= 32 {
-			s.htmlMalformed = true
-			continue
-		}
-		s.htmlStack = append(s.htmlStack, tag)
+		i = end + 1
 	}
-	for _, match := range incomplete {
-		if len(s.htmlStack) >= 32 {
-			s.htmlMalformed = true
-			continue
-		}
-		s.htmlStack = append(s.htmlStack, strings.ToLower(match[1]))
-	}
-	return true
+	return found
 }

@@ -59,6 +59,9 @@ func canonicalFeedbackCandidatePlacement(raw []byte, rec feedbackRecord, relativ
 			count++
 		}
 	}
+	if surface.htmlMalformed || surface.htmlPending != "" || len(surface.htmlStack) > 0 || surface.inlineRun > 0 || surface.fenceLen > 0 || surface.comment {
+		return false, -1, errors.New("PLAN contains an unclosed or ambiguous Markdown/HTML context; feedback cannot be attested")
+	}
 	if count > 1 {
 		return false, -1, fmt.Errorf("duplicate canonical candidate for %s", rec.FeedbackID)
 	}

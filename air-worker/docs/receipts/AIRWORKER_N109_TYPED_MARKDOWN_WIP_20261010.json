@@ -1,0 +1,81 @@
+{
+    "schema":  "air-worker.n109.typed-procedure-markdown-checkpoint/v1",
+    "at_utc":  "2026-10-10T09:50:37.3799260Z",
+    "source_parent_head":  "f375b99668694e29bd8affd4a4924cd9e79e1754",
+    "plan_node":  "N-109_p0-n109-typed-airworker-self-learning-proof-with",
+    "trigger":  "LPR 10.10.2026 17:25 SGT: AirWorker ladder with requested GPT-6.1 Soul Medium",
+    "scope":  "Only AirWorker own self-learning source and isolated acceptance",
+    "previous_independent_verdict":  {
+                                         "p1":  3,
+                                         "verdict":  "CHANGES_REQUIRED",
+                                         "sha256":  "17849fe85f54699ff98062e7122d4f9499a6ba87ce7f30ee2d6c86094025ffb5",
+                                         "p2":  0
+                                     },
+    "changes":  [
+                    "Prove native feedback action only by complete release-owned safe Procedure template preserving literal inline Markdown code delimiters",
+                    "Remove native actionable authority from a whole inline-code or fenced/hidden example",
+                    "Mask Markdown inline code and escaped literals before parsing HTML; actual product PLAN with hook \u003cevent\u003e and \u003cref\u003e remains writable/readback-verifiable",
+                    "Track bounded multi-line HTML openers and nested tag scopes before accepting a candidate; reject ambiguous or malformed content",
+                    "Test durable feedback insertion and exact candidate idempotency on an isolated copy of checked-in actual PLAN"
+                ],
+    "source_sha256":  [
+                          {
+                              "sha256":  "e08f6dd1a47600b629c033c9ead2e108f3a4ad7d55dd7aad8f88a30f164bbec2",
+                              "path":  "cmd/markdown_control_surface.go"
+                          },
+                          {
+                              "sha256":  "bf3d65729f15f773d0522314c5a64d63092d092da93de1d814dbaaf9f3434194",
+                              "path":  "cmd/markdown_html_surface.go"
+                          },
+                          {
+                              "sha256":  "198ef83e3ee9d4d96d8f3ba01b3536289c505efa20f51b385d65db936119e8b4",
+                              "path":  "cmd/markdown_inline_surface.go"
+                          },
+                          {
+                              "sha256":  "f01341847a267966009750cfb45e931fc30d2177a9878eca70b2842e16b70789",
+                              "path":  "cmd/feedback_candidate_verify.go"
+                          },
+                          {
+                              "sha256":  "d4a77cca897545b2a8d09912df6679747e7c61705f6be2d01cacde8449602eee",
+                              "path":  "cmd/feedback_native_grammar.go"
+                          },
+                          {
+                              "sha256":  "f952522ffff2b573d203925245118b827fb2c28033a7cedf9aab8a70a9236fd5",
+                              "path":  "cmd/markdown_n109_acceptance_test.go"
+                          },
+                          {
+                              "sha256":  "b61b94fd0e1b13075e9610643f864f4bc749ae02517970ce0f1e5137b64af427",
+                              "path":  "PLAN.md"
+                          },
+                          {
+                              "sha256":  "2e9ee8205360cd5807cf69f29a0d9b65770d15df25fd5e45a4af9a5f8976e7dc",
+                              "path":  "plan/N-109_p0-n109-typed-airworker-self-learning-proof-with.md"
+                          }
+                      ],
+    "requested_model":  {
+                            "probe_sha256":  "42ce3ac2be738831f696e0a68e41d8702f3e4b7d6b7d506d6e6b58480bcb0430",
+                            "effort":  "medium",
+                            "probe_exit_code":  1,
+                            "probe_status":  "NOT_AVAILABLE_OR_NOT_PROVEN",
+                            "native_ladder_registered":  false,
+                            "name":  "GPT-6.1 Soul Medium",
+                            "blocker":  "Codex model catalog refresh timed out; support NOT_PROVEN. Registered gpt-6-sol:medium is NOT silently substituted.",
+                            "codex_tested_model":  "gpt-6.1-sol"
+                        },
+    "checks":  {
+                   "go_vet_exit":  0,
+                   "independent_model_judge":  "PENDING",
+                   "wide_go_exit":  0,
+                   "targeted_n109_go_exit":  0,
+                   "native_validate_criteria":  62,
+                   "diff_check":  "PASS",
+                   "native_validate_goals":  7,
+                   "full_go":  "PENDING",
+                   "plan_lint_warnings":  0,
+                   "native_validate_problems":  0,
+                   "real_native_e2e":  "PENDING"
+               },
+    "live_installed_0_11_8":  "UNCHANGED",
+    "release_install_authorized":  false,
+    "status":  "SCOPED_CHECKPOINT_ONLY_N109_OPEN"
+}
