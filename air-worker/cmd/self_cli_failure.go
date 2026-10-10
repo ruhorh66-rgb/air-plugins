@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/hmac"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +14,7 @@ import (
 	"github.com/ruhorh66-rgb/air-modules/learning"
 )
 
-const ownCLIFailureSchema = "air-worker.self-learning.cli-failure/v2"
+const ownCLIFailureSchema = "air-worker.self-learning.cli-failure/v3"
 
 type ownCLIFailureReceipt struct {
 	Schema   string `json:"schema"`
@@ -22,6 +23,9 @@ type ownCLIFailureReceipt struct {
 	ExitCode int    `json:"exit_code"`
 	// Exact argv identity without storing raw arguments, paths, or secrets.
 	InvocationMAC string `json:"invocation_hmac_sha256"`
+	CauseCode     string `json:"cause_code,omitempty"`
+	Observed      string `json:"observed"`
+	ReceiptMAC    string `json:"receipt_hmac_sha256"`
 	Source        string `json:"source"`
 	Principal     string `json:"principal"`
 	Version       string `json:"version"`
@@ -107,9 +111,11 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 		return err
 	}
 	invocationMAC := ownCLIInvocationMAC(key, argv)
-	for i := range key {
-		key[i] = 0
-	}
+	defer func() {
+		for i := range key {
+			key[i] = 0
+		}
+	}()
 
 	recPath := filepath.Join(owner.Settings.RuntimeRoot, "cli-failures", runID+".json")
 	var rec ownCLIFailureReceipt
@@ -121,7 +127,8 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 		}
 		if rec.Schema != ownCLIFailureSchema || rec.RunID != runID ||
 			rec.ExitCode != rc || rec.Action != action || rec.InvocationMAC != invocationMAC || rec.Version != version || rec.Source != "air-worker-cli" ||
-			rec.Principal != "air-worker" {
+			rec.Principal != "air-worker" || rec.Observed == "" ||
+			!hmac.Equal([]byte(rec.ReceiptMAC), []byte(ownCLIReceiptMAC(key, rec))) {
 			return errors.New("owned CLI failure run_id has conflicting immutable evidence")
 		}
 	} else {
@@ -133,6 +140,9 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 			Source: "air-worker-cli", Principal: "air-worker", Version: version,
 			ProcessID: os.Getpid(), CapturedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		}
+		rec.CauseCode = ownCLITrustedFailureCause(argv, rc)
+		rec.Observed = ownCLIFailureObservation(action, rc, rec.CauseCode)
+		rec.ReceiptMAC = ownCLIReceiptMAC(key, rec)
 		raw, err := json.MarshalIndent(rec, "", "  ")
 		if err != nil {
 			return err
@@ -157,10 +167,13 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 	}
 	digest := learnSHA(previous)
 	evidence := filepath.ToSlash(recPath) + "#sha256=" + digest
-	observed := fmt.Sprintf("Native AirWorker CLI action=%s ended with exit_code=%d. No successful effect is claimed; examine immutable local evidence before deciding on a reusable safe procedure.", action, rc)
+	class := "air-worker-cli-failure"
+	if rec.CauseCode == "validate-run-config-missing" || rec.CauseCode == "validate-plan-missing" {
+		class = "air-worker-cli-preflight"
+	}
 	result, err := executeSharedLearning(owner.Selector.ProductRoot, owner.Settings, "observe", map[string]any{
-		"run_id": runID, "kind": "run_completed", "observed": observed,
-		"class": "air-worker-cli-failure", "source": "air-worker-cli",
+		"run_id": runID, "kind": "run_completed", "observed": rec.Observed,
+		"class": class, "source": "air-worker-cli",
 		"principal": "air-worker", "session": runID,
 		"outcome_ref": evidence, "defer_review": true,
 	})

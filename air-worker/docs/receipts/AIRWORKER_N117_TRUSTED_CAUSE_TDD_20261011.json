@@ -1,0 +1,40 @@
+{
+  "schema": "air-worker.n117.trusted-preflight-tdd/v1",
+  "at_sgt_date": "2026-10-11",
+  "product": "AirWorker",
+  "source_parent_head": "a5d12b8bb908465ad94d359a8d405d1d3fe20420",
+  "node": "N-117_p0-n110-trusted-cli-failure-cause-for-useful-aut",
+  "implementation": [
+    "Allowlisted native validation preflight checks read-only filesystem: missing run-config.json or configured PLAN",
+    "No raw argv, paths, untrusted stderr or model text in observation",
+    "Domain-separated DPAPI-key HMAC for immutable cause, observation, identity and executable version; exact run replay checks signed receipt",
+    "Independent LEARN module remains only events/proposals/ledger writer"
+  ],
+  "tdd": [
+    {
+      "phase": "RED_MISSING_IMPLEMENTATION",
+      "exit_code": 1,
+      "path": "R:\\-4-\\air-worker\\work\\0.11.9\\n110-ed6d08b\\N117_TDD_RED.txt",
+      "sha256": "167f17aa00143a0d548464f64264f90feb0e69b1ab6ac0df622499ff5c90da19"
+    },
+    {
+      "phase": "RED_INVALID_NUL_IN_SOURCE",
+      "exit_code": 1,
+      "path": "R:\\-4-\\air-worker\\work\\0.11.9\\n110-ed6d08b\\N117_TDD_GREEN.txt",
+      "sha256": "4afb97b9a9a7d5ef43559e655b3b24607cb917afe1e65671ffdac36b2fc614c"
+    },
+    {
+      "phase": "GREEN",
+      "exit_code": 0,
+      "path": "R:\\-4-\\air-worker\\work\\0.11.9\\n110-ed6d08b\\N117_TDD_GREEN_RETRY2.txt",
+      "sha256": "de944118a125a2cf04525f2473a929f61ab71bc114a5b67eadb34edf4fa08830"
+    }
+  ],
+  "full_regression": "PENDING_CLEAN_SOURCE_SHA",
+  "independent_judge": "PENDING",
+  "native_real_production_review": "PENDING_NEW_SHA",
+  "N110": "OPEN",
+  "installed": "0.11.8_UNCHANGED",
+  "release": false,
+  "status": "SCOPED_TDD_PASS_NOT_NODE_CLOSED"
+}
