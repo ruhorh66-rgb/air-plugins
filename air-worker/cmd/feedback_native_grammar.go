@@ -1,61 +1,79 @@
 package main
 
-import (
-	"regexp"
-	"strings"
-)
+import "strings"
 
-// A reviewer narrative is not an authority to claim machine execution.
-// Accept only four narrow, affirmed native feedback instruction templates.
-// All other text remains an uncredited, informational learned procedure.
-var nativeFeedbackNegativeWord = regexp.MustCompile(`(?i)(^|[^a-z0-9_])(?:not|no|never|neither|nor|avoid|without|refrain|skip|omit|prevent|prohibit|cannot|can't|don't|shouldn't|mustn't|forbid|instead)([^a-z0-9_]|$)`)
-
+// A native-feedback use receipt does NOT attest arbitrary generated prose.
+// The only eligible source is one of these complete, release-owned,
+// positively supported safe Procedure templates. Everything else remains
+// a learned informational skill; even one extra sentence fails closed.
+// This is intentionally stricter than looking for negative words, which
+// cannot safely interpret Unicode, pronouns or split continuations.
 func normalizeNativeFeedbackStep(raw string) string {
 	lower := strings.ToLower(strings.ReplaceAll(raw, string(rune(96)), ""))
-	line := strings.Join(strings.Fields(strings.TrimSpace(lower)), " ")
-	return strings.TrimSuffix(line, ".")
+	return strings.TrimSuffix(strings.Join(strings.Fields(strings.TrimSpace(lower)), " "), ".")
 }
 
-func nativePositiveFeedbackStep(raw string) bool {
-	line := normalizeNativeFeedbackStep(raw)
-	if len(line) == 0 || len(line) > 350 || nativeFeedbackNegativeWord.MatchString(line) {
+const n108StepReportFull = "report the defect with the native air-worker feedback add command, using a stable -run-id and bounded -data-file json containing the exact error"
+const n108StepCall = "call air-worker feedback add with a stable -run-id, correct product and real error evidence"
+const n108StepReportShort = "report the defect with native feedback path and a stable run id"
+const n108StepSubmit = "submit any defect through the native feedback path with a stable run id"
+
+// A finite typed allowlist is the boundary for machine evidence, NOT the
+// vocabulary of procedures the reviewer may learn and auto-apply as notes.
+func nativeFeedbackProcedureApproved(steps []string) bool {
+	var got []string
+	for _, raw := range steps {
+		s := normalizeNativeFeedbackStep(raw)
+		if s != "" {
+			got = append(got, s)
+		}
+	}
+	if len(got) == 0 || len(got) > 4 {
 		return false
 	}
-	switch line {
-	case "report the defect with the native air-worker feedback add command, using a stable -run-id and bounded -data-file json containing the exact error":
-		return true
-	case "call air-worker feedback add with a stable -run-id, correct product and real error evidence":
-		return true
-	case "report the defect with native feedback path and a stable run id":
-		return true
-	case "submit any defect through the native feedback path with a stable run id":
-		return true
+	allowed := [][]string{
+		{"1. " + n108StepReportFull},
+		{"2. " + n108StepCall},
+		{"1. " + n108StepReportShort},
+		{"1. " + n108StepSubmit},
+		// Actual auto-reviewed AirWorker 0.11.9 lesson. A new arbitrary
+		// sentence cannot silently alter its native contract.
+		{"1. " + n108StepReportFull,
+			"2. confirm the newly recorded event, its immutable fb-*.json receipt, and one matching plan candidate",
+			"3. preserve the source evidence and installed version alongside the report",
+			"4. select the exact sha-pinned procedure deliberately in the next session and verify its effect independently; loading a skill alone does not prove it was used"},
+		// Release-owned positive fixture verifies isolated native use.
+		{"1. select this learned skill by its exact current target@sha",
+			"2. " + n108StepCall,
+			"3. require the native event, immutable feedback receipt, and one plan candidate"},
+		// Historical reviewer fixture in N-104 regression.
+		{"1. inspect the exact installed binary version",
+			"2. " + n108StepSubmit,
+			"3. compare source event, receipt and plan candidate"},
+	}
+	for _, template := range allowed {
+		if len(template) != len(got) {
+			continue
+		}
+		match := true
+		for i := range template {
+			if got[i] != template[i] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return true
+		}
 	}
 	return false
 }
 
-// A negated instruction about the command/preceding action anywhere in the
-// real Procedure section voids the positive line. Unrelated cautions about
-// evidence (e.g. "loading is not using") do not void a valid positive step.
-func nativeFeedbackProcedureContradictory(steps []string) bool {
-	// Fail closed on ANY visible negative or ambiguous instruction within
-	// the actual Procedure, not a finite blacklist of referents. "it",
-	// "preceding step", "that operation", and split instructions must never
-	// become a bypass for machine use attribution.
-	//
-	// Only the exact previously observed harmless caution in the genuine
-	// reviewer lesson is exempt. It describes the loaded-vs-used boundary,
-	// and does not negate or modify the native feedback action.
-	const harmless = "4. select the exact sha-pinned procedure deliberately in the next session and verify its effect independently; loading a skill alone does not prove it was used"
-	for _, raw := range steps {
-		line := normalizeNativeFeedbackStep(raw)
-		if !nativeFeedbackNegativeWord.MatchString(line) {
-			continue
-		}
-		if line == harmless {
-			continue
-		}
-		return true
-	}
-	return false
+// Retained for diagnostics/tests of exact individual positive actions.
+// Positive wording alone is NEVER sufficient: the full Procedure must
+// match nativeFeedbackProcedureApproved.
+func nativePositiveFeedbackStep(raw string) bool {
+	s := normalizeNativeFeedbackStep(raw)
+	return s == n108StepReportFull || s == n108StepCall ||
+		s == n108StepReportShort || s == n108StepSubmit
 }

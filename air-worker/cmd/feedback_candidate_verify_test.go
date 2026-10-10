@@ -236,3 +236,38 @@ func TestN108GenericHTMLMarkerCannotRedirectPLANInsertion(t *testing.T) {
 		})
 	}
 }
+
+func TestN108MultilineHTMLTagCannotFakePLANOrRedirectInsertion(t *testing.T) {
+	rec := n108CanonicalRecord()
+	rel := feedbackEvidenceRel(rec.FeedbackID)
+	copied := feedbackSectionHeading + "\n" + feedbackMarker + "\n" + feedbackCandidateLine(rec, rel) + "\n"
+	opener := "<div\nclass=\"demo\">\n"
+	fake := "# Product\n\n" + opener + copied + "</div>\n"
+	found, err := canonicalFeedbackCandidateState([]byte(fake), rec, rel)
+	if found || err == nil {
+		t.Fatalf("multiline <div> rendered untrusted feedback as live: found=%v err=%v", found, err)
+	}
+	markerOnly := "# Product\n\n" + opener + feedbackSectionHeading + "\n" + feedbackMarker + "\n</div>\n"
+	found, err = canonicalFeedbackCandidateState([]byte(markerOnly), rec, rel)
+	if found || err != nil {
+		t.Fatalf("hidden marker incorrectly accepted/rejected: found=%v err=%v", found, err)
+	}
+	updated := planWithFeedbackCandidate([]byte(markerOnly), rec, rel)
+	found, err = canonicalFeedbackCandidateState(updated, rec, rel)
+	if err != nil || !found {
+		t.Fatalf("actual appended feedback candidate not uniquely visible: %v", err)
+	}
+	if !strings.Contains(string(updated), markerOnly) {
+		t.Fatal("legitimate insertion erased original multiline HTML example")
+	}
+}
+
+func TestN108MultilineHTMLPositiveProcedureCannotBindMachineAction(t *testing.T) {
+	good := "1. Report the defect with the native `air-worker feedback add` command, using a stable `-run-id` and bounded `-data-file` JSON containing the exact error."
+	lesson := "# Not a procedure\n\n## When to apply\nObserved.\n\n## Procedure\n<div\nclass=\"demo\">\n" +
+		good + "\n</div>\n\n## Pitfalls\nDo not invent success.\n"
+	bound, err := bindNativeFeedbackProof("feedback-error", lesson)
+	if err != nil || strings.Contains(bound, nativeFeedbackUseAction) {
+		t.Fatalf("multiline HTML fake instruction acquired machine authority: %v", err)
+	}
+}

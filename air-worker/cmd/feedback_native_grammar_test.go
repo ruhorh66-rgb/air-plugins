@@ -142,3 +142,24 @@ func TestN108WrappedNegationAndHTMLAuthorityFailClosed(t *testing.T) {
 		})
 	}
 }
+
+func TestN108TypographicNegationAndUnsupportedClausesAreInformational(t *testing.T) {
+	permitted := "1. Report the defect with the native `air-worker feedback add` command, using a stable `-run-id` and bounded `-data-file` JSON containing the exact error."
+	examples := map[string]string{
+		"curly-apostrophe":    permitted + "\n2. Don’t run it.",
+		"ignore-step":         permitted + "\n2. Ignore the preceding step.",
+		"ordinary-apostrophe": permitted + "\n2. Don't execute the preceding command.",
+		"unknown-extra":       permitted + "\n2. Include any additional model-written instruction.",
+		"wrapped-unicode":     permitted + "\n2. Don\n    ’t call that command.",
+	}
+	for name, steps := range examples {
+		t.Run(name, func(t *testing.T) {
+			text := "# Unreviewable extension\n\n## When to apply\nAfter error.\n\n## Procedure\n" +
+				steps + "\n\n## Pitfalls\nNo invented effect.\n"
+			safe, err := bindNativeFeedbackProof("feedback-error", text)
+			if err != nil || strings.Contains(safe, nativeFeedbackUseAction) {
+				t.Fatalf("untrusted extra prose gained native evidence: %s err=%v", name, err)
+			}
+		})
+	}
+}

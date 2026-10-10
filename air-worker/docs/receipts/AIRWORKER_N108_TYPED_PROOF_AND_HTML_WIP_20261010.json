@@ -1,0 +1,62 @@
+{
+    "schema":  "air-worker.n108.typed-contract-security-fixes/v1",
+    "recorded_at_utc":  "2026-10-10T08:12:15.6380441Z",
+    "source_parent":  "428e0980b80549654e03cda0bcf18536db3936ba",
+    "owner":  "gpt-airworker-release-20261010",
+    "scope":  "AirWorker own self-learning only",
+    "plan_node":  "N-108_p0-astra-remediation-fix-n105-independent-review",
+    "previous_independent_verdict":  "CHANGES_REQUIRED",
+    "previous_independent_file":  "R:\\-4-\\air-worker\\work\\0.11.9\\n108-428e098\\ASTRA_VERDICT.json",
+    "previous_independent_sha256":  "8f183aed7aa31876dd5a412c13e10bb76a47a178f77077978e6ad1740ae6e6b0",
+    "previous_P1":  2,
+    "changes":  [
+                    "Require entire bounded release-owned safe feedback Procedure template to match: no arbitrary extra free-text clause gets machine-use authority, including Unicode apostrophes and Ignore preceding step",
+                    "Mark other automatically learned free-form skills as informational; do not fabricate procedure_used or claim global autonomous selection",
+                    "Track multiline raw HTML opener prefixes across lines and nested generic tags; hidden Markdown feedback rows/procedures cannot become canonical authority",
+                    "Preserve exact older real automatically generated feedback lesson SHA and native safe-action capability"
+                ],
+    "file_hashes":  [
+                        {
+                            "sha256":  "6e436e40876ba1675d6c3fc8eada112bfe82c837fcc9c0c9db8eb2b9125593d0",
+                            "path":  "cmd/feedback_native_grammar.go"
+                        },
+                        {
+                            "sha256":  "219a59622cc0136f439b896971ce41bf4415df3cd72c62ba2945b2df7053253e",
+                            "path":  "cmd/feedback_native_use.go"
+                        },
+                        {
+                            "sha256":  "985eb4e4c6b3dd59dd46cc170d42ce0f2651fb75bf8deae797bc809902b30e7e",
+                            "path":  "cmd/markdown_html_surface.go"
+                        },
+                        {
+                            "sha256":  "3ab0fb682ee407e6c4979af05ef09094f8d81108958fc89c1fb3d012f6f3ca99",
+                            "path":  "cmd/feedback_native_grammar_test.go"
+                        },
+                        {
+                            "sha256":  "abf1488b7b29b921872d1db504398ffb8eb9fb3d3fd5fc33268d8d5a9c59802c",
+                            "path":  "cmd/feedback_candidate_verify_test.go"
+                        }
+                    ],
+    "checks":  {
+                   "native_e2e":  "PENDING",
+                   "independent_high":  "PENDING",
+                   "n108_scoped_adversarial_go":  0,
+                   "native_validate_criteria":  62,
+                   "go_vet":  0,
+                   "native_validate_goals":  7,
+                   "git_diff_check":  "PASS",
+                   "plan_lint_warnings":  0,
+                   "full_go_exact":  "PENDING",
+                   "n104_positive_native_test":  0,
+                   "native_validate_problems":  0,
+                   "wide_go":  0
+               },
+    "gates":  [
+                  "N108 OPEN until full Go+independent High PASS on same SHA",
+                  "N104/N093 and full autonomous skill selection have separate criteria",
+                  "N092 global judge OPEN",
+                  "N071 release+install require explicit separate LPR yes"
+              ],
+    "installed_live_version":  "0.11.8 unchanged",
+    "status":  "SCOPED_WIP_READY_FOR_EXACT_COMMIT_NOT_RELEASE"
+}

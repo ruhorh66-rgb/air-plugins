@@ -276,21 +276,11 @@ func bindNativeFeedbackProof(class, content string) (string, error) {
 		// NEVER granted a machine-use Action by an automatic reviewer.
 		return content, nil
 	}
-	if nativeFeedbackProcedureContradictory(steps) {
-		// No machine proof if any visible Procedure line negates a
-		// command or refers negatively to an earlier executable step.
-		return content, nil
-	}
-	eligible := false
-	for _, line := range steps {
-		if len(line) < 4 || line[0] < '1' || line[0] > '6' || line[1] != '.' {
-			continue
-		}
-		if nativePositiveFeedbackStep(strings.TrimSpace(line[2:])) {
-			eligible = true
-		}
-	}
-	if !eligible {
+	if !nativeFeedbackProcedureApproved(steps) {
+		// A typed action is proven by the complete release-owned safe
+		// Procedure template, never by matching words inside reviewer prose.
+		// An extra instruction, Unicode negation or hidden continuation
+		// remains informational and is never credited as procedure_used.
 		return content, nil
 	}
 	content = strings.TrimSpace(content) + "\n\n## Machine-verifiable action\n" +

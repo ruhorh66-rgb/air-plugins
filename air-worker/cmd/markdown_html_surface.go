@@ -11,6 +11,11 @@ import (
 // Unknown/mismatched HTML conservatively hides all following content.
 var nativeHTMLTagPattern = regexp.MustCompile("(?i)<(/?)([a-z][a-z0-9:-]*)(?:[ \t]+[^<>]*?)?[ \t]*/?>")
 
+// An HTML opener may be split between lines: "<div\\nclass=...>".
+// Recognize its incomplete prefix before interpreting subsequent text as
+// Markdown headings, feedback candidates or native actionable instructions.
+var nativeHTMLIncompleteOpenPattern = regexp.MustCompile("(?i)<([a-z][a-z0-9:-]*)[ \t]*$")
+
 func nativeVoidHTMLElement(name string) bool {
 	switch name {
 	case "area", "base", "br", "col", "embed", "hr", "img", "input",
@@ -22,7 +27,8 @@ func nativeVoidHTMLElement(name string) bool {
 
 func (s *markdownControlSurface) consumeHTMLTags(line string) bool {
 	tags := nativeHTMLTagPattern.FindAllStringSubmatch(line, -1)
-	if len(tags) == 0 {
+	incomplete := nativeHTMLIncompleteOpenPattern.FindAllStringSubmatch(line, -1)
+	if len(tags) == 0 && len(incomplete) == 0 {
 		return false
 	}
 	for _, match := range tags {
@@ -46,6 +52,13 @@ func (s *markdownControlSurface) consumeHTMLTags(line string) bool {
 			continue
 		}
 		s.htmlStack = append(s.htmlStack, tag)
+	}
+	for _, match := range incomplete {
+		if len(s.htmlStack) >= 32 {
+			s.htmlMalformed = true
+			continue
+		}
+		s.htmlStack = append(s.htmlStack, strings.ToLower(match[1]))
 	}
 	return true
 }
