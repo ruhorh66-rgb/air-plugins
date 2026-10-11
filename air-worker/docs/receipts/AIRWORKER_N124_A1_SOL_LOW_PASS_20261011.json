@@ -1,0 +1,45 @@
+{
+  "schema": "air-worker.n124.a1-independent-acceptance/v1",
+  "date_sgt": "2026-10-11",
+  "status": "A1_SCOPED_INDEPENDENT_PASS_N124_OPEN",
+  "reviewed_source_head": "03ad108ef2ec9cc9130c45fb2af85edb76cdc321",
+  "reviewer": {
+    "tool": "Official Codex CLI",
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "sandbox": "read-only",
+    "terminal_event": "turn.completed",
+    "error_events": 0,
+    "process_exit_code": null,
+    "verdict": "A1_PASS",
+    "p0": 0,
+    "p1": 0,
+    "p2": 0,
+    "findings": []
+  },
+  "machine_evidence": {
+    "events_sha256": "1f32f2f44fa43306ea9a233fc5f2fbca9fde940b0d21da4f79a25c288e200a78",
+    "prompt_sha256": "9255a981ded5008bc97b443cbf03bd041b088cdbbf9c10c65d41ec5f3ff10297",
+    "schema_sha256": "11442ace6a4dce0f0ceab88b1c60ff518b4356a15ce55782bf174e8c992f0e0a",
+    "stderr_bytes": 0,
+    "reviewer_reran_tests": false,
+    "source_clean": true
+  },
+  "a1_scope": "fixture-only exact PLAN + one new N-### node + operation-matched durable outbox candidate commit, isolated index, byte readback, original HEAD/index/worktree unchanged",
+  "repaired_P1": "incomplete PLAN-only or missing node/outbox candidate rejected before Git object writes; six negative tests added",
+  "host_qa": {
+    "scoped_exit": 0,
+    "negative_tests": 29,
+    "clone_old_head": "PASS",
+    "test_log_sha256": "4d3a497fdbfefbbb9e3cad3c340a04201a6f9d26ec7f26d5c73bae409c2db509",
+    "separate_junction_negative_exit": 0,
+    "junction_log_sha256": "a7449f3c400136d6a94e2ee738c5ac4ca004922d827e3d8741d57f91d5aa49ba",
+    "symlink_creation": "SKIP privilege unavailable; no UAC"
+  },
+  "next_gate": "N124-A2 disposable bare-origin canonical Git CAS publish: one-winner for two stale candidates, exact accepted commit readback and ambiguous result detection; A3 later native new/close and LEARN replay.",
+  "overall_n124": "OPEN",
+  "n120": "HOLD",
+  "full_go_qa": "NOT_RUN",
+  "release_or_install": false,
+  "unsafe_grants": false
+}
