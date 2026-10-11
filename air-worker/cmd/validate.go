@@ -441,7 +441,23 @@ func cmdValidate(argv []string) int {
 		}
 		return 2
 	}
+	// A successful native validation can prove a separate narrow learned
+	// preflight action: the configuration was actually present, checked and
+	// unchanged before/after the validator returned PASS. Mere SessionStart
+	// delivery, textual promises or file presence do not earn procedure_used.
+	recovery, recoveryErr := prepareNativePreflightRecoveredUse(append([]string{"validate"}, argv...), *product)
+	if recoveryErr != nil {
+		fmt.Fprintln(os.Stderr, "validate: learned preflight recovery evidence unavailable; native validator still runs")
+	}
 	report, code := validateProduct(*product)
+	if code == 0 && recovery != nil {
+		if err := recordNativePreflightRecoveredPass(recovery, report, code); err != nil {
+			// LEARN state is orthogonal to the original validator result.
+			// A failed or unproven learning receipt cannot turn true validation
+			// into failure, nor claim an unmeasured positive effect.
+			fmt.Fprintln(os.Stderr, "validate: native validation PASS, but learned-use evidence is not proved")
+		}
+	}
 	if *asJSON {
 		b, _ := json.MarshalIndent(report, "", "  ")
 		fmt.Print(string(b) + lineEnding)

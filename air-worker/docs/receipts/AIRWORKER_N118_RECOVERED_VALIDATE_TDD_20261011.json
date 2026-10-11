@@ -1,0 +1,36 @@
+{
+    "schema":  "air-worker.n118.true-validation-synthetic-tdd/v1",
+    "created_utc":  "2026-10-11T01:24:53.2108311Z",
+    "status":  "SCOPED_TDD_PASS_NOT_N118_CLOSED",
+    "source_parent_sha":  "9ecefd3667da93417cbe2a4ebab7d47959413957",
+    "source_branch":  "dev/airworker-n118-real-validation-pass-20261011",
+    "intent":  "After genuine native validate PASS and unchanged canonical config/PLAN bytes, correlate applied reviewed safe procedure to original signed native failure and module-owned procedure_used with immutable successful validation receipt",
+    "measured_effect":  "restored_configuration_followed_by_actual_native_validate_pass",
+    "test_context":  "isolated synthetic known-good validation fixture only; no real product config modified",
+    "src_files":  [
+                      "air-worker/cmd/validate.go",
+                      "air-worker/cmd/self_preflight_recovered.go",
+                      "air-worker/cmd/self_preflight_recovered_test.go"
+                  ],
+    "red_path":  "R:\\-4-\\air-worker\\work\\0.11.9\\n118-validate-pass-9ecefd3\\TDD_RED.txt",
+    "red_sha256":  "b534bc04840fb827857437d959c1c934729a3b2de2fa01d46b185f53e3267a4d",
+    "red_exit":  1,
+    "green_path":  "R:\\-4-\\air-worker\\work\\0.11.9\\n118-validate-pass-9ecefd3\\N118_RECOVERED_SCOPED_GREEN.txt",
+    "green_sha256":  "5c3f5f23f29194268f071f4e97ede47f562786ea96edac6b16b9dd2e72a0648e",
+    "green_exit":  0,
+    "negative_tests":  [
+                           "no real native validator PASS =\u003e no use",
+                           "no signed prior error =\u003e no use",
+                           "stale reviewed SHA =\u003e no use",
+                           "PLAN changes between precheck and native report =\u003e no use",
+                           "original signed failure modified =\u003e no use",
+                           "exact same config and native result =\u003e idempotent measured use"
+                       ],
+    "full_go_vet_build":  "PENDING_CLEAN_COMMIT",
+    "independent_codex_gpt6_sol_low":  "PENDING_CLEAN_COMMIT",
+    "real_new_process_recovery":  "NOT_PROVEN",
+    "N118_status":  "OPEN",
+    "N110_status":  "OPEN",
+    "installed_AirWorker":  "0.11.8_UNCHANGED",
+    "release_tag_install":  false
+}
