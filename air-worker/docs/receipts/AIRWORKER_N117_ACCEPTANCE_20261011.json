@@ -1,0 +1,52 @@
+{
+  "schema": "air-worker.n117.trusted-preflight-product-acceptance/v1",
+  "date_sgt": "2026-10-11",
+  "node": "SRVLM01",
+  "status": "N117_CLOSED_BY_NATIVE_CORE",
+  "source_tested_head": "ce2542e697dac7c75015121b45d3ab07f374a5d3",
+  "source_branch": "dev/airworker-0.11.9-selflearning-only-20261011",
+  "code_change": "Trusted native validate preflight missing run-config or PLAN; no private path/argv; signed immutable HMAC evidence",
+  "prior_independent_P1": "Whitespace-only cfg.Plan incorrectly classified against nativePlanPath",
+  "p1_resolution": "strings.TrimSpace applied before PLAN resolution; RED/GREEN tests on actual source",
+  "go_full_tests": {
+    "exit_code": 0,
+    "vet_exit_code": 0,
+    "build_exit_code": 0,
+    "verified_binary_sha256": "8250b78bc6709364da0798c0211683015a294ea64e0d4848b4b06b28ad3ed57c"
+  },
+  "independent_judge": {
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "sandbox": "read-only",
+    "verdict": "PASS",
+    "p0_open": 0,
+    "p1_open": 0,
+    "p2_open": 0
+  },
+  "true_production_review": {
+    "isolated_product": true,
+    "native_run_id": "AW-CLI-0cda882d2f1dd22df39cabc2",
+    "native_event_id": "EV-33bc88add809f430eeff0ab6",
+    "trusted_cause": "validate-run-config-missing",
+    "reviewer_model": "gpt-5.6-luna",
+    "reviewer_effort": "medium",
+    "reviewer_outcome": "candidate",
+    "proposal_id": "LP-EV-33bc88add809f430eeff0ab6",
+    "initial_proposal_journal_status": "PENDING_LPR",
+    "authoritative_native_ledger_status": "applied",
+    "module_pending_query_count": 0,
+    "applied_kind": "procedure",
+    "applied_target": "skills/learned/air-worker-cli-preflight-efe9e81b-f6e6ba39ba7d8d31.md",
+    "applied_sha256": "f6e6ba39ba7d8d3193c7a45be367facd781de004aca5989f3559e851b050313e",
+    "executable_or_blocking_rule_auto_granted": false
+  },
+  "machine_acceptance": {
+    "path": "R:\\-4-\\air-worker\\work\\0.11.9\\n117-ce2542e\\N117_REAL_AUTOREVIEW_ACCEPTANCE.json",
+    "sha256": "9570290a29418107dc55b0e7bcbc8f4b27f0e721781e0e3c52b0b0554e36eea7"
+  },
+  "measured_next_session_use": "NOT_PROVEN",
+  "measured_outcome_effect": "NOT_PROVEN",
+  "remaining": "N110 and N093 require real fresh-session selection/use/outcome/effect after safe procedure applied; N092 and N071 separate",
+  "installed_version": "0.11.8, untouched",
+  "release_or_install": false
+}
