@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -237,5 +239,36 @@ func TestN120RealJudgeFailureAutomaticallyReviewsAndAppliesSafeSkill(t *testing.
 	}
 	if reviews != 1 || sharedUsageCount(t, settings.RuntimeRoot, "procedure_used") != 0 {
 		t.Fatal("repeated native run dispatched duplicate reviewer or false procedure use")
+	}
+}
+
+func TestN120JudgeRejectsAncestorJunctionToForeignProduct(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows junction regression")
+	}
+	base := t.TempDir()
+	real := filepath.Join(base, "real-root")
+	alias := filepath.Join(base, "alias-root")
+	product := filepath.Join(real, "nested-product")
+	if err := os.MkdirAll(product, 0700); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := exec.Command("cmd", "/c", "mklink", "/J", alias, real).CombinedOutput()
+	if err != nil {
+		t.Skipf("junction could not be created in isolated fixture: %v: %s", err, raw)
+	}
+	viaAlias := filepath.Join(alias, "nested-product")
+	info, err := os.Lstat(viaAlias)
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		t.Fatalf("fixture leaf is not an ordinary directory, cannot test parent-only bypass: %v %v", info, err)
+	}
+	args := []string{"judge", "-product", viaAlias, "-json"}
+	if got := ownCLITrustedFailureCause(args, 2); got != "" {
+		t.Fatalf("parent junction to foreign product created trusted native judge missing config cause: %q", got)
+	}
+	// A real root with the same missing run-config remains diagnosable.
+	safeArgs := []string{"judge", "-product", product, "-json"}
+	if got := ownCLITrustedFailureCause(safeArgs, 2); got != "judge-run-config-missing" {
+		t.Fatalf("no alias real native root was refused, cause=%q", got)
 	}
 }

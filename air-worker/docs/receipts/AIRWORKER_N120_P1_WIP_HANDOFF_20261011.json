@@ -1,0 +1,62 @@
+{
+  "schema": "air-worker.n120.wip-handoff/v1",
+  "date_sgt": "2026-10-11",
+  "status": "STOPPED_WIP_P1_REPRODUCED_UNFIXED",
+  "node": "SRVLM01",
+  "worktree": "R:\\-4-\\air-worker\\worktrees\\airworker-0120-native-judge-20261011",
+  "product_subpath": "air-worker",
+  "branch": "dev/airworker-0.11.9-selflearn-judge-preflight-20261011",
+  "source_parent_sha": "3ecea9077b425e14cdf456fbfc2e364d56758911",
+  "authoritative_branch": "dev/airworker-0.11.9-selflearning-only-20261011",
+  "authoritative_head_unchanged": "d5ee3c42a72e8f9f1db16649a97ad786b136e0fb",
+  "canonical_plan": "air-worker/PLAN.md",
+  "node_id": "N-120_p0-auto-learn-real-native-judge-configuration-fa",
+  "parent_node": "N-110_p0-auto-capture-persist-every-real-airworker-ses",
+  "node_status": "OPEN",
+  "other_open_nodes": [
+    "N-110_p0-auto-capture-persist-every-real-airworker-ses",
+    "N-093_p0-self-use-verifiable-outcome-for-newly-learned"
+  ],
+  "committed_baseline_qa": {
+    "source_sha": "3ecea9077b425e14cdf456fbfc2e364d56758911",
+    "go_test_exit": 0,
+    "go_vet_exit": 0,
+    "build_exit": 0,
+    "artifact": "R:\\-4-\\air-worker\\work\\0.11.9\\n120-judge-3ecea90\\QA_FULL.json",
+    "binary_sha256": "6c2641961f1abb38646d226aa0e3302d9241fc34624d9b555dceb5777cca2d35"
+  },
+  "independent_judge": {
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "verdict": "CHANGES_REQUIRED",
+    "p0_open": 0,
+    "p1_open": 1,
+    "p2_open": 0,
+    "source_sha": "3ecea9077b425e14cdf456fbfc2e364d56758911",
+    "verdict_file": "R:\\-4-\\air-worker\\work\\0.11.9\\n120-judge-3ecea90\\SOL_LOW_VERDICT.json",
+    "sha256": "3accc0c78dab5ae555e5b7779346363dd75a7315e59a3714fa72b35230755fdf",
+    "finding": "cmd/self_cli_trusted_cause.go line 130: -product ancestor junction/symlink path can be accepted as trusted missing-file cause"
+  },
+  "wip": {
+    "file": "air-worker/cmd/self_judge_preflight_test.go",
+    "sha256_before_commit": "5e93e186e32545d2a70c4e5f53f869a9b484c9ee7ab0224e06bfed29df0ddbdd",
+    "added_test": "TestN120JudgeRejectsAncestorJunctionToForeignProduct",
+    "red_log": "R:\\-4-\\air-worker\\work\\0.11.9\\n120-judge-3ecea90\\P1_PARENT_JUNCTION_TDD_RED.txt",
+    "red_log_sha256": "a0b27485a638185f0be3b3dea80d20a50f8445128e8ed94db53bf558e7bcff3a",
+    "red_exit": 1,
+    "root_cause_fix_implemented": false
+  },
+  "next_gate": "P1 ancestor path identity fix -> targeted GREEN -> full Go/vet/build on new committed source -> independent Sol low PASS -> real isolated reviewer smoke -> native node close",
+  "safe_actions": {
+    "git_reset_or_clean": false,
+    "release": false,
+    "tag": false,
+    "install": false,
+    "reboot": false,
+    "UAC": false,
+    "stop_foreign_services": false,
+    "manual_plan_or_learn_edits": false
+  },
+  "installed_version": "0.11.8",
+  "source_pushed_before_wip_sha": "3ecea9077b425e14cdf456fbfc2e364d56758911"
+}
