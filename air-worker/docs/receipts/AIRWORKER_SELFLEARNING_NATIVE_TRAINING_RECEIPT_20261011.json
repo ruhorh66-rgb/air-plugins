@@ -1,0 +1,98 @@
+{
+    "schema":  "air-worker.self-learning.human-curated-native-training/v1",
+    "created_utc":  "2026-10-11T05:57:25.6738979Z",
+    "status":  "CURATED_EVENTS_REGISTERED_VIA_NATIVE_LEARN_NOT_AUTO_APPLIED",
+    "source_type":  "human-curated-session-postmortem",
+    "branch":  "dev/airworker-selflearning-retro-authority-20261011",
+    "parent_N120_plan_commit":  "06283c8c1718567645f1cc0191229146dd464b62",
+    "LEARN_entries_count":  186,
+    "lesson_events_count":  9,
+    "correction_events_count":  1,
+    "corrected_LEARN_event_id":  "LR-20261011T055524Z-815bd9e9",
+    "correction_original_LEARN_id":  "LR-20261011T055437Z-232e1503",
+    "learn_journal_sha256":  "3ff168d223659ccea2908298d82d1bdcd9490cde44b55bbce69c947627276a4f",
+    "procedure_used_count_for_this_legacy_branch":  0,
+    "automatic_review_from_curated_events":  "NOT_RUN",
+    "safe_skill_auto_applied_from_curated_events":  "NOT_PROVEN",
+    "new_session_skill_used_from_curated_events":  "NOT_PROVEN",
+    "training_data_cases":  11,
+    "holdout_cases":  4,
+    "training_curriculum_sha256":  "6c28aae3979555222ff0e48fc8374fcfb68b6ad0cb722c2891489d453b03b4c4",
+    "training_playbook_sha256":  "2c451fc805659c0808ac94ee0bc58976c9d5e0eaddef3453c8e7abf2064c85e9",
+    "collision_sha256":  "cb80b22b3b629549de6243e87847ac7b5cc7eeb1e1dab8ccd467ba24e2ef1e59",
+    "created_native_plan_nodes":  [
+                                      "N-121_p0-real-airworker-session-failures-automatically",
+                                      "N-122_p0-learned-safety-preflight-prevents-recurrent-p",
+                                      "N-123_p0-resume-durable-qa-judge-jobs-after-chat-inter",
+                                      "N-124_p1-detect-cross-branch-node-id-collision-and-sta",
+                                      "N-125_p0-causal-learned-use-effect-and-recurrence-prev"
+                                  ],
+    "native_event_ids":  [
+                             {
+                                 "case_id":  "AW-RETRO-T01",
+                                 "native_LEARN_id":  "LR-20261011T055437Z-232e1503",
+                                 "event_class":  "self-learning.path-trust",
+                                 "kind":  "lesson",
+                                 "evidence":  "docs/receipts/AIRWORKER_NODE_ID_COLLISION_REPRO_20261011.json"
+                             },
+                             {
+                                 "case_id":  "AW-RETRO-T02",
+                                 "native_LEARN_id":  "LR-20261011T055600Z-ca696580",
+                                 "event_class":  "retro.trusted-effect",
+                                 "kind":  "lesson",
+                                 "evidence":  "R:\\-4-\\air-modules\\work\\n118-atomic-use-dbea2b7\\SOL_LOW_VERDICT.json"
+                             },
+                             {
+                                 "case_id":  "AW-RETRO-T03",
+                                 "native_LEARN_id":  "LR-20261011T055600Z-31b79c92",
+                                 "event_class":  "retro.learning-ledger",
+                                 "kind":  "lesson",
+                                 "evidence":  "R:\\-4-\\air-worker\\work\\0.11.9\\n118-validate-pass-7cb19da\\SOL_LOW_VERDICT.json"
+                             },
+                             {
+                                 "case_id":  "AW-RETRO-T06",
+                                 "native_LEARN_id":  "LR-20261011T055600Z-4fe52524",
+                                 "event_class":  "retro.durable-execution",
+                                 "kind":  "lesson",
+                                 "evidence":  "R:\\-4-\\air-worker\\work\\0.11.9\\n120-judge-3ecea90\\QA_FULL.json"
+                             },
+                             {
+                                 "case_id":  "AW-RETRO-T07",
+                                 "native_LEARN_id":  "LR-20261011T055600Z-0a165be9",
+                                 "event_class":  "retro.plan-authority",
+                                 "kind":  "lesson",
+                                 "evidence":  "R:\\-4-\\air-worker\\work\\0.11.9\\n119-integrate-d0f0666\\INTEGRATION_TREE_PROOF.json"
+                             },
+                             {
+                                 "case_id":  "AW-RETRO-T08",
+                                 "native_LEARN_id":  "LR-20261011T055600Z-ecaa382f",
+                                 "event_class":  "retro.cli-capability",
+                                 "kind":  "lesson",
+                                 "evidence":  "docs/receipts/AIRWORKER_SELFLEARNING_SESSION_POSTMORTEM_20261011.md"
+                             },
+                             {
+                                 "case_id":  "AW-RETRO-T09",
+                                 "native_LEARN_id":  "LR-20261011T055601Z-0b78a648",
+                                 "event_class":  "retro.causal-effect",
+                                 "kind":  "lesson",
+                                 "evidence":  "docs/receipts/AIRWORKER_N118_FINAL_MACHINE_ACCEPTANCE_20261011.json"
+                             },
+                             {
+                                 "case_id":  "AW-RETRO-T10",
+                                 "native_LEARN_id":  "LR-20261011T055601Z-5239d49c",
+                                 "event_class":  "retro.test-fixture",
+                                 "kind":  "lesson",
+                                 "evidence":  "docs/receipts/AIRWORKER_SELFLEARNING_SESSION_POSTMORTEM_20261011.md"
+                             },
+                             {
+                                 "case_id":  "AW-RETRO-T11",
+                                 "native_LEARN_id":  "LR-20261011T055601Z-bac8751e",
+                                 "event_class":  "retro.plan-node-id-collision",
+                                 "kind":  "lesson",
+                                 "evidence":  "docs/receipts/AIRWORKER_NODE_ID_COLLISION_REPRO_20261011.json"
+                             }
+                         ],
+    "next_action":  "N120 native junction P1 fix, then N124 global IDs, N121 automatic true session intake",
+    "release_or_install":  false,
+    "installed_airworker":  "0.11.8"
+}

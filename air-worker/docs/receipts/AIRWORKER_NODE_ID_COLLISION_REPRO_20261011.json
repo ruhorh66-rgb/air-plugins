@@ -1,0 +1,26 @@
+{
+    "saved_foreign_N120_branch_head":  "963b0bc590b7252af3557c225c94bb29f23676b2",
+    "corrected_allocated_ids":  [
+                                    "N-121",
+                                    "N-122",
+                                    "N-123",
+                                    "N-124",
+                                    "N-125"
+                                ],
+    "original_N120_id":  "N-120_p0-auto-learn-real-native-judge-configuration-fa",
+    "wrong_branch":  "dev/airworker-selflearning-postmortem-20261011",
+    "corrected_branch":  "dev/airworker-selflearning-retro-authority-20261011",
+    "source_of_truth":  "Native PLAN node creation only; wrong branch must not be merged",
+    "native_N120_commit":  "06283c8c1718567645f1cc0191229146dd464b62",
+    "schema":  "air-worker.plan.branch-id-collision/v1",
+    "planned_gate":  "N-124",
+    "canonical_previous_head":  "d5ee3c42a72e8f9f1db16649a97ad786b136e0fb",
+    "accidentally_reused_N120_id":  "N-120_p0-self-learning-capture-real-tool-failures-and-d",
+    "fix_implemented_in_native_core":  false,
+    "manual_plan_node_edits":  false,
+    "priority":  "P1",
+    "at_utc":  "2026-10-11T05:53:23.6990970Z",
+    "status":  "REPRODUCED_AND_PREVENTED_BY_CORRECT_PLAN_ANCESTRY",
+    "reference_training_case":  "AW-RETRO-T11",
+    "corrected_N120_id":  "N-120_p0-auto-learn-real-native-judge-configuration-fa"
+}

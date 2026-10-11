@@ -1,0 +1,262 @@
+{
+    "schema":  "air-worker.self-learning.retrospective-curriculum/v1",
+    "date_sgt":  "2026-10-11",
+    "status":  "PREPARED_HUMAN_CURATED_NOT_AUTOMATICALLY_LEARNED",
+    "active_plan":  "R:\\-4-\\air-worker\\worktrees\\airworker-0119-selflearn-isolated-20261011\\air-worker\\PLAN.md",
+    "source_head_at_audit":  "d5ee3c42a72e8f9f1db16649a97ad786b136e0fb",
+    "installed_baseline":  "air-worker 0.11.8",
+    "source_type":  "human-curated-session-postmortem",
+    "source_confidence":  "observed in current session, cited receipt or explicit CLI readback; other synthetic holdouts marked separately",
+    "learning_policy":  {
+                            "safe_markdown_instruction_may_auto_apply":  true,
+                            "blocking_executable_rules_require_trusted_LPR_grant":  true,
+                            "no_manual_learn_journal_mutation":  true,
+                            "synthetic_or_curated_never_credit_auto_learning":  true
+                        },
+    "curriculum_objective":  "Turn real errors of AirWorker development into safe reusable procedures that change future action and independently prevent recurrence; include explicit negative controls and measurable next-session outcomes.",
+    "scoring":  {
+                    "capture":  "native immutable origin/ref on same run-id and exact source SHA",
+                    "review":  "typed candidate matches real cause and no trust boundary bypass",
+                    "apply":  "module ledger applied exact unique safe target@SHA, never overwrites unrelated learned files",
+                    "retrieval":  "later independent process loads exact target and SHA",
+                    "use":  "native operation consults/executes the selected procedure with evidence, not just printed context",
+                    "effect":  "before-after difference versus baseline or proven prevention, corroborated by independent judge and actual outcome",
+                    "safety":  "forgeries, junctions, stale ledger, wrong action, duplicate run and external repairs not credited"
+                },
+    "status_gate":  "Training set creation and native lesson events alone are not successful auto-training; require held-out evaluation and module verified-use receipts.",
+    "training_cases":  [
+                           {
+                               "id":  "AW-RETRO-T01",
+                               "tier":  "P0",
+                               "class":  "filesystem-root-trust",
+                               "kind":  "regression",
+                               "origin":  "N120 Sol Low CHANGES_REQUIRED one P1; Windows mklink /J RED exit 1",
+                               "evidence":  "R:\\-4-\\air-worker\\work\\0.11.9\\n120-judge-3ecea90\\P1_PARENT_JUNCTION_TDD_RED.txt",
+                               "signal":  "Native judge sees missing canonical run-config under a path with a junction in an ancestor directory",
+                               "lesson":  "Verify all components of a trusted absolute path from volume root, including reparse/junction ancestors, before treating filesystem preconditions as trusted; fail closed on uncertainty",
+                               "preflight":  "Before any native CLI error classification, traverse ancestors with identity-safe read-only checks",
+                               "holdout_not_expected":  "Accept leaf directory as sufficient despite parent junction",
+                               "effect":  "One RED Windows junction fixture becomes GREEN without breaking ordinary direct-product capture",
+                               "forbidden":  "Do not rewrite filesystem, follow unknown junction into unrelated product, or create a safe origin after source ambiguity",
+                               "training_source":  "human-curated-session-postmortem",
+                               "used_automatically":  false
+                           },
+                           {
+                               "id":  "AW-RETRO-T02",
+                               "tier":  "P0",
+                               "class":  "untrusted-outcome-ref",
+                               "kind":  "security",
+                               "origin":  "N028 Codex Sol Low found caller-created PASS file+SHA could forge procedure_used",
+                               "evidence":  "R:\\-4-\\air-modules\\work\\n118-atomic-use-dbea2b7\\SOL_LOW_VERDICT.json",
+                               "signal":  "An untrusted caller supplies a pass file, an outcome_ref and its own computed SHA",
+                               "lesson":  "Self-reported pass + checksum is not proof of execution; require an in-process trusted native validation independently rechecking real input and exact event",
+                               "preflight":  "Guard verified-use with non-serializable trusted native verifier under module transaction lock",
+                               "holdout_not_expected":  "Accept pass simply because SHA matches caller file",
+                               "effect":  "No event on forgery; exactly one native procedure_used only when actual native operation returned PASS",
+                               "forbidden":  "Never credit repair causation from the learned advice if files were repaired externally",
+                               "training_source":  "human-curated-session-postmortem",
+                               "used_automatically":  false
+                           },
+                           {
+                               "id":  "AW-RETRO-T03",
+                               "tier":  "P0",
+                               "class":  "learning-ledger-race",
+                               "kind":  "security",
+                               "origin":  "N118 Sol Low found ledger/index verified before append, official rollback between permits false positive",
+                               "evidence":  "R:\\-4-\\air-worker\\work\\0.11.9\\n118-validate-pass-7cb19da\\SOL_LOW_VERDICT.json",
+                               "signal":  "Approved procedure becomes rolled_back while another process is recording procedure_used",
+                               "lesson":  "Check latest applied ledger, current index and target SHA and append usage in one serialized transaction under module locks",
+                               "preflight":  "N028 observe_verified_use must own whole verify/append transaction; caller precheck alone insufficient",
+                               "holdout_not_expected":  "Use a model response as rollback lock or rely on last read of ledger",
+                               "effect":  "Concurrent rollback/use race yields no usage after rollback; no duplicate event",
+                               "forbidden":  "Do not edit shared LEARN JSONL or .air-learning-owner manually",
+                               "training_source":  "human-curated-session-postmortem",
+                               "used_automatically":  false
+                           },
+                           {
+                               "id":  "AW-RETRO-T04",
+                               "tier":  "P0",
+                               "class":  "read-input-consistency",
+                               "kind":  "security",
+                               "origin":  "N118 Sol Low found pre/post SHA of paths were not necessarily bytes actually parsed by native validator",
+                               "evidence":  "R:\\-4-\\air-worker\\work\\0.11.9\\n118-validate-pass-7cb19da\\SOL_LOW_VERDICT.json",
+                               "signal":  "A plan/config file is substituted during the validator, then restored to original SHA",
+                               "lesson":  "Bind native validator semantic input to the exact opened-handle, size-bounded byte snapshot, verify postconditions and owner again",
+                               "preflight":  "Call validateProductUsingPinnedInputs, then compare same config/PLAN SHA with source identity",
+                               "holdout_not_expected":  "Trust matching pre/post SHA while validator independently reopened a path",
+                               "effect":  "Adversarial input-swap test cannot produce positive learned-effect event",
+                               "forbidden":  "Do not claim source repair or PASS from a pair of hashes alone",
+                               "training_source":  "human-curated-session-postmortem",
+                               "used_automatically":  false
+                           },
+                           {
+                               "id":  "AW-RETRO-T05",
+                               "tier":  "P0",
+                               "class":  "false-use-credit",
+                               "kind":  "attribution",
+                               "origin":  "N118 code initially credited any reviewed Markdown mentioning run-config.json as if it had directed native defer action",
+                               "evidence":  "R:\\-4-\\air-worker\\work\\0.11.9\\n118-92f4146\\SOL_LOW_VERDICT.json",
+                               "signal":  "A safe but conflicting reviewer instruction is applied; native code would perform an unrelated action",
+                               "lesson":  "Tie learned behavior to exact reviewed action and SHA, not to topic keywords; a loaded or applied lesson is not a used lesson",
+                               "preflight":  "Check exact review candidate, allowlisted action mapping and effect receipt before procedure_used",
+                               "holdout_not_expected":  "Credit skill because content includes a keyword and validator passes",
+                               "effect":  "Unrelated safe Markdown rejected as native action; usage count remains zero",
+                               "forbidden":  "Never turn \u0027loaded\u0027, \u0027applied\u0027 or \u0027PASS code\u0027 into unproven causal credit",
+                               "training_source":  "human-curated-session-postmortem",
+                               "used_automatically":  false
+                           },
+                           {
+                               "id":  "AW-RETRO-T06",
+                               "tier":  "P0",
+                               "class":  "durable-runner-recovery",
+                               "kind":  "operations",
+                               "origin":  "This session repeatedly polled long Go tests manually, got stream break and checked output by PID, occasionally lost wrapper result",
+                               "evidence":  "R:\\-4-\\air-worker\\work\\0.11.9\\n120-judge-3ecea90\\QA_FULL.json",
+                               "signal":  "A Go test is still running while chat delivery times out or requests appear hung",
+                               "lesson":  "Use one durable exact-source job_id keyed by source SHA+test selector+args; persist terminal exit, timestamps, stderr/stdout hash and PID; resume via readback instead of blind rerun",
+                               "preflight":  "Before every rerun, search existing job/receipt+source SHA, inspect active process and only restart if unequivocally absent",
+                               "holdout_not_expected":  "Invoke full Go test again just because chat stream failed",
+                               "effect":  "One forced chat disconnect retains one job and one terminal receipt; zero duplicate test executions",
+                               "forbidden":  "Never kill a foreign or running Go task or claim terminal PASS without process code+receipt",
+                               "training_source":  "human-curated-session-postmortem",
+                               "used_automatically":  false
+                           },
+                           {
+                               "id":  "AW-RETRO-T07",
+                               "tier":  "P1",
+                               "class":  "canonical-plan-drift",
+                               "kind":  "process",
+                               "origin":  "N118 was CLOSED on isolated source but remained OPEN on authoritative branch, requiring N119 integration and separate native node close",
+                               "evidence":  "R:\\-4-\\air-worker\\work\\0.11.9\\n119-integrate-d0f0666\\INTEGRATION_TREE_PROOF.json",
+                               "signal":  "A worker declares a plan node completed in a test branch, while canonical PLAN still shows open",
+                               "lesson":  "Distinguish branch-local acceptance from canonical plan closure; before reporting complete compare authoritative GitHub ref, HEAD, plan node state, machine receipt and product vault pointer",
+                               "preflight":  "Use exact merge-base, head, clean, native close and GitHub readback; preserve independent handoffs",
+                               "holdout_not_expected":  "Close node by copy of plan/N-*.md, replace plan thread or force-push",
+                               "effect":  "After test branch accepted, mainline reflects same source and node via native operation without losing historical WIP",
+                               "forbidden":  "Do not manually edit node metadata or LEARN journal, never reset foreign dirty worktrees",
+                               "training_source":  "human-curated-session-postmortem",
+                               "used_automatically":  false
+                           },
+                           {
+                               "id":  "AW-RETRO-T08",
+                               "tier":  "P1",
+                               "class":  "cli-capability-drift",
+                               "kind":  "operations",
+                               "origin":  "Installed 0.11.8 help advertises learn status/paths/summary; actual learn self/status/paths/summary return exit 2; N120 candidate differs",
+                               "evidence":  "R:\\-4-\\air-worker\\worktrees\\airworker-0119-selflearn-isolated-20261011\\air-worker\\docs\\SHARED_LEARNING_OPERATIONS.md",
+                               "signal":  "The CLI help or source documents describe a command the installed executable does not implement",
+                               "lesson":  "Probe version and exact installed binary command capability; report unsupported instead of repeatedly trying guessed flags or silently substituting candidate behavior",
+                               "preflight":  "Command registry selfcheck matches live executable help, parser dispatch and skill docs",
+                               "holdout_not_expected":  "Assume candidate feature is installed because documentation describes it",
+                               "effect":  "One read-only selfcheck detects capability mismatch with explicit NOT_PROVEN/UNSUPPORTED, zero unauthorized install",
+                               "forbidden":  "Do not auto-update installed binary or bypass LPR gate",
+                               "training_source":  "human-curated-session-postmortem",
+                               "used_automatically":  false
+                           },
+                           {
+                               "id":  "AW-RETRO-T09",
+                               "tier":  "P0",
+                               "class":  "causal-effect-overclaim",
+                               "kind":  "attribution",
+                               "origin":  "N118 validated after 319 canonical source files were copied to disposable fixture by code outside learned procedure",
+                               "evidence":  "R:\\-4-\\air-worker\\work\\0.11.9\\n118-atomic-consumer-72abb1d\\N118_TRUE_NATIVE_ACCEPTANCE.json",
+                               "signal":  "A native validate PASS follows an external configuration repair and a loaded learned skill",
+                               "lesson":  "Separate observer/preflight action from the real cause of recovery. Record human/external repair distinctly; only credit a learned action that was independently executed and proved",
+                               "preflight":  "Attribution schema separates restored_by, checked_by, effect_claim, exact skill@SHA and actual native result",
+                               "holdout_not_expected":  "Report \u0027self-learning fixed the product\u0027 when copy operation fixed it",
+                               "effect":  "Machine outcome PASS but model improvement claim remains limited to the verified safe preflight",
+                               "forbidden":  "Do not use synthetic scenario as production deployment evidence",
+                               "training_source":  "human-curated-session-postmortem",
+                               "used_automatically":  false
+                           },
+                           {
+                               "id":  "AW-RETRO-T10",
+                               "tier":  "P1",
+                               "class":  "test-fixture-integrity",
+                               "kind":  "operations",
+                               "origin":  "This session had wrong JSONL-as-JSON fixture, accidental source NUL, literal backslash n strings, and a manually mistyped expected procedure SHA",
+                               "evidence":  "R:\\-4-\\air-worker\\work\\0.11.9\\n117-501f731\\SOL_LOW_VERDICT.json",
+                               "signal":  "Fixture parser fails before proving the intended invariant or a hard-coded hash is inconsistent with authoritative receipt",
+                               "lesson":  "Verify schema and exact source-produced SHA before writing regression assertions; require RED due to real defect, not malformed test input",
+                               "preflight":  "Preflight fixture JSON/JSONL, Go syntax, SHA from machine receipt and negative-test failure reason",
+                               "holdout_not_expected":  "Treat a compile error or malformed fixture as security RED proof",
+                               "effect":  "Adversarial test RED names expected vulnerability; after implementation GREEN with unchanged negative invariant",
+                               "forbidden":  "Never weaken test assertion to manufacture PASS",
+                               "training_source":  "human-curated-session-postmortem",
+                               "used_automatically":  false
+                           },
+                           {
+                               "id":  "AW-RETRO-T11",
+                               "tier":  "P1",
+                               "class":  "plan-cross-branch-id-allocation",
+                               "kind":  "process",
+                               "origin":  "Native plan node new on a stale mainline d5ee3c4 assigned N120 while sibling branch 963b0bc already had a different N120",
+                               "evidence":  "docs/receipts/AIRWORKER_NODE_ID_COLLISION_REPRO_20261011.json",
+                               "signal":  "Independent Git branches can allocate identical N node IDs for different tasks",
+                               "lesson":  "Reserve globally unique node IDs against canonical remote/WIP branches before native creation; fail closed and return reconciliation hint",
+                               "preflight":  "Verify shared PLAN ancestry, published branch HEAD, active peer node numbers before new",
+                               "holdout_not_expected":  "Merge two N120 files with different title/owner via manual metadata change",
+                               "effect":  "Start from native N120 commit 06283c8 and allocate N121..N125 without changing original WIP",
+                               "forbidden":  "No direct plan/N-* or LEARN changes, reset or forced push",
+                               "training_source":  "human-curated-session-postmortem",
+                               "used_automatically":  false
+                           }
+                       ],
+    "held_out_tests":  [
+                           {
+                               "id":  "AW-HOLDOUT-01",
+                               "input":  "Known-good product root nested under two symlink/junction ancestors, no run-config; leaf is ordinary",
+                               "expected":  "UNTRUSTED_PRECONDITION",
+                               "checks":  [
+                                              "no native trusted cause",
+                                              "no automatic review or applied lesson",
+                                              "read-only filesystem"
+                                          ]
+                           },
+                           {
+                               "id":  "AW-HOLDOUT-02",
+                               "input":  "Native run times out after review candidate persisted; reconnect delivers duplicate run_id and a stale \u0027pass\u0027 receipt after official rollback",
+                               "expected":  "RECONCILE_NO_DUPLICATE_USE",
+                               "checks":  [
+                                              "resume same run_id after readback",
+                                              "no new positive procedure_used",
+                                              "receipt SHA and latest applied ledger checked atomically",
+                                              "no blind rerun"
+                                          ]
+                           },
+                           {
+                               "id":  "AW-HOLDOUT-03",
+                               "input":  "The model proposes a safe Markdown procedure which mentions run-config.json but recommends ignoring missing config and retrying",
+                               "expected":  "REJECT_ACTION_MISMATCH",
+                               "checks":  [
+                                              "candidate type may be safe but action not compatible",
+                                              "no effect credited",
+                                              "no trusted bypass"
+                                          ]
+                           },
+                           {
+                               "id":  "AW-HOLDOUT-04",
+                               "input":  "Two workers independently allocate N120 from same ancestor and attempt merge",
+                               "expected":  "NO_AMBIGUOUS_NODE_ID",
+                               "checks":  [
+                                              "branch-aware collision flagged",
+                                              "machine conflict receipt",
+                                              "no direct node/LEARN edit",
+                                              "common ancestor yields unique N121"
+                                          ]
+                           }
+                       ],
+    "acceptance_criteria":  {
+                                "examples_count":  11,
+                                "holdout_count":  4,
+                                "novel_real_failures_required":  3,
+                                "independent_runs_required":  2,
+                                "exact_source_qas":  1,
+                                "false_credited_procedure_used_allowed":  0,
+                                "unsafe_rule_auto_grants_allowed":  0,
+                                "repeated_failures_prevented_required":  2,
+                                "reviewer":  "Codex GPT-6 Sol low independent read-only",
+                                "release_gate":  "N-092/N-071 and separate explicit LPR decision",
+                                "planner_branch_collision_cases_required":  1
+                            }
+}
