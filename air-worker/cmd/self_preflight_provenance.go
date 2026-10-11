@@ -11,6 +11,13 @@ import (
 
 // A learned Markdown file is not proof of use. The original signed native
 // error must have an exact reviewed candidate and an applied module ledger.
+// This narrow release-owned action contract accepts ONLY the exact previously
+// reviewed, machine-hash-pinned safe preflight template. An arbitrary new
+// Markdown instruction (even one mentioning run-config.json) may be safely
+// stored for human reading but CANNOT claim the native defer action. New
+// supported action templates require code/negative tests and their own gate.
+const n118ApprovedPreflightDeferralSHA = "f6e6ba39ba7d8d3193c7a45be367facd781de004aca5989f3559e851b050313e"
+
 func findAppliedPreflightRule(owner selfLearningOwner, prior ownCLIFailureReceipt) (selfLearningLoadedRule, string, bool, error) {
 	var none selfLearningLoadedRule
 	if prior.Schema != ownCLIFailureSchema || prior.CauseCode != "validate-run-config-missing" ||
@@ -103,6 +110,13 @@ func findAppliedPreflightRule(owner selfLearningOwner, prior ownCLIFailureReceip
 		return none, "", false, errors.New("reviewed candidate differs from exact safe Markdown procedure")
 	}
 	rule := selfLearningLoadedRule{Target: target, SHA256: learnSHA(body)}
+	// A reviewed candidate is evidence that a new PROCEDURE was generated,
+	// not evidence it instructed this precise native DEFER action. Until a
+	// release-owned verifier supports additional safely typed actions, only
+	// the exact audited positive preflight procedure may be credited.
+	if !strings.EqualFold(rule.SHA256, n118ApprovedPreflightDeferralSHA) {
+		return none, "", false, errors.New("reviewed preflight lesson has no release-owned safe deferral action contract")
+	}
 	if !currentSelfLearningRuleBytes(owner, rule) {
 		return none, "", false, errors.New("preflight rule stale/linked after review")
 	}

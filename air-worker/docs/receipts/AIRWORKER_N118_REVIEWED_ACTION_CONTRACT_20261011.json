@@ -1,0 +1,38 @@
+{
+  "schema": "air-worker.n118.p1-action-contract-scoped/v1",
+  "at_sgt_date": "2026-10-11",
+  "status": "SCOPED_PASS_NOT_N118_COMPLETE",
+  "source_parent_sha": "92f41465bf4b5dff0f48c20eebb06ebb7642bdb4",
+  "previous_independent_judge": {
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "verdict": "CHANGES_REQUIRED",
+    "p0_open": 0,
+    "p1_open": 1,
+    "p2_open": 0,
+    "verdict_path": "R:\\-4-\\air-worker\\work\\0.11.9\\n118-92f4146\\SOL_LOW_VERDICT.json"
+  },
+  "issue": "A reviewer-applied Markdown with any run-config.json mention could be credited as native deferred validation even when its actual action differed",
+  "mitigation": "Narrow release-owned SHA gate for only exact earlier independently reviewed safe preflight deferral Markdown; reject all unrecognized instructions, including valid reviewed safe but different action; do not change original module ledger or approval state",
+  "approved_action_sha256": "f6e6ba39ba7d8d3193c7a45be367facd781de004aca5989f3559e851b050313e",
+  "safety_limited_scope": "Only this specific machine action, not general autonomous policy or executable control rule approval",
+  "negative_test": {
+    "name": "TestN118AppliedButDifferentReviewedActionCannotClaimUse",
+    "result": "PASS_EXIT_0",
+    "log_path": "R:\\-4-\\air-worker\\work\\0.11.9\\n118-92f4146\\P1_OTHER_SAFE_ACTION_TARGETED.txt",
+    "sha256": "0cca0e4c74d1d3f8ee505159ad999cf92db29b4a69061e22fa5f0c216b436cd5"
+  },
+  "full_scoped_test": {
+    "result": "PASS_EXIT_0",
+    "log_path": "R:\\-4-\\air-worker\\work\\0.11.9\\n118-92f4146\\P1_RELEASE_OWNED_ACTION_GREEN.txt",
+    "sha256": "3f61e5dee20d9d48360e7c819280ba5b42d00a9dc9270433f95d2bd039ac1e6c"
+  },
+  "original_time_gate_history": "Initial full Go suite on 92f4146 failed two strict Stop timing contracts under host contention; targeted strict 5s tests PASS; later entire same-SHA clean full suite PASS. All receipts preserved.",
+  "full_exact_go_vet_build": "PENDING_NEW_CLEAN_COMMIT",
+  "independent_gpt6_sol_low": "PENDING_NEW_CLEAN_COMMIT",
+  "real_native_next_process_smoke": "NOT_RUN_ON_THIS_PATCH",
+  "N118": "OPEN",
+  "N110": "OPEN",
+  "installed_air_worker": "0.11.8 unchanged",
+  "released_or_installed": false
+}

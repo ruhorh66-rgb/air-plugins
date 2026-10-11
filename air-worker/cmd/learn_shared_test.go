@@ -108,6 +108,15 @@ func TestLearningProcessHelper(t *testing.T) {
 			"pre_sha256": "",
 			"content":    n118SafePreflightProcedure,
 		})
+	case "review-native-preflight-other-action":
+		// A valid REVIEWED Markdown candidate is not automatically a safe
+		// authorization to perform this one machine-observable native action.
+		json.NewEncoder(os.Stdout).Encode(map[string]string{
+			"kind":       "procedure",
+			"target":     "skills/learned/air-worker-cli-preflight-other-action-test.md",
+			"pre_sha256": "",
+			"content":    n118OtherSafeActionProcedure,
+		})
 	case "delivery":
 		h := sha256.Sum256(b)
 		json.NewEncoder(os.Stdout).Encode(map[string]string{"sha256": hex.EncodeToString(h[:]), "channel_ref": "fixture/loopback", "message_id": "fixture-message"})

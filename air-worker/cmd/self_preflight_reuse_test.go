@@ -12,10 +12,15 @@ import (
 // an LLM assertion. Matching a trusted prior failure is necessary but is
 // deliberately NOT yet proof of procedure_used/outcome/effect.
 const n118SafePreflightProcedure = "# Preflight the Canonical Product Configuration\n\n" +
-	"## When to apply\nBefore retrying native AirWorker validate after run-config.json was missing.\n\n" +
-	"## Procedure\n1. Verify the canonical product root and expected existing configuration.\n" +
-	"2. Defer validation while run-config.json is still missing; do not invent a substitute.\n\n" +
-	"## Pitfalls\nDo not claim validation succeeded from a deferred retry.\n"
+	"## When to apply\n\n" +
+	"Before retrying a native AirWorker CLI validation after a missing-configuration failure.\n\n" +
+	"## Procedure\n\n" +
+	"1. Locate the canonical product root.\n" +
+	"2. Verify that the expected existing configuration is present and readable.\n" +
+	"3. Only then reattempt validation; do not invent or silently replace missing configuration.\n\n" +
+	"## Pitfalls\n\n" +
+	"- Treating a missing `run-config.json` as permission to create a substitute.\n" +
+	"- Retrying validation without first confirming the product root and its configuration.\n"
 
 func TestN118ExactPriorFailureBindingAndPrivacy(t *testing.T) {
 	product, settings, _ := selfLearningFixture(t)
@@ -112,3 +117,65 @@ func TestN118OnlyActualReviewedAppliedPreflightIsEligible(t *testing.T) {
 		t.Fatalf("changed reviewed skill was silently accepted: %v %v", eligible, err)
 	}
 }
+
+func TestN118ReleaseOwnedApprovedPreflightProcedureSHA(t *testing.T) {
+	got := learnSHA([]byte(n118SafePreflightProcedure))
+	if got != n118ApprovedPreflightDeferralSHA {
+		t.Fatalf("canonical approved safe-preflight action SHA mismatch: %s", got)
+	}
+}
+
+func TestN118AppliedButDifferentReviewedActionCannotClaimUse(t *testing.T) {
+	product, settings, _ := selfLearningFixture(t)
+	settings.Reviewer = learningAdapterFixture(t, "review-native-preflight-other-action")
+	if err := writeSharedLearningSettings(product, settings); err != nil {
+		t.Fatal(err)
+	}
+	selector, found, err := readAirWorkerSelfLearningSelector()
+	if err != nil || !found {
+		t.Fatalf("no selector: %v", err)
+	}
+	selector.ConfigSHA256, err = selfLearningConfigSHA(product)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeAirWorkerSelfLearningSelector(selector); err != nil {
+		t.Fatal(err)
+	}
+	argv := []string{"validate", "-product", product, "-json"}
+	run := "AW-CLI-N118-UNSAFE-REVIEW-001"
+	if err := autoCaptureOwnCLIExitWithRunID(argv, 2, run, nil); err != nil {
+		t.Fatal(err)
+	}
+	result, err := executeSharedLearning(product, settings, "review", map[string]string{"run_id": run})
+	if err != nil || result.Status != "candidate" {
+		t.Fatalf("reviewer candidate not real: %+v %v", result, err)
+	}
+	owner, on, err := activeAirWorkerSelfLearningOwner()
+	if err != nil || !on {
+		t.Fatalf("no owner: %v", err)
+	}
+	prior, found, err := findPriorSignedPreflightFailure(owner, argv)
+	if err != nil || !found {
+		t.Fatalf("signed prior event missing: %v %v", found, err)
+	}
+	// The unsafe *model-approved* new Markdown mentions run-config.json,
+	// but instructs the opposite machine action (repeat blindly). It must
+	// not be credited even if the generic LEARN module safely stored it.
+	if _, _, eligible, err := findAppliedPreflightRule(owner, prior); err == nil || eligible {
+		t.Fatalf("reviewed but wrong-action guidance was credited: eligible=%v err=%v", eligible, err)
+	}
+	if got := n104Events(t, settings.RuntimeRoot, "procedure_used"); got != 0 {
+		t.Fatalf("wrong-action reviewer created %d false procedure_used events", got)
+	}
+}
+
+// A legitimate reviewed procedure may address the same diagnosed file while
+// prescribing a DIFFERENT, safe action. It is not permission for the native
+// validator to attribute the release-owned defer action to that procedure.
+const n118OtherSafeActionProcedure = "# Report missing run-config.json inventory\n\n" +
+	"## When to apply\nWhen a product reports a missing run-config.json file.\n\n" +
+	"## Procedure\n1. Read the canonical product root identity.\n" +
+	"2. Record an inventory of which configuration artifacts are missing.\n" +
+	"3. Send the verified inventory to the responsible product owner for investigation.\n\n" +
+	"## Pitfalls\nDo not create or modify missing configuration files; reporting is not a validation result.\n"
