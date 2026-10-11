@@ -1,0 +1,39 @@
+{
+  "schema": "air-worker.core-micro-release-plan-parser-wip/v1",
+  "date_sgt": "2026-10-12",
+  "node": "SRVLM01",
+  "status": "SCOPED_GO_PASS_BUT_GENERIC_CORE_CONTRACT_NOT_YET_ACCEPTED",
+  "branch": "dev/airworker-plan-slices-core-20261012",
+  "base_head": "d34badfc09a4cbe7c8658b93ad60f80d139b795a",
+  "standard_ref": "ruhorh66-rgb/AIR_OS@7ccd0c9951760cd54650e0a4d910200116a33357 DEV-135",
+  "executor": {
+    "entrypoint": "air-worker executor dispatch",
+    "class": "bulk",
+    "model_selected": "gpt-6-luna",
+    "effort": "low",
+    "native_job": "gpt__core-micro-release-plan-20261012__1791746395843268400__a9f646a9",
+    "native_job_status": "DONE",
+    "executor_exit_code": 0,
+    "product_acceptance": false
+  },
+  "files": [
+    "cmd/release_slices.go",
+    "cmd/release_slices_test.go"
+  ],
+  "host_go_test": {
+    "command": "go -C air-worker/cmd test . -run '^TestInspectReleaseSlices' -count=1 -v -timeout 240s",
+    "exit_code": 0,
+    "log_sha256": "70cd5149a7a7a605be6fb7db7a3a3b0156a4b1c7d3bdf76f0c9ef4cf994b3bd4",
+    "log_path": "R:/-4-/air-worker/work/micro-plan-core-20261012/release-slices-parser-scoped-host.log",
+    "scope": "pure parser focused, symlink negative test SKIP no privilege"
+  },
+  "open_design_findings": [
+    "P1 core validator hardcodes exact installed 0.11.8, 9 releases, active/next 0.11.9 and reserved 0.12.0, cannot validate ANY other product or later active micro release",
+    "No read-only native plan release next/check CLI or plan-lint/validate wiring yet; helper has no effect on installed core",
+    "Absent sidecar backward-compatibility scoped unit PASS, but full Go/vet/build NOT_RUN",
+    "No receipt-backed closure of release steps; no authority/remote readback in parser"
+  ],
+  "cache_preserved": "R:/-4-/air-worker/work/micro-plan-core-20261012/agent-cold-go-cache-preserved",
+  "do_not_install_release": true,
+  "next_gate": "Native AirWorker second tiny source step generic release slices validation, then scoped test+independent reviewer, then separate CLI/validate integration."
+}
