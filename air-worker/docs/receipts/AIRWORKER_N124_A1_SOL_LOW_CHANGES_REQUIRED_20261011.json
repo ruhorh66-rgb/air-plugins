@@ -1,0 +1,48 @@
+{
+  "schema": "air-worker.n124.a1-independent-code-review/v1",
+  "date_sgt": "2026-10-11",
+  "status": "CHANGES_REQUIRED_A1_P1_1",
+  "source_head": "897bb79b09244c12646b73b25636032ca45f647f",
+  "reviewer": {
+    "tool": "Official Codex CLI",
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "sandbox": "read-only",
+    "transport_initial": "EXECUTION_UNKNOWN request_id=acmd-00976438-f33b-405e-abf7-93adc0a65e1b",
+    "recovery": "read process roster and existing events; no duplicate reviewer invocation",
+    "terminal_turn_completed": true,
+    "error_events": 0,
+    "process_exit_code": null
+  },
+  "machine": {
+    "events_sha256": "997402e1f0b13cd92ee4f0b47370100b099bfc98e08241a18e2799e8beff2ba2",
+    "schema_sha256": "11442ace6a4dce0f0ceab88b1c60ff518b4356a15ce55782bf174e8c992f0e0a",
+    "prompt_sha256": "abd5bd0c18e0b5dbb21e04b877836116a9a5243010a900c48c82be1993e94208",
+    "stderr_bytes": 0,
+    "source_clean": true
+  },
+  "verdict": {
+    "verdict": "CHANGES_REQUIRED",
+    "p0": 0,
+    "p1": 1,
+    "p2": 0,
+    "finding": {
+      "severity": "P1",
+      "location": "cmd/plan_candidate.go:145-201",
+      "issue": "A1 candidate preparer only requires PLAN and may accept only PLAN without exactly one new node and matching synthetic outbox.",
+      "minimal_fix": "Require exactly PLAN + one new node + operation-matched outbox before writing Git objects, with negative tests for missing/extra components."
+    }
+  },
+  "scoped_host_test": {
+    "exit_code": 0,
+    "clone_old_head": "PASS",
+    "rejections": 23,
+    "existing_junction_separate_test": "PASS",
+    "symlink_creation": "SKIP privilege unavailable"
+  },
+  "n124_gate": "OPEN",
+  "n120_gate": "HOLD",
+  "next_gate": "Native AirWorker targeted coding task, scoped TDD, clean source and independent Codex Sol low re-review.",
+  "full_qa": "NOT_RUN",
+  "release_install": false
+}
