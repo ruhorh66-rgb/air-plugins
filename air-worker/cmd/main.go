@@ -68,6 +68,7 @@ func usage() {
         GPT-safe вход к утверждённой OpenAI/Codex лестнице. Dispatch требует объявленную
         активную сессию и durable receipt; vendor-limit использует только зарегистрированные fallback.
 
+  air-worker review code -product <root> -source-sha <40hex> -task-file <path> -principal <p> -session-key <id> [-state-dir <dir>] [-preflight] [-json]
   air-worker semantic -product <корень> -step <N> [-executor claude|codex|chatgpt|router] [-claim "..."]
         Независимый read-only Semantic Judge текущего шага без запуска executor loop.
         Factual scope ограничен критериями шага; общий verdict продукта показывается отдельно.
@@ -262,7 +263,12 @@ func run(argv []string) int {
 		return cmdOrchestrate(argv[1:])
 	case "executor":
 		return cmdExecutor(argv[1:])
-	case "semantic", "review":
+	case "review":
+		if len(argv) > 1 && argv[1] == "code" {
+			return cmdCodeReview(argv[2:])
+		}
+		return cmdSemantic(argv[1:])
+	case "semantic":
 		return cmdSemantic(argv[1:])
 	case "plan-review":
 		return cmdPlanReview(argv[1:])

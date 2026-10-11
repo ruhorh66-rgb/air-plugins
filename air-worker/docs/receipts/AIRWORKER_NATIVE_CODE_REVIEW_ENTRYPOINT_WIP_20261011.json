@@ -1,0 +1,74 @@
+{
+    "schema":  "air-worker.native-sol-code-review-launch-fix/v1",
+    "date_sgt":  "2026-10-11",
+    "mode":  "SOURCE_ONLY_WIP_NO_RELEASE_NO_INSTALL",
+    "node":  "SRVLM01",
+    "instruction":  "LPR 2026-10-11: fix incorrect independent judge invocation so sessions cannot start the wrong model or sandbox",
+    "canonical_plan_branch":  "dev/airworker-0.11.9-selflearning-only-20261011",
+    "canonical_plan_head_at_task_assignment":  "a30da4bf5ee02807c7ddd7bbfc9a5c60914e7227",
+    "reviewer_worktree_branch":  "dev/airworker-native-sol-reviewer-20261011",
+    "source_base":  "a30da4bf5ee02807c7ddd7bbfc9a5c60914e7227",
+    "root_causes":  [
+                        "Direct Codex CLI calls via PowerShell and AIR Commander are fragile/occasionally blocked and bypass native receipts.",
+                        "PowerShell Get-Command codex resolves codex.ps1 while AirWorker tool resolver resolves codex.cmd.",
+                        "Native existing semantic opposite-vendor logic selects Claude for Codex executor and lacks explicit gpt-6-sol:low selection.",
+                        "Initial proposed Git reviewer refused legitimate no-upstream worktrees.",
+                        "Initial proposed parser refused normal Codex progress messages before a final JSON verdict."
+                    ],
+    "remedy":  {
+                   "command":  "air-worker review code",
+                   "pinned":  {
+                                  "runner":  "codex",
+                                  "model":  "gpt-6-sol",
+                                  "effort":  "low",
+                                  "sandbox":  "read-only"
+                              },
+                   "no_model_effort_sandbox_binary_override":  true,
+                   "session_identity_required":  true,
+                   "source_head_clean_remote_sha_required":  true,
+                   "read_only_preflight":  true,
+                   "task_file_identity_sha256_and_path_checks":  true,
+                   "no_upstream_fallback":  "allow current branch against exactly one configured GitHub remote; refuse ambiguous remotes",
+                   "codex_progress":  "allow progress messages before exactly one final structured JSON; require turn.completed and underlying job DONE, reject invalid events",
+                   "durable_job_and_permanent_claim_replay_protection":  true,
+                   "fail_closed_malformed_or_stale":  true,
+                   "no_mutations_to_plan_n_or_learn":  true
+               },
+    "tests":  {
+                  "command":  "go -C air-worker/cmd test . -run \u0027^TestCodeReview|^TestNativeReviewer\u0027 -count=1 -v -timeout 240s",
+                  "environment":  "SRVLM01 host, isolated GOTMPDIR/GOCACHE, no real Codex calls, Git fixtures",
+                  "exit_code":  0,
+                  "qa_log_sha256":  "89c596b33b97ff9e6344e21303258f8c5f8f6ae77f6f9ea95106a371728c4e59",
+                  "negative_groups":  [
+                                          "incorrect CLI flag/model/sandbox",
+                                          "stale/dirty/unpublished/multiple remotes",
+                                          "session/product mismatches",
+                                          "task swapping and junction",
+                                          "duplicate job/replay",
+                                          "invalid structured JSON / terminal / source SHA",
+                                          "mock process exit/nonfinal state"
+                                      ],
+                  "caveat":  "Windows symlink creation test skipped when privilege unavailable; junction negative test PASS",
+                  "real_model_review":  "NOT_RUN",
+                  "independent_semantic_review":  "NOT_RUN"
+              },
+    "file_sha256":  {
+                        "cmd/main.go":  "e0dafa0854e3b1a14b8166eb87a2ac8edcf38b9822792f53c45353323b3952fa",
+                        "cmd/review_code.go":  "60402b2a55614035a00ccc42aec4d726a759156907c264ad7ae2fcc903e38b69",
+                        "cmd/review_code_test.go":  "9e482e10b017b12e75c71f0f45a347756102023a7f5996c2c0fca3703f4c2fca",
+                        "docs/one-native-reviewer.md":  "a66c3e2e5792874d9de1a005b19e3784f22dd634bfca41ef33b64c6dba0074ba"
+                    },
+    "parallel_release_ownership":  {
+                                       "target_version_observed_in_dirty_canonical_plan":  "1.20",
+                                       "parallel_hermes_work":  "Nous Research subscription and executor ladder; canonical PLAN.md and N-071 dirty",
+                                       "no_parallel_file_mutation":  true,
+                                       "no_rel_1_20_tag_or_install":  true
+                                   },
+    "remaining":  [
+                      "build a source-only candidate binary and verify real -preflight against frozen N124 source",
+                      "independent Codex Sol low on current A2 SHA via approved native path",
+                      "full Go/vet/build and plan reconciliation before integration",
+                      "do not close N124 until N124/A3 and independent PASS"
+                  ],
+    "no_release_install":  true
+}
