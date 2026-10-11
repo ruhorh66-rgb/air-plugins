@@ -1,0 +1,37 @@
+{
+  "schema": "air-worker.n124.native-development-approval/v1",
+  "date_sgt": "2026-10-11",
+  "scope": "SOURCE_ONLY_N124",
+  "lpr_words": "согласовано - выполняй через аир воркер, лестница исполнит елей - сама, судья - кодекс сол 6 лов усилие",
+  "owner": "AirWorker native executor ladder",
+  "judge": {
+    "provider": "Codex",
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "sandbox": "read-only"
+  },
+  "authority": {
+    "branch": "dev/airworker-0.11.9-selflearning-only-20261011",
+    "head_before": "24f83cb55b581ead89fada39f2ffd24ee9fe0f00",
+    "n124_status": "OPEN",
+    "n120_status": "HOLD"
+  },
+  "allowed": [
+    "isolated development source/test",
+    "native executor dispatch",
+    "QA receipts",
+    "independent read-only semantic review",
+    "verified source-only GitHub commits"
+  ],
+  "prohibited": [
+    "live installation",
+    "release/tag",
+    "marketplace promotion",
+    "UAC/reboot",
+    "stop foreign services",
+    "apply executable blocking rules without separate trusted LPR approval",
+    "manual mutation plan/N-* or LEARN"
+  ],
+  "immediate_gate": "N124 fail-closed native cross-branch ID/PLAN integrity PASS before integration/close N120",
+  "status": "LPR_SOURCE_ONLY_DEV_AUTHORIZED_NOT_RELEASE"
+}

@@ -8,6 +8,9 @@
 
 ## ТЕКУЩИЙ ИСПОЛНЯЕМЫЙ МАРШРУТ — самообучение AirWorker 0.11.9, консолидация 11.10.2026 SGT
 
+**ЛПР 11.10.2026 (SGT):** согласован переход к разработке N-124 с нативной лестницей исполнителей AirWorker; независимый судья Codex gpt-6-sol low, read-only. Только source-only код; N-120 остаётся HOLD до N-124 PASS. Релиз, установка, перезагрузка, UAC, чужие службы и управляющие grants — отдельные разрешения ЛПР.
+
+
 **Status:** `PLAN_CONSOLIDATED / IMPLEMENTATION_OPEN / AUTONOMOUS_LEARNING_NOT_PROVEN`. Это верхняя точка входа для ближайших шагов, а не новый/параллельный PLAN и не разрешение на выпуск. **Owner:** `gpt-airworker-self-learning` через AIR Commander `node=SRVLM01`; **trigger:** прямое указание ЛПР 11.10.2026 проанализировать постмортем и N-120–N-125, объединить бэклог и уточнить путь до разработки. **Done when для самой консолидации:** один канонический маршрут, сверенные owner/trigger/done_when в существующих `plan/N-*`, нативные `plan spine`, `plan node list`, `plan-lint`, `validate`, GitHub HEAD/dirty/remote readback и квитанция. До выполнения предметных гейтов статус продукта остаётся OPEN.
 
 **Authority:** `R:\-4-\air-worker\worktrees\airworker-0119-selflearn-isolated-20261011\air-worker\PLAN.md`, GitHub `dev/airworker-0.11.9-selflearning-only-20261011`. Исходный аудит/учебные материалы: `docs/receipts/AIRWORKER_SELFLEARNING_SESSION_POSTMORTEM_20261011.md`, `AIRWORKER_SELFLEARNING_BACKLOG_20261011.md`, `AIRWORKER_SELFLEARNING_EVALUATOR_PROTOCOL_20261011.md`. Отдельная сохранённая ветка N-120 `dev/airworker-0.11.9-selflearn-judge-preflight-20261011` содержит RED Windows junction и НЕ считается принятой основной линией. Действующая установка 0.11.8 неизменна.
