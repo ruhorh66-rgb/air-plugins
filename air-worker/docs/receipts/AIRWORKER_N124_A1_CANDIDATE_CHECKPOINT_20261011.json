@@ -1,0 +1,57 @@
+{
+  "schema": "air-worker.n124.a1-source-checkpoint/v1",
+  "date": "2026-10-11",
+  "status": "A1_SCOPED_GREEN_WITH_SKIPS_N124_OPEN",
+  "baseline": "2d5d1c38052c6b51d6977f8a52eb2c71fc24da01",
+  "changed_paths": [
+    "cmd/plan_candidate.go",
+    "cmd/plan_candidate_test.go",
+    "docs/receipts/AIRWORKER_N124_A1_CANDIDATE_CHECKPOINT_20261011.json"
+  ],
+  "red": {
+    "command": "go test . -run '^TestPlanCandidateImmutable$' -count=1",
+    "cwd": "cmd",
+    "exit": 1,
+    "reason": "undefined: preparePlanCandidate, before helper implementation"
+  },
+  "green": {
+    "command": "go test . -run '^TestPlanCandidate' -count=1 -v",
+    "cwd": "cmd",
+    "environment": {
+      "GOTMPDIR": "R:/-4-/air-commander-test/tmp",
+      "GOCACHE": "R:/-4-/air-commander-test/tmp/n124-a1-go-cache",
+      "TEMP": "R:/-4-/air-commander-test/tmp",
+      "TMP": "R:/-4-/air-commander-test/tmp"
+    },
+    "exit": 0,
+    "package_seconds": 22.964,
+    "proofs": [
+      "exact PLAN/node/synthetic outbox bytes, tree delta and single old parent",
+      "identical retry inputs produce identical candidate OID",
+      "original worktree files, HEAD, refs and main index unchanged",
+      "23 rejection cases leave original files/index/refs unchanged",
+      "existing OS-temp junction ancestor rejected"
+    ],
+    "skips": [
+      "clone-old-head: local clone blocked by sh.exe signal-pipe Win32 error 5; clone visibility assertion remains unverified",
+      "symlink creation: required privilege not held; symlink-specific integration assertion remains unverified"
+    ]
+  },
+  "scope": {
+    "internal_helper_only": true,
+    "production_new_close_guard_unchanged": true,
+    "real_remote_access": false,
+    "product_commit_push_merge_install": false,
+    "plan_policy_judges_learn_modified": false,
+    "full_qa_or_independent_judge_run": false
+  },
+  "limitations_and_a2": [
+    "A1 accepts only explicit isolated-fixture authority in a clean standalone OS-temp SHA-1 repository with no remote and no inherited nonempty GIT_* environment.",
+    "Only existing PLAN.md replacement and new node/outbox paths are supported; existing node edits for close remain for A2.",
+    "Stable identity covers identical old commit, operation and bytes. Different payloads reusing an operation ID are not durably fenced by A1; A2 must bind operation identity and reject conflicting retries.",
+    "No concurrent hostile filesystem/config race guarantee; A2 must establish canonical authority and fencing before production integration.",
+    "Errors may leave unreachable Git objects; no ref or checked-out file is published.",
+    "A2: positive canonical old-to-new CAS, two competing stale branches with one winner, accepted close, durable outbox recovery and local projection reconciliation.",
+    "Rerun clone and symlink checks in a capable environment; full acceptance and independent review remain outstanding. This checkpoint is not N124 PASS."
+  ]
+}

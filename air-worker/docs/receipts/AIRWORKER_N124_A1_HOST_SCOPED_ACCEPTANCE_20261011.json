@@ -1,0 +1,58 @@
+{
+  "schema": "air-worker.n124.a1-host-scoped-acceptance/v1",
+  "date_sgt": "2026-10-11",
+  "status": "A1_SCOPED_PASS_N124_STILL_OPEN",
+  "branch": "dev/airworker-n124-native-identity-20261011",
+  "baseline_commit": "2d5d1c38052c6b51d6977f8a52eb2c71fc24da01",
+  "source_sha256": {
+    "cmd/plan_candidate.go": "a23e8bba20268abd58c7be4413c3dc84b0cec85d4a10b94b3770e7a0430d4795",
+    "cmd/plan_candidate_test.go": "20ba1204333b5237aaa9baa7951810ba4f1a900d11f3ab990b07bb6b05e506df"
+  },
+  "native_executor": {
+    "entrypoint": "air-worker executor dispatch -class complex",
+    "requested_class": "complex",
+    "selected_tier": "gpt6-astra:low",
+    "model": "gpt-6-astra",
+    "effort": "low",
+    "job_id": "gpt__airworker-n124-20261011__1791717889836529200__cff13d35",
+    "job_status": "DONE",
+    "dispatch_exit_code": 0,
+    "judge_status": "NOT_RUN_FOR_THIS_A1_SOURCE"
+  },
+  "scope_proven": {
+    "code": "preparePlanCandidate internal fixture-only immutable Git commit preparation",
+    "parent_tree_and_blob_readback": true,
+    "deterministic_oid_for_same_operation_and_bytes": true,
+    "source_HEAD_index_worktree_unchanged": true,
+    "red_test": "undefined preparePlanCandidate compile failure before implementation",
+    "existing_node_changes": "NOT_SUPPORTED_IN_A1",
+    "real_GitHub_remote_or_ref_mutation": false
+  },
+  "scoped_host": {
+    "cmd": "go -C air-worker/cmd test . -run '^TestPlanCandidate' -count=1 -v -timeout 180s",
+    "exit_code": 0,
+    "log_sha256": "3a9d3cfe1cc6e6de31ea2bf56a1296100832d233ae2deb8caf7be506a0a2dd3a",
+    "host": "SRVLM01 outside Codex sandbox",
+    "mandatory_clone_old_head": "PASS",
+    "negative_cases": 23,
+    "existing_junction_ancestor": "SKIP in physical TEMP (no link ancestor)",
+    "symlink_creation": "SKIP due Windows privilege; no UAC attempted",
+    "cmd_junction_followup": "go -C air-worker/cmd test . -run '^TestPlanCandidateExistingJunctionAncestor$' -count=1 -v",
+    "junction_followup_exit": 0,
+    "junction_followup_log_sha256": "72355a57e3170acf51cb6e66b5fbec024d1b3784dc35e4780a8260acb8f119c3",
+    "junction_fixture": "separate disposable R:-drive Windows junction under work area; no elevation"
+  },
+  "untouched": [
+    "authoritative PLAN and plan/N-*",
+    "shared LEARN journal",
+    "installed AirWorker 0.11.8",
+    "live GitHub refs for authority and N120",
+    "foreign services and worktrees"
+  ],
+  "next_gate": "Independent code Sol low read-only review on a clean checkpoint SHA, then N124-A2 canonical CAS/publish/outbox with native N121 new/close. N124 node remains OPEN.",
+  "n124_node_close": false,
+  "n120_node_close": false,
+  "full_QA": "NOT_RUN",
+  "go_vet": "NOT_RUN",
+  "release_install": false
+}
