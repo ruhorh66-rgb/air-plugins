@@ -1,0 +1,45 @@
+{
+  "schema": "air-worker.n124.a2-host-test-failure/v1",
+  "date_sgt": "2026-10-11",
+  "status": "A2_HOST_TEST_FAILED_REPLAY_P1_OPEN",
+  "node": "SRVLM01",
+  "baseline_head": "2a7d65962fbc870b31695c67d9c7b113efabbc3e",
+  "source_dirty_paths": [
+    "cmd/plan_candidate.go",
+    "cmd/plan_candidate_publish.go",
+    "cmd/plan_candidate_publish_test.go"
+  ],
+  "native_executor": {
+    "class": "complex",
+    "selected": "gpt-6-astra:low",
+    "job_id": "gpt__airworker-n124-20261011__1791719476219259200__73688f7e",
+    "status": "DONE",
+    "dispatch_exit": 0
+  },
+  "host_test": {
+    "command": "go -C air-worker/cmd test . -run '^TestPlanCandidatePublish' -count=1 -v -timeout 240s",
+    "exit_code": 1,
+    "log_sha256": "abbf59f10fd2b505abe14fb96117733eb8810d0d99e75b5e488a297720952a49",
+    "log_path": "R:/-4-/air-worker/work/0.11.9/n124-a2-host-gate-20261011/a2-publish-test.log"
+  },
+  "cases": {
+    "rejections_pass": 19,
+    "replay_fail": 1,
+    "pending_pass": 2,
+    "same_object_replay_probe_pass": 1,
+    "concurrent_candidate_race_pass": 1
+  },
+  "failure": {
+    "test": "TestPlanCandidatePublishReplay",
+    "actual": "pending: candidate not observed; push: git push exit status 1: failed to push some refs",
+    "fixture_injects": "origin/hooks/pre-receive shell script exits 1",
+    "hypothesis": "client-side --no-verify does not reliably bypass receiver-side pre-receive in local bare origin on Windows; positive replay must not depend on bypass of a foreign executable hook",
+    "root_cause_confirmed": false
+  },
+  "next_gate": "Through native AirWorker bulk executor, reject untrusted executable hooks before push and test fail-closed; positive replay on clean verified hook-free bare fixture must PASS. Then host A2 scoped QA + independent gpt-6-sol low.",
+  "n124_status": "OPEN",
+  "n120_status": "HOLD",
+  "full_qa": "NOT_RUN",
+  "installed": "0.11.8",
+  "no_release_install": true
+}

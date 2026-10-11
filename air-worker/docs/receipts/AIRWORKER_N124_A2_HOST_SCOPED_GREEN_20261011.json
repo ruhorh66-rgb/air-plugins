@@ -1,0 +1,87 @@
+{
+  "schema": "air-worker.n124.a2.scoped-gate/v1",
+  "date_sgt": "2026-10-11",
+  "node": "SRVLM01",
+  "status": "A2_SCOPED_QA_PASS_SEMANTIC_REVIEW_PENDING_N124_OPEN",
+  "authority": {
+    "product": "air-worker",
+    "branch": "dev/airworker-n124-native-identity-20261011",
+    "base_head": "2a7d65962fbc870b31695c67d9c7b113efabbc3e",
+    "canonical_branch": "dev/airworker-0.11.9-selflearning-only-20261011",
+    "canonical_head_unchanged": "413e5fbc8981a9814a40256f2e43ee4e2ec9933a",
+    "source_changes": [
+      "cmd/plan_candidate.go",
+      "cmd/plan_candidate_publish.go",
+      "cmd/plan_candidate_publish_test.go"
+    ]
+  },
+  "native_execution": {
+    "entrypoint": "air-worker executor dispatch -class complex; then -class bulk for focused replay/hook correction",
+    "a2_job_id": "gpt__airworker-n124-20261011__1791719476219259200__73688f7e",
+    "a2_selected_model": "gpt-6-astra",
+    "a2_effort": "low",
+    "a2_job_status": "DONE",
+    "replay_fix_selected_model": "gpt-6-luna",
+    "replay_fix_effort": "low",
+    "replay_fix_job_status": "DONE",
+    "executor_success_is_product_pass": false
+  },
+  "file_sha256": {
+    "cmd/plan_candidate.go": "1b39e0f14e2b26a33e2a6a2e146b9edec2fc12f63a6362337a43d36e384b105a",
+    "cmd/plan_candidate_publish.go": "08ed313bf3d12fac7e667b7d38617512496aecd2cd5e235480405ab6131e2f1b",
+    "cmd/plan_candidate_publish_test.go": "9a6e5c9037e935f41fd8ce9208811dbb9965ff67e22f397e24df419d00643136"
+  },
+  "host_tests": {
+    "original_pre_fix": {
+      "command": "go -C air-worker/cmd test . -run '^TestPlanCandidatePublish' -count=1 -v -timeout 240s",
+      "exit": 1,
+      "log_sha256": "abbf59f10fd2b505abe14fb96117733eb8810d0d99e75b5e488a297720952a49",
+      "root_cause": "positive replay fixture inserted a rejecting active pre-receive receiver hook"
+    },
+    "replay_fix": {
+      "command": "go -C air-worker/cmd test . -run '^TestPlanCandidatePublishReplay$' -count=1 -v -timeout 120s",
+      "exit": 0,
+      "log_sha256": "71d8d136f51123758ff8b72dd820459c5236aad061d04e036226c9b942e2a248"
+    },
+    "active_hook_negative": {
+      "command": "go -C air-worker/cmd test . -run '^TestPlanCandidatePublishRejects$/^active-hook$' -count=1 -v -timeout 120s",
+      "exit": 0,
+      "log_sha256": "3f7767c9fa68b0cc52c222d972d187608ff0b2f688b060bebf51ff42e7ffd89c"
+    },
+    "combined_scoped": {
+      "command": "go -C air-worker/cmd test . -run '^TestPlanCandidate' -count=1 -v -timeout 300s",
+      "exit": 0,
+      "log_sha256": "3c8b0eb716f545a098514d7201929d3719d6dbe974f91fb47d753a93ea0b5f21",
+      "result": "PASS; 20 A2 rejected cases, replay, pending, same object retry, 2-branch one-winner race; 29 A1 rejected cases, clone old head",
+      "skips": [
+        "A1 physical temp has no junction ancestor in combined suite; separately demonstrated with disposable Windows junction earlier",
+        "A1 symlink creation requires Windows privilege; SKIP, no UAC"
+      ],
+      "log_path": "R:/-4-/air-worker/work/0.11.9/n124-a2-combined-host-20261011/a1-a2-scoped.log"
+    },
+    "diff_check_exit": 0,
+    "full_go_test": "NOT_RUN",
+    "go_vet": "NOT_RUN",
+    "build": "NOT_RUN"
+  },
+  "scope_proved": [
+    "fixture-only candidate A1 immutable isolated index/commit with exact PLAN+one node+operation outbox",
+    "fixture-only A2 expected-old Git CAS against local disposable bare origin for canonical ref",
+    "no local source/PLAN/LEARN mutation during remote push in tests",
+    "replay idempotence, hostile receiver hook fail-closed, competing candidate one-winner behavior",
+    "no live GitHub test ref mutation"
+  ],
+  "scope_not_proved": [
+    "production canonical Git authority / active WIP inventory integration with native plan node new and close",
+    "durable request and outbox identity across process restart",
+    "post-acceptance local projection and shared learning reconcile with validated effect",
+    "crash between remote accepted commit and local readback; repair after transport unknown",
+    "full QA and Sol low independent semantic code PASS for this exact SHA"
+  ],
+  "next_gate": "Source-only commit/push with exact SHA and diff allowlist, then independent Codex gpt-6-sol effort low read-only review of A2; A3 native canonical positive new/close and outbox recovery after PASS.",
+  "N124": "OPEN",
+  "N120": "HOLD",
+  "installed_version": "0.11.8",
+  "release_install_authorized": false,
+  "unsafe_grants_authorized": false
+}

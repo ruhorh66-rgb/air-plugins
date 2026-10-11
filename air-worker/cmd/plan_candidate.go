@@ -18,7 +18,9 @@ import (
 
 type planCandidate struct {
 	OID, Tree, Parent string
+	Operation         string
 	Files             map[string][]byte
+	preparedDigest    [32]byte
 }
 
 var candidateOIDRE = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -248,7 +250,7 @@ func preparePlanCandidate(ctx context.Context, root, old, operation string, file
 	if string(bytes.TrimSpace(readback)) != treeOID+"\n"+old {
 		return fail(fmt.Errorf("candidate tree/parent mismatch"))
 	}
-	result := planCandidate{OID: oid, Tree: treeOID, Parent: old, Files: map[string][]byte{}}
+	result := planCandidate{OID: oid, Tree: treeOID, Parent: old, Operation: operation, Files: map[string][]byte{}}
 	for _, name := range paths {
 		content, err := run(nil, "cat-file", "blob", oid+":"+name)
 		if err != nil {
@@ -259,6 +261,7 @@ func preparePlanCandidate(ctx context.Context, root, old, operation string, file
 		}
 		result.Files[name] = content
 	}
+	result.preparedDigest = candidatePublishDigest(result)
 	return result, nil
 }
 
