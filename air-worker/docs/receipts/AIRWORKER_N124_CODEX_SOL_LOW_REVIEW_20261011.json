@@ -1,0 +1,67 @@
+{
+  "schema": "air-worker.n124.sol-low-independent-code-review/v1",
+  "date_sgt": "2026-10-11",
+  "node": "SRVLM01",
+  "status": "CHANGES_REQUIRED_N124_OPEN_NOT_RELEASE",
+  "worktree_branch": "dev/airworker-n124-native-identity-20261011",
+  "reviewed_head": "e4ece32bfbba8007c52fe55d479745b7bdbbe173",
+  "reviewer": {
+    "tool": "Official Codex CLI 0.158.0",
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "sandbox": "read-only",
+    "terminal_event": "turn.completed",
+    "process_exit_code": null,
+    "source_dirty_at_review": false
+  },
+  "source_evidence": {
+    "events_sha256": "3ac502d5ac6c8fdf5d0aca2e97443cd5522b2c86392abb63d739ec1a915d01a6",
+    "prompt_sha256": "c9415f2f043b5b81d71fc018ac3ec0649c63f503cc2a338841aa683b1f94d4ee",
+    "schema_sha256": "38ce7bbdc2d9bc6cb580c534fb049da417c2d0a75707177e5819d439a00836e1",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "verdict": {
+    "verdict": "CHANGES_REQUIRED",
+    "source_head": "e4ece32bfbba8007c52fe55d479745b7bdbbe173",
+    "p0_open": 0,
+    "p1_open": 3,
+    "p2_open": 0,
+    "findings": [
+      {
+        "severity": "P1",
+        "location": "cmd/plan_authority.go:17; cmd/plan_nodes.go:413,540",
+        "issue": "Every Git worktree receives git_authority_unproven; canonical N-121 allocation and accepted close impossible.",
+        "minimal_fix": "Implement and test canonical new/close with trusted authority and conflict checks."
+      },
+      {
+        "severity": "P1",
+        "location": "cmd/plan_nodes.go:94; cmd/plan_shared_create.go:136",
+        "issue": "Allocation scans only local plan directory; no distributed reservation/fencing across branch and publication.",
+        "minimal_fix": "Exclusive reservation tied to authority; test race, drift and partial recovery."
+      },
+      {
+        "severity": "P1",
+        "location": "cmd/plan_authority_git_probe_test.go:54-140",
+        "issue": "PASS probes demonstrate claim weaknesses and native mutation remains blocked; HOLD receipts not acceptance.",
+        "minimal_fix": "Prove positive native canonical N-121 create/close and negative races at one exact SHA."
+      }
+    ],
+    "next_gate": "Implement atomic canonical authority and publication fencing; run positive native canonical new/close and adversarial tests; independent read-only review."
+  },
+  "factual_tests": {
+    "native_iteration1_scoped_TestPlanNode_exit": 0,
+    "native_iteration2_expanded_scoped_exit": 1,
+    "host_git_cas_probe_exit": 0,
+    "full_go_test": "NOT_RUN",
+    "go_vet": "NOT_RUN",
+    "build": "NOT_RUN"
+  },
+  "safety": {
+    "N124_open": true,
+    "N120_open": true,
+    "installed_version": "0.11.8",
+    "release_or_install": false,
+    "unsafe_grants": false
+  },
+  "distinction": "AirWorker executor job DONE/executor exit0 proves task completion only, NOT N124 outcome PASS."
+}
