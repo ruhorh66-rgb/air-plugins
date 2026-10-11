@@ -1,0 +1,38 @@
+{
+  "schema": "air-worker.selflearning.native-loop-acceptance-addendum/v1",
+  "date_sgt": "2026-10-11",
+  "status": "PLAN_ONLY_NOT_RELEASE_PASS",
+  "node": "SRVLM01",
+  "canonical_branch": "dev/airworker-0.11.9-selflearning-only-20261011",
+  "source_head_before": "1311753f9bbd879aaf58ba1e1dc570ccd0c74a1c",
+  "previous_plan_consolidation_receipt": "air-worker/docs/receipts/AIRWORKER_N120_N125_CONSOLIDATED_PLAN_20261011.json",
+  "plan_sha256_after_addendum": "9c6ff41767e4ff86c0e4de4340619b1b00c032e9fa30e343cdb1411a60c50f20",
+  "purpose": "Eliminate a remaining gap between tracking development and autonomously owning the actual development loop, without new plan node IDs",
+  "existing_gate_nodes": [
+    "N-123",
+    "N-110",
+    "N-073",
+    "N-071"
+  ],
+  "future_test": {
+    "initiation": "Single supported AirWorker entrypoint into a real source-only bounded development step",
+    "ownership": "Native plan/loop chooses next OPEN node and script-first task and controls executor+judge lifecycle",
+    "evidence": "job_id+principal+session+source_sha+terminal result+independent semantic verdict+immutable receipt",
+    "interruption": "Two transport disconnects recover same run without duplicate or orphan helpers",
+    "forbidden_shortcut": "GPT manual PowerShell/Go/coding/review control loop cannot count as AirWorker autonomy",
+    "manual_interventions_max_except_initial_request_and_LPR_gates": 0,
+    "output": "AIRWORKER_NATIVE_LOOP_AUTONOMY_E2E_* JSON; PASS/NOT_PROVEN/FAIL",
+    "status_now": "NOT_PROVEN"
+  },
+  "native_plan_spine_exit": 0,
+  "native_plan_node_list_exit": 0,
+  "native_plan_lint_exit": 0,
+  "native_validate_exit": 0,
+  "native_validate_goals": 7,
+  "native_validate_criteria": 62,
+  "git_diff_check_exit": 0,
+  "code_changes": false,
+  "plan_node_mutations": false,
+  "learn_journal_mutations": false,
+  "release_or_install": false
+}
