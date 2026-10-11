@@ -1,0 +1,27 @@
+{
+    "schema":  "air-worker.n119.authoritative-mainline-ff/v1",
+    "checked_utc":  "2026-10-11T05:09:26.4159856Z",
+    "status":  "PASS_MAINLINE_SOURCE_FAST_FORWARD",
+    "original_mainline_head":  "5d828e335dc528edc1d8a385e05d9ed46f783911",
+    "current_mainline_local_head":  "71319ed63868a178ce3e4f5db76c454263d755f0",
+    "current_mainline_github_head":  "71319ed63868a178ce3e4f5db76c454263d755f0",
+    "fast_forward_without_force":  true,
+    "integrated_branch_head":  "71319ed63868a178ce3e4f5db76c454263d755f0",
+    "compiled_code_tree_sha":  "9e0a1029e46c0358d875010a062bf58571252be6",
+    "mainline_original_handoff_blob_sha":  "9706b63988477e71b259389d0a7f231ed79854bf",
+    "original_machine_acceptance_sha256":  "bd6f9771d9968e9d851b06ae3060050c21fb097308a08163e97097ae734095df",
+    "N119_independent_acceptance_sha256":  "cb1d259225092d56e97641656e56769461e4f3a12919cc853dd9a976c1c76ca7",
+    "judge_model":  "gpt-6-sol",
+    "judge_effort":  "low",
+    "judge_verdict":  "PASS",
+    "module_source_sha":  "7e6968b40838740321d44229ae2bcbe55d63f9a9",
+    "module_closure_head":  "74ec2becf4b327a879ed047c6cd0f8b3f0de6e5c",
+    "native_node_states":  {
+                               "N-118_p0-n110-fresh-process-native-preflight-procedure":  "closed",
+                               "N-119_p0-integrate-accepted-n118-native-learned-effect":  "closed",
+                               "N-093_p0-self-use-verifiable-outcome-for-newly-learned":  "open",
+                               "N-110_p0-auto-capture-persist-every-real-airworker-ses":  "open"
+                           },
+    "installed_airworker":  "0.11.8 unchanged",
+    "released_or_installed":  false
+}
