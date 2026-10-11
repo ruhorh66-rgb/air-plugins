@@ -283,51 +283,15 @@ func recordNativePreflightRecoveredPass(c *nativePreflightRecoveredCandidate, r 
 	}
 	ref := filepath.ToSlash(path) + "#sha256=" + learnSHA(existing)
 	observed := "Native AirWorker verified exact learned preflight procedure, verified unchanged canonical run-config.json and PLAN bytes before and after the real validator, and the actual native validate returned PASS. No claim that the procedure repaired files."
-	var already bool
-	err = scanLearnJSONL(filepath.Join(owner.Settings.RuntimeRoot, "events.jsonl"), func(b []byte) error {
-		var event struct {
-			Schema     string `json:"schema"`
-			RunID      string `json:"run_id"`
-			Kind       string `json:"kind"`
-			Class      string `json:"class"`
-			Source     string `json:"source"`
-			Principal  string `json:"principal"`
-			Session    string `json:"session"`
-			RuleID     string `json:"rule_id"`
-			Outcome    string `json:"outcome"`
-			OutcomeRef string `json:"outcome_ref"`
-			Observed   string `json:"observed"`
-		}
-		if err := json.Unmarshal(b, &event); err != nil {
-			return err
-		}
-		if event.RunID != c.UsedID {
-			return nil
-		}
-		if already || event.Schema != "air.learning.event/v1" ||
-			event.Kind != "procedure_used" || event.Class != "native-preflight-validated" ||
-			event.Source != "native-validate-recovered" || event.Principal != "air-worker" ||
-			event.Session != c.Prior.RunID || event.RuleID != ruleID ||
-			event.Outcome != "pass" || event.OutcomeRef != ref || event.Observed != observed {
-			return errors.New("native positive-validation use identity conflicts with prior event")
-		}
-		already = true
-		return nil
-	})
+	// The shared module now owns BOTH final provenance validation and the
+	// procedure_used append under its rollback/apply mutation locks. Never
+	// create a positive LEARN event through the unverified observe operation.
+	res, err := executeVerifiedNativePreflightUse(owner, c, r, receipt, ref, observed)
 	if err != nil {
-		return err
+		return fmt.Errorf("native independently verified-use transaction failed: %w", err)
 	}
-	if already {
-		return nil
-	}
-	res, err := executeSharedLearning(owner.Selector.ProductRoot, owner.Settings, "observe", map[string]string{
-		"run_id": c.UsedID, "kind": "procedure_used", "class": "native-preflight-validated",
-		"source": "native-validate-recovered", "principal": "air-worker",
-		"session": c.Prior.RunID, "rule_id": ruleID, "outcome": "pass",
-		"outcome_ref": ref, "observed": observed,
-	})
-	if err != nil || res.Status != "recorded" || res.ID == "" {
-		return fmt.Errorf("native positive-validator measured use not recorded: %w", err)
+	if (res.Status != "recorded" && res.Status != "duplicate") || res.ID == "" {
+		return errors.New("native verified-use transaction had no durable event readback")
 	}
 	return nil
 }

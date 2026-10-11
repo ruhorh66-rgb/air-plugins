@@ -1,0 +1,27 @@
+{
+    "schema":  "air-worker.n118.atomic-module-consumer-tdd/v1",
+    "created_utc":  "2026-10-11T02:55:59.0771430Z",
+    "status":  "SCOPED_PASS_PENDING_EXACT_FULL_QA_AND_INDEPENDENT_JUDGE",
+    "source_parent_sha":  "7b05783a0fcda5042a23a9c96c1a22edc1ef8df9",
+    "source_branch":  "dev/airworker-n118-real-validation-pass-20261011",
+    "module_source_commit":  "7e6968b40838740321d44229ae2bcbe55d63f9a9",
+    "module_go_pseudoversion":  "v0.0.0-20261011024604-7e6968b40838",
+    "module_QA_receipt_sha256":  "89ca6876df52a99a6bd75f1dd4847aeef728ab043de9ca2f7bcc8e06c4681239",
+    "module_sol_low_verdict":  "PASS_0P0_0P1_0P2",
+    "module_sol_receipt_sha256":  "94f5c8f7f9a25186945c32426dae6915fd48730a8b0def2631adae0a7375d8d9",
+    "consumer_changes":  [
+                             "cmd/go.mod",
+                             "cmd/go.sum",
+                             "cmd/self_preflight_native_attestation.go",
+                             "cmd/self_preflight_recovered.go"
+                         ],
+    "trusted_native_callback":  "Actually reruns compiled validateProductUsingPinnedInputs under shared module transaction locks, with exact config/PLAN SHA and previous signed CLI failure, and verifies positive immutable native result",
+    "recording":  "observe_verified_use, never unverified observe for positive native validate",
+    "negative_tests":  "Existing N118: stale skill or ledger, wrong instruction, signed failure tamper, changed PLAN/config bytes, failed actual validate, unrelated product",
+    "scoped_test_exit":  0,
+    "scoped_test_log_sha256":  "dd42af583e885ed3a5ea36d6eed2ed324fe14b48569847f6afeb69cd7a640a6f",
+    "N118":  "OPEN",
+    "N110":  "OPEN",
+    "live_installed":  "0.11.8_UNCHANGED",
+    "no_release_or_install":  true
+}
