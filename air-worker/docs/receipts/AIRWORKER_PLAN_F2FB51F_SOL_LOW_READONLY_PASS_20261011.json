@@ -1,0 +1,53 @@
+{
+  "schema": "air-worker.plan-readonly-independent-review/v1",
+  "date_sgt": "2026-10-11",
+  "status": "SEMANTIC_PLAN_PASS_ONLY_NOT_RELEASE_OR_LPR_APPROVAL",
+  "reviewed_source_head": "f2fb51ffdeab235f926dadf30a0b450709394757",
+  "plan_sha256": "54e76abbbe4f37e59faba895c91435f32ed663d27804f07cee9c096022701ca7",
+  "repo_branch": "dev/airworker-0.11.9-selflearning-only-20261011",
+  "reviewer": {
+    "tool": "Codex CLI 0.158.0",
+    "model_requested": "gpt-6-sol",
+    "effort_requested": "low",
+    "sandbox": "read-only",
+    "process_pid": 8160,
+    "terminal_event": "turn.completed",
+    "process_exit_code": null,
+    "process_exit_code_evidence": "unavailable; do not infer 0 from model verdict"
+  },
+  "machine_evidence": {
+    "event_log_sha256": "e851ae72d36383a0c1055ff14c8cfd961508568c91d939bd1d592b05d21679c4",
+    "prompt_sha256": "063ecf63e4f46d60071d2207b5b237efa210010ca8f54db2b31f4d95fbd7b8dd",
+    "schema_sha256": "2bd6247803fbff97c25534214517dab9b9d4c09915a1fb8dbac523cb41c70fcd",
+    "terminal_json_contract": "validated",
+    "event_tail_saw_turn_completed": true,
+    "stderr_bytes": 0,
+    "plan_clean_post_model": true
+  },
+  "semantic_verdict": {
+    "verdict": "PASS",
+    "source_head": "f2fb51ffdeab235f926dadf30a0b450709394757",
+    "plan_sha256": "54e76abbbe4f37e59faba895c91435f32ed663d27804f07cee9c096022701ca7",
+    "findings": [],
+    "next": "Implement and independently verify N-124 core conflict protection before integrating or closing N-120; keep all later learning, autonomous E2E, sealed evaluation, and release gates open until their stated evidence passes."
+  },
+  "previous_exact_plan": {
+    "head": "470261fb8f4ad4a62b2c85136e2ab97eb949b912",
+    "plan_sha256": "9c6ff41767e4ff86c0e4de4340619b1b00c032e9fa30e343cdb1411a60c50f20",
+    "review": "DRIFT",
+    "finding_count": 2,
+    "receipt": "docs/receipts/AIRWORKER_PLAN_470261FB_SOL_LOW_READONLY_DRIFT_20261011.json"
+  },
+  "full_gates_open": [
+    "N-124 native cross-branch allocation/close guard",
+    "N-120 full rc2/HMAC reviewer/safe-apply + independent machine PASS",
+    "N-123 durable resume",
+    "N-121 host-tool capture",
+    "N-122 recurrent P1 prevention",
+    "N-125 causality with sealed independent tests",
+    "N-110/N-093/N-073 autonomous next-session use",
+    "N-092 13/13 factual product judge",
+    "N-071 separate LPR release/install approval"
+  ],
+  "no_implementation_released_or_installed": true
+}
