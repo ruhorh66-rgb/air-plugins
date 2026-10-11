@@ -413,14 +413,13 @@ func TestCodeReviewUnknownRemote(t *testing.T) {
 	if _, err := codeReviewGit(root, "remote", "remove", "extra"); err != nil {
 		t.Fatal(err)
 	}
+	for _, key := range []string{"branch.review-no-track.remote", "branch.review-no-track.merge"} {
+		if _, err := codeReviewGit(root, "config", "--unset-all", key); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if got, err := codeReviewRemoteHead(root); err != nil || got != sha {
 		t.Fatalf("single remote published ref got %q, %v want %q", got, err, sha)
-	}
-	if _, err := codeReviewGit(root, "config", "--unset-all", "branch.review-no-track.remote"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := codeReviewGit(root, "config", "--unset-all", "branch.review-no-track.merge"); err != nil {
-		t.Fatal(err)
 	}
 	if _, err := codeReviewGit(root, "remote", "remove", "github"); err != nil {
 		t.Fatal(err)

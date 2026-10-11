@@ -1,0 +1,43 @@
+{
+  "schema": "air-worker.native-review-remote-fixture-targeted-go/v1",
+  "date_sgt": "2026-10-11",
+  "node": "SRVLM01",
+  "scope": "SOURCE_ONLY",
+  "state": "TARGETED_GO_PASS_REVIEWER_LIVE_NOT_YET_RUN",
+  "base_commit": "aef4a6659520cba3f8c8059de2fe4a80827189e9",
+  "branch": "dev/airworker-native-sol-reviewer-20261011",
+  "correction": "In TestCodeReviewUnknownRemote clear wrong branch.review-no-track.remote and branch.review-no-track.merge BEFORE validating sole GitHub remote, without weakening production code.",
+  "prior_red": {
+    "code": 1,
+    "location": "cmd/review_code_test.go:417",
+    "message": "invalid branch tracking configuration"
+  },
+  "final_test": {
+    "command": "go -C air-worker/cmd test . -run '^(TestCodeReview|TestNativeReviewer)' -count=1 -timeout 240s",
+    "exit_code": 0,
+    "file": "R:/-4-/air-worker/work/0.11.9/native-sol-github-remotes-host-green-20261011/reviewer-targeted-full-final.log",
+    "sha256": "27da57a83049d308b695c4e0d92d60e35d94e154b30fc24eaf68358a7a5db0d6",
+    "output_summary": "ok airos/air-worker 27.299s",
+    "go_vet": "NOT_RUN",
+    "full_qa": "NOT_RUN"
+  },
+  "changed_paths": [
+    "air-worker/cmd/review_code_test.go"
+  ],
+  "changed_file_sha256": "930925d5d50f102c7ffdd121b7d45fb0168dbe20db31613efc6e62a1d9e7dc7a",
+  "native_executor": {
+    "entrypoint": "air-worker executor dispatch",
+    "class": "bulk",
+    "selected_model": "gpt-6-luna",
+    "task": "native-sol-fixture-tracking-reset-20261011.md",
+    "completed": true
+  },
+  "gates": {
+    "N124": "OPEN",
+    "N120": "HOLD",
+    "judge_a2": "NOT_RUN",
+    "release": "CLOSED",
+    "install": "CLOSED"
+  },
+  "next": "Commit exactly this code+receipt to dev branch, build temporary source binary, native preflight against N124 sha 3390f18, independent Sol low only if preflight PASS."
+}
