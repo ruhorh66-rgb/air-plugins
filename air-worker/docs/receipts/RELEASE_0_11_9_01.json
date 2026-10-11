@@ -1,0 +1,50 @@
+{
+    "schema":  "air-worker.micro-release-step-audit/v1",
+    "step_id":  "R0.11.9-01",
+    "product":  "AirWorker",
+    "status":  "PASS_READ_ONLY_AUDIT_NOT_PRODUCT_READY",
+    "run_id":  "AW-R0119-01-READONLY-20261012",
+    "checked_sgt":  "2026-10-12",
+    "node":  "SRVLM01",
+    "owner":  "AirWorker native owner",
+    "trigger":  "LPR self-learning-first atomic 0.11.9 micro-release, 12.10.2026",
+    "done_when":  "Read source/module pin, previously proven native validate rc2 and isolated fresh-process use, installed version 0.11.8, and pick one supported real CLI failure class without replay.",
+    "source_sha":  "d34badfc09a4cbe7c8658b93ad60f80d139b795a",
+    "remote_source_sha":  "d34badfc09a4cbe7c8658b93ad60f80d139b795a",
+    "installed_version":  "0.11.8",
+    "pinned_module_version":  "v0.0.0-20261011024604-7e6968b40838",
+    "pinned_module_source_head":  "7e6968b40838740321d44229ae2bcbe55d63f9a9",
+    "sources":  [
+                    {
+                        "sha256":  "5f385eab0e62c7bdce149362a5c34b83927ef4bc68235172b78028e20c0b2ee9",
+                        "schema":  "air-worker.n117.trusted-preflight-product-acceptance/v1",
+                        "source":  "docs/receipts/AIRWORKER_N117_ACCEPTANCE_20261011.json"
+                    },
+                    {
+                        "sha256":  "bd6f9771d9968e9d851b06ae3060050c21fb097308a08163e97097ae734095df",
+                        "schema":  "air-worker.n118.final-verified-native-use/v1",
+                        "source":  "docs/receipts/AIRWORKER_N118_FINAL_MACHINE_ACCEPTANCE_20261011.json"
+                    },
+                    {
+                        "sha256":  "79de8612f84cdf7cef420797f583bcf59983a984788c8fbc88865216ef9cf8a3",
+                        "schema":  "air-worker.n118.real-native-use-handoff/v1",
+                        "source":  "docs/receipts/AIRWORKER_N118_REAL_NATIVE_USE_HANDOFF_20261011.json"
+                    }
+                ],
+    "native_error_class":  "validate-run-config-missing",
+    "native_failure_source":  "N-117 signed real run_id AW-CLI-0cda882d2f1dd22df39cabc2",
+    "isolated_learning_proof":  "N-118 PASS_ISOLATED_END_TO_END_LEARNED_USE, one procedure_used in disposable isolated product, actual native validate code 0; NOT a live installed success",
+    "mainline_learn_event_count":  187,
+    "mainline_procedure_used_count":  0,
+    "next_action":  "R0.11.9-02 real automatic error capture in newly scoped source-only isolated product, no fabricated LEARN event",
+    "first_release_scope":  "one supported nonblocking native CLI class; no global N120/N124/N121/N122/N125 requirements",
+    "caveat":  "Read-only source audit PASS; current R-step remains open until native AirWorker release-step status transition and verified commit. This receipt does not close N118/N110/N093/N073 or authorize tag/install.",
+    "judge":  {
+                  "kind":  "native_read_only_file_sha_git_readback",
+                  "exit_code":  0,
+                  "status":  "PASS_SCOPE_AUDIT"
+              },
+    "rollback_to":  "0.11.8",
+    "no_code_mutation":  true,
+    "release_or_install":  false
+}
