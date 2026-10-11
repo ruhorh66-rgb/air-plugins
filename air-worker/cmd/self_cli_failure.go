@@ -173,7 +173,9 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 	digest := learnSHA(previous)
 	evidence := filepath.ToSlash(recPath) + "#sha256=" + digest
 	class := "air-worker-cli-failure"
-	if rec.CauseCode == "validate-run-config-missing" || rec.CauseCode == "validate-plan-missing" {
+	switch rec.CauseCode {
+	case "validate-run-config-missing", "validate-plan-missing",
+		"judge-run-config-missing", "judge-plan-missing":
 		class = "air-worker-cli-preflight"
 	}
 	result, err := executeSharedLearning(owner.Selector.ProductRoot, owner.Settings, "observe", map[string]any{

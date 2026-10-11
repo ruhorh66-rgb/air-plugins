@@ -1,0 +1,37 @@
+{
+    "schema":  "air-worker.n120.native-judge-auto-learning-tdd/v1",
+    "created_utc":  "2026-10-11T05:17:26.7867365Z",
+    "source_parent_sha":  "06283c8c1718567645f1cc0191229146dd464b62",
+    "branch":  "dev/airworker-0.11.9-selflearn-judge-preflight-20261011",
+    "status":  "SCOPED_TDD_PASS_PENDING_FULL_QA_SEMANTIC_JUDGE_AND_REAL_CANDIDATE",
+    "node":  "N-120_p0-auto-learn-real-native-judge-configuration-fa",
+    "change_scope":  [
+                         "cmd/self_cli_trusted_cause.go",
+                         "cmd/self_cli_failure.go",
+                         "cmd/self_judge_preflight_test.go"
+                     ],
+    "contract":  "Read-only OS-verified judge rc2 missing canonical config or configured PLAN, per-user HMAC immutable source, single module event then automatically dispatched fake safe reviewer and module-owned applied Markdown",
+    "true_native_cmdJudge_exit":  2,
+    "reviewer":  "DETERMINISTIC_TEST_ONLY_NOT_PRODUCTION_MODEL",
+    "red_test_exit":  1,
+    "red_test_log_sha256":  "de49e098e20895199860e57fbdd189305afa58d9ca4b3db52a56c69065529ca9",
+    "green_test_exit":  0,
+    "green_test_log_sha256":  "a0419ddcb513b657808295e3725a1ac4c30cbf6850ffcb2526f9791bb427cedb",
+    "negative_tests":  [
+                           "rc0/rc1 never create false cause",
+                           "custom -config and unsupported argv never typed",
+                           "noncanonical whitespace/traversing PLAN fails closed",
+                           "one HMAC-signed receipt and module origin event",
+                           "no argv/path leakage",
+                           "repeated identical run no duplicate reviewer",
+                           "changed argv same run_id denied",
+                           "applying Markdown is not procedure_used"
+                       ],
+    "full_source_QA":  "PENDING_CLEAN_SHA",
+    "independent_codex_gpt6_sol_low":  "PENDING_CLEAN_SHA",
+    "true_production_reviewer_candidate":  "PENDING",
+    "N110":  "OPEN",
+    "N093":  "OPEN",
+    "installed":  "air-worker 0.11.8 unchanged",
+    "release_or_install":  false
+}
