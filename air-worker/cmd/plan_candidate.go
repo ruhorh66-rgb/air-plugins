@@ -70,7 +70,9 @@ func preparePlanCandidate(ctx context.Context, root, old, operation string, file
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if d.Decode(&authority) != nil || d.Decode(new(any)) != io.EOF || authority.Schema != "air-worker.plan.authority/v1" || authority.Mode != "isolated-fixture" || authority.Root != root {
-		return fail(fmt.Errorf("unknown fixture authority"))
+		if _, err := planCanonicalFixtureOrigin(root); err != nil {
+			return fail(fmt.Errorf("unknown fixture authority"))
+		}
 	}
 	for _, name := range []string{"objects", "config", "index", "HEAD"} {
 		if err := candidateNoLinks(filepath.Join(root, ".git", name)); err != nil {

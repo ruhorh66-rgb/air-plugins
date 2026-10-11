@@ -1,0 +1,60 @@
+{
+  "schema": "air-worker.n124.a3-1.native-git-canonical-fixture-new/v1",
+  "date_sgt": "2026-10-12",
+  "node": "SRVLM01",
+  "status": "A3_1_NATIVE_NEW_SCOPED_GREEN_A1A2_COMPAT_AND_INDEPENDENT_REVIEW_PENDING",
+  "branch": "dev/airworker-n124-native-identity-20261011",
+  "source_base_head": "44e27f446ebfe112c42900e20887ab2d5ccd6a98",
+  "source_commit_to_follow": "PENDING_THIS_RECEIPT_COMMIT",
+  "native_executor": {
+    "entrypoint": "air-worker executor dispatch -class complex",
+    "selected_tier": "gpt6-astra:low",
+    "selected_model": "gpt-6-astra",
+    "session_key": "airworker-n124-20261011",
+    "native_job_status": "DONE",
+    "executor_exit_code": 0,
+    "product_acceptance": false,
+    "description": "Native production plan new stays fail closed. One isolated OS-temp local canonical Git fixture authorized via exact plan-authority.json."
+  },
+  "tdd": {
+    "original_red": {
+      "test": "TestPlanCanonicalNewNative",
+      "exit_code": 1,
+      "log_sha256": "5feaed5b6004d6084d79c4849559fa25e22fd6f35cbf0b00b6d5f97e52aceb1d",
+      "reason": "git_authority_unproven at native plan node new"
+    },
+    "scoped_green": {
+      "command": "go -C air-worker/cmd test . -run '^TestPlanCanonicalNew' -count=1 -v -timeout 300s",
+      "exit_code": 0,
+      "log_sha256": "ed0b65ae47d08b1c39fbf22b75914a89dbbe1a7a5fa2a0acf13fecfa1402c0de",
+      "log_path": "R:/-4-/air-worker/work/1.20/n124-a3-1-native-20261011/native-new-and-rejects-after-implementation.log"
+    },
+    "assertion": "Real native cmdPlanNode(new) creates deterministic N120 and new canonical remote commit with exact PLAN/node/outbox, leaves local PLAN/LEARN/index unchanged, duplicate retry conflict and 14 fail-closed adversarial cases green."
+  },
+  "source_file_sha256": {
+    "cmd/plan_nodes.go": "ee727fcc816921387867db5e1435800bc4b0d26eba11d2cb6dfc08ca7855b1b0",
+    "cmd/plan_candidate.go": "b9157a96c7d8bee92b0dc8edfb1367620f59a73fc9642673814b5237077674b3",
+    "cmd/plan_candidate_publish.go": "e699ff87e1b29c34418c2240645ef04c1a6c38d28f4b8d4902c9fe2b00052a6e",
+    "cmd/plan_canonical_new.go": "31fead470c2b06154247ce14ebcb3930038367b5bf2628445da28648a66050d8",
+    "cmd/plan_canonical_new_test.go": "17608b2ded9844175d942960166fcfbbbbed8c2c43a706a5507fe35f20d3a3ba"
+  },
+  "native_safety": {
+    "no_actual_GitHub_canonical_ref_mutation": true,
+    "no_authority_PLAN_or_N_node_writes": true,
+    "no_LEARN_journal_manual_writes": true,
+    "no_release_or_install": true,
+    "no_reboot_UAC_service_stop": true,
+    "production_new_close_still_blocked": true,
+    "strict_fixture": "OS-temp physical standalone Git working repo and local bare origin; explicit machine-readable authority mode only"
+  },
+  "open_gates": [
+    "A1/A2 candidate regression on changed A3 source (go test TestPlanCandidate)",
+    "Adversarial two stale clients one-winner and fresh N121 acceptance beyond current 14 negative cases",
+    "Idempotent semantic replay, durable plan/event outbox projection and crash recovery",
+    "A3-2 native close and protected plan/N-*/LEARN reconciliation",
+    "Full Go/vet/build and independent Codex gpt-6-sol low on all N124 source",
+    "N124 native close, then N120 full security and learning acceptance",
+    "N071 release 1.20 gating, installed 0.11.8 unchanged"
+  ],
+  "next_gate": "Run A1/A2 TestPlanCandidate scoped compatibility on frozen source SHA without another Go model; if PASS, add stale-branch N121 tests, then independent native Sol low on exact A3-1 source, continue A3-2."
+}

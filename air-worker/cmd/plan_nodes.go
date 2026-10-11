@@ -410,6 +410,10 @@ func cmdPlanNodeNew(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
+	if origin, err := planCanonicalFixtureOrigin(root); err == nil {
+		req := sharedPlanCreateRequest{ID: *requestID, Operation: "new", Title: strings.TrimSpace(*title), Parent: strings.TrimSpace(*parent), Owner: strings.TrimSpace(*owner), DoneWhen: strings.TrimSpace(*doneWhen), Trigger: strings.TrimSpace(*trigger), ReturnTo: strings.TrimSpace(*returnTo)}
+		return cmdPlanCanonicalFixtureNew(root, origin, req, *actorKind, *actor, fs.Args(), *asJSON)
+	}
 	if rejectUnprovenPlanAuthority(root, *asJSON) {
 		return 2
 	}

@@ -88,7 +88,10 @@ func publishPlanCandidate(ctx context.Context, repo, originBare, ref string, can
 	defer configLock.Close()
 	for _, root := range []string{repo, originBare} {
 		if err := candidatePublishFixture(root); err != nil {
-			return conflict(err.Error())
+			origin, canonicalErr := planCanonicalFixtureOrigin(root)
+			if root != repo || canonicalErr != nil || origin != originBare {
+				return conflict(err.Error())
+			}
 		}
 	}
 	for _, item := range []struct{ root, metadata, bare string }{{repo, filepath.Join(repo, ".git"), "false"}, {originBare, originBare, "true"}} {
