@@ -1,0 +1,27 @@
+{
+  "schema": "air-worker.n124.a3-1-native-new-tdd-red/v1",
+  "date_sgt": "2026-10-12T02:19:00+08:00",
+  "status": "TDD_RED_CONFIRMED_N124_OPEN",
+  "node": "SRVLM01",
+  "source_branch": "dev/airworker-n124-native-identity-20261011",
+  "source_head_before": "9d914bef443c5c0e2f9d10fea956e5a0d4603630",
+  "test_path": "cmd/plan_canonical_new_test.go",
+  "test_sha256": "520f080443cf8f8e5282d1058812904345d9588b88e3863de57b5f1dc9ea8302",
+  "native_test_subject": "air-worker plan node new in strict OS-temp git-canonical-fixture",
+  "test_command": "go -C air-worker/cmd test . -run '^TestPlanCanonicalNewNative$' -count=1 -v -timeout 180s",
+  "host_test_exit_code": 1,
+  "host_test_log_sha256": "5feaed5b6004d6084d79c4849559fa25e22fd6f35cbf0b00b6d5f97e52aceb1d",
+  "host_test_log_path": "R:/-4-/air-worker/work/1.20/n124-a3-1-native-20261011/native-new-tdd-red.log",
+  "real_failure": "native plan node new returned exit2 JSON reason git_authority_unproven, because even declared isolated Git canonical fixture is blocked by current general Git guard",
+  "required_fix": "Allow exact OS-temp local git-canonical-fixture authority through NATIVE cmdPlanNodeNew remote-first A1+A2 atomically; production unproven real Git must remain reject; no local PLAN/N-* or LEARN mutation on new/reject.",
+  "base_n124_a2_accepted_at_commit": "9d914bef443c5c0e2f9d10fea956e5a0d4603630",
+  "next_gates": [
+    "native A3-1 RED->GREEN, positive N120, stale two-clone conflict, new N121",
+    "A3-2 native close and durable outbox replay",
+    "full Go/vet/build and independent Sol Low complete N124",
+    "N124 native close before N120"
+  ],
+  "no_release_or_install": true,
+  "installed_version": "0.11.8",
+  "target_release": "1.20"
+}
