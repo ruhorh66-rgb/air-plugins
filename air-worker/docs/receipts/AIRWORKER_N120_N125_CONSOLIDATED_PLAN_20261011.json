@@ -1,0 +1,91 @@
+{
+  "schema": "air-worker.selflearning.plan-consolidation/v1",
+  "date_sgt": "2026-10-11",
+  "mode": "source-only plan consolidation; no product code or runtime mutation",
+  "node": "SRVLM01",
+  "owner": "gpt-airworker-self-learning",
+  "trigger": "LPR 2026-10-11: reconcile session self-learning postmortem, N120 handoff, N121..N125 backlog and current plan before next implementation",
+  "authority": {
+    "repository": "https://github.com/ruhorh66-rgb/air-plugins",
+    "branch": "dev/airworker-0.11.9-selflearning-only-20261011",
+    "source_head_before": "c1963b057215d5acc20b1a777d94353698c3e3aa",
+    "source_head_remote_before": "c1963b057215d5acc20b1a777d94353698c3e3aa",
+    "canonical_plan": "air-worker/PLAN.md",
+    "plan_sha256_after_edit": "0e62ced0b638d412a0d6258e73ebb0a51107867b6fc3b30a7500b810f9a02071",
+    "wip_N120_branch": "dev/airworker-0.11.9-selflearn-judge-preflight-20261011",
+    "wip_N120_head": "963b0bc590b7252af3557c225c94bb29f23676b2",
+    "product_wiki_head_at_start": "aa593c040701acf597f6989e99fe4530eebf20f0"
+  },
+  "sources": [
+    "air-worker/docs/receipts/AIRWORKER_SELFLEARNING_SESSION_POSTMORTEM_20261011.md",
+    "air-worker/docs/receipts/AIRWORKER_SELFLEARNING_BACKLOG_20261011.md",
+    "air-worker/docs/receipts/AIRWORKER_SELFLEARNING_EVALUATOR_PROTOCOL_20261011.md",
+    "air-worker/docs/receipts/AIRWORKER_NODE_ID_COLLISION_REPRO_20261011.json",
+    "air-worker/docs/receipts/AIRWORKER_N120_P1_WIP_HANDOFF_20261011.json"
+  ],
+  "verified_plan": {
+    "existing_open_nodes": [
+      "N-120",
+      "N-121",
+      "N-122",
+      "N-123",
+      "N-124",
+      "N-125",
+      "N-110",
+      "N-093",
+      "N-073",
+      "N-092",
+      "N-071"
+    ],
+    "existing_closed_nodes": [
+      "N-117",
+      "N-118",
+      "N-119",
+      "N-116"
+    ],
+    "node_creation_performed": false,
+    "node_closure_performed": false,
+    "canonical_plan_edited": true,
+    "plan_nodes_edited_directly": false,
+    "learn_journal_edited_directly": false
+  },
+  "delivery_order": [
+    "N-120",
+    "N-124",
+    "N-123",
+    "N-121",
+    "N-122",
+    "N-125",
+    "N-110/N-093/N-073",
+    "N-070 + module release dependency",
+    "N-092",
+    "N-071"
+  ],
+  "acceptance": {
+    "previous_four_holdouts": "PUBLIC_CONTROLS_FOREVER",
+    "fresh_sealed_holdouts_count": 0,
+    "future_release_minimum_fresh_sealed_holdouts": 4,
+    "evaluator_isolation_required": true,
+    "causally_proven_general_auto_learning": false,
+    "installed_runtime_version": "0.11.8",
+    "future_development_target": "0.11.9",
+    "developer_qa_status": "NOT_RUN_CODE_UNCHANGED",
+    "independent_semantic_review_of_new_plan": "NOT_RUN_REQUIRES_PLAN_APPROVAL",
+    "native_plan_spine_exit": 0,
+    "native_plan_node_list_exit": 0,
+    "native_plan_lint_exit": 0,
+    "native_plan_lint_warnings": 0,
+    "native_validate_exit": 0,
+    "native_validate_goals": 7,
+    "native_validate_criteria": 62,
+    "git_diff_check_exit": 0
+  },
+  "forbidden_without_new_explicit_LPR_yes": [
+    "GitHub Release or tag or marketplace promotion",
+    "live install or release cutover",
+    "reboot or shutdown or UAC",
+    "stop foreign services",
+    "executable or blocking learned rule grants"
+  ],
+  "next_gate": "LPR review of consolidated PLAN, then N120 Windows ancestor junction TDD GREEN, QA current SHA and independent Codex semantic PASS; no release authority"
+}
