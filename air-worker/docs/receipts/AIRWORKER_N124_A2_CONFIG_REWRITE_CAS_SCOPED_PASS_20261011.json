@@ -1,0 +1,68 @@
+{
+  "schema": "air-worker.n124.a2.git-config-cas-scoped/v1",
+  "date_sgt": "2026-10-11",
+  "node": "SRVLM01",
+  "status": "A2_SCOPED_QA_PASS_INDEPENDENT_SOL_LOW_PENDING",
+  "source_branch": "dev/airworker-n124-native-identity-20261011",
+  "base_head": "55917014581823b9f86034c8ac8849fb14d560f0",
+  "scope": "fixture-only local OS-temp Git CAS; production node new/close NOT connected",
+  "independent_previous_observation": {
+    "raw_final": "CHANGES_REQUIRED P0=0 P1=1 P2=0",
+    "source_sha": "55917014581823b9f86034c8ac8849fb14d560f0",
+    "native_pre_fixer": "NOT_PROVEN due to duplicate unused web_search metadata id",
+    "finding": "Git url.*.insteadOf entry can be added to source .git/config between validation and push, redirecting to foreign bare Git origin"
+  },
+  "native_executor": {
+    "method": "air-worker executor dispatch",
+    "class": "complex",
+    "selected_model": "gpt-6-astra",
+    "effort": "low",
+    "task": "n124-a2-git-config-rewrite-race-fix-20261011.md",
+    "task_status": "DONE",
+    "product_acceptance": false
+  },
+  "fix": "Pin source repo .git/config with a Windows nonattribute FILE_READ_DATA/GENERIC_READ HANDLE and FILE_SHARE_READ only, source .git ancestor directory identities held through push + post-readback. Unsupported systems fail closed. New negative test actively attempts url rewrite, write, rename and ancestor mutation before push, checks foreign ref unchanged. No real GitHub mutation.",
+  "source_files_sha256": {
+    "cmd/plan_candidate_publish.go": "2617e1e669ee50be642a011464dbde74bcdcef7110e9c6dadee7ddbb8907951e",
+    "cmd/plan_candidate_config_lock_windows.go": "6209cd313e1304641e7ecd4bed63c6823c3d2c117ec9f2f80d62babc815630d0",
+    "cmd/plan_candidate_config_lock_other.go": "8b8b9a0e916157da74c83e52770cd0107c5df5fc9ac6e0a78b04e3ceafa082fc",
+    "cmd/plan_candidate_config_lock_windows_test.go": "c69443d35a7acb2594c0435513a08328e1ee2e936c4a95f490d4233858dbc3e6",
+    "cmd/plan_candidate_config_lock_other_test.go": "95a3745ffa3c3640dc8396098ad1cca89afa10573de519df9810b9d33edf29d0"
+  },
+  "host_tests": [
+    {
+      "scope": "config lock + concurrent rewrite injection",
+      "command": "go -C air-worker/cmd test . -run '^(TestPlanCandidateConfigLock|TestPlanCandidatePublishConfigRace)$' -count=1 -v -timeout 180s",
+      "exit_code": 0,
+      "log_sha256": "aa6ed1589d12b38c511187f2699e119c5a6dfc65dade2c59e31fc76e77300716",
+      "path": "R:/-4-/air-worker/work/1.20/n124-git-config-race-20261011/config-race-scoped.log"
+    },
+    {
+      "scope": "A1/A2 all scoped",
+      "command": "go -C air-worker/cmd test . -run '^TestPlanCandidate' -count=1 -v -timeout 540s",
+      "exit_code": 0,
+      "log_sha256": "e32a391f2f0037d2533bd39e1e0129d5907265aee16e3ec0ec3f4266bc9070a7",
+      "path": "R:/-4-/air-worker/work/1.20/n124-git-config-race-20261011/a2-all-scoped.log",
+      "runtime_seconds": 321.556
+    }
+  ],
+  "observed_positive": [
+    "TestPlanCandidateConfigLock / existing writer/hardlink/missing/directory PASS",
+    "TestPlanCandidatePublishConfigRace / git-config/write/replace/git-dir/repo/ancestor PASS",
+    "TestPlanCandidatePublishReplay PASS",
+    "TestPlanCandidatePublishRace one winner PASS",
+    "TestPlanCandidateImmutable PASS"
+  ],
+  "not_proven": [
+    "same-source independent Codex gpt-6-sol low at new commit",
+    "two cases SKIP for privilege/no junction ancestor; separate parent-root replacement adversarial earlier PASS",
+    "N124/A3 production Git canonical new/close, outbox reconciliation/recovery",
+    "full Go/vet/build release candidate, learning E2E and N071"
+  ],
+  "diff_check_exit": 0,
+  "N124": "OPEN",
+  "N120": "HOLD",
+  "installed_version": "0.11.8",
+  "next_release": "1.20",
+  "tag_release_install": false
+}

@@ -81,6 +81,11 @@ func publishPlanCandidate(ctx context.Context, repo, originBare, ref string, can
 		return conflict("origin fence unavailable: " + err.Error())
 	}
 	defer originLock.Close()
+	configLock, err := lockCandidateConfig(repo)
+	if err != nil {
+		return conflict("source config fence unavailable: " + err.Error())
+	}
+	defer configLock.Close()
 	for _, root := range []string{repo, originBare} {
 		if err := candidatePublishFixture(root); err != nil {
 			return conflict(err.Error())
@@ -201,6 +206,9 @@ func publishPlanCandidate(ctx context.Context, repo, originBare, ref string, can
 		}
 	}
 	readback := func(parent context.Context) (string, error) {
+		if err := configLock.Verify(); err != nil {
+			return "", err
+		}
 		if err := verifyOrigin(); err != nil {
 			return "", err
 		}
@@ -209,6 +217,9 @@ func publishPlanCandidate(ctx context.Context, repo, originBare, ref string, can
 			return "", err
 		}
 		if err := originLock.Verify(); err != nil {
+			return "", err
+		}
+		if err := configLock.Verify(); err != nil {
 			return "", err
 		}
 		return strings.TrimSpace(string(out)), nil
@@ -228,6 +239,9 @@ func publishPlanCandidate(ctx context.Context, repo, originBare, ref string, can
 	}
 	if beforePush != nil {
 		beforePush()
+	}
+	if err := configLock.Verify(); err != nil {
+		return conflict("source config identity changed: " + err.Error())
 	}
 	_, pushErr := run(ctx, repo, "push", "--porcelain", "--no-verify", "--no-follow-tags", "--recurse-submodules=no", "--signed=false",
 		"--force-with-lease="+ref+":"+expectedOldSHA, "--", originBare, candidate.OID+":"+ref)
