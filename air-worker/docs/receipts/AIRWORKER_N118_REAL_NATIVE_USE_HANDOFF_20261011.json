@@ -1,0 +1,78 @@
+{
+  "schema": "air-worker.n118.real-native-use-handoff/v1",
+  "recorded_sgt_date": "2026-10-11",
+  "node": "SRVLM01",
+  "status": "PARTIAL_ACCEPTANCE_REAL_NATIVE_PREVENTED_RETRY_N118_OPEN",
+  "source_git_repo": "ruhorh66-rgb/air-plugins",
+  "source_branch": "dev/airworker-0.11.9-selflearning-only-20261011",
+  "tested_exact_source_head": "9ecefd3667da93417cbe2a4ebab7d47959413957",
+  "source_clean_verified": true,
+  "machine_evidence": {
+    "full_go_test_vet_build": {
+      "exit_codes": [
+        0,
+        0,
+        0
+      ],
+      "receipt_path": "R:\\-4-\\air-worker\\work\\0.11.9\\n118-9ecefd3\\QA_FULL.json",
+      "sha256": "eefdc407df338a8f518879767ae30c8514620edbe9cff165e98f7ff0e8505a9d"
+    },
+    "independent_sol_low": {
+      "verdict": "PASS",
+      "P0": 0,
+      "P1": 0,
+      "P2": 0,
+      "receipt_path": "R:\\-4-\\air-worker\\work\\0.11.9\\n118-9ecefd3\\SOL_LOW_RUN.json",
+      "receipt_sha256": "3f5a52439ab0c2e9d68a4edcea67bbc9c81d6ea462de79bf6d8ebc6a05c9efc4",
+      "model": "gpt-6-sol",
+      "effort": "low",
+      "sandbox": "read-only"
+    },
+    "github_readback": {
+      "status": "PASS",
+      "sha256": "6adb78dd646f1d1fe2b6a9053957de8e1319b4335612a5f4449c868243a342a2"
+    },
+    "original_autoapplied_procedure": {
+      "event": "EV-33bc88add809f430eeff0ab6",
+      "run": "AW-CLI-0cda882d2f1dd22df39cabc2",
+      "safe_rule_target": "skills/learned/air-worker-cli-preflight-efe9e81b-f6e6ba39ba7d8d31.md",
+      "safe_rule_sha256": "f6e6ba39ba7d8d3193c7a45be367facd781de004aca5989f3559e851b050313e",
+      "ledger_status": "applied"
+    },
+    "independent_real_use_readback": {
+      "status": "PASS_REAL_NATIVE_DEFERRED_USE",
+      "acceptance_path": "R:\\-4-\\air-worker\\work\\0.11.9\\n118-9ecefd3\\N118_REAL_NATIVE_REUSE_ACCEPTANCE.json",
+      "receipt_sha256": "b601f0e1231de19cb538fb82c14b2f7a6f5f71942d84e579811f3344e46eead1",
+      "new_event_id": "EV-7be7658b0ee67c37cda8fed0",
+      "new_run_id": "N118-USED-9be6dda0138ffbff659ae3e5",
+      "count_before": 0,
+      "count_after": 1,
+      "outcome": "pass",
+      "effect": "avoided_repeat_validation_with_missing_config",
+      "native_validation_executed": false,
+      "native_cli_exit": 2,
+      "effect_sha256": "e68c5ca2c551f452e43152bf66ec9e0c69c60aaa513c25c043522b4011c39680"
+    }
+  },
+  "invocation_reconciliation": "A previous successful one-time invocation had already saved the native event and acceptance by UTC 01:16:37. A later PowerShell wrapper attempt at UTC 01:16:49 returned an error because the receipt already existed. Runtime readback verifies exactly one used event, one effect receipt and no duplicated original CLI failure. Do not replay.",
+  "open_nodes": [
+    "N-118_p0-n110-fresh-process-native-preflight-procedure",
+    "N-110_p0-auto-capture-persist-every-real-airworker-ses",
+    "N-093_p0-self-use-verifiable-outcome-for-newly-learned",
+    "N-092_rel-judge-restore-global-product-judge-pass",
+    "N-071_rel-0-11-9-next-airworker-release-with-shared-le"
+  ],
+  "remaining_done_when": "N-118 requires native full validation PASS after legitimate restoration of the expected existing canonical configuration and PLAN for this exact isolated product, with correlated immutable outcome/effect. This was NOT accomplished; no fabricated config or manual PLAN/node/LEARN edit was made.",
+  "next_step": "Use an authoritative prior config/plan restore mechanism endorsed by the product curator for the isolated product, never synthesize missing config; after fact verification run a genuine native validate expecting rc0, attach one immutable machine receipt linking prior signed failure and selected exact safe skill, and obtain independent judge. No code mutation or release until known inputs.",
+  "safety_and_release": {
+    "installed_air_worker": "0.11.8 unchanged",
+    "tag_created": false,
+    "github_release_created": false,
+    "installed_new_binary": false,
+    "reboot": false,
+    "uac": false,
+    "other_service_stopped": false,
+    "installed_candidate_learning_scope": "isolated synthetic under R:/-4-/air-worker/work only",
+    "future_Hermes_Nous_branch": "separate protected WIP, not enabled in 0.11.9 candidate"
+  }
+}
