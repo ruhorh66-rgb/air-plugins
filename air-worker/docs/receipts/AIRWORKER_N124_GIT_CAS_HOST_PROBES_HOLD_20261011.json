@@ -1,0 +1,44 @@
+{
+  "schema": "air-worker.n124.git-cas-host-probes/v1",
+  "date_sgt": "2026-10-11",
+  "node": "SRVLM01",
+  "status": "HOLD_N124_NOT_DONE",
+  "branch": "dev/airworker-n124-native-identity-20261011",
+  "baseline_commit": "88a8bc9c20cf174a2dcd8348e16c67a46354851d",
+  "execution": {
+    "orchestrator": "air-worker executor dispatch -class complex",
+    "attempt": 2,
+    "requested_tier_by_class": "gpt6-astra:low",
+    "actual_model": "gpt-6-astra",
+    "effort": "low",
+    "native_job_id": "gpt__airworker-n124-20261011__1791713880755258400__34d66cd1",
+    "native_job_status": "DONE",
+    "executor_exit": 0,
+    "product_n124_acceptance": false
+  },
+  "machine_probe": {
+    "command": "go -C air-worker/cmd test . -run ^TestPlanNodeN124Git -count=1 -v -timeout 120s",
+    "environment": "SRVLM01 host outside Codex sandbox, isolated OS temp bare Git fixture",
+    "exit_code": 0,
+    "cases_passed": 4,
+    "log_path": "R:/-4-/air-worker/work/0.11.9/n124-host-git-probe-20261011/probe.log",
+    "log_sha256": "2d87760443f75518275a0c87b7b09852daf9d7c5934f3f7bd492d2b59dc2a58b",
+    "test_sha256": "1e05af16237e4fa47aa71afce32a106728c6729d4f2d34ca6d0e95dd72395650"
+  },
+  "findings": [
+    "two clients pushing SAME git object to same new claim ref can both report success; exit code 0 does not establish exclusive ownership",
+    "distinct claim objects with atomic create-if-absent have a single winner in local bare-origin fixture",
+    "claim ref created atomically does not fence subsequent change to canonical branch before PLAN/LEARN publication",
+    "production native new/close currently fail closed for all Git worktrees; canonical successful new/close is NOT_IMPLEMENTED"
+  ],
+  "codex_sandbox_note": "In coding sandbox, temp bare git push failed sh.exe signal pipe Win32 error 5; independent host probe passed. This is a sandbox/transport difference, not evidence that production Git remote CAS is working.",
+  "open_requirements": [
+    "native canonical positive N121 allocation + close",
+    "distributed atomic plan/learn fencing and rollback/reconciliation",
+    "stale GitHub source identity and dirty WIP protection",
+    "full Go QA and independent Sol Low PASS"
+  ],
+  "allow_release_or_install": false,
+  "close_N124": false,
+  "close_N120": false
+}
