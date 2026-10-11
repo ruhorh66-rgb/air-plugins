@@ -1,0 +1,59 @@
+{
+  "schema": "air-worker.n124.a2.independent-native-review/v1",
+  "date_sgt": "2026-10-11",
+  "node": "SRVLM01",
+  "status": "CHANGES_REQUIRED_N124_OPEN",
+  "source_branch": "dev/airworker-n124-native-identity-20261011",
+  "source_head": "3390f18bdbaa7f64801fff1f03ac3995e55c51d4",
+  "source_remote_sha_confirmed": true,
+  "model": {
+    "provider": "codex",
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "sandbox": "read-only",
+    "entrypoint": "source-only air-worker review code (compiled from dev/airworker-native-sol-reviewer-20261011)",
+    "preflight_exit": 0,
+    "preflight_verdict": "PREFLIGHT_OK",
+    "judge_exit": 1,
+    "judge_terminal": "job DONE",
+    "codex_session_id": "01a12b9c-6561-70a1-a7ba-0280115ea6c6"
+  },
+  "input": {
+    "task_sha256": "ddf5c8bc36f134761fa8e10e47fab0a3abf0a8034f30598feda27ee0921726bd",
+    "plan_sha256": "e5291ed632f071f22d0ed8ceda27a813c903885365c030be4cc3ce0541c1d771",
+    "reference_qa_receipt": "docs/receipts/AIRWORKER_N124_A2_HOST_SCOPED_GREEN_20261011.json",
+    "combined_scoped_qa_exit": 0
+  },
+  "machine_receipt": {
+    "job_receipt_basename": "gpt-n124-a2-sol-native-20261011-code-3390f18bdbaa7f64801fff1f03ac3995e55c51d4-ddf5c8bc36f134761fa8e10e47fab0a3abf0a8034f30598feda27ee0921726bd-code-review.receipt.json",
+    "status": "DONE",
+    "job_receipt_sha256": "0d90e37b0823b6943754fb893b3f0fe95f2c73ac954f4685cda6900b6f0eecdb",
+    "output_sha256": "ba2722cc2cdbe69a7ae88f4b2edc5c94673f6b1658be37250b88e290891f7d1a",
+    "review_suffix": ".receipt.json.review.json",
+    "replay_claim_unchanged": true
+  },
+  "verdict": {
+    "verdict": "CHANGES_REQUIRED",
+    "source_head": "3390f18bdbaa7f64801fff1f03ac3995e55c51d4",
+    "p0_open": 0,
+    "p1_open": 1,
+    "p2_open": 1,
+    "findings": [
+      {
+        "severity": "P1",
+        "location": "cmd/plan_candidate_publish.go:211",
+        "issue": "Physical temp bare origin is checked before git push but opened later; replacement can redirect the push to a foreign bare Git repo; later check only marks pending after mutation.",
+        "minimal_fix": "Pin transport to validated physical origin throughout push or prevent origin directory replacement and add replacement-race regression."
+      },
+      {
+        "severity": "P2",
+        "location": "cmd/plan_candidate.go:147",
+        "issue": "Exactly three candidate paths checked, but PLAN/node/outbox bytes may disagree on node identity and operation; existing validation only paths and readback.",
+        "minimal_fix": "Validate linked identity and operation values in PLAN, node and outbox; add negative mismatch test."
+      }
+    ],
+    "next_gate": "Fix A2 P1 and P2; scoped Go on new exact SHA and new independent Sol low review. Only after A2 PASS start A3 native new/close/outbox recovery; N124/N120 OPEN."
+  },
+  "release_or_install": false,
+  "installed_version": "0.11.8"
+}
