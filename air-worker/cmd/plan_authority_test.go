@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -190,7 +191,10 @@ func TestPlanNodeN124MissingGitCannotEnableFixture(t *testing.T) {
 
 func n124Git(t *testing.T, root string, args ...string) {
 	t.Helper()
-	c := exec.Command("git", append([]string{"-C", root}, args...)...)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	c := exec.CommandContext(ctx, "git", append([]string{"-C", root}, args...)...)
+	c.WaitDelay = time.Second
 	c.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_AUTHOR_NAME=fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid", "GIT_COMMITTER_NAME=fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid")
 	if out, err := c.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v %s", args, err, out)

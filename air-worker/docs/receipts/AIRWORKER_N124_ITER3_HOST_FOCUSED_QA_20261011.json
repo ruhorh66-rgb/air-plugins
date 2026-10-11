@@ -1,0 +1,44 @@
+{
+  "schema": "air-worker.n124.iter3.host-focused-qa/v1",
+  "date_sgt": "2026-10-11",
+  "status": "SCOPED_QA_PASS_N124_STILL_OPEN",
+  "baseline_source_commit": "b84bc7f45ecf4edea0125fbee1eca6bca4c52394",
+  "code_sha256": {
+    "cmd/plan_authority_test.go": "0f4c8d6b8288d2bf4de28620afc1a959623b0775ee986a6179f08e03bbe9ed1b",
+    "cmd/plan_authority_git_probe_test.go": "865812b0ec0e6fb4fb3d30d4a9c2515daf50e9bae4c4e4440e8e2ec413fa2313"
+  },
+  "native_ladder_job": {
+    "model": "gpt-6-astra",
+    "effort": "low",
+    "job_id": "gpt__airworker-n124-20261011__1791716943648261400__2160cb2e",
+    "status": "DONE",
+    "dispatch_exit": 0,
+    "product_n124_acceptance": false
+  },
+  "verification": {
+    "executor_sandbox_qa_exit": 1,
+    "executor_sandbox_error": "sh.exe couldn't create signal pipe Win32 error 5",
+    "outside_sandbox_host": "SRVLM01",
+    "command": "go -C air-worker/cmd test . -run ^TestPlanNodeN124 -count=1 -v -timeout 240s",
+    "exit_code": 0,
+    "top_level_tests_passed": 11,
+    "log_sha256": "e1ff3d337fe3ccf559ce590fbe1245f81082a3b94996efc92c6e519987260189",
+    "log_path": "R:/-4-/air-worker/work/0.11.9/n124-iter3-host-qa-20261011/focused.log",
+    "machine_result": "R:/-4-/air-worker/work/0.11.9/n124-iter3-host-qa-20261011/result.json",
+    "diff_check_exit": 0,
+    "full_go_test": "NOT_RUN",
+    "go_vet": "NOT_RUN",
+    "build": "NOT_RUN",
+    "positive_canonical_git_new_close": "NOT_IMPLEMENTED"
+  },
+  "remaining": {
+    "independent_code_judge": "CHANGES_REQUIRED on previous exact source e4ece32, P1=3",
+    "next_judge": "only after meaningful positive protocol implementation",
+    "n124_open": true,
+    "n120_hold": true,
+    "clean_source_required_before_acceptance": true
+  },
+  "release_or_install": false,
+  "foreign_process_stop": false,
+  "unsafe_grant": false
+}

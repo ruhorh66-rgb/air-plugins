@@ -1,0 +1,72 @@
+{
+  "schema": "air-worker.n124.iteration3-checkpoint/v1",
+  "status": "HOLD_NOT_IMPLEMENTED",
+  "baseline": "b84bc7f45ecf4edea0125fbee1eca6bca4c52394",
+  "product_acceptance": false,
+  "positive_git_canonical_implemented": false,
+  "scope": "Source-only review and bounded Git fixture corrections; production remains fail-closed",
+  "changed_files": [
+    "cmd/plan_authority_test.go",
+    "cmd/plan_authority_git_probe_test.go",
+    "docs/receipts/AIRWORKER_N124_ITERATION3_HOLD_20261011.json"
+  ],
+  "changes": [
+    "n124Git now has a 20-second context deadline and one-second WaitDelay",
+    "n124ProbeGit no longer overrides core.hooksPath"
+  ],
+  "blockers": [
+    {
+      "kind": "implementation",
+      "evidence": "cmd/plan_authority.go:19; cmd/plan_nodes.go:94",
+      "detail": "No git-canonical contract/parser or remote snapshot allocator exists. All Git new/close still reject. This is unfinished implementation, not a claim that Git CAS is impossible."
+    },
+    {
+      "kind": "publication",
+      "evidence": "cmd/plan_shared_create.go:251,286,302; cmd/plan_shared_close.go:143-155",
+      "detail": "Current shared paths publish source node and spine before learning. Putting a remote lease around the existing calls still leaves source mutations on a losing publication. They must prepare immutable bytes without invoking these write paths."
+    },
+    {
+      "kind": "recovery",
+      "evidence": "cmd/plan_shared_create.go:112,196; cmd/plan_shared_close.go:55,118",
+      "detail": "Current intents are stored under RuntimeRoot and bound to absolute Product/RuntimeRoot. They contain no canonical ref, expected commit, accepted commit, or canonical request lookup. After remote acceptance and failed local readback, a fresh worktree cannot prove acceptance from these intents; a retry must not allocate another ID or replay unverified learning."
+    },
+    {
+      "kind": "verification_environment",
+      "detail": "Disposable bare-origin push fails before protocol assertions: sh.exe could not create signal pipe, Win32 error 5. Native positive acceptance tests have not been implemented; running existing probes outside sandbox alone cannot establish acceptance."
+    }
+  ],
+  "required_protocol": [
+    "Strict machine contract binds physical product/repository path, canonical remote identity, full branch ref and learning outbox version. Reject missing, foreign and unsupported configurations before any PLAN/LEARN write.",
+    "Read and verify remote preimage and matching source HEAD, exact PLAN/node blobs and numeric ID uniqueness. Derive N-121 from accepted canonical N-120, never a stale local directory.",
+    "Prepare node, spine and immutable request/event outbox in one new commit with the verified old commit as its parent, using a private index/object preparation path. Do not stage dirty WIP or edit source PLAN/LEARN.",
+    "Publish only that new canonical commit with explicit --force-with-lease=<ref>:<oldSHA>; verify parent ancestry so the proposed update is fast-forward. A separate claim is not acceptance.",
+    "On ambiguous push/readback failure, fetch canonical history and locate the exact durable request and payload digest. Matching accepted bytes recover the original node/event; reused request with different bytes is conflict. Missing/unreachable evidence stays pending and must not cause learning replay or new allocation.",
+    "Reconcile learning from the accepted outbox with stable event identity and verified payload. Preserve dirty local projection bytes on conflict and report remote acceptance separately from local reconciliation.",
+    "Before enabling the mode, exercise actual native new/close against temp bare Git: one winner from two stale clones, untouched losing WIP, N-121, original-blob close, config/path/HEAD rejection, collision rejection and post-push recovery."
+  ],
+  "validation": {
+    "command": "go test . -run ^TestPlanNodeN124 -count=1 -v -timeout 120s",
+    "cwd": "cmd",
+    "initial_default_temp_exit": 1,
+    "temp_only_override_exit": 1,
+    "initial_scoped_exit": 1,
+    "final_scoped_exit": 1,
+    "final_top_level_pass": 7,
+    "final_top_level_fail": 4,
+    "failure": "All four Git probe fixtures fail at initial disposable-origin push with sh.exe signal-pipe Win32 error 5",
+    "log": "R:/-4-/air-commander-test/tmp/n124-iteration3/n124-final-tests.log",
+    "log_sha256": "8329b685b6669e2b938e9e4262942865793fe0e4d836f71b430598eda08fc828",
+    "gofmt_exit": 0,
+    "diff_check_exit": 0,
+    "full_go_qa": "NOT_RUN",
+    "independent_judge": "NOT_RUN",
+    "positive_native_git_tests": "NOT_IMPLEMENTED"
+  },
+  "safety": {
+    "production_plan_learn_policy_judges_unchanged": true,
+    "external_push": false,
+    "commit_tag_release_install": false,
+    "n124_remains_open": true,
+    "installed_version_unchanged": true
+  }
+}
