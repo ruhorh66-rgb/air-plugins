@@ -1,0 +1,62 @@
+{
+  "schema": "air-worker.curator-plan-correction/v1",
+  "date_sgt": "2026-10-11",
+  "kind": "PLAN_ONLY_NOT_IMPLEMENTATION_OR_RELEASE",
+  "node": "SRVLM01",
+  "instruction_source": "Кураторская сверка 11.10.2026 — замечание, не разрешение ЛПР на код/релиз",
+  "exact_original_head": "470261fb8f4ad4a62b2c85136e2ab97eb949b912",
+  "exact_original_plan_sha256": "9c6ff41767e4ff86c0e4de4340619b1b00c032e9fa30e343cdb1411a60c50f20",
+  "revised_plan_sha256": "54e76abbbe4f37e59faba895c91435f32ed663d27804f07cee9c096022701ca7",
+  "original_independent_review": {
+    "reviewer": "Codex official CLI",
+    "requested_model": "gpt-6-sol",
+    "requested_effort": "low",
+    "sandbox": "read-only",
+    "verdict": "DRIFT",
+    "findings_count": 2,
+    "machine_receipt": "docs/receipts/AIRWORKER_PLAN_470261FB_SOL_LOW_READONLY_DRIFT_20261011.json",
+    "terminal_event_verified": true,
+    "cli_wrapper_exit_code": null
+  },
+  "corrections_to_canonical_plan": [
+    "N-124 branch identity guard is now a prerequisite to native integration and close N-120",
+    "N-120 requires its complete done_when: real native judge rc2, typed private cause, immutable signed HMAC event, automatic reviewer, safe auto-apply, adversarial and fresh-source QA",
+    "N-120 WIP transfer constrained to reviewed source/test/N120 receipts, no PLAN/N-* or LEARN merge from stale branch",
+    "Native loop current candidate features separated from missing persistent recovery, full host-tool capture and preventive effect"
+  ],
+  "n124_preclose_readonly": {
+    "receipt": "docs/receipts/AIRWORKER_N124_PRECLOSE_IDENTITY_HOLD_20261011.json",
+    "status": "HOLD_N124_NOT_IMPLEMENTED",
+    "current_two_named_n120_blobs_identical": true,
+    "known_historical_duplicate_N120": true,
+    "native_collision_guard_proven": false,
+    "n120_native_close_allowed": false
+  },
+  "native_plan_checks": {
+    "plan_spine_exit": 0,
+    "node_list_exit": 0,
+    "open_nodes_reported": 40,
+    "plan_lint_exit": 0,
+    "plan_lint_warnings": 0,
+    "validate_exit": 0,
+    "goals": 7,
+    "criteria": 62,
+    "git_diff_check_exit": 0,
+    "full_go_qa": "NOT_RUN_PLAN_ONLY",
+    "judge_after_plan_edit": "REQUIRES_NEW_SHA_READONLY_REVIEW"
+  },
+  "allowed_operations": "PLAN.md + evidence JSON documents only",
+  "mutations": {
+    "product_go_source": false,
+    "plan_N_nodes": false,
+    "learn_journal": false,
+    "installed_0_11_8": false,
+    "release_tag": false,
+    "market_promotion": false,
+    "live_install": false,
+    "reboot_UAC_stop_services": false,
+    "unsafe_control_grants": false
+  },
+  "status": "PLAN_CORRECTED_GATE_OPEN_UNTIL_LPR",
+  "current_next_gate": "New exact SHA read-only independent semantic review of revised PLAN; approval of route still required from LPR"
+}

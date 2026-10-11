@@ -1,0 +1,56 @@
+{
+    "schema":  "air-worker.plan-readonly-independent-review/v1",
+    "stage":  "CURRENT_PLAN_470261FB_BEFORE_CORRECTIONS",
+    "status":  "DRIFT",
+    "source_head":  "470261fb8f4ad4a62b2c85136e2ab97eb949b912",
+    "remote_head":  "470261fb8f4ad4a62b2c85136e2ab97eb949b912",
+    "branch":  "dev/airworker-0.11.9-selflearning-only-20261011",
+    "plan_sha256":  "9c6ff41767e4ff86c0e4de4340619b1b00c032e9fa30e343cdb1411a60c50f20",
+    "reviewed_plan":  "air-worker/PLAN.md",
+    "reviewer":  {
+                     "tool":  "Codex official CLI",
+                     "cli_version":  "0.158.0",
+                     "model_requested":  "gpt-6-sol",
+                     "effort_requested":  "low",
+                     "sandbox":  "read-only",
+                     "session_id":  "01a12a36-9dde-7053-b306-7c24e9e4a91a",
+                     "terminal_turn_completed":  true,
+                     "errors_count":  0,
+                     "wrapper_exit_code":  null,
+                     "no_runtime_release_or_install":  true
+                 },
+    "machine_evidence":  {
+                             "codex_events_sha256":  "7787bd0afb19efce17e3965aee15e30856a6aa79a8a5e8f4ff985d4ce6c182fd",
+                             "codex_prompt_sha256":  "42da9f6549ae7c9ad7ea3e461b36fa1ea50a2885c5b38f200c508595c18445a6",
+                             "codex_schema_sha256":  "ecb5bc99949a001edd89f3ddd04dc5c386167fd88c926d7e7508589632e546e8",
+                             "stderr_length":  0,
+                             "process_exit_code":  "not_captured_by_Start-Process_cmd_wrapper",
+                             "terminal_event_verified":  true,
+                             "plan_hash_pre_post_matches":  true,
+                             "git_dirty_before":  false,
+                             "source_code_changed":  false
+                         },
+    "verdict":  {
+                    "verdict":  "DRIFT",
+                    "source_head":  "470261fb8f4ad4a62b2c85136e2ab97eb949b912",
+                    "plan_sha256":  "9c6ff41767e4ff86c0e4de4340619b1b00c032e9fa30e343cdb1411a60c50f20",
+                    "findings":  [
+                                     {
+                                         "kind":  "MISSING",
+                                         "detail":  "The current roadmap describes N-120 as Windows junction/reparse GREEN plus QA and review. Its existing node also requires a real native judge rc2 with a typed private precondition, one HMAC-signed event, automatic reviewer dispatch, and safe auto-apply. The roadmap says older done_when remain binding, but its N-120 milestone and close instruction do not make that complete chain an explicit close gate."
+                                     },
+                                     {
+                                         "kind":  "ORDER_RISK",
+                                         "detail":  "The roadmap puts N-120 integration and native node close before N-124 proves the cross-branch ID and PLAN-identity guard. N-124 documents an actual N-120 collision. A clean worktree and manual authority check do not satisfy its fail-closed allocation/close acceptance criterion."
+                                     }
+                                 ],
+                    "next":  "Revise the N-120 milestone to require its full native judge-to-safe-apply chain, and gate N-120 integration/close on N-124’s proven cross-branch identity protection; then repeat semantic plan review. The plan correctly keeps narrow existing native evidence distinct from future E2E, and preserves sealed holdout and release/LPR gates."
+                },
+    "open_gates":  [
+                       "N-120 full native judge rc2 -\u003e signed receipt -\u003e reviewer -\u003e safe auto-apply",
+                       "N-124 cross-branch ID protection before N120 integration/close",
+                       "N-110/N-093/N-073 native autonomy and causal effect",
+                       "N-092/N-071 product release"
+                   ],
+    "note":  "Independent DRIFT is a finding to correct, not approval of implementation, release or installation. A new plan SHA needs a new independent review."
+}

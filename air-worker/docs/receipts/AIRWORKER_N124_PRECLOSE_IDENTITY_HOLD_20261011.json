@@ -1,0 +1,105 @@
+{
+    "schema":  "air-worker.n124.preclose-authority-readonly-hold/v1",
+    "date_sgt":  "2026-10-11",
+    "status":  "HOLD_N124_NOT_IMPLEMENTED",
+    "node":  "SRVLM01",
+    "canonical_ref":  {
+                          "branch":  "dev/airworker-0.11.9-selflearning-only-20261011",
+                          "sha":  "470261fb8f4ad4a62b2c85136e2ab97eb949b912",
+                          "remote_sha":  "470261fb8f4ad4a62b2c85136e2ab97eb949b912"
+                      },
+    "wip_ref":  {
+                    "branch":  "dev/airworker-0.11.9-selflearn-judge-preflight-20261011",
+                    "sha":  "963b0bc590b7252af3557c225c94bb29f23676b2",
+                    "remote_sha":  "963b0bc590b7252af3557c225c94bb29f23676b2"
+                },
+    "merge_base":  "06283c8c1718567645f1cc0191229146dd464b62",
+    "n120":  {
+                 "node_file":  "air-worker/plan/N-120_p0-auto-learn-real-native-judge-configuration-fa.md",
+                 "canonical_blob_sha":  "eb65347330425e3148408309cb27528025a4b551",
+                 "wip_blob_sha":  "eb65347330425e3148408309cb27528025a4b551",
+                 "equal_at_these_two_refs":  true,
+                 "ids_main":  [
+                                  "air-worker/plan/N-120_p0-auto-learn-real-native-judge-configuration-fa.md"
+                              ],
+                 "ids_wip":  [
+                                 "air-worker/plan/N-120_p0-auto-learn-real-native-judge-configuration-fa.md"
+                             ]
+             },
+    "n121_to_n125":  {
+                         "canonical_counts":  [
+                                                  1,
+                                                  1,
+                                                  1,
+                                                  1,
+                                                  1
+                                              ],
+                         "wip_counts":  [
+                                            0,
+                                            0,
+                                            0,
+                                            0,
+                                            0
+                                        ],
+                         "authority_contains_all":  true,
+                         "wip_missing_all":  true
+                     },
+    "known_historical_collision":  {
+                                       "original_id":  "N-120_p0-auto-learn-real-native-judge-configuration-fa",
+                                       "accidentally_reused_id":  "N-120_p0-self-learning-capture-real-tool-failures-and-d",
+                                       "artifact":  "docs/receipts/AIRWORKER_NODE_ID_COLLISION_REPRO_20261011.json"
+                                   },
+    "differences":  {
+                        "paths":  [
+                                      "M\tair-worker/PLAN.md",
+                                      "M\tair-worker/cmd/self_cli_failure.go",
+                                      "M\tair-worker/cmd/self_cli_trusted_cause.go",
+                                      "A\tair-worker/cmd/self_judge_preflight_test.go",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_N120_N125_CONSOLIDATED_PLAN_20261011.json",
+                                      "A\tair-worker/docs/receipts/AIRWORKER_N120_NATIVE_JUDGE_AUTOLEARN_TDD_20261011.json",
+                                      "A\tair-worker/docs/receipts/AIRWORKER_N120_P1_WIP_HANDOFF_20261011.json",
+                                      "A\tair-worker/docs/receipts/AIRWORKER_N120_P1_WIP_HANDOFF_20261011.md",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_NATIVE_LOOP_PLAN_ACCEPTANCE_ADDENDUM_20261011.json",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_NODE_ID_COLLISION_REPRO_20261011.json",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_SELFLEARNING_BACKLOG_20261011.json",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_SELFLEARNING_BACKLOG_20261011.md",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_SELFLEARNING_EVALUATOR_PROTOCOL_20261011.md",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_SELFLEARNING_EVAL_LEAK_CORRECTION_20261011.json",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_SELFLEARNING_NATIVE_TRAINING_RECEIPT_20261011.json",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_SELFLEARNING_RETROSPECTIVE_PLAN_QA_20261011.json",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_SELFLEARNING_RETROSPECTIVE_SOL_LOW_RUN_20261011.json",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_SELFLEARNING_RETROSPECTIVE_SOL_LOW_VERDICT_20261011.json",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_SELFLEARNING_SESSION_POSTMORTEM_20261011.md",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_SELFLEARNING_TRAINING_CASES_20261011.json",
+                                      "D\tair-worker/docs/receipts/AIRWORKER_SELFLEARNING_TRAINING_PLAYBOOK_20261011.md",
+                                      "M\tair-worker/learn/events.jsonl",
+                                      "D\tair-worker/plan/N-121_p0-real-airworker-session-failures-automatically.md",
+                                      "D\tair-worker/plan/N-122_p0-learned-safety-preflight-prevents-recurrent-p.md",
+                                      "D\tair-worker/plan/N-123_p0-resume-durable-qa-judge-jobs-after-chat-inter.md",
+                                      "D\tair-worker/plan/N-124_p1-detect-cross-branch-node-id-collision-and-sta.md",
+                                      "D\tair-worker/plan/N-125_p0-causal-learned-use-effect-and-recurrence-prev.md"
+                                  ],
+                        "unsafe_whole_tree_replace":  true,
+                        "whitelist_for_future_review":  [
+                                                            "air-worker/cmd/self_cli_failure.go",
+                                                            "air-worker/cmd/self_cli_trusted_cause.go",
+                                                            "air-worker/cmd/self_judge_preflight_test.go",
+                                                            "air-worker/cmd/*_test.go",
+                                                            "air-worker/docs/receipts/AIRWORKER_N120_*"
+                                                        ],
+                        "forbidden_from_wip":  [
+                                                   "air-worker/PLAN.md",
+                                                   "air-worker/plan/N-*",
+                                                   "air-worker/learn/events.jsonl",
+                                                   "deletions of authority postmortem and N121-N125"
+                                               ]
+                    },
+    "native_core_allocator_now":  "nextPlanNodeID only scans local plan directory; no global GitHub WIP conflict check",
+    "native_core_N124_machine_test":  "NOT_RUN",
+    "native_core_N124_independent_semantic":  "NOT_RUN",
+    "native_close_N120_authorized":  false,
+    "integration_N120_authorized":  false,
+    "human_approval_for_code_or_release":  false,
+    "post_edit_plan_sha256":  "54e76abbbe4f37e59faba895c91435f32ed663d27804f07cee9c096022701ca7",
+    "note":  "Snapshot only demonstrates absence of collision for the two named N120 refs and historic collision elsewhere. It is not a globally proven native N124 fix. N120 node close remains blocked."
+}
