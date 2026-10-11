@@ -65,6 +65,10 @@ func readReadyTools(planPath string) (readyToolsInfo, error) {
 	if err != nil {
 		return readyToolsInfo{}, err
 	}
+	return parseReadyToolsBytes(raw)
+}
+
+func parseReadyToolsBytes(raw []byte) (readyToolsInfo, error) {
 	body, err := markdownSectionText(raw, readyToolsSectionName)
 	if err != nil {
 		return readyToolsInfo{Present: false}, nil
@@ -149,8 +153,21 @@ func planExternalIntegrationSignals(steps []workStep) []string {
 }
 
 func validateReadyTools(planPath string, steps []workStep) []string {
+	return validateReadyToolsWithPinnedBytes(planPath, steps, nil)
+}
+
+// A nil plan snapshot preserves the existing direct filesystem path. A
+// nonnil snapshot binds the external-tool validation to the same plan bytes
+// actually parsed for steps and goal criteria in native validateProduct.
+func validateReadyToolsWithPinnedBytes(planPath string, steps []workStep, pinned []byte) []string {
 	signals := planExternalIntegrationSignals(steps)
-	info, err := readReadyTools(planPath)
+	var info readyToolsInfo
+	var err error
+	if pinned != nil {
+		info, err = parseReadyToolsBytes(pinned)
+	} else {
+		info, err = readReadyTools(planPath)
+	}
 	if len(signals) > 0 && !info.Present {
 		return []string{fmt.Sprintf("PLAN называет внешний инструмент (%s), но раздел %q отсутствует",
 			strings.Join(signals, ", "), readyToolsSectionName)}

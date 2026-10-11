@@ -1,0 +1,38 @@
+{
+    "schema":  "air-worker.n118.two-p1-remediation/v1",
+    "checked_utc":  "2026-10-11T02:06:43.9123274Z",
+    "status":  "SCOPED_TESTS_PASS_PENDING_FULL_QA_AND_JUDGE",
+    "source_base_sha":  "7cb19da1cc09f37f01302fa755a09699b9850791",
+    "source_branch":  "dev/airworker-n118-real-validation-pass-20261011",
+    "previous_independent_judge":  "Codex gpt-6-sol low read-only CHANGES_REQUIRED",
+    "previous_p0_open":  0,
+    "previous_p1_open":  2,
+    "previous_judge_receipt_sha256":  "beb0cc818b31da4bce38046ca48b038cd90be37273b41081ea9060b1852e69eb",
+    "fix_1":  "Under native result lock recheck original reviewer event, current applied ledger and module index with exact rule@SHA before recording positive learned use",
+    "fix_2":  "Native validator consumes same bounded, securely opened run-config and PLAN bytes as preflight SHA snapshot; after validation re-read originals to require same SHA",
+    "negative_tests":  [
+                           "module-owned rollback and recreated byte-identical skill cannot claim use",
+                           "different config and PLAN bytes at paths do not replace pinned native validator inputs",
+                           "swapped plan during native validation cannot produce measured positive use",
+                           "signed original evidence tampering fails closed",
+                           "failed native validate and unrelated product do not claim effect"
+                       ],
+    "source_files":  [
+                         "cmd/goals.go",
+                         "cmd/planfile.go",
+                         "cmd/ready_tools.go",
+                         "cmd/validate.go",
+                         "cmd/self_preflight_recovered.go",
+                         "cmd/self_preflight_recovered_test.go"
+                     ],
+    "previous_failed_test_log_sha256":  "cc475c45aaabe9a5c647a314a85a80ffc2a8141881885ba72f3c54ca371444bc",
+    "final_scoped_test_log_sha256":  "ec4c4dc0a5691680d68663615693b9b2385e704c67cdfc4704964d0538bf54b1",
+    "scoped_test_exit":  0,
+    "full_source_regression":  "PENDING_NEW_SOURCE_SHA",
+    "independent_sol_low":  "PENDING_NEW_SOURCE_SHA",
+    "actual_isolated_positive_restore":  "NOT_PERFORMED_UNTIL_INDEPENDENT_PASS",
+    "N118":  "OPEN",
+    "N110":  "OPEN",
+    "installed_airworker":  "0.11.8_UNCHANGED",
+    "release_or_install":  false
+}

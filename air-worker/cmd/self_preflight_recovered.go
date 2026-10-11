@@ -24,8 +24,12 @@ type nativePreflightRecoveredCandidate struct {
 	PlanPath    string
 	ConfigSHA   string
 	PlanSHA     string
-	LoadID      string
-	UsedID      string
+	// These exact byte slices are consumed by the native validator; reading
+	// the paths again would permit replacement-and-restoration false proofs.
+	PinnedConfig []byte
+	PinnedPlan   []byte
+	LoadID       string
+	UsedID       string
 }
 
 type nativePreflightRecoveredReceipt struct {
@@ -121,6 +125,21 @@ func prepareNativePreflightRecoveredUse(argv []string, product string) (*nativeP
 		// a measured recovery action from unreadable/missing paths.
 		return nil, nil
 	}
+	// Capture the same opened-handle-constrained bytes for the actual
+	// validator. Matching SHA against the first preflight snapshot catches
+	// any intervening replacement before pinning the semantic inputs.
+	pinnedConfig, err := readSharedContextSkill(root, "run-config.json", 256*1024)
+	if err != nil {
+		return nil, nil
+	}
+	planRel, err := filepath.Rel(root, planPath)
+	if err != nil {
+		return nil, nil
+	}
+	pinnedPlan, err := readSharedContextSkill(root, filepath.ToSlash(planRel), 4*1024*1024)
+	if err != nil || learnSHA(pinnedConfig) != configSHA || learnSHA(pinnedPlan) != planSHA {
+		return nil, nil
+	}
 	identity := learnSHA([]byte("native-preflight-recovered/v1\x00" + prior.RunID + "\x00" + origin + "\x00" +
 		rule.SHA256 + "\x00" + configSHA + "\x00" + planSHA))
 	loadID := "N118-RECOVERED-LOADED-" + identity[:24]
@@ -143,6 +162,7 @@ func prepareNativePreflightRecoveredUse(argv []string, product string) (*nativeP
 	}
 	return &nativePreflightRecoveredCandidate{Owner: owner, Prior: prior, Rule: rule, SourceEvent: origin,
 		Root: root, ConfigPath: configPath, PlanPath: planPath, ConfigSHA: configSHA, PlanSHA: planSHA,
+		PinnedConfig: pinnedConfig, PinnedPlan: pinnedPlan,
 		LoadID: loadID, UsedID: usedID}, nil
 }
 
@@ -172,6 +192,16 @@ func recordNativePreflightRecoveredPass(c *nativePreflightRecoveredCandidate, r 
 	}
 	if !currentSelfLearningRuleBytes(owner, c.Rule) {
 		return errors.New("reviewed preflight rule changed before success evidence")
+	}
+	// Ledger/index and reviewer origin may change after preparation while the
+	// native validator runs. Re-read the full applied provenance under the
+	// recovery outcome lock; file SHA alone is NOT current approval.
+	freshRule, freshEvent, freshEligible, err := findAppliedPreflightRule(owner, c.Prior)
+	if err != nil {
+		return err
+	}
+	if !freshEligible || freshRule != c.Rule || freshEvent != c.SourceEvent {
+		return errors.New("reviewer, applied ledger or module index changed during native validation")
 	}
 	pathConfig, pathPlan, afterConfig, afterPlan, err := readNativePreflightConfigAndPlan(c.Root)
 	if err != nil {

@@ -68,6 +68,12 @@ func readPlanGoals(path string) planGoals {
 	if err != nil {
 		return planGoals{}
 	}
+	return parsePlanGoalsBytes(raw)
+}
+
+// The pinned validation path and the ordinary filesystem reader must parse
+// the same bytes through the same implementation.
+func parsePlanGoalsBytes(raw []byte) planGoals {
 	var g planGoals
 	for _, ln := range strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n") {
 		if m := reGoalLine.FindStringSubmatch(ln); m != nil {

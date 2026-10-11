@@ -78,8 +78,22 @@ func validateReadableFile(label, path string, nul bool, problems *[]string) {
 }
 
 func validateJudgeFiles(root, configPath string, cfg runConfig) []string {
+	return validateJudgeFilesWithPinnedConfig(root, configPath, cfg, nil)
+}
+
+// The pinned variant checks that the configured file remains present, but
+// the semantic NUL proof uses the exact bytes consumed by the validator,
+// never a different path read under concurrent replacement.
+func validateJudgeFilesWithPinnedConfig(root, configPath string, cfg runConfig, pinnedConfig []byte) []string {
 	var problems []string
-	validateReadableFile("run-config.json", configPath, true, &problems)
+	if pinnedConfig != nil {
+		validateReadableFile("run-config.json", configPath, false, &problems)
+		if bytes.IndexByte(pinnedConfig, 0) >= 0 {
+			problems = append(problems, "run-config.json содержит NUL-байт: "+configPath)
+		}
+	} else {
+		validateReadableFile("run-config.json", configPath, true, &problems)
+	}
 
 	if strings.TrimSpace(cfg.Judge.Checklist) != "" {
 		if path, err := validationPath(root, cfg.Judge.Checklist); err != nil {
@@ -331,7 +345,19 @@ func validateSelectorNeeds(root string, cfg runConfig, g planGoals, steps []work
 	return problems, batches
 }
 
+// nativeValidatePinnedBytes holds the exact bounded, opened-handle validated
+// input bytes. The real validator consumes these bytes, not separately opened
+// copies which might be swapped and restored during its execution.
+type nativeValidatePinnedBytes struct {
+	Config []byte
+	Plan   []byte
+}
+
 func validateProduct(root string) (productValidation, int) {
+	return validateProductUsingPinnedInputs(root, nil)
+}
+
+func validateProductUsingPinnedInputs(root string, pinned *nativeValidatePinnedBytes) (productValidation, int) {
 	report := productValidation{
 		Schema:     productValidationSchema,
 		OpenGates:  []string{},
@@ -352,23 +378,44 @@ func validateProduct(root string) (productValidation, int) {
 
 	configPath := filepath.Join(abs, "run-config.json")
 	report.Config = configPath
-	if has, err := hasNUL(configPath); err == nil && has {
+	if pinned != nil {
+		if bytes.IndexByte(pinned.Config, 0) >= 0 {
+			report.Problems = append(report.Problems, "run-config.json содержит NUL-байт: "+configPath)
+			return report, 1
+		}
+	} else if has, err := hasNUL(configPath); err == nil && has {
 		report.Problems = append(report.Problems, "run-config.json содержит NUL-байт: "+configPath)
 		return report, 1
 	}
 	var cfg runConfig
-	if err := readJSON(configPath, &cfg); err != nil {
-		report.Problems = append(report.Problems, "нет или не разобран run-config.json: "+err.Error())
+	var cfgErr error
+	if pinned != nil {
+		cfgErr = json.Unmarshal(bytes.TrimPrefix(pinned.Config, utf8BOM), &cfg)
+	} else {
+		cfgErr = readJSON(configPath, &cfg)
+	}
+	if cfgErr != nil {
+		report.Problems = append(report.Problems, "нет или не разобран run-config.json: "+cfgErr.Error())
 		return report, 2
 	}
 
 	planPath := nativePlanPath(abs, cfg)
 	report.Plan = planPath
-	if has, err := hasNUL(planPath); err == nil && has {
+	if pinned != nil {
+		if bytes.IndexByte(pinned.Plan, 0) >= 0 {
+			report.Problems = append(report.Problems, "PLAN содержит NUL-байт: "+planPath)
+			return report, 1
+		}
+	} else if has, err := hasNUL(planPath); err == nil && has {
 		report.Problems = append(report.Problems, "PLAN содержит NUL-байт: "+planPath)
 		return report, 1
 	}
-	steps := readPlanSteps(planPath)
+	var steps []workStep
+	if pinned != nil {
+		steps = parsePlanStepsBytes(pinned.Plan)
+	} else {
+		steps = readPlanSteps(planPath)
+	}
 	if len(steps) == 0 {
 		report.Problems = append(report.Problems, "план пуст, бит или не найден: "+planPath)
 		return report, 2
@@ -379,11 +426,22 @@ func validateProduct(root string) (productValidation, int) {
 		}
 	}
 
-	g := readPlanGoals(planPath)
+	var g planGoals
+	var readyProblems []string
+	var judgeProblems []string
+	if pinned != nil {
+		g = parsePlanGoalsBytes(pinned.Plan)
+		readyProblems = validateReadyToolsWithPinnedBytes(planPath, steps, pinned.Plan)
+		judgeProblems = validateJudgeFilesWithPinnedConfig(abs, configPath, cfg, pinned.Config)
+	} else {
+		g = readPlanGoals(planPath)
+		readyProblems = validateReadyTools(planPath, steps)
+		judgeProblems = validateJudgeFiles(abs, configPath, cfg)
+	}
 	report.Goals, report.Criteria = len(g.Goals), len(g.Criteria)
 	report.Problems = append(report.Problems, goalProblems(g, steps)...)
-	report.Problems = append(report.Problems, validateReadyTools(planPath, steps)...)
-	report.Problems = append(report.Problems, validateJudgeFiles(abs, configPath, cfg)...)
+	report.Problems = append(report.Problems, readyProblems...)
+	report.Problems = append(report.Problems, judgeProblems...)
 	if len(g.Criteria) > 0 {
 		report.Problems = append(report.Problems, criteriaBinding(abs, cfg, g)...)
 		selectorProblems, batches := validateSelectorNeeds(abs, cfg, g, steps)
@@ -449,7 +507,19 @@ func cmdValidate(argv []string) int {
 	if recoveryErr != nil {
 		fmt.Fprintln(os.Stderr, "validate: learned preflight recovery evidence unavailable; native validator still runs")
 	}
-	report, code := validateProduct(*product)
+	// When a learned recovery is selected, the actual native validator
+	// parses the exact opened-handle snapshot of configuration and PLAN.
+	// The later post-validation readback must still match those same SHA
+	// values before any module-owned positive use can be recorded.
+	var report productValidation
+	var code int
+	if recovery != nil {
+		report, code = validateProductUsingPinnedInputs(*product, &nativeValidatePinnedBytes{
+			Config: recovery.PinnedConfig, Plan: recovery.PinnedPlan,
+		})
+	} else {
+		report, code = validateProduct(*product)
+	}
 	if code == 0 && recovery != nil {
 		if err := recordNativePreflightRecoveredPass(recovery, report, code); err != nil {
 			// LEARN state is orthogonal to the original validator result.
