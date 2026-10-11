@@ -1,7 +1,7 @@
 {
-    "schema":  "air-worker.self-learning.retrospective-curriculum/v1",
+    "schema":  "air-worker.self-learning.retrospective-curriculum/v2",
     "date_sgt":  "2026-10-11",
-    "status":  "PREPARED_HUMAN_CURATED_NOT_AUTOMATICALLY_LEARNED",
+    "status":  "PREPARED_PUBLIC_TRAINING_CURATED_NO_SEALED_HOLDOUT_YET",
     "active_plan":  "R:\\-4-\\air-worker\\worktrees\\airworker-0119-selflearn-isolated-20261011\\air-worker\\PLAN.md",
     "source_head_at_audit":  "d5ee3c42a72e8f9f1db16649a97ad786b136e0fb",
     "installed_baseline":  "air-worker 0.11.8",
@@ -202,53 +202,9 @@
                                "used_automatically":  false
                            }
                        ],
-    "held_out_tests":  [
-                           {
-                               "id":  "AW-HOLDOUT-01",
-                               "input":  "Known-good product root nested under two symlink/junction ancestors, no run-config; leaf is ordinary",
-                               "expected":  "UNTRUSTED_PRECONDITION",
-                               "checks":  [
-                                              "no native trusted cause",
-                                              "no automatic review or applied lesson",
-                                              "read-only filesystem"
-                                          ]
-                           },
-                           {
-                               "id":  "AW-HOLDOUT-02",
-                               "input":  "Native run times out after review candidate persisted; reconnect delivers duplicate run_id and a stale \u0027pass\u0027 receipt after official rollback",
-                               "expected":  "RECONCILE_NO_DUPLICATE_USE",
-                               "checks":  [
-                                              "resume same run_id after readback",
-                                              "no new positive procedure_used",
-                                              "receipt SHA and latest applied ledger checked atomically",
-                                              "no blind rerun"
-                                          ]
-                           },
-                           {
-                               "id":  "AW-HOLDOUT-03",
-                               "input":  "The model proposes a safe Markdown procedure which mentions run-config.json but recommends ignoring missing config and retrying",
-                               "expected":  "REJECT_ACTION_MISMATCH",
-                               "checks":  [
-                                              "candidate type may be safe but action not compatible",
-                                              "no effect credited",
-                                              "no trusted bypass"
-                                          ]
-                           },
-                           {
-                               "id":  "AW-HOLDOUT-04",
-                               "input":  "Two workers independently allocate N120 from same ancestor and attempt merge",
-                               "expected":  "NO_AMBIGUOUS_NODE_ID",
-                               "checks":  [
-                                              "branch-aware collision flagged",
-                                              "machine conflict receipt",
-                                              "no direct node/LEARN edit",
-                                              "common ancestor yields unique N121"
-                                          ]
-                           }
-                       ],
     "acceptance_criteria":  {
                                 "examples_count":  11,
-                                "holdout_count":  4,
+                                "holdout_count":  0,
                                 "novel_real_failures_required":  3,
                                 "independent_runs_required":  2,
                                 "exact_source_qas":  1,
@@ -257,6 +213,61 @@
                                 "repeated_failures_prevented_required":  2,
                                 "reviewer":  "Codex GPT-6 Sol low independent read-only",
                                 "release_gate":  "N-092/N-071 and separate explicit LPR decision",
-                                "planner_branch_collision_cases_required":  1
-                            }
+                                "planner_branch_collision_cases_required":  1,
+                                "public_negative_controls_count":  4,
+                                "new_sealed_holdout_required_after_freeze":  4,
+                                "heldout_evaluation_status":  "NOT_PROVEN_NOT_YET_GENERATED"
+                            },
+    "public_negative_controls":  [
+                                     {
+                                         "id":  "AW-HOLDOUT-01",
+                                         "input":  "Known-good product root nested under two symlink/junction ancestors, no run-config; leaf is ordinary",
+                                         "expected":  "UNTRUSTED_PRECONDITION",
+                                         "checks":  [
+                                                        "no native trusted cause",
+                                                        "no automatic review or applied lesson",
+                                                        "read-only filesystem"
+                                                    ]
+                                     },
+                                     {
+                                         "id":  "AW-HOLDOUT-02",
+                                         "input":  "Native run times out after review candidate persisted; reconnect delivers duplicate run_id and a stale \u0027pass\u0027 receipt after official rollback",
+                                         "expected":  "RECONCILE_NO_DUPLICATE_USE",
+                                         "checks":  [
+                                                        "resume same run_id after readback",
+                                                        "no new positive procedure_used",
+                                                        "receipt SHA and latest applied ledger checked atomically",
+                                                        "no blind rerun"
+                                                    ]
+                                     },
+                                     {
+                                         "id":  "AW-HOLDOUT-03",
+                                         "input":  "The model proposes a safe Markdown procedure which mentions run-config.json but recommends ignoring missing config and retrying",
+                                         "expected":  "REJECT_ACTION_MISMATCH",
+                                         "checks":  [
+                                                        "candidate type may be safe but action not compatible",
+                                                        "no effect credited",
+                                                        "no trusted bypass"
+                                                    ]
+                                     },
+                                     {
+                                         "id":  "AW-HOLDOUT-04",
+                                         "input":  "Two workers independently allocate N120 from same ancestor and attempt merge",
+                                         "expected":  "NO_AMBIGUOUS_NODE_ID",
+                                         "checks":  [
+                                                        "branch-aware collision flagged",
+                                                        "machine conflict receipt",
+                                                        "no direct node/LEARN edit",
+                                                        "common ancestor yields unique N121"
+                                                    ]
+                                     }
+                                 ],
+    "compromised_published_holdouts":  [
+                                           "AW-HOLDOUT-01",
+                                           "AW-HOLDOUT-02",
+                                           "AW-HOLDOUT-03",
+                                           "AW-HOLDOUT-04"
+                                       ],
+    "compromised_source_commit":  "b8847c90a6d484e4edb92fb78685b6c95c4a6ee7",
+    "evaluator_protocol":  "docs/receipts/AIRWORKER_SELFLEARNING_EVALUATOR_PROTOCOL_20261011.md"
 }

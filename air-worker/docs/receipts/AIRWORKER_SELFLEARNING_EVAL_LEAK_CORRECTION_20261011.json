@@ -1,0 +1,24 @@
+{
+    "schema":  "air-worker.self-learning.sealed-holdout-leak-correction/v1",
+    "checked_utc":  "2026-10-11T06:07:12.7285418Z",
+    "status":  "P1_TRAINING_DATA_LEAK_FIXED_AT_PLAN_LEVEL_NO_SEALED_EVAL_CLAIM",
+    "original_source_git_commit":  "b8847c90a6d484e4edb92fb78685b6c95c4a6ee7",
+    "original_independent_verdict":  "CHANGES_REQUIRED_1P1",
+    "original_verdict_sha256":  "d021e36b60f268920d08f7345dfbd15556ff6a62b62a689bf6e73440796aecbe",
+    "published_holdouts_permanently_compromised":  [
+                                                       "AW-HOLDOUT-01",
+                                                       "AW-HOLDOUT-02",
+                                                       "AW-HOLDOUT-03",
+                                                       "AW-HOLDOUT-04"
+                                                   ],
+    "new_status_of_prior_holdouts":  "PUBLIC_NEGATIVE_CONTROLS_ONLY",
+    "fresh_unpublished_holdouts_created":  0,
+    "fresh_unpublished_holdouts_required_after_training_freeze":  4,
+    "new_curriculum_sha256":  "808f355603457ec319a34e9322d0f786ba6aa0d536eda98423fce22dbdb9a2f2",
+    "evaluator_protocol_sha256":  "7b0e36b357d2a3d450d5dc08ec8f31442a754f9ea0e79427d5b8c6f8cb18b74d",
+    "native_curated_correction_LEARN_id":  "LR-20261011T060649Z-b5ab1eaa",
+    "native_journal_sha256":  "a496e3c17e29f1176faa266a85379e7d37126188f34f3240167635ae1e5f25b4",
+    "actual_auto_learning_or_holdout_generalization":  "NOT_PROVEN",
+    "no_manual_LEARN_or_PLAN_node_edits":  true,
+    "LPR_release_or_install_granted":  false
+}

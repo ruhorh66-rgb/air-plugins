@@ -1,5 +1,5 @@
 {
-    "schema":  "air-worker.self-learning.machine-backlog/v1",
+    "schema":  "air-worker.self-learning.machine-backlog/v2",
     "created_utc":  "2026-10-11T05:59:33.9390510Z",
     "status":  "PLANNED_NOT_RELEASED",
     "authoritative_plan_parent_head":  "d5ee3c42a72e8f9f1db16649a97ad786b136e0fb",
@@ -2059,10 +2059,20 @@
                                       ],
     "curriculum_file":  "docs/receipts/AIRWORKER_SELFLEARNING_TRAINING_CASES_20261011.json",
     "curriculum_examples":  11,
-    "holdout_examples":  4,
     "training_native_event_count":  9,
     "training_native_correction_count":  1,
     "training_automatic_self_apply":  "NOT_PROVEN",
     "installed_version":  "0.11.8",
-    "LPR_release_install_gate":  "OPEN"
+    "LPR_release_install_gate":  "OPEN",
+    "public_negative_controls":  4,
+    "unseen_holdouts_created":  0,
+    "fresh_unseen_holdouts_required_after_freeze":  4,
+    "holdout_status":  "NOT_PROVEN_UNTIL_TRUSTED_EVALUATOR_ISOLATION",
+    "retired_published_holdouts":  [
+                                       "AW-HOLDOUT-01",
+                                       "AW-HOLDOUT-02",
+                                       "AW-HOLDOUT-03",
+                                       "AW-HOLDOUT-04"
+                                   ],
+    "evaluator_protocol":  "docs/receipts/AIRWORKER_SELFLEARNING_EVALUATOR_PROTOCOL_20261011.md"
 }
