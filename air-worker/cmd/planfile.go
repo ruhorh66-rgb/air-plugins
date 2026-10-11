@@ -137,6 +137,12 @@ func readPlanSteps(path string) []workStep {
 	if err != nil {
 		return nil
 	}
+	return parsePlanStepsBytes(raw)
+}
+
+// parsePlanStepsBytes keeps plan semantics identical while allowing the
+// native validator to consume the exact SHA-pinned preflight snapshot.
+func parsePlanStepsBytes(raw []byte) []workStep {
 	var steps []workStep
 	i := 0
 	for _, line := range strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n") {
