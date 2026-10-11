@@ -1,0 +1,32 @@
+{
+    "schema":  "air-worker.n118.native-preflight-scoped-tdd/v1",
+    "source_parent":  "26f5b0719c6756901786ea63e9cdfcaa786e3142",
+    "at_utc":  "2026-10-11T00:50:10.9297033Z",
+    "scoped_status":  "PASS_WITH_PENDING_FULL_REGRESSION",
+    "scope":  "native signed prior CLI failure + unique real reviewer/ledger/catalog proof + native validate deferred redundant retry + one measured procedure_used event, idempotency, stale/wrong argv blocked",
+    "red":  {
+                "expected_exit":  1,
+                "path":  "R:\\-4-\\air-worker\\work\\0.11.9\\n118-26f5b07\\TDD_NATIVE_USE_RED.txt",
+                "sha256":  "38a54af510ac7a2c70b28c537477bc0e3e2a639fb0a3bf29bcbdd43ee50214af"
+            },
+    "green":  {
+                  "path":  "R:\\-4-\\air-worker\\work\\0.11.9\\n118-26f5b07\\TDD_NATIVE_GUARD_FINAL.txt",
+                  "sha256":  "b8be9b8a65ec6b71938633ec3e24c991b263960d99adb412fad6e0d34a135a15",
+                  "test":  "TestN118|TestN117|TestN110|TestN104|TestAirWorkerSelfLearning",
+                  "exit_code":  0
+              },
+    "provenance":  {
+                       "path":  "R:\\-4-\\air-worker\\work\\0.11.9\\n118-26f5b07\\TDD_PROVENANCE.txt",
+                       "sha256":  "ebc58e66606c11623efc7ab75b0f3fc24b26b858aa5c855df97e215cd2a5c52c",
+                       "exit_code":  0
+                   },
+    "candidate_source_status":  "UNCOMMITTED_SCOPED_TESTED_CODE",
+    "original_reviewed_skill_sha":  "f6e6ba39ba7d8d3193c7a45be367facd781de004aca5989f3559e851b050313e",
+    "real_next_process":  "PENDING",
+    "full_go_and_vet":  "PENDING",
+    "codex_gpt6_sol_low":  "PENDING",
+    "N118":  "OPEN",
+    "N110":  "OPEN",
+    "installed_air_worker":  "0.11.8_UNCHANGED",
+    "release_installed":  false
+}

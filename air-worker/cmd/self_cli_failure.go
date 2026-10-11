@@ -77,6 +77,11 @@ func ownCLIFailureAction(argv []string) (string, bool) {
 }
 
 func autoCaptureOwnCLIExit(argv []string, rc int) error {
+	// A validated, measured native-preflight defer is already an immutable
+	// procedure_used result, not a new generic CLI defect to learn twice.
+	if nativePreflightDeferred.Swap(false) {
+		return nil
+	}
 	action, ok := ownCLIFailureAction(argv)
 	if rc == 0 || !ok {
 		return nil

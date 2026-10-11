@@ -97,6 +97,17 @@ func TestLearningProcessHelper(t *testing.T) {
 			"pre_sha256": "",
 			"content":    n104SafeFeedbackProcedure,
 		})
+	case "review-native-preflight":
+		if !strings.Contains(string(b), "run-config.json is missing") {
+			os.Stdout.Write([]byte("{}"))
+			break
+		}
+		json.NewEncoder(os.Stdout).Encode(map[string]string{
+			"kind":       "procedure",
+			"target":     "skills/learned/air-worker-cli-preflight-n118-test.md",
+			"pre_sha256": "",
+			"content":    n118SafePreflightProcedure,
+		})
 	case "delivery":
 		h := sha256.Sum256(b)
 		json.NewEncoder(os.Stdout).Encode(map[string]string{"sha256": hex.EncodeToString(h[:]), "channel_ref": "fixture/loopback", "message_id": "fixture-message"})

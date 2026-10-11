@@ -416,6 +416,31 @@ func cmdValidate(argv []string) int {
 	if err := fs.Parse(argv); err != nil {
 		return 2
 	}
+	// A subsequent native retry can use only a real reviewer-applied,
+	// SHA-verified preflight procedure and a signed earlier exact CLI failure.
+	// This guard performs no validator execution when it safely defers a
+	// redundant retry against the same still-missing configuration.
+	preflight, preflightErr := nativePreflightGuard(append([]string{"validate"}, argv...))
+	if preflightErr != nil {
+		fmt.Fprintln(os.Stderr, "validate: native self-learning preflight evidence incomplete; no successful outcome is claimed")
+		return 2
+	}
+	if preflight.Deferred {
+		nativePreflightDeferred.Store(true)
+		if *asJSON {
+			b, _ := json.MarshalIndent(map[string]any{
+				"schema":                     "air-worker.validate-preflight/v1",
+				"status":                     "deferred_missing_configuration",
+				"native_validation_executed": false,
+				"effect":                     "avoided_repeat_validation_with_missing_config",
+				"procedure_used":             preflight.RuleID,
+			}, "", "  ")
+			fmt.Print(string(b) + lineEnding)
+		} else {
+			fmt.Print("validate : DEFERRED — existing run-config.json remains missing; native learned preflight prevented a blind retry. Full validation did NOT run." + lineEnding)
+		}
+		return 2
+	}
 	report, code := validateProduct(*product)
 	if *asJSON {
 		b, _ := json.MarshalIndent(report, "", "  ")
