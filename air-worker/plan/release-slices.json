@@ -1,0 +1,599 @@
+{
+    "schema":  "air-worker.release-slices/v1",
+    "policy":  "micro-releases/v1",
+    "product":  "AirWorker",
+    "decision_sgt":  "2026-10-12",
+    "trigger":  "ЛПР: первым релизом блок самообучения; остальное сдвинуть, разбить на много маленьких релизов; обрывы не должны приводить к потере/повтору работы; закрепить в AIR_VIBECODING и ядре AirWorker.",
+    "active_release":  "0.11.9",
+    "installed_baseline":  "0.11.8",
+    "authority_branch":  "dev/airworker-0.11.9-selflearning-only-20261011",
+    "machine_plan":  "PLAN.md",
+    "native_nodes":  "plan/N-*.md",
+    "release_gate_policy":  "Source-only development allowed; tag/release only after exact signed acceptance and explicit LPR authorization, installation/UAC/reboot/foreign services separately approved.",
+    "interval_policy":  {
+                            "max_active_step_minutes":  15,
+                            "preferred_step_minutes":  8,
+                            "source_change_budget":  "one independently demonstrable effect per step, target \u003c=2 source files plus focused tests; break if larger",
+                            "model_or_qa_long_job":  "submit once with immutable job_id/source SHA; status readback is a separate step, no duplicate dispatch",
+                            "interruption_recovery":  "read PLAN + release-slices.json + Git HEAD/remote/dirty + native RUNNING/DONE/FAILED receipts and process roster before any mutation; resume only earliest OPEN step",
+                            "checkpoint":  "atomic scoped commit + remote readback + immutable JSON receipt before next mutation; do not synthesize PASS on missing information",
+                            "freeze":  "scoped tests then freeze clean SHA -\u003e one full QA/vet/build + independent Sol -\u003e release receipt; no unrelated fixes after freeze",
+                            "defects":  "only security P0/P1 on active release are in critical path; other findings become deferred next release, preserving original node",
+                            "parallel":  "one owner per file; one heavy Go or Codex task at a time; unfinished foreign WIP must not be staged or cleaned",
+                            "metadata":  "UTC receipt/run timestamps with SGT reporting",
+                            "max_steps_per_release":  7
+                        },
+    "releases":  [
+                     {
+                         "version":  "0.11.9",
+                         "status":  "active",
+                         "feature":  "Самообучение: один реальный класс ошибки native CLI, безопасная процедура, загрузка и измеренное использование в новом процессе",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Без ручной инъекции события AirWorker фиксирует реальный missing run-config/validate rc2 со стабильным run/source; shared learning из существующего pinned immutable Git SHA выполняет review, применяет только безопасную Markdown-процедуру; новый независимый процесс выбирает target@SHA, применяет и пишет procedure_used+outcome. Проверены негативные forgery/replay/unsafe и минимум один новый sealed кейс. Полный QA+Sol Low на exact SHA, rollback к 0.11.8; исполнимые/blocking rules не включаются.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_9_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.8",
+                         "dependencies":  [
+
+                                          ],
+                         "node_refs":  [
+                                           "N-118",
+                                           "N-110",
+                                           "N-093",
+                                           "N-073"
+                                       ],
+                         "deferred":  [
+                                          "N-120 full judge rc2",
+                                          "N-124 Git distributed plan",
+                                          "N-123 durable host QA automation",
+                                          "N-121 Go/PowerShell host capture",
+                                          "N-122 multi-P1 prevention",
+                                          "N-125 7-day causal effect",
+                                          "N-092 13/13 broader factual",
+                                          "N-070 stable learning component tag",
+                                          "Nous provider subscription"
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.9-01",
+                                           "status":  "open",
+                                           "title":  "Зафиксировать минимальный контракт и pinned shared-learning источник",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "Одна read-only матрица текущего shared-module SHA, входа `validate` rc2, установленного 0.11.8 и выбранного единственного класса отказа; непроверенные свойства помечены NOT_PROVEN",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_01.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "audit",
+                                           "node_refs":  [
+                                                             "N-118",
+                                                             "N-110"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.9-02",
+                                           "status":  "planned",
+                                           "title":  "Реальное автоматическое принятие первой ошибки",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "Одна неинжектированная CLI ошибка зафиксирована native adapter, typed signed run_id/source + outcome и не дублируется после нового сеанса",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-110"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.9-03",
+                                           "status":  "planned",
+                                           "title":  "Автоматический review и только safe Markdown apply",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "Единый модуль review выдал реальный machine verdict; SHA ledger before/after и rollback для nonblocking Markdown; unsafe controls остаются отключены",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_03.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-073"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.9-04",
+                                           "status":  "planned",
+                                           "title":  "Доказать использование с новой сессии",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "Второй реальный процесс загрузил target@SHA, выбрал/использовал процедуру и записал procedure_used + outcome/effect; нельзя имитировать use, минимум 1 новый sealed case",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_04.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "test",
+                                           "node_refs":  [
+                                                             "N-118",
+                                                             "N-093"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.9-05",
+                                           "status":  "planned",
+                                           "title":  "Заморозить SHA и запустить одну полную QA-задачу",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "Один immutable clean source SHA; Go tests/vet/build, безопасность, smoke и rollback dry-run получают собственный job_id, код завершения и JSON; после обрыва только readback",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_05.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "qa_submit",
+                                           "node_refs":  [
+
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.9-06",
+                                           "status":  "planned",
+                                           "title":  "Прочесть QA, получить независимого судью и оформить готовность",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "QA exit=0, независимый Codex Sol Low P0/P1=0 на том же SHA и factual scoped acceptance; NEXT готовый release receipt без ложного N-120/N-124 close",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_06.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.9-07",
+                                           "status":  "planned",
+                                           "title":  "Выпустить узкий релиз только по отдельному гейту ЛПР",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "Сохранены exact tag+artifact SHA, GitHub receipt, ограничение одного класса и rollback на установленную 0.11.8; установка/UAC/reboot отдельно не разрешаются",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_07.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "release",
+                                           "node_refs":  [
+
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.10",
+                         "status":  "planned",
+                         "feature":  "Расширить самообучение до двух классов native CLI, не включая host-tool transport",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Два независимых разрешённых native CLI класса дают проверяемые new process select/use+outcome без ложных signed use, негативы PASS.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_10_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.9",
+                         "dependencies":  [
+                                              "0.11.9"
+                                          ],
+                         "node_refs":  [
+                                           "N-110",
+                                           "N-073"
+                                       ],
+                         "deferred":  [
+                                          "N-121 host tools",
+                                          "N-120 full judge"
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.10-01",
+                                           "status":  "planned",
+                                           "title":  "Второй честный native CLI error class",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.1",
+                                           "done_when":  "Второй класс native rc2 покрыт automatic capture/review+safe apply и не создаёт duplicate/nonexistent procedure_used",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_10_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-110"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.10-02",
+                                           "status":  "planned",
+                                           "title":  "Новая сессия + релизный гейт второго класса",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.1",
+                                           "done_when":  "Отдельная новая сессия PASS на обоих классах, exact QA and Sol Low, atomic signed release receipt",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_10_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-073"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.11",
+                         "status":  "planned",
+                         "feature":  "Общая автоматическая фиксация реальных ошибок Go/PowerShell/reviewer",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Три реальные ошибки из двух сессий имеют authenticated origin/run id, приватный журнал, review без ручного learn event; повторные ошибки dedup.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_11_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.10",
+                         "dependencies":  [
+                                              "0.11.10"
+                                          ],
+                         "node_refs":  [
+                                           "N-121"
+                                       ],
+                         "deferred":  [
+                                          "Новые providers и агентные очереди"
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.11-01",
+                                           "status":  "planned",
+                                           "title":  "Подключить один штатный host-tool adapter",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.2",
+                                           "done_when":  "Реальная ошибка Go без ручной записи принята AirWorker, нет секретов, стабильный run_id, signed receipt",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_11_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-121"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.11-02",
+                                           "status":  "planned",
+                                           "title":  "Подтвердить три транспорта и выпуск",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.2",
+                                           "done_when":  "Go, PowerShell, reviewer дают 3 подтверждённых события из 2 сессий; QA + Sol Low на exact SHA",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_11_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-121"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.12",
+                         "status":  "planned",
+                         "feature":  "Самостоятельное предотвращение двух повторных P1",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "В двух новых сессиях AirWorker сам находит safe preflight и предотвращает два разных класса повторных P1; минимум четыре fresh sealed cases после freeze; без unsafe auto grant.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_12_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.11",
+                         "dependencies":  [
+                                              "0.11.11"
+                                          ],
+                         "node_refs":  [
+                                           "N-122"
+                                       ],
+                         "deferred":  [
+
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.12-01",
+                                           "status":  "planned",
+                                           "title":  "Safe preflight до рискованной операции",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.3",
+                                           "done_when":  "Один P1 действительно предотвращён preflight без ручного выбора, журнал корреляции прикреплён",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_12_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-122"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.12-02",
+                                           "status":  "planned",
+                                           "title":  "Два класса и независимая проверка",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.3",
+                                           "done_when":  "Два класса P1 подтверждены в новых сессиях и новых sealed случаях, exact QA+Sol Low",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_12_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-122"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.13",
+                         "status":  "planned",
+                         "feature":  "Доказать причинный эффект самообучения",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Валидация capture→review→applied→loaded→selected→used→outcome→effect против baseline; минимум четыре свежих sealed случая и ноль ложных причинных PASS.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_13_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.12",
+                         "dependencies":  [
+                                              "0.11.12"
+                                          ],
+                         "node_refs":  [
+                                           "N-125",
+                                           "N-093"
+                                       ],
+                         "deferred":  [
+                                          "7-дневный эффект как обязательная post-release метрика, не фиктивный мгновенный гейт"
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.13-01",
+                                           "status":  "planned",
+                                           "title":  "Одно цепное доказательство эффекта",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.4",
+                                           "done_when":  "В одном повторяемом прогонах baseline/after и exact target SHA исключают чужие ручные фиксы",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_13_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "test",
+                                           "node_refs":  [
+                                                             "N-125"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.13-02",
+                                           "status":  "planned",
+                                           "title":  "Судья причинности и релиз",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.4",
+                                           "done_when":  "Не менее четырех fresh sealed, ноль ложных эффектов, Sol Low + factual PASS",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_13_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-093"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.14",
+                         "status":  "planned",
+                         "feature":  "Восстановление Go/QA/judge после обрыва без второго запуска",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Две искусственные потери транспорта завершаются исходной квитанцией/exit без дублированного Go/Codex и без остановки чужих процессов.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_14_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.13",
+                         "dependencies":  [
+                                              "0.11.13"
+                                          ],
+                         "node_refs":  [
+                                           "N-123"
+                                       ],
+                         "deferred":  [
+
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.14-01",
+                                           "status":  "planned",
+                                           "title":  "Зафиксировать generation-safe persistent job state",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.5",
+                                           "done_when":  "Долгая задача имеет stable ID/generation/owner/status/terminal и прекращает duplicate dispatch",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_14_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-123"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.14-02",
+                                           "status":  "planned",
+                                           "title":  "Две потери связи и независимое принятие",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.5",
+                                           "done_when":  "После двух обрывов readback находит ровно один live/terminal job; QA+Sol Low",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_14_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-123"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.15",
+                         "status":  "planned",
+                         "feature":  "Глобально безопасные ID и PLAN по нескольким веткам",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Native plan node new/close в двух реальных конкурирующих тестовых ветках без коллизий и с каноническим authority + outbox; успешно создаёт N121 и закрывает принятый узел только после factual PASS.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_15_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.14",
+                         "dependencies":  [
+                                              "0.11.14"
+                                          ],
+                         "node_refs":  [
+                                           "N-124"
+                                       ],
+                         "deferred":  [
+                                          "Незавершённый A3-1 scoped PASS хранится отдельной квитанцией, не закрывает N-124"
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.15-01",
+                                           "status":  "planned",
+                                           "title":  "Завершить A3 native new/close/outbox reconcile",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.6",
+                                           "done_when":  "Тестовая каноническая ветка поддерживает атомарный remote-first new/close с durable replay и отсутствием локальной мутации при отказе",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_15_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-124"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.15-02",
+                                           "status":  "planned",
+                                           "title":  "Реальная cross-branch конкуренция и Sol Low",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.6",
+                                           "done_when":  "Две stale ветки: ровно один writer, новых повторных IDs нет, negative tests и Sol Low PASS",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_15_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-124"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.16",
+                         "status":  "planned",
+                         "feature":  "Полный N-120 защищённый native judge rc2 и safe auto-apply",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Trusted absence/Windows junction case обеспечивает typed HMAC cause/event, настоящий reviewer, безопасную Markdown-процедуру, без ложного rc0/rc1 PASS и replay.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_16_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.15",
+                         "dependencies":  [
+                                              "0.11.15"
+                                          ],
+                         "node_refs":  [
+                                           "N-120"
+                                       ],
+                         "deferred":  [
+
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.16-01",
+                                           "status":  "planned",
+                                           "title":  "Trusted native judge rc2 negative tests",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.7",
+                                           "done_when":  "rc2 из допустимой команды и trust path; HMAC metadata unduplicated, forged Windows reparse отклоняется",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_16_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-120"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.16-02",
+                                           "status":  "planned",
+                                           "title":  "Native reviewer → safe apply acceptance",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.7",
+                                           "done_when":  "На чистом SHA автоматический reviewer и только safe procedure, adverse tests PASS, Sol Low, machine receipt",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_16_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-120"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.17",
+                         "status":  "planned",
+                         "feature":  "Нативный автономный цикл разработки и продуктовый контроль",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Один source-only шаг от PLAN open node через собственный AirWorker ladder → factual judge → semantic → receipt → native close, без ручной GPT PowerShell/Go оркестрации; восстановление после двух обрывов.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_17_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.16",
+                         "dependencies":  [
+                                              "0.11.16"
+                                          ],
+                         "node_refs":  [
+                                           "N-073",
+                                           "N-110",
+                                           "N-092"
+                                       ],
+                         "deferred":  [
+                                          "Внешний Nous provider, расширенный Cloud, UX, stable tag shared learning 0.1.0 — отдельный будущий релиз/обязательство"
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.17-01",
+                                           "status":  "planned",
+                                           "title":  "Полный native executor loop",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.8",
+                                           "done_when":  "Один реальный source-only шаг прошёл без ручного выбора исполнителя или остановки на ручном переносе",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_17_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-073"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.17-02",
+                                           "status":  "planned",
+                                           "title":  "Релизный factual judge и опытная эксплуатация",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.8",
+                                           "done_when":  "Применимые 13/13 фактов, automation PASS, native close после receipt, rollback+Sol Low",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_17_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-092"
+                                                         ]
+                                       }
+                                   ]
+                     }
+                 ],
+    "version_policy":  {
+                           "format":  "semver/v2.0.0",
+                           "basis":  "GitHub latest published air-worker--v0.11.8 and installed 0.11.8",
+                           "next_version":  "0.11.9",
+                           "reason":  "0.x pre-stable existing 0.11 patch train; no unapproved promotion to 1.0.0, no reused 0.12.0",
+                           "preserve_prior_architecture_reservation":  "0.12.0 remains separate architecture-cleanup target; not one of these nine micro-releases",
+                           "remote_tag_prefix":  "air-worker--v",
+                           "version_is_not_ordinal":  "0.11.10 sorts numerically after 0.11.9, never use lexicographic string ordering",
+                           "guard":  "Tag cannot preexist, immutable installed/released version cannot be reused, numeric SemVer monotonicity required"
+                       }
+}

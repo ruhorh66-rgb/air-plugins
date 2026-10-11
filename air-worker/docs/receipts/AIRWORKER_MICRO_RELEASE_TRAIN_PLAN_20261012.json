@@ -1,0 +1,69 @@
+{
+  "schema": "air-worker.release-train-replan/v1",
+  "status": "PLAN_CHANGED_SOURCE_ONLY_RELEASE_GATES_OPEN",
+  "date_sgt": "2026-10-12",
+  "lpr": {
+    "decision": "Break work into many small releases, self-learning FIRST; freeze irrelevant scope; preserve interruption-safe atomic steps; add AIR_VIBECODING norm and native core plan checker; correct bogus 1.20 number.",
+    "source": "explicit user instructions in current conversation",
+    "no_user_approval_for_install_or_reboot": true
+  },
+  "product": "AirWorker",
+  "node": "SRVLM01",
+  "branch": "dev/airworker-0.11.9-selflearning-only-20261011",
+  "base_head": "a30da4bf5ee02807c7ddd7bbfc9a5c60914e7227",
+  "live_version": "0.11.8",
+  "last_published_tag": "air-worker--v0.11.8",
+  "next_unpublished_tag": "air-worker--v0.11.9",
+  "versioning": "SemVer 0.11.9 then patch 0.11.10...0.11.17; old 1.20 superseded as transcription/interpretation error; 0.12.0 stays separate architecture reservation",
+  "slices": [
+    "0.11.9",
+    "0.11.10",
+    "0.11.11",
+    "0.11.12",
+    "0.11.13",
+    "0.11.14",
+    "0.11.15",
+    "0.11.16",
+    "0.11.17"
+  ],
+  "active_release": "0.11.9",
+  "active_step": "R0.11.9-01",
+  "steps_count": 23,
+  "active_release_done_when": "One real native validate rc2 failure automatically captured -> shared review -> safe Markdown apply -> fresh process load/select/use and procedure_used+outcome; independent sealed evidence and Sol low on clean candidate SHA; rollback to installed 0.11.8",
+  "plan_sha256": "231c45311138654ee3690114fe2c9381114c30732ce723d6cd3ae0951a4c6643",
+  "release_slices_sha256": "1d8583cc4f966c963f1b9c3c354462f2bc7c05a2996376890c6002a6afa220c3",
+  "machine_acceptance": {
+    "release_slice_contract": "PASS 9 versions/23 steps",
+    "native_plan_spine_exit": 0,
+    "native_plan_lint_exit": 0,
+    "native_validate_exit": 0,
+    "next_release_not_published": true
+  },
+  "foreign_wip": {
+    "plan_N071_file": "air-worker/plan/N-071_rel-0-11-9-next-airworker-release-with-shared-le.md",
+    "N071_last_uncommitted_sha256": "21d0383ac707a9df5682edb8fd5a2461b4130ee9abfe1cad22991edc310d630e",
+    "backup_dir": "R:/-4-/air-worker/work/1.20/micro-release-plan-20261012",
+    "status": "Preserved uncommitted N071 (old 1.20 acceptance); NOT edited/closed; must reconcile via native core before first real release"
+  },
+  "normative_standard": {
+    "source_repo": "ruhorh66-rgb/AIR_OS",
+    "branch": "main",
+    "head": "7ccd0c9951760cd54650e0a4d910200116a33357",
+    "router_version": "2.0.0-rc.10",
+    "normative_node": "DEV-135-MICRO-RELEASE-RESUMABLE-PLAN.md",
+    "push_remote_verified": true
+  },
+  "future_core": {
+    "source_only_required": true,
+    "name": "opt-in release-slices native validation/next-step",
+    "status": "NOT_YET_IMPLEMENTED",
+    "legacy_plans_must_pass": true,
+    "no_plan_N_edit_bypass": true,
+    "test": [
+      "reject misnumbered semver",
+      "reject future dep/double active/overbudget/missing receipt",
+      "old plan no release-slices backward compatibility"
+    ]
+  },
+  "no_code_release_or_install": true
+}
