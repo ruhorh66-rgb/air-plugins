@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,10 +46,74 @@ func candidateFixture(t *testing.T) (string, string, map[string][]byte) {
 	candidateGit(t, root, "init")
 	candidateGit(t, root, "-c", "core.autocrlf=false", "add", ".")
 	candidateGit(t, root, "-c", "commit.gpgsign=false", "commit", "-m", "base")
-	return root, candidateGit(t, root, "rev-parse", "HEAD"), map[string][]byte{
-		"air-worker/PLAN.md":                     []byte("candidate\n"),
-		"air-worker/plan/N-121_next.md":          []byte("node exact\r\n"),
-		"air-worker/plan/event-outbox/op-1.json": []byte(`{"event":"synthetic"}`),
+	return root, candidateGit(t, root, "rev-parse", "HEAD"), candidatePayload("op-1", "N-121_next")
+}
+
+func candidatePayload(operation, id string) map[string][]byte {
+	n := planNode{ID: id, Title: "Next", Parent: "stage", Trigger: "fixture", Owner: "fixture", DoneWhen: "verified", Status: "open", ReturnTo: "stage", CreatedAt: "2000-01-01T00:00:00Z", UpdatedAt: "2000-01-01T00:00:00Z"}
+	plan := []byte("original\n" + planNodeMarker + "\n" + spineNodeLine(n) + "\n")
+	node := []byte(strings.ReplaceAll(string(renderPlanNode(n)), "\n", "\r\n"))
+	outbox, _ := json.Marshal(map[string]string{"schema": "air-worker.plan.candidate-operation/v1", "operation_id": operation, "node_id": id, "status": n.Status, "parent": n.Parent, "done_when": n.DoneWhen, "plan_sha256": fmt.Sprintf("%x", sha256.Sum256(plan)), "node_sha256": fmt.Sprintf("%x", sha256.Sum256(node))})
+	return map[string][]byte{"air-worker/PLAN.md": plan, "air-worker/plan/" + id + ".md": node, "air-worker/plan/event-outbox/" + operation + ".json": outbox}
+}
+
+func TestPlanCandidateContentRejects(t *testing.T) {
+	for _, mode := range []string{"missing-node", "wrong-id", "duplicate-id", "duplicate-plan-id", "conflicting-number", "status", "parent", "done-when", "malformed", "operation", "outbox-node", "digest", "unknown", "duplicate-key", "case-alias", "null", "trailing"} {
+		t.Run(mode, func(t *testing.T) {
+			root, old, files := candidateFixture(t)
+			plan, node, out := "air-worker/PLAN.md", "air-worker/plan/N-121_next.md", "air-worker/plan/event-outbox/op-1.json"
+			switch mode {
+			case "missing-node":
+				files[plan] = []byte("original\n")
+			case "wrong-id":
+				files[node] = []byte(strings.Replace(string(files[node]), `id: "N-121_next"`, `id: "N-122_wrong"`, 1))
+			case "duplicate-id":
+				files[node] = []byte(strings.Replace(string(files[node]), `id: "N-121_next"`, "id: \"N-121_next\"\r\nid: \"N-121_next\"", 1))
+			case "duplicate-plan-id":
+				files[plan] = append(files[plan], []byte("[[N-121_next]]\n")...)
+			case "conflicting-number":
+				files[plan] = append(files[plan], []byte("[[N-121_other]]\n")...)
+			case "status", "parent", "done-when":
+				key := strings.ReplaceAll(mode, "-", "_")
+				var payload map[string]string
+				json.Unmarshal(files[out], &payload)
+				payload[key] = "forged"
+				files[out], _ = json.Marshal(payload)
+			case "malformed":
+				files[out] = []byte("{")
+			case "operation":
+				files[out] = []byte(strings.Replace(string(files[out]), "op-1", "op-2", 1))
+			case "outbox-node":
+				files[out] = []byte(strings.Replace(string(files[out]), "N-121_next", "N-122_wrong", 1))
+			case "digest":
+				files[out] = []byte(strings.Replace(string(files[out]), fmt.Sprintf("%x", sha256.Sum256(files[node])), strings.Repeat("0", 64), 1))
+			case "unknown":
+				files[out] = append([]byte(`{"unknown":"value",`), files[out][1:]...)
+			case "duplicate-key":
+				files[out] = append([]byte(`{"operation_id":"op-1",`), files[out][1:]...)
+			case "case-alias":
+				files[out] = []byte(strings.Replace(string(files[out]), "operation_id", "OPERATION_ID", 1))
+			case "null":
+				files[out] = []byte(strings.Replace(string(files[out]), `"op-1"`, "null", 1))
+			case "trailing":
+				files[out] = append(files[out], []byte(" {}")...)
+			}
+			// Repair hashes after document forgery to exercise identity checks independently.
+			if mode == "missing-node" || mode == "wrong-id" || mode == "duplicate-id" || mode == "duplicate-plan-id" || mode == "conflicting-number" {
+				var payload map[string]string
+				json.Unmarshal(files[out], &payload)
+				payload["plan_sha256"] = fmt.Sprintf("%x", sha256.Sum256(files[plan]))
+				payload["node_sha256"] = fmt.Sprintf("%x", sha256.Sum256(files[node]))
+				files[out], _ = json.Marshal(payload)
+			}
+			before := n124Snapshot(t, root)
+			if got, err := preparePlanCandidate(context.Background(), root, old, "op-1", files); err == nil || got.OID != "" {
+				t.Fatalf("accepted forged content: %+v %v", got, err)
+			}
+			if !reflect.DeepEqual(before, n124Snapshot(t, root)) {
+				t.Fatal("rejection wrote files or Git objects")
+			}
+		})
 	}
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -211,6 +212,9 @@ func preparePlanCandidate(ctx context.Context, root, old, operation string, file
 	if len(numbers) != 1 || !hasOutbox {
 		return fail(fmt.Errorf("candidate requires exactly one new plan node and operation outbox"))
 	}
+	if err := validateCandidateContent(prefix, operation, files); err != nil {
+		return fail(err)
+	}
 	sort.Strings(paths)
 	private, err := os.MkdirTemp("", "air-worker-candidate-*")
 	if err != nil {
@@ -263,6 +267,87 @@ func preparePlanCandidate(ctx context.Context, root, old, operation string, file
 	}
 	result.preparedDigest = candidatePublishDigest(result)
 	return result, nil
+}
+
+type candidateOperation struct {
+	Schema      string `json:"schema"`
+	OperationID string `json:"operation_id"`
+	NodeID      string `json:"node_id"`
+	Status      string `json:"status"`
+	Parent      string `json:"parent"`
+	DoneWhen    string `json:"done_when"`
+	PlanSHA256  string `json:"plan_sha256"`
+	NodeSHA256  string `json:"node_sha256"`
+}
+
+func validateCandidateContent(prefix, operation string, files map[string][]byte) error {
+	var nodePath string
+	for name := range files {
+		if strings.HasPrefix(name, prefix+"plan/N-") {
+			nodePath = name
+		}
+	}
+	nodeBytes := files[nodePath]
+	n, err := parsePlanNode(nodePath, nodeBytes)
+	if err != nil {
+		return err
+	}
+	if n.ID != strings.TrimSuffix(path.Base(nodePath), ".md") || n.Status != "open" {
+		return fmt.Errorf("candidate node identity/status mismatch")
+	}
+	body, err := parsePlanNodeBody(nodePath, nodeBytes)
+	if err != nil {
+		return err
+	}
+	// Canonical round-trip rejects duplicate declarations and ambiguous YAML syntax.
+	if string(renderPlanNodeWithBody(n, body)) != strings.ReplaceAll(string(nodeBytes), "\r\n", "\n") {
+		return fmt.Errorf("candidate node must have canonical unique declarations")
+	}
+	planBytes := files[prefix+"PLAN.md"]
+	planText := strings.ReplaceAll(string(planBytes), "\r\n", "\n")
+	refs := regexp.MustCompile(`N-`+n.ID[2:5]+`(?:_[\p{L}\p{N}_-]+)?`).FindAllString(planText, -1)
+	if len(refs) != 1 || refs[0] != n.ID || !strings.Contains("\n"+planText, "\n"+spineNodeLine(n)+"\n") {
+		return fmt.Errorf("PLAN must reference exactly the matching new node")
+	}
+	raw := files[prefix+"plan/event-outbox/"+operation+".json"]
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	token, err := decoder.Token()
+	if err != nil || token != json.Delim('{') {
+		return fmt.Errorf("invalid operation object")
+	}
+	seen := map[string]bool{}
+	for decoder.More() {
+		token, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		key, ok := token.(string)
+		if !ok || seen[key] {
+			return fmt.Errorf("duplicate operation field")
+		}
+		switch key {
+		case "schema", "operation_id", "node_id", "status", "parent", "done_when", "plan_sha256", "node_sha256":
+		default:
+			return fmt.Errorf("unknown operation field: %s", key)
+		}
+		seen[key] = true
+		value, err := decoder.Token()
+		if _, ok := value.(string); err != nil || !ok {
+			return fmt.Errorf("operation field must be a string: %s", key)
+		}
+	}
+	if token, err = decoder.Token(); err != nil || token != json.Delim('}') || len(seen) != 8 || decoder.Decode(new(any)) != io.EOF {
+		return fmt.Errorf("invalid operation schema")
+	}
+	var op candidateOperation
+	if err := json.Unmarshal(raw, &op); err != nil {
+		return err
+	}
+	want := candidateOperation{Schema: "air-worker.plan.candidate-operation/v1", OperationID: operation, NodeID: n.ID, Status: n.Status, Parent: n.Parent, DoneWhen: n.DoneWhen, PlanSHA256: fmt.Sprintf("%x", sha256.Sum256(planBytes)), NodeSHA256: fmt.Sprintf("%x", sha256.Sum256(nodeBytes))}
+	if op != want {
+		return fmt.Errorf("operation/node/PLAN content mismatch")
+	}
+	return nil
 }
 
 func candidateNoLinks(name string) error {

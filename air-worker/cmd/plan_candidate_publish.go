@@ -31,6 +31,10 @@ func candidatePublishDigest(c planCandidate) [32]byte {
 // including on replay; it never means exclusive claim ownership or LEARN publication.
 // shortcut: A1 provenance is process-local, durable recovery belongs to A3.
 func publishPlanCandidateCAS(ctx context.Context, repo, originBare, ref string, candidate planCandidate, expectedOldSHA string) error {
+	return publishPlanCandidate(ctx, repo, originBare, ref, candidate, expectedOldSHA, nil)
+}
+
+func publishPlanCandidate(ctx context.Context, repo, originBare, ref string, candidate planCandidate, expectedOldSHA string, beforePush func()) error {
 	ctx, cancelWork := context.WithTimeout(ctx, 30*time.Second)
 	defer cancelWork()
 	conflict := func(reason string) error { return &planPublishError{State: "conflict", Reason: reason} }
@@ -72,6 +76,11 @@ func publishPlanCandidateCAS(ctx context.Context, repo, originBare, ref string, 
 		return out, nil
 	}
 	// Both ends must explicitly declare their physical OS-temp identity.
+	originLock, err := lockCandidateOrigin(originBare)
+	if err != nil {
+		return conflict("origin fence unavailable: " + err.Error())
+	}
+	defer originLock.Close()
 	for _, root := range []string{repo, originBare} {
 		if err := candidatePublishFixture(root); err != nil {
 			return conflict(err.Error())
@@ -154,6 +163,9 @@ func publishPlanCandidateCAS(ctx context.Context, repo, originBare, ref string, 
 		return pending(err.Error())
 	}
 	verifyOrigin := func() error {
+		if err := originLock.Verify(); err != nil {
+			return err
+		}
 		if err := candidatePublishFixture(originBare); err != nil {
 			return err
 		}
@@ -196,6 +208,9 @@ func publishPlanCandidateCAS(ctx context.Context, repo, originBare, ref string, 
 		if err != nil {
 			return "", err
 		}
+		if err := originLock.Verify(); err != nil {
+			return "", err
+		}
 		return strings.TrimSpace(string(out)), nil
 	}
 	remote, err := readback(ctx)
@@ -210,6 +225,9 @@ func publishPlanCandidateCAS(ctx context.Context, repo, originBare, ref string, 
 	}
 	if err := verifyOrigin(); err != nil {
 		return pending(err.Error())
+	}
+	if beforePush != nil {
+		beforePush()
 	}
 	_, pushErr := run(ctx, repo, "push", "--porcelain", "--no-verify", "--no-follow-tags", "--recurse-submodules=no", "--signed=false",
 		"--force-with-lease="+ref+":"+expectedOldSHA, "--", originBare, candidate.OID+":"+ref)

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -135,6 +136,9 @@ func TestPlanCandidatePublishRejects(t *testing.T) {
 }
 
 func TestPlanCandidatePublishReplay(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("origin replacement fence is Windows-only; unsupported OS fails closed")
+	}
 	repo, origin, old, c := publishFixture(t)
 	if err := os.WriteFile(filepath.Join(repo, "foreign-wip"), []byte("preserve"), 0600); err != nil {
 		t.Fatal(err)
@@ -168,6 +172,9 @@ func TestPlanCandidatePublishReplay(t *testing.T) {
 }
 
 func TestPlanCandidatePublishPending(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("origin replacement fence is Windows-only; unsupported OS fails closed")
+	}
 	for _, mode := range []string{"missing-ref", "locked-ref"} {
 		t.Run(mode, func(t *testing.T) {
 			repo, origin, old, c := publishFixture(t)
@@ -195,6 +202,9 @@ func TestPlanCandidatePublishPending(t *testing.T) {
 }
 
 func TestPlanCandidatePublishSameObjectIsReplayNotClaim(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("origin replacement fence is Windows-only; unsupported OS fails closed")
+	}
 	repo, origin, old, c := publishFixture(t)
 	candidateGit(t, origin, "update-ref", publishRef, c.OID)
 	if err := publishPlanCandidateCAS(context.Background(), repo, origin, publishRef, c, old); err != nil {
@@ -205,9 +215,12 @@ func TestPlanCandidatePublishSameObjectIsReplayNotClaim(t *testing.T) {
 }
 
 func TestPlanCandidatePublishRace(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("origin replacement fence is Windows-only; unsupported OS fails closed")
+	}
 	a, origin, old, ca := publishFixture(t)
 	// Prepare both commits before copying to an independent client; A1 stays clean/no-remote.
-	files := map[string][]byte{"air-worker/PLAN.md": []byte("second"), "air-worker/plan/N-121_other.md": []byte("second node"), "air-worker/plan/event-outbox/op-2.json": []byte("second outbox")}
+	files := candidatePayload("op-2", "N-121_other")
 	cb, err := preparePlanCandidate(context.Background(), a, old, "op-2", files)
 	if err != nil {
 		t.Fatal(err)

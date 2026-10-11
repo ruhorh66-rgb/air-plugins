@@ -1,0 +1,102 @@
+{
+  "schema": "air-worker.n124.a2.p1p2-candidate-scoped-qa/v1",
+  "date_sgt": "2026-10-11",
+  "node": "SRVLM01",
+  "status": "SCOPED_QA_PASS_INDEPENDENT_REVIEW_PENDING",
+  "source_branch": "dev/airworker-n124-native-identity-20261011",
+  "source_base_head": "c9e8b8425d8fed33b468ae46bc2fc786e1b6eb50",
+  "trigger": "Native Sol low A2 independent CHANGES_REQUIRED P1 Windows origin path replacement and P2 content-identity mismatch",
+  "previous_independent_receipt": "docs/receipts/AIRWORKER_N124_A2_NATIVE_SOL_LOW_CHANGES_REQUIRED_20261011.json",
+  "native_executor": [
+    {
+      "entrypoint": "air-worker executor dispatch",
+      "class": "complex",
+      "model": "gpt-6-astra",
+      "effort": "low",
+      "task": "n124-a2-sol-p1-p2-fix-20261011.md",
+      "status": "DONE"
+    },
+    {
+      "entrypoint": "air-worker executor dispatch",
+      "class": "bulk",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "task": "n124-origin-root-red-diagnostic-20261011.md",
+      "status": "DONE"
+    },
+    {
+      "entrypoint": "air-worker executor dispatch",
+      "class": "bulk",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "task": "n124-origin-list-access-sharing-fix-20261011.md",
+      "status": "DONE"
+    }
+  ],
+  "security_findings_resolved_in_candidate": [
+    {
+      "severity": "P1",
+      "issue": "Origin root/ancestor could be renamed during Git push when CreateFile held only FILE_READ_ATTRIBUTES",
+      "fix": "Windows held directory HANDLE now includes FILE_LIST_DIRECTORY|FILE_READ_ATTRIBUTES; SHARE_DELETE omitted; root and ancestor replacement adversarial test PASS, no redirected push.",
+      "vendor_docs": [
+        "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew",
+        "https://learn.microsoft.com/en-us/windows/win32/fileio/file-access-rights-constants"
+      ]
+    },
+    {
+      "severity": "P2",
+      "issue": "PLAN/node/outbox path-only validation accepted inconsistent identity",
+      "fix": "Typed content linkage and operation/node/PLAN SHA checked before object creation; invalid examples reject; scoped candidate tests PASS."
+    }
+  ],
+  "source_file_sha256": {
+    "cmd/plan_candidate.go": "44ef1eca83aafe15f01ea39d2e8b09c2d155d427d16aedda1980fe60d65dddcc",
+    "cmd/plan_candidate_test.go": "8275bf2a230f4e052b6801e7fbf5b81791e198f24cf8c57250806c33d484ec87",
+    "cmd/plan_candidate_publish.go": "9f5c5c71111ea1c946f51df4655e03269ba636c482fad6e053066b8f078070a5",
+    "cmd/plan_candidate_publish_test.go": "d1b3e3bd7bdc4bd34c8cd563af0b4e331e1eb49801c6d5b87f84054d300fc132",
+    "cmd/plan_candidate_origin_lock_windows.go": "b9aa259752198176dab9190aaae1b90a30faa13c1c65692b8824eaef5b6b7bb6",
+    "cmd/plan_candidate_origin_lock_windows_test.go": "9d35f95f071a03805ccb7c12900050e89c88ff71ed1c6f699124457c60fdcc7f",
+    "cmd/plan_candidate_origin_lock_other.go": "8f49f14fc989a9f4fd4d4e95bb56ec3da0915a1c387ec7d8854c8e307a84aea5",
+    "cmd/plan_candidate_origin_lock_other_test.go": "64588e7de8288787134a5b48641c2cb0dc7f0ff03a41b84d783182a55ae69a5f"
+  },
+  "tests": [
+    {
+      "scope": "P1 replacement root/ancestor",
+      "command": "go -C air-worker/cmd test . -run '^TestPlanCandidatePublishReplacement$' -count=1 -v -timeout 180s",
+      "exit_code": 0,
+      "log_sha256": "6c394d072371f711e4da19b700c33cad112ef06f090574e3f12bf28703ae1683"
+    },
+    {
+      "scope": "P2 identity + immutable",
+      "command": "go -C air-worker/cmd test . -run '^(TestPlanCandidateImmutable|TestPlanCandidateRejects)$' -count=1 -v -timeout 180s",
+      "exit_code": 0,
+      "log_sha256": "95dfd10c6d6a61beee2b569761638cf1e5e13cda95157ff34a2fbcdfac1318af"
+    },
+    {
+      "scope": "A2 all scoped tests",
+      "command": "go -C air-worker/cmd test . -run '^TestPlanCandidate' -count=1 -v -timeout 480s",
+      "exit_code": 0,
+      "log_sha256": "1c030d9d83ba05f9da7b1f2840bf62dd8ce4809c6c37cfea7215eadf8a20ca59",
+      "log_file": "R:/-4-/air-worker/work/0.11.9/n124-a2-sol-p1p2-host-20261011/a2-p1p2-full-scoped.log",
+      "verified": [
+        "TestPlanCandidatePublishReplacement root/ancestor PASS",
+        "TestPlanCandidatePublishReplay PASS",
+        "TestPlanCandidatePublishRace PASS",
+        "TestPlanCandidateImmutable PASS",
+        "TestPlanCandidateRejects PASS"
+      ]
+    }
+  ],
+  "unproven": [
+    "Independent Codex Sol low on new HEAD",
+    "full Go test/vet/build on complete AirWorker",
+    "Windows symlink privilege SKIP and physical-junction negative in combined suite SKIP; explicit origin rename tests PASS",
+    "A3 production native new/close and durable LEARN outbox projection"
+  ],
+  "git_diff_check_exit": 0,
+  "n124_status": "OPEN",
+  "n120_status": "HOLD",
+  "installed_version": "0.11.8",
+  "release_or_install": false,
+  "next_gate": "Commit only eight code/test files and machine receipt from this WIP, GitHub readback, independent pinned Codex Sol low on NEW exact clean source, A3 only after PASS."
+}
