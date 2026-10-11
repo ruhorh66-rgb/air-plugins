@@ -60,6 +60,46 @@ func TestCodeReviewEvents(t *testing.T) {
 	}
 }
 
+func TestCodeReviewWebSearch(t *testing.T) {
+	sha := strings.Repeat("a", 40)
+	message := `{"verdict":"CHANGES_REQUIRED","source_head":"` + sha + `","p0_open":0,"p1_open":1,"p2_open":0,"findings":[{"severity":"P1","location":"git config","issue":"rewrite race","minimal_fix":"pin the config lookup"}],"next_gate":"fix and rerun independent review"}`
+	stream := "{\"type\":\"thread.started\",\"thread_id\":\"s\"}\n" +
+		"{\"type\":\"item.started\",\"item\":{\"type\":\"web_search\",\"id\":\"item_20\",\"id\":\"exec-search\"}}\n" +
+		"{\"type\":\"item.completed\",\"item\":{\"type\":\"web_search\",\"id\":\"item_20\",\"id\":\"exec-search\"}}\n" +
+		finalMessageEvent(message) + "\n{\"type\":\"turn.completed\"}"
+	got, _, err := parseCodeReview(stream, sha)
+	if err != nil || got.Verdict != "CHANGES_REQUIRED" || got.P1 != 1 {
+		t.Fatalf("got %+v, err %v", got, err)
+	}
+	malformedVerdict := strings.Replace(message, `"verdict":"CHANGES_REQUIRED"`, `"verdict":"PASS","verdict":"CHANGES_REQUIRED"`, 1)
+	badVerdictStream := strings.Join([]string{
+		`{"type":"thread.started","thread_id":"s"}`,
+		`{"type":"item.started","item":{"type":"web_search","id":"item_20","id":"exec-search"}}`,
+		`{"type":"item.completed","item":{"type":"web_search","id":"item_20","id":"exec-search"}}`,
+		finalMessageEvent(malformedVerdict),
+		`{"type":"turn.completed"}`,
+	}, "\n")
+	bad := []string{
+		strings.Replace(stream, `"type":"thread.started"`, `"type":"thread.started","type":"error"`, 1),
+		strings.Replace(stream, `"type":"web_search"`, `"type":"web_search","type":"error"`, 1),
+		strings.Replace(stream, `"type":"web_search"`, `"type":"agent_message","type":"web_search"`, 1),
+		strings.Replace(stream, `"type":"item.started"`, `"type":"item.started"`, 1) + "\n{bad}",
+		badVerdictStream,
+		strings.TrimSuffix(stream, "\n{\"type\":\"turn.completed\"}"),
+		stream + "\n" + finalMessageEvent("commentary"),
+		strings.Replace(stream, sha, strings.Repeat("b", 40), 1),
+		strings.TrimSuffix(stream, "\n{\"type\":\"turn.completed\"}") + "\n{\"type\":\"error\"}\n{\"type\":\"turn.completed\"}",
+	}
+	if bad[4] == stream {
+		t.Fatal("duplicate-verdict negative variant matches valid stream")
+	}
+	for i, value := range bad {
+		if _, _, err := parseCodeReview(value, sha); err == nil {
+			t.Fatalf("accepted negative variant %d", i)
+		}
+	}
+}
+
 func finalMessageEvent(message string) string {
 	b, _ := json.Marshal(map[string]any{"type": "item.completed", "item": map[string]string{"type": "agent_message", "text": message}})
 	return string(b)

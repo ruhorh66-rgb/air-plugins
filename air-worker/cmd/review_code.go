@@ -269,8 +269,13 @@ func parseCodeReview(stream, sha string) (codeReviewVerdict, string, error) {
 			continue // Non-JSON stderr warnings are diagnostic noise, not protocol events.
 		}
 		var e codexEvent
-		if codeReviewUniqueJSON(json.NewDecoder(strings.NewReader(line))) != nil || json.Unmarshal([]byte(line), &e) != nil || e.Type == "" {
+		if codeReviewJSONSyntax(json.NewDecoder(strings.NewReader(line))) != nil || json.Unmarshal([]byte(line), &e) != nil || e.Type == "" || codeReviewUniqueSelected(line, []string{"type", "thread_id", "error"}) != nil {
 			return v, session, fmt.Errorf("invalid event stream")
+		}
+		if e.Item != nil {
+			if err := codeReviewUniqueItemFields(line); err != nil {
+				return v, session, fmt.Errorf("invalid event stream")
+			}
 		}
 		if completed {
 			return v, session, fmt.Errorf("event after terminal completion")
@@ -550,4 +555,83 @@ func codeReviewUniqueJSON(dec *json.Decoder) error {
 		_, err = dec.Token()
 	}
 	return err
+}
+
+// Validate syntax independently so duplicate keys in unused telemetry metadata are harmless.
+func codeReviewJSONSyntax(dec *json.Decoder) error {
+	if err := dec.Decode(new(any)); err != nil {
+		return err
+	}
+	if err := dec.Decode(new(any)); err != io.EOF {
+		return fmt.Errorf("expected single JSON")
+	}
+	return nil
+}
+
+func codeReviewUniqueSelected(line string, names []string) error {
+	dec := json.NewDecoder(strings.NewReader(line))
+	if _, err := dec.Token(); err != nil {
+		return err
+	}
+	return codeReviewCheckObject(dec, names)
+}
+
+func codeReviewUniqueItemFields(line string) error {
+	dec := json.NewDecoder(strings.NewReader(line))
+	if _, err := dec.Token(); err != nil {
+		return err
+	}
+	for dec.More() {
+		key, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		if key == "item" {
+			if _, err := dec.Token(); err != nil {
+				return err
+			}
+			return codeReviewCheckObject(dec, []string{"type", "text"})
+		}
+		if err := codeReviewSkipJSON(dec); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func codeReviewCheckObject(dec *json.Decoder, names []string) error {
+	seen := map[string]bool{}
+	for dec.More() {
+		t, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		key, ok := t.(string)
+		if !ok {
+			return fmt.Errorf("invalid object key")
+		}
+		if seen[key] && codeReviewNameSelected(names, key) {
+			return fmt.Errorf("duplicate protocol key")
+		}
+		seen[key] = true
+		if err := codeReviewSkipJSON(dec); err != nil {
+			return err
+		}
+	}
+	_, err := dec.Token()
+	return err
+}
+
+func codeReviewSkipJSON(dec *json.Decoder) error {
+	var value json.RawMessage
+	return dec.Decode(&value)
+}
+
+func codeReviewNameSelected(names []string, name string) bool {
+	for _, selected := range names {
+		if name == selected {
+			return true
+		}
+	}
+	return false
 }

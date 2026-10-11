@@ -1,0 +1,77 @@
+{
+  "schema": "air-worker.native-code-review.codex-web-search-parser-fix/v1",
+  "date_sgt": "2026-10-11",
+  "scope": "SOURCE_ONLY_NOT_RELEASE",
+  "node": "SRVLM01",
+  "branch": "dev/airworker-native-sol-reviewer-20261011",
+  "original_head": "6857152b58e70c0de8b16b1e92f69385f6edc949",
+  "trigger": "Real independent CodeX Sol 6 low review of A2 source HEAD 5591701 returned NOT_PROVEN invalid event stream despite terminal and valid final verdict",
+  "root_cause": "Official Codex web_search telemetry includes duplicate `item.id` in item.started and item.completed; existing AirWorker parser rejected recursive duplicates for unused tool metadata. The parser must still reject duplicate protocol-significant `type`, `item.type`, and final verdict keys.",
+  "fixed_fields": [
+    "top-level event type/thread_id/error strict uniqueness",
+    "item.type and item.text strict uniqueness for ALL event item types",
+    "unused web_search id duplicate tolerated",
+    "final structured verdict recursively strict JSON and exact source/counts",
+    "single terminal completion and fail-closed error/replay"
+  ],
+  "red_evidence": {
+    "test": "TestCodeReviewWebSearch",
+    "initial_exit": 1,
+    "negative_variant_2": "duplicate item.type bypassed conditional on decoded e.Item.Type",
+    "then_exit": 1,
+    "negative_variant_4": "test fixture attempted to rewrite verdict after outer JSON escaping",
+    "red_logs": [
+      "R:/-4-/air-worker/work/1.20/native-reviewer-parser-20261011/focused-web-search-first.log",
+      "R:/-4-/air-worker/work/1.20/native-reviewer-parser-20261011/focused-web-search-green.log"
+    ]
+  },
+  "native_ladder": [
+    {
+      "class": "bulk",
+      "model": "gpt-6-luna",
+      "task": "native-code-review-web-search-event-fix-20261011.md",
+      "status": "DONE_NOT_PRODUCT_PASS"
+    },
+    {
+      "class": "bulk",
+      "model": "gpt-6-luna",
+      "task": "native-reviewer-web-search-trusted-fields-red-fix-20261011.md",
+      "status": "DONE_NOT_PRODUCT_PASS"
+    },
+    {
+      "class": "bulk",
+      "model": "gpt-6-luna",
+      "task": "native-reviewer-web-search-negative-fixture-20261011.md",
+      "status": "DONE_NOT_PRODUCT_PASS"
+    }
+  ],
+  "final_qa": {
+    "host": "SRVLM01",
+    "command": "go -C air-worker/cmd test . -run '^(TestCodeReview|TestNativeReviewer)' -count=1 -timeout 240s",
+    "exit_code": 0,
+    "log_sha256": "ebc56909c9fd55a6f746fd79133ab6f53d6553367322f506b00d1e24166f4afe",
+    "log_path": "R:/-4-/air-worker/work/1.20/native-reviewer-parser-20261011/native-reviewer-targeted-full-green.log",
+    "output_summary": "ok airos/air-worker 56.138s",
+    "diff_check_exit": 0
+  },
+  "source_files": {
+    "cmd/review_code.go": "7c6ae599af4848fe025545322ed2771c315696ff2a6ef260627ec4643254d496",
+    "cmd/review_code_test.go": "1e34f983d456dc4ea729e249c674a1d8d62997c87075e3d2a384b2e35435db20"
+  },
+  "historical_independent_result": {
+    "source_head": "55917014581823b9f86034c8ac8849fb14d560f0",
+    "raw_stream_sha256": "44b4e17fe9dd4de3646ce85bdc174961290fac89ae98a4063f276cdf85b548f9",
+    "final_agent_message": "CHANGES_REQUIRED p0=0 p1=1 p2=0",
+    "finding": "Mutable source Git config url.*.insteadOf can redirect absolute origin bare path to foreign repository between validation and git push; fix and rerun judge on new source",
+    "native_old_parser_status": "NOT_PROVEN (do not upgrade historical verdict by hand)",
+    "real_future_judge": "NOT_RUN_ON_UPDATED_PARSER"
+  },
+  "remaining": [
+    "A2 Git source config URL rewrite race P1",
+    "full Go/vet/build candidate for release 1.20",
+    "integrate approved reviewer parser into clean authority after A2 PASS",
+    "N124/A3 native new/close + durable outbox",
+    "N120 and later learning/effect release gates"
+  ],
+  "no_install_or_release": true
+}
