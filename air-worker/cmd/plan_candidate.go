@@ -149,8 +149,12 @@ func preparePlanCandidate(ctx context.Context, root, old, operation string, file
 	if _, ok := files[prefix+"PLAN.md"]; !ok {
 		return fail(fmt.Errorf("PLAN spine required"))
 	}
+	if len(files) != 3 {
+		return fail(fmt.Errorf("candidate requires exactly PLAN, one node, and one operation outbox"))
+	}
 	paths, seen, total := []string{}, map[string]bool{}, 0
 	numbers := map[string]bool{}
+	hasOutbox := false
 	for name, content := range files {
 		local := strings.TrimPrefix(name, prefix)
 		validNode := strings.HasPrefix(local, "plan/") && strings.HasSuffix(local, ".md") && planNodeIDRE.MatchString(strings.TrimSuffix(strings.TrimPrefix(local, "plan/"), ".md"))
@@ -168,6 +172,9 @@ func preparePlanCandidate(ctx context.Context, root, old, operation string, file
 				return fail(fmt.Errorf("duplicate candidate node number"))
 			}
 			numbers[number] = true
+		}
+		if local == "plan/event-outbox/"+operation+".json" {
+			hasOutbox = true
 		}
 		total += len(content)
 		if total > 4*1024*1024 {
@@ -198,6 +205,9 @@ func preparePlanCandidate(ctx context.Context, root, old, operation string, file
 			return fail(fmt.Errorf("missing canonical PLAN"))
 		}
 		paths = append(paths, name)
+	}
+	if len(numbers) != 1 || !hasOutbox {
+		return fail(fmt.Errorf("candidate requires exactly one new plan node and operation outbox"))
 	}
 	sort.Strings(paths)
 	private, err := os.MkdirTemp("", "air-worker-candidate-*")

@@ -1,0 +1,52 @@
+{
+  "schema": "air-worker.n124.a1-sol-p1-fix-host-qa/v1",
+  "date_sgt": "2026-10-11",
+  "status": "SCOPED_QA_PASS_WAIT_INDEPENDENT_REVIEW_N124_OPEN",
+  "branch": "dev/airworker-n124-native-identity-20261011",
+  "base_commit": "bec3f5396a6966a6891ab452e14b7a70dd8ef10c",
+  "independent_previous_finding": {
+    "source_head": "897bb79b09244c12646b73b25636032ca45f647f",
+    "verdict": "CHANGES_REQUIRED",
+    "p1": 1,
+    "issue": "incomplete candidate without exactly one node and operation-scoped outbox"
+  },
+  "native_executor": {
+    "entrypoint": "air-worker executor dispatch -class bulk",
+    "selected_tier": "gpt6-luna:low",
+    "model": "gpt-6-luna",
+    "effort": "low",
+    "job_id": "gpt__airworker-n124-20261011__1791718908746000800__394d525f",
+    "job_status": "DONE",
+    "dispatch_exit_code": 0
+  },
+  "code_sha256": {
+    "cmd/plan_candidate.go": "64b7463ff77efdba1abf3e9b468267db91a3de19eeafb98e0b487a3bc122c2e8",
+    "cmd/plan_candidate_test.go": "02406ee0c7aec299974efd9eb4448869accf613ff64f2f1970b1dbb74ebc3386"
+  },
+  "host_qa": {
+    "command": "go -C air-worker/cmd test . -run '^TestPlanCandidate' -count=1 -v -timeout 180s",
+    "exit_code": 0,
+    "log_sha256": "4d3a497fdbfefbbb9e3cad3c340a04201a6f9d26ec7f26d5c73bae409c2db509",
+    "clone_old_head": "PASS",
+    "negative_tests": 29,
+    "incomplete_candidate_cases": [
+      "plan-only",
+      "missing-outbox",
+      "missing-node",
+      "extra-node-outbox",
+      "wrong-outbox",
+      "mismatched-prefix"
+    ],
+    "symlink_privilege": "SKIP_NO_UAC",
+    "junction_separate": "PASS",
+    "junction_log_sha256": "a7449f3c400136d6a94e2ee738c5ac4ca004922d827e3d8741d57f91d5aa49ba",
+    "diff_check_exit": 0
+  },
+  "scope": "A1 immutable temp fixture Git commit preparer; no production Git canonical new/close, no CAS yet",
+  "independent_current_judge": "NOT_RUN_PENDING_CLEAN_SHA",
+  "n124_status": "OPEN",
+  "n120_status": "HOLD",
+  "full_go_qa": "NOT_RUN",
+  "release_install": false,
+  "unsafe_grants": false
+}

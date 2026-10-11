@@ -103,7 +103,7 @@ func TestPlanCandidateImmutable(t *testing.T) {
 }
 
 func TestPlanCandidateRejects(t *testing.T) {
-	for _, mode := range []string{"traversal", "absolute", "backslash", "unauthorized", "collision", "directory-collision", "number-collision", "duplicate", "duplicate-number", "empty-oid", "bad-oid", "unknown-oid", "dirty", "staged", "ignored", "skip-worktree", "authority", "missing-git", "git-env", "remote", "cancelled", "oversize", "empty-operation"} {
+	for _, mode := range []string{"traversal", "absolute", "backslash", "unauthorized", "collision", "directory-collision", "number-collision", "duplicate", "duplicate-number", "empty-oid", "bad-oid", "unknown-oid", "dirty", "staged", "ignored", "skip-worktree", "authority", "missing-git", "git-env", "remote", "cancelled", "oversize", "empty-operation", "plan-only", "missing-outbox", "missing-node", "extra-node-outbox", "wrong-outbox", "mismatched-prefix"} {
 		t.Run(mode, func(t *testing.T) {
 			root, old, files := candidateFixture(t)
 			operation := "op-1"
@@ -182,6 +182,20 @@ func TestPlanCandidateRejects(t *testing.T) {
 				files["air-worker/PLAN.md"] = make([]byte, 4*1024*1024+1)
 			case "empty-operation":
 				operation = ""
+			case "plan-only":
+				files = map[string][]byte{"air-worker/PLAN.md": []byte("candidate\n")}
+			case "missing-outbox":
+				delete(files, "air-worker/plan/event-outbox/op-1.json")
+			case "missing-node":
+				delete(files, "air-worker/plan/N-121_next.md")
+			case "extra-node-outbox":
+				files["air-worker/plan/N-122_extra.md"] = []byte("extra\n")
+				files["air-worker/plan/event-outbox/op-1-extra.json"] = []byte(`{"event":"extra"}`)
+			case "wrong-outbox":
+				delete(files, "air-worker/plan/event-outbox/op-1.json")
+				files["air-worker/plan/event-outbox/op-2.json"] = []byte(`{"event":"synthetic"}`)
+			case "mismatched-prefix":
+				files["PLAN.md"] = files["air-worker/PLAN.md"]
 			}
 			before := candidateOriginal(t, root)
 			if got, err := preparePlanCandidate(ctx, root, old, operation, files); err == nil || got.OID != "" {
