@@ -351,12 +351,33 @@ func TestCodeReviewUnknownRemote(t *testing.T) {
 		}
 	}
 	oldLookup := codeReviewLookupRemote
-	t.Cleanup(func() { codeReviewLookupRemote = oldLookup })
+	oldURL, oldRemotes := codeReviewRemoteURL, codeReviewRemotes
+	t.Cleanup(func() {
+		codeReviewLookupRemote = oldLookup
+		codeReviewRemoteURL = oldURL
+		codeReviewRemotes = oldRemotes
+	})
+	codeReviewRemotes = func(root string) ([]string, error) {
+		remotes, err := codeReviewGit(root, "remote")
+		if err != nil || remotes == "" {
+			return nil, err
+		}
+		return strings.Split(remotes, "\n"), nil
+	}
 	codeReviewLookupRemote = func(_, remote, ref string) (string, error) {
-		if remote != "origin" {
+		if remote != "github" {
 			return "", fmt.Errorf("unexpected remote %q", remote)
 		}
 		return codeReviewGit(bare, "ls-remote", "--exit-code", "--refs", bare, ref)
+	}
+	codeReviewRemoteURL = func(_, remote string) (string, error) {
+		if remote == "github" {
+			return "https://github.com/test/repo.git", nil
+		}
+		return bare, nil
+	}
+	if _, err := codeReviewGit(root, "remote", "add", "github", "https://github.com/test/repo.git"); err != nil {
+		t.Fatal(err)
 	}
 	// The branch is deliberately created without tracking metadata, as in production worktrees.
 	if out, err := exec.Command("git", "-C", root, "checkout", "-b", "review-no-track", "--no-track", "HEAD").CombinedOutput(); err != nil {
@@ -392,20 +413,43 @@ func TestCodeReviewUnknownRemote(t *testing.T) {
 	if _, err := codeReviewGit(root, "remote", "remove", "extra"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := codeReviewGit(root, "remote", "set-url", "origin", bare); err != nil {
+	if got, err := codeReviewRemoteHead(root); err != nil || got != sha {
+		t.Fatalf("single remote published ref got %q, %v want %q", got, err, sha)
+	}
+	if _, err := codeReviewGit(root, "config", "--unset-all", "branch.review-no-track.remote"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := codeReviewGit(root, "config", "--unset-all", "branch.review-no-track.merge"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := codeReviewGit(root, "remote", "remove", "github"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := codeReviewRemoteHead(root); err == nil {
-		t.Fatal("accepted non-GitHub URL")
+		t.Fatal("accepted zero GitHub remotes")
 	}
-	if _, err := codeReviewGit(root, "remote", "remove", "origin"); err != nil {
+	if _, err := codeReviewGit(root, "remote", "add", "github", "https://github.com/test/repo.git"); err != nil {
+		t.Fatal(err)
+	}
+	codeReviewRemoteURL = oldURL
+	if _, err := codeReviewGit(root, "remote", "set-url", "github", "https://github.com.evil.test/test/repo"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := codeReviewRemoteHead(root); err == nil {
-		t.Fatal("accepted zero remotes")
+		t.Fatal("accepted foreign domain")
 	}
-	if _, err := codeReviewGit(root, "remote", "add", "origin", "https://github.com/test/repo.git"); err != nil {
+	if _, err := codeReviewGit(root, "remote", "set-url", "github", "https://github.com/test/repo.git"); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := codeReviewGit(root, "config", "branch.review-no-track.remote", "origin"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := codeReviewGit(root, "config", "branch.review-no-track.merge", "refs/heads/review-no-track"); err != nil {
+		t.Fatal(err)
+	}
+	codeReviewRemoteURL = func(_, remote string) (string, error) { return bare, nil }
+	if _, err := codeReviewRemoteHead(root); err == nil {
+		t.Fatal("accepted local configured tracking remote")
 	}
 	if _, err := codeReviewGit(root, "checkout", "--detach", "HEAD"); err != nil {
 		t.Fatal(err)

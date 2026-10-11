@@ -1,0 +1,56 @@
+{
+  "schema": "air-worker.native-sol-remote-discovery-wip/v1",
+  "date_sgt": "2026-10-11",
+  "node": "SRVLM01",
+  "status": "WIP_REMOTE_SELECTION_TEST_NOT_YET_GREEN",
+  "source_branch": "dev/airworker-native-sol-reviewer-20261011",
+  "source_before": "c5fce5a230db25f47c0fb78e5e1222c2d72e272a",
+  "installed_version": "0.11.8",
+  "observed_failure": {
+    "command": "source-only air-worker-review-candidate.exe review code -preflight",
+    "subject_head": "3390f18bdbaa7f64801fff1f03ac3995e55c51d4",
+    "code": 2,
+    "error": "no tracking branch and remote count is not one",
+    "actual_git_remotes": {
+      "github": "https://github.com/ruhorh66-rgb/air-plugins.git",
+      "origin": "F:\\-7-\\_worktrees\\airworker-learning-20261005"
+    }
+  },
+  "new_source_changes": [
+    "cmd/review_code.go",
+    "cmd/review_code_test.go"
+  ],
+  "native_executor": [
+    {
+      "class": "bulk",
+      "model": "gpt-6-luna",
+      "result": "DONE",
+      "task": "native-sol-github-remote-selection.md"
+    },
+    {
+      "class": "bulk",
+      "model": "gpt-6-luna",
+      "result": "DONE",
+      "task": "native-sol-remote-fixture-fix.md"
+    }
+  ],
+  "fix": "Find exactly one qualifying GitHub remote among any configured remotes when no tracking; reject zero/multiple GitHub remotes or mismatched tracking; no user selectable runner/model/sandbox.",
+  "test_evidence": {
+    "first_host_scoped_exit": 1,
+    "log_sha256": "2c5740ea7f275d7adef25d7a922c0247829cf0a9b6aab7de831f53bdd190ce6d",
+    "failure": "positive test fixture first expected github remote before it was added",
+    "fixture_correction": "added unique github before positive assertion; tests for two github remotes and zero qualifying remotes",
+    "corrected_fixture_host_exit": "NOT_RUN_FOREIGN_GO_CONCURRENT",
+    "full_Go": "NOT_RUN",
+    "native_source_preflight_against_N124": "NOT_RUN_AFTER_FIX"
+  },
+  "precautions": {
+    "no_release": true,
+    "no_install": true,
+    "no_UAC": true,
+    "no_foreign_service_stop": true,
+    "no_force_push": true,
+    "no_manual_plan_N_edit": true
+  },
+  "next_gate": "host targeted Go PASS + exact source-only build + native -preflight on N124 + independent gpt-6-sol low read-only on N124 A2"
+}

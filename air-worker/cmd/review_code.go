@@ -28,6 +28,45 @@ var codeReviewLookupRemote = func(root, remote, ref string) (string, error) {
 	return codeReviewGit(root, "ls-remote", "--exit-code", "--refs", remote, ref)
 }
 
+var codeReviewRemoteURL = func(root, remote string) (string, error) {
+	return codeReviewGit(root, "remote", "get-url", remote)
+}
+
+var codeReviewRemotes = func(root string) ([]string, error) {
+	result, err := codeReviewGit(root, "remote")
+	if err != nil {
+		return nil, err
+	}
+	if result == "" {
+		return nil, nil
+	}
+	return strings.Split(result, "\n"), nil
+}
+
+var codeReviewGitHubURL = regexp.MustCompile(`^(https://github\.com/|git@github\.com:|ssh://git@github\.com/)[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?$`)
+
+func codeReviewIsGitHubRemote(root, remote string) bool {
+	url, err := codeReviewRemoteURL(root, remote)
+	return err == nil && codeReviewGitHubURL.MatchString(url)
+}
+
+func codeReviewSelectRemote(root string, remotes []string) (string, error) {
+	var selected string
+	for _, remote := range remotes {
+		if !codeReviewIsGitHubRemote(root, remote) {
+			continue
+		}
+		if selected != "" {
+			return "", fmt.Errorf("multiple GitHub remotes")
+		}
+		selected = remote
+	}
+	if selected == "" {
+		return "", fmt.Errorf("no GitHub remote")
+	}
+	return selected, nil
+}
+
 func codeReviewDigest(data []byte) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
@@ -91,21 +130,17 @@ func codeReviewRemoteHead(root string) (string, error) {
 		}
 		remote, ref = trackingRemote, trackingRef
 	} else {
-		remotes, err := codeReviewGit(root, "remote")
+		remotes, err := codeReviewRemotes(root)
 		if err != nil {
 			return "", err
 		}
-		configured := strings.Fields(remotes)
-		if len(configured) != 1 {
-			return "", fmt.Errorf("no tracking branch and remote count is not one")
+		remote, err = codeReviewSelectRemote(root, remotes)
+		if err != nil {
+			return "", err
 		}
-		remote, ref = configured[0], "refs/heads/"+branch
+		ref = "refs/heads/" + branch
 	}
-	url, err := codeReviewGit(root, "remote", "get-url", remote)
-	if err != nil {
-		return "", err
-	}
-	if !regexp.MustCompile(`^(https://github\.com/|git@github\.com:|ssh://git@github\.com/)[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`).MatchString(url) {
+	if !codeReviewIsGitHubRemote(root, remote) {
 		return "", fmt.Errorf("remote must be GitHub")
 	}
 	out, err := codeReviewLookupRemote(root, remote, ref)
