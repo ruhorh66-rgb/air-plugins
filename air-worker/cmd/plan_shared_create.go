@@ -86,6 +86,9 @@ func publishNewPlanNode(path string, content []byte) error {
 }
 
 func cmdSharedPlanCreate(root string, s sharedLearningSettings, req sharedPlanCreateRequest, actor string, asJSON bool) int {
+	if req.Operation == "new" && rejectUnprovenPlanAuthority(root, asJSON) {
+		return 2
+	}
 	intentPath := ""
 	fail := func(err error) int {
 		if asJSON {

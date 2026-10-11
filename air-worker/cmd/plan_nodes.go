@@ -410,6 +410,9 @@ func cmdPlanNodeNew(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
+	if rejectUnprovenPlanAuthority(root, *asJSON) {
+		return 2
+	}
 	lock, ok := acquireLock(lockName("plan-nodes", root))
 	if !ok {
 		fmt.Fprintln(os.Stderr, "plan node mutation is already running for this product")
@@ -532,6 +535,9 @@ func cmdPlanNodeClose(argv []string) int {
 	root, err := normalizePlanNodeProduct(*product)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if rejectUnprovenPlanAuthority(root, *asJSON) {
 		return 2
 	}
 	lock, ok := acquireLock(lockName("plan-nodes", root))

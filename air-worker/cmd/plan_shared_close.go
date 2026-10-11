@@ -48,6 +48,9 @@ func persistSharedPlanClose(path string, intent sharedPlanCloseIntent) error {
 // The caller holds the product's plan-nodes lock. A module error can occur AFTER
 // the event/procedure committed, so it must never trigger blind plan rollback.
 func cmdSharedPlanNodeClose(root string, s sharedLearningSettings, n planNode, body, path, receipt, actor string, before []byte, asJSON bool) int {
+	if rejectUnprovenPlanAuthority(root, asJSON) {
+		return 2
+	}
 	receipt = strings.TrimSpace(receipt)
 	intentPath := filepath.Join(s.RuntimeRoot, "plan-close", learnSHA([]byte(n.ID+"\n"+n.CreatedAt))+".json")
 	fail := func(err error) int {

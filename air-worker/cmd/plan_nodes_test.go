@@ -12,6 +12,7 @@ import (
 func seedPlanNodeProduct(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
+	declareIsolatedPlanFixture(t, root)
 	plan := "# Plan\n\n**Ц1.** fixture remains machine-measurable\n\n" +
 		"| Критерий | Цель | Признак достижения | Чем меряется |\n|---|---|---|---|\n" +
 		"| К1 | Ц1 | fixture fact closed | факт `f01` |\n\n" +
@@ -180,6 +181,7 @@ func TestListPlanNodesReadsOpenClosedAndOwnerless(t *testing.T) {
 
 func TestPlanMigratePreservesSectionsWritesEventsAndCloseKeepsBody(t *testing.T) {
 	root := t.TempDir()
+	declareIsolatedPlanFixture(t, root)
 	original := "# Product plan\n\nGoal preamble.\n\n## First stage\nalpha line\n\n### Child heading\nchild stays here\n\n## Second stage\nbeta line\n"
 	if err := os.WriteFile(filepath.Join(root, "PLAN.md"), []byte(original), 0o644); err != nil {
 		t.Fatal(err)

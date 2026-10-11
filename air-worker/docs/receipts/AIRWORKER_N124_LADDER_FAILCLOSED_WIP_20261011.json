@@ -1,0 +1,46 @@
+{
+  "schema": "air-worker.n124.source-checkpoint/v1",
+  "status": "HOLD",
+  "baseline": "413e5fbc8981a9814a40256f2e43ee4e2ec9933a",
+  "scope": "source-only fail-closed fallback; not N-124 completion",
+  "changed_files": [
+    {
+      "path": "cmd/plan_authority.go",
+      "sha256": "ba65c672f8e720749284769aa5931b117a9af9dbe0974dcde88a682a8710d892"
+    },
+    {
+      "path": "cmd/plan_authority_test.go",
+      "sha256": "d9f00b70fab64223e378b1573f311470f00b43264455647de8d3c3cd47c396a0"
+    },
+    {
+      "path": "cmd/plan_nodes.go",
+      "sha256": "0d9e8022195a1e9dd4c86362373f67989b22d5c183b8403b9571f73421cab010"
+    },
+    {
+      "path": "cmd/plan_nodes_test.go",
+      "sha256": "c6554f441627194bc3465b6d5e41e9e526b53726578478b28c3d81f30170d6d2"
+    },
+    {
+      "path": "cmd/plan_shared_create.go",
+      "sha256": "2bcc6e84a0095a0f5859477d84a368d23a64d93327f2a1e146cf9edfac503474"
+    },
+    {
+      "path": "cmd/plan_shared_close.go",
+      "sha256": "62be7c61f7801c40cf501750da15f1d2b7ec5dc04fcd3e4bf747b5316278b0a0"
+    }
+  ],
+  "red_test_exit": 1,
+  "scoped_command": "go test . -run ^TestPlanNode -count=1 -v",
+  "scoped_test_exit": 0,
+  "diff_check_exit": 0,
+  "red_log": "red.log",
+  "scoped_log": "scoped.log",
+  "production_behavior": "new/close reject with rc2 and machine conflict before PLAN/LEARN/shared recovery writes; isolated offline fixtures require explicit pinned contract",
+  "blocker": "Atomic ID reservation and fenced PLAN/LEARN publication against explicit canonical authority across branches/machines; read-only refs and current per-product locks do not supply it",
+  "unproven": [
+    "Successful canonical Git N-121 allocation/close",
+    "Atomic remote-drift fencing and global active-WIP coverage",
+    "Full Go QA and independent Sol Low judge",
+    "Installed capability and vault-pointer validation"
+  ]
+}
