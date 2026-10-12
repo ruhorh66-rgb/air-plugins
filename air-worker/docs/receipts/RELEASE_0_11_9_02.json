@@ -1,0 +1,80 @@
+{
+    "schema":  "air-worker.release-step.real-native-capture/v1",
+    "date_utc":  "2026-10-12T02:00:39.1091339Z",
+    "step_id":  "R0.11.9-02",
+    "status":  "SCOPED_NATIVE_CAPTURE_PASS_INDEPENDENT_JUDGE_PENDING",
+    "source_branch":  "dev/airworker-0119-real-capture-20261012",
+    "source_head":  "bbfa050c4788b7c8d7960975825205e9e5cee3f3",
+    "origin":  "native compiled AirWorker CLI, not manual learn event",
+    "binary_sha256":  "cf16c2cd4b32a6c8ae3d3bc9504fb24cb3059e018b89884ff1e726b3faf3194c",
+    "host_qa":  {
+                    "command":  "go -C air-worker/cmd test . -run \u0027^TestN110\u0027 -count=1 -timeout 180s",
+                    "exit_code":  0,
+                    "log_sha256":  "075f86ac71d4e0928c65d0117f84de24c44a048395575d6f9ba079ca2df87b18"
+                },
+    "first_executor":  {
+                           "class":  "complex",
+                           "model":  "gpt-6-astra",
+                           "status":  "DONE",
+                           "job_id":  "gpt__r0119-selflearn-20261012__1791769717287555800__9bdd2d9a"
+                       },
+    "second_executor":  {
+                            "class":  "bulk",
+                            "model":  "gpt-6-luna",
+                            "status":  "DONE",
+                            "job_id":  "gpt__r0119-selflearn-20261012__1791770055249053700__f51596c1"
+                        },
+    "native_selector_enable_rc":  0,
+    "native_validate_exit_code":  2,
+    "native_run_id":  "AW-CLI-8443bb90365a2b1b3262a338",
+    "native_failure":  {
+                           "schema":  "air-worker.self-learning.cli-failure/v3",
+                           "action":  "validate",
+                           "cause_code":  "validate-run-config-missing",
+                           "source":  "air-worker-cli",
+                           "principal":  "air-worker",
+                           "receipt_hmac_sha256":  "7021403809bea603592495b2a948139ec94d274eebf7b1183ef2adf563ec6caf",
+                           "invocation_mac_shape":  "64hex",
+                           "machine_receipt_sha256":  "0f0f62eb34b95de9cf237f268ea13df56f32b94524cafc969f826d23d16abc22"
+                       },
+    "learning_event":  {
+                           "event_id":  "EV-fba82d54f3a62eb56a6f0c49",
+                           "kind":  "run_completed",
+                           "class":  "air-worker-cli-preflight",
+                           "source":  "air-worker-cli",
+                           "run_count":  1,
+                           "false_procedure_used_count":  0,
+                           "journal_sha256":  "0c74904d6c7f11614d6fc31db912c9b13d391e27d2d8e9526ebc8730988c6cc9"
+                       },
+    "review":  {
+                   "outcome":  "candidate",
+                   "phase":  "complete",
+                   "review_id":  "RV-b584e79f819e23299e91f6b5",
+                   "proposal_id":  "LP-EV-fba82d54f3a62eb56a6f0c49",
+                   "review_receipt_sha256":  "8841636572d47b8af03688bfe0254f26b6fbecad76e3bb78029bcd8e80d7472d",
+                   "preliminary_verdict_status":  "unjudged",
+                   "preliminary_verdict_reason":  "judge not configured"
+               },
+    "safe_apply":  {
+                       "kind":  "procedure",
+                       "ledger_status":  "applied",
+                       "proposal_journal_status":  "PENDING_LPR",
+                       "target":  "skills/learned/air-worker-cli-preflight-efe9e81b-9e3bbf0441960674.md",
+                       "target_sha256":  "9e3bbf04419606742e076221d4b4a3ed08e98cb1f1f180dff7823cce8b80c095",
+                       "no_executable_or_blocking_rules_auto_granted":  true
+                   },
+    "scratch_evidence":  {
+                             "host_enable_attempt_sha256":  "3d1c97d583891cc9ad5c5055585e2cf0ba26302d72d93f9bc494aaa4aa293a95",
+                             "host_validate_attempt_sha256":  "ff8ae59f762f9116aa5e9cf2095dc17ef69cfbaa3e8ee5154923605a3dc74ccb",
+                             "host_validate_output_sha256":  "370220e6280547c77abb47a3a39aff2299bb0f7c262480bcf518ca7154a6709a",
+                             "scratch_root":  "R:\\-4-\\air-worker\\work\\0.11.9\\real-capture-20261012"
+                         },
+    "release_or_install":  false,
+    "installed_version":  "0.11.8 unchanged",
+    "warnings":  [
+                     "preliminary verdict unjudged: judge not configured; MUST NOT report full semantic judge PASS",
+                     "procedure_used currently 0; next fresh process remains R0.11.9-04",
+                     "no repeated validate stimulus; no manually written LEARN event",
+                     "R0.11.9-02 not closed pending independent judge and commit/readback"
+                 ]
+}
