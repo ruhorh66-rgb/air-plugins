@@ -21,7 +21,20 @@
                             "defects":  "only security P0/P1 on active release are in critical path; other findings become deferred next release, preserving original node",
                             "parallel":  "one owner per file; one heavy Go or Codex task at a time; unfinished foreign WIP must not be staged or cleaned",
                             "metadata":  "UTC receipt/run timestamps with SGT reporting",
-                            "max_steps_per_release":  7
+                            "max_steps_per_release":  7,
+                            "lpr_authorized_codex_execution":  {
+                                                                   "schema":  "air-worker.release.codex-ladder/v1",
+                                                                   "decision_sgt":  "2026-10-12",
+                                                                   "executor_units":  2,
+                                                                   "execution_order":  [
+                                                                                           "AirWorker executor dispatch -class complex; Codex tier auto-selected",
+                                                                                           "after first terminal readback: AirWorker executor dispatch -class bulk; Codex tier auto-selected"
+                                                                                       ],
+                                                                   "independent_judge":  "AirWorker review code pinned Codex gpt-6-sol low read-only, on exact source SHA",
+                                                                   "no_duplicate_submit":  true,
+                                                                   "scope":  "source-only active 0.11.9",
+                                                                   "no_installed_change":  "0.11.8"
+                                                               }
                         },
     "releases":  [
                      {
@@ -57,7 +70,7 @@
                          "steps":  [
                                        {
                                            "id":  "R0.11.9-01",
-                                           "status":  "open",
+                                           "status":  "closed",
                                            "title":  "Зафиксировать минимальный контракт и pinned shared-learning источник",
                                            "owner":  "AirWorker native executor ladder / SRVLM01",
                                            "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
@@ -73,7 +86,7 @@
                                        },
                                        {
                                            "id":  "R0.11.9-02",
-                                           "status":  "planned",
+                                           "status":  "open",
                                            "title":  "Реальное автоматическое принятие первой ошибки",
                                            "owner":  "AirWorker native executor ladder / SRVLM01",
                                            "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
