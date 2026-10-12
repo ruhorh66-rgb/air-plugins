@@ -1,0 +1,125 @@
+{
+  "schema": "air-worker.handoff.resumable-source-only/v1",
+  "date_sgt": "2026-10-12",
+  "product": "AirWorker",
+  "from": "current ChatGPT AirWorker developer session",
+  "to": "Hermes (planned transfer by LPR)",
+  "trigger": "LPR: preserve developments, commit and push before transfer of AirWorker development to Hermes",
+  "status": "SOURCE_ONLY_CHECKPOINT_PENDING_GITHUB_READBACK",
+  "node": "SRVLM01",
+  "owner": "Hermes after explicit handoff, not running yet",
+  "origin": {
+    "repository": "ruhorh66-rgb/air-plugins",
+    "branch": "dev/airworker-0119-real-capture-20261012",
+    "base_commit": "bbfa050c4788b7c8d7960975825205e9e5cee3f3",
+    "product_directory": "air-worker",
+    "source_changed": false,
+    "source_only": true
+  },
+  "authority": {
+    "branch": "dev/airworker-0.11.9-selflearning-only-20261011",
+    "known_head": "bbfa050c4788b7c8d7960975825205e9e5cee3f3",
+    "plan": "air-worker/PLAN.md",
+    "release_state": "air-worker/plan/release-slices.json",
+    "active_release": "0.11.9",
+    "installed_version": "0.11.8",
+    "latest_published_version": "0.11.8",
+    "first_open_step": "R0.11.9-02",
+    "first_open_step_status": "open",
+    "other_existing_dirty": [
+      "air-worker/plan/N-071_rel-0-11-9-next-airworker-release-with-shared-le.md (uncommitted foreign content; old 1.20; DO NOT stage/edit manually)"
+    ]
+  },
+  "native_executor_jobs": [
+    {
+      "id": "gpt__r0119-selflearn-20261012__1791769717287555800__9bdd2d9a",
+      "runner": "codex",
+      "model": "gpt-6-astra",
+      "class": "complex",
+      "status": "DONE",
+      "evidence": "air-worker/.woody/jobs/gpt-r0119-selflearn-20261012-executor-r0119-02-first-codex-native-capture-md-executor-codex-gpt-6-astra-low.receipt.json"
+    },
+    {
+      "id": "gpt__r0119-selflearn-20261012__1791770055249053700__f51596c1",
+      "runner": "codex",
+      "model": "gpt-6-luna",
+      "class": "bulk",
+      "status": "DONE",
+      "evidence": "air-worker/.woody/jobs/gpt-r0119-selflearn-20261012-executor-r0119-02-second-codex-verify-capture-md-executor-codex-gpt-6-luna-low.receipt.json"
+    }
+  ],
+  "r02": {
+    "step_id": "R0.11.9-02",
+    "status": "SCOPED_NATIVE_CAPTURE_PASS_INDEPENDENT_JUDGE_PENDING",
+    "judge": "NOT_RUN",
+    "source_commit": "bbfa050c4788b7c8d7960975825205e9e5cee3f3",
+    "machine_receipt_path": "air-worker/docs/receipts/RELEASE_0_11_9_02.json",
+    "receipt_sha256": "902559cbef78c81b72c76ab7016f82776e5d62bf163a9ac9a1501b61b9de6214",
+    "protected_scratch_root": "R:/-4-/air-worker/work/0.11.9/real-capture-20261012",
+    "executable_path": "R:/-4-/air-worker/work/0.11.9/real-capture-20261012/air-worker-0119-r02-source-only.exe",
+    "executable_sha256": "cf16c2cd4b32a6c8ae3d3bc9504fb24cb3059e018b89884ff1e726b3faf3194c",
+    "go_targeted_test_exit_code": 0,
+    "go_targeted_test_log_sha256": "075f86ac71d4e0928c65d0117f84de24c44a048395575d6f9ba079ca2df87b18",
+    "live_native_validate_exit_code": 2,
+    "run_id": "AW-CLI-8443bb90365a2b1b3262a338",
+    "cause": "validate-run-config-missing",
+    "failure_receipt_sha256": "0f0f62eb34b95de9cf237f268ea13df56f32b94524cafc969f826d23d16abc22",
+    "event_id": "EV-fba82d54f3a62eb56a6f0c49",
+    "event_kind": "run_completed",
+    "event_count": 1,
+    "events_journal_sha256": "0c74904d6c7f11614d6fc31db912c9b13d391e27d2d8e9526ebc8730988c6cc9",
+    "auto_review": "candidate",
+    "preliminary_verdict": "unjudged: judge not configured",
+    "safe_markdown_ledger_status": "applied",
+    "proposal_journal_status": "PENDING_LPR",
+    "applied_target_sha256": "9e3bbf04419606742e076221d4b4a3ed08e98cb1f1f180dff7823cce8b80c095",
+    "procedure_used_events": 0,
+    "independent_fresh_process_use": "NOT_PROVEN"
+  },
+  "independent_judge": {
+    "required": "native air-worker review code, pinned Codex gpt-6-sol low read-only, on exact clean pushed SHA",
+    "reviewer_source_branch": "dev/airworker-native-sol-reviewer-20261011",
+    "reviewer_source_head": "6a1627816d971aed7a0560f2d038262efe6a8c08",
+    "avoid": "manual direct codex.exe execution, running repeat executor or native validate stimulus"
+  },
+  "related_wip_not_on_r02_critical_path": [
+    {
+      "branch": "dev/airworker-plan-slices-core-20261012",
+      "head": "d986e678181765e84a4477fab8b100aab28270dc",
+      "state": "WIP parser, not integrated"
+    },
+    {
+      "branch": "dev/airworker-n124-native-identity-20261011",
+      "head": "2e825982efd1b1aa468f073739b87a666bcb7b84",
+      "state": "N124 OPEN, A3-2 pending"
+    },
+    {
+      "branch": "dev/airworker-native-sol-reviewer-20261011",
+      "head": "6a1627816d971aed7a0560f2d038262efe6a8c08",
+      "state": "Native reviewer implemented source-only"
+    },
+    {
+      "path": "F:/-8-/air-modules",
+      "state": "Foreign shared learning WIP, 0.1.0 not released; do not commit"
+    },
+    {
+      "repo": "ruhorh66-rgb/AIR_OS",
+      "commit": "7ccd0c9951760cd54650e0a4d910200116a33357",
+      "state": "AIR_VIBECODING 2.0.0-rc.10, DEV-135"
+    },
+    {
+      "repo": "ruhorh66-rgb/AirWorker_Wiki",
+      "commit": "06106e3dd3e8f70841adf0af8eda461fb3164de0",
+      "state": "Product instruction"
+    }
+  ],
+  "done_when": "Commit and push exact R02 machine receipt, this manifest and Markdown Hermes handoff to a dedicated dev branch, verify remote SHA identical, clean working tree, leave foreign N071 and private runtime untouched.",
+  "factual_judge": "git staged allowlist + SHA readback + remote branch readback + clean local tree, not Codex semantic PASS",
+  "receipt": "air-worker/docs/receipts/RELEASE_0_11_9_02.json",
+  "next_action": "Hermes: read startup/PLAN/release-slices/job receipts and this handoff, verify remote SHA, run independent native Sol low read-only on R02 clean SHA, then R03 safe review configuration and R04 genuinely observed new-process procedure_used; never replay original validate stimulus.",
+  "release_or_tag_authorized": false,
+  "install_authorized": false,
+  "rollback_to": "0.11.8",
+  "no_external_privileged_changes": true,
+  "no_private_hmac_key_material_exported": true
+}
