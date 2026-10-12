@@ -1,0 +1,74 @@
+{
+    "schema":  "air-worker.release.milestone-replan/v1",
+    "date_sgt":  "2026-10-12",
+    "status":  "PLAN_ONLY_VALIDATED_NOT_RELEASE",
+    "trigger":  "LPR: first selflearning, then Hermes Codex executors + Sonnet/Opus semantic judges via subscribed Nous in Hermes, then optional Air OmniRouter executor/semantic judges; defer previous backlog",
+    "owner":  "AirWorker native development, SRVLM01",
+    "product":  "AirWorker",
+    "repository_visibility":  "PUBLIC; NO publication of private Hermes OAuth, OmniRouter N126-N131 node files, or learn/events.jsonl",
+    "source_base_sha":  "bbfa050c4788b7c8d7960975825205e9e5cee3f3",
+    "authority_branch":  "dev/airworker-0.11.9-selflearning-only-20261011",
+    "this_branch":  "dev/airworker-release-sequence-selflearn-hermes-omni-20261012",
+    "old_plan_git_status":  "N071 dirty WIP preserved in authority, untouched",
+    "prior_installed_version":  "0.11.8",
+    "current_release":  "0.11.9",
+    "current_step":  "R0.11.9-02",
+    "current_release_data_unchanged":  true,
+    "milestone_ranges":  {
+                             "selflearning":  "0.11.9",
+                             "hermes_codex_and_nous_sonnet_opus":  "0.11.10 through 0.11.13",
+                             "air_omnirouter_optional_executor_and_judges":  "0.11.14 through 0.11.18",
+                             "deferred_prior_learning_architecture":  "0.11.19 through 0.11.26"
+                         },
+    "planned_releases":  18,
+    "planned_atomic_steps":  50,
+    "baseline_releases":  9,
+    "baseline_steps":  23,
+    "new_hermes_omni_releases":  9,
+    "new_hermes_omni_steps":  27,
+    "old_backlog_remapped":  {
+                                 "0.11.10":  "0.11.19",
+                                 "0.11.13":  "0.11.22",
+                                 "0.11.12":  "0.11.21",
+                                 "0.11.11":  "0.11.20",
+                                 "0.11.14":  "0.11.23",
+                                 "0.11.16":  "0.11.25",
+                                 "0.11.15":  "0.11.24",
+                                 "0.11.17":  "0.11.26"
+                             },
+    "code_changes":  false,
+    "native_tests":  {
+                         "plan_spine_exit":  0,
+                         "plan_lint_exit":  0,
+                         "validate_exit":  0,
+                         "git_diff_check_exit":  0,
+                         "numeric_semver_and_step_uniqueness":  "PASS"
+                     },
+    "immutable_source_sha256":  {
+                                    "plan":  "90cba6b5d7236b28ca40ea82ad987d932318691f0eeb9d2e2e5bec91f08f4cb4",
+                                    "release_slices":  "f49efdb60dc1ca4e5fdea2d48491d15186b2ebe718d25312dce22b9015bdb4da"
+                                },
+    "vendor_documentation":  {
+                                 "hermes_nous":  "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/guides/run-hermes-with-nous-portal.md",
+                                 "nous_subscription":  "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/integrations/nous-portal.md",
+                                 "omniroute":  "https://github.com/diegosouzapw/OmniRoute"
+                             },
+    "source_gates":  [
+                         "Hermes local five-file source WIP is not merged, judged or released.",
+                         "Sonnet/Opus subscription entitlement, effective upstream vendor and cost are NOT_PROVEN until factual credential-free runtime evidence.",
+                         "OmniRouter N126-N131 exist OPEN only in isolated unpublished plan branch and private AirWorker_Wiki; NOT promoted to canonical; route health is not proof of working provider/combo.",
+                         "N127 prerequisite provider/combo remains unresolved; text-only chat completion never equals coding agent.",
+                         "Legacy Codex/Claude/AirLLMRouter default remains unchanged; route opt-in only, no silent PAYG/overage or OAuth copying.",
+                         "Release/tag/installation/Docker/UAC/reboot/foreign services require separate LPR authorization.",
+                         "Installed AirWorker remains 0.11.8; N071 and release 0.11.9 unchanged, R02 judge/use still OPEN."
+                     ],
+    "judge":  {
+                  "type":  "AirWorker native factual plan validation + exact Git SHA and status",
+                  "p0":  0,
+                  "p1":  0,
+                  "semantic_judge":  "NOT_RUN_FOR_PLAN_ONLY",
+                  "release_judge":  "REQUIRED_LATER_ON_FROZEN_CODE"
+              },
+    "rollback":  "No binary changed; drop/revert this isolated plan branch to return to existing canonical release-slices SHA without touching any other branch",
+    "next_step":  "After source-only commit and remote readback, keep 0.11.9 R02 active; Hermes after self-learning acceptance; OmniRouter after Hermes; before integration guard N126-N131 identity/visibility with native core."
+}
