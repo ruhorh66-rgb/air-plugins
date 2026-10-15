@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.11.8"
+	version = "0.11.9"
 )
 
 func usage() {
@@ -286,6 +286,8 @@ func run(argv []string) int {
 		return cmdFeedback(argv[1:])
 	case "learn":
 		return cmdLearn(argv[1:])
+	case "internal-self-cli-replay":
+		return cmdInternalSelfCLIReplay(argv[1:])
 	case "learning-adapter":
 		return cmdLearningAdapter(argv[1:])
 	case "curator":

@@ -25,6 +25,9 @@ func writePlanReviewFixture(t *testing.T) (string, runConfig, string, []workStep
 	if err := os.MkdirAll(filepath.Join(root, "goal"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(root, "goal", "goal.json"), []byte(`{"release_version":"0.11.9"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(root, "goal", "checklist.json"),
 		[]byte("{\"items\":[{\"id\":\"f01\",\"status\":\"completed\"}]}\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -120,6 +123,30 @@ func TestParsePlanReviewVerdictFailsClosed(t *testing.T) {
 	}
 }
 
+func TestRunPlanReviewScopedSemanticOverrideFallsBackOutsideRelease(t *testing.T) {
+	root, cfg, planPath, steps := writePlanReviewFixture(t)
+	if err := os.WriteFile(filepath.Join(root, "goal", "goal.json"), []byte(`{"release_version":"0.11.10"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(`{"release_version":"0.11.9","kind":"codex","model":"gpt-6-sol","effort":"medium"}`), &cfg.SemanticJudge); err != nil {
+		t.Fatal(err)
+	}
+	old := planReviewInvoke
+	defer func() { planReviewInvoke = old }()
+	var got runnerSpec
+	planReviewInvoke = func(req planReviewRequest) (string, string, *float64, *int, error) {
+		got = req.Reviewer
+		return planReviewPASS(req), "fixture-session", nil, nil, nil
+	}
+	run := runPlanReview(root, planPath, steps, legacyScope(root), runnerSpec{Kind: "codex", Model: "gpt-6-luna"}, cfg)
+	if run.State != "PASS" {
+		t.Fatalf("review did not complete: state=%s error=%s", run.State, run.Record.Error)
+	}
+	if got.Kind != "claude" || run.Record.ReviewerOverride {
+		t.Fatalf("out-of-scope policy leaked: reviewer=%+v override=%v", got, run.Record.ReviewerOverride)
+	}
+}
+
 func TestRunPlanReviewUsesOppositeVendorAndPreservesPlan(t *testing.T) {
 	root, _, planPath, steps := writePlanReviewFixture(t)
 	before, _ := os.ReadFile(planPath)
@@ -147,6 +174,28 @@ func TestRunPlanReviewUsesOppositeVendorAndPreservesPlan(t *testing.T) {
 	}
 }
 
+func TestRunPlanReviewHonorsExplicitCodexSolMediumOverride(t *testing.T) {
+	root, cfg, planPath, steps := writePlanReviewFixture(t)
+	cfg.SemanticJudge = semanticJudgePolicy{ReleaseVersion: "0.11.9", Kind: "codex", Model: "gpt-6-sol", Effort: "medium"}
+	old := planReviewInvoke
+	defer func() { planReviewInvoke = old }()
+	var reviewer runnerSpec
+	planReviewInvoke = func(req planReviewRequest) (string, string, *float64, *int, error) {
+		reviewer = req.Reviewer
+		return planReviewPASS(req), "session", nil, intPtr(1), nil
+	}
+	run := runPlanReview(root, planPath, steps, legacyScope(root), runnerSpec{Kind: "codex", Model: "gpt-6-luna"}, cfg)
+	if run.State != "PASS" {
+		t.Fatalf("explicit same-vendor review did not pass: %#v", run)
+	}
+	if reviewer.Kind != "codex" || reviewer.Model != "gpt-6-sol" || reviewer.Effort != "medium" {
+		t.Fatalf("reviewer=%#v, want Codex gpt-6-sol medium", reviewer)
+	}
+	if !run.Record.ReviewerOverride || run.Record.ReviewerEffort != "medium" {
+		t.Fatalf("review receipt did not preserve explicit model/effort: %#v", run.Record)
+	}
+}
+
 func TestRunPlanReviewDetectsTamper(t *testing.T) {
 	root, _, planPath, steps := writePlanReviewFixture(t)
 	old := planReviewInvoke
@@ -166,7 +215,7 @@ func TestRunPlanReviewDetectsTamper(t *testing.T) {
 	}
 }
 
-func TestPlanReviewCacheUsesCompositionNotTextHash(t *testing.T) {
+func TestPlanReviewCacheRejectsPlanTextHashMismatch(t *testing.T) {
 	root, _, planPath, steps := writePlanReviewFixture(t)
 	old := planReviewInvoke
 	defer func() { planReviewInvoke = old }()
@@ -187,16 +236,14 @@ func TestPlanReviewCacheUsesCompositionNotTextHash(t *testing.T) {
 	if planCompositionSHA(newSteps) != planCompositionSHA(steps) {
 		t.Fatal("text-only edit changed composition")
 	}
-	rec, state, ok := readCurrentPlanReview(root, planCompositionSHA(newSteps))
-	if !ok || state != "PASS" {
-		t.Fatalf("text-only edit invalidated composition cache: ok=%v state=%q rec=%#v", ok, state, rec)
-	}
-	if rec.PlanSHA256 == sha256Hex([]byte(changed)) {
-		t.Fatal("test did not actually change full-file hash")
+	newPlanSHA := sha256Hex([]byte(changed))
+	rec, state, ok := readCurrentPlanReview(root, newPlanSHA, planCompositionSHA(newSteps))
+	if ok || state != "" || rec.PlanSHA256 == newPlanSHA {
+		t.Fatalf("text-only edit reused stale review: ok=%v state=%q rec=%#v", ok, state, rec)
 	}
 }
 
-func TestEnsurePlanReviewCallsOncePerComposition(t *testing.T) {
+func TestEnsurePlanReviewCachesOnlyExactPlanAndComposition(t *testing.T) {
 	root, cfg, planPath, steps := writePlanReviewFixture(t)
 	c := &loopCtx{Root: root, Cfg: cfg, Ladder: cfg.Ladder}
 	old := planReviewInvoke
@@ -214,15 +261,27 @@ func TestEnsurePlanReviewCallsOncePerComposition(t *testing.T) {
 		t.Fatalf("cached state=%q code=%d calls=%d", state, code, calls)
 	}
 
+	planBytes, err := os.ReadFile(planPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changedPlan := strings.Replace(string(planBytes), "implement feature", "implement feature with clearer wording", 1)
+	if err := os.WriteFile(planPath, []byte(changedPlan), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if state, code := ensurePlanReview(c, planPath, steps); state != "PASS" || code != 0 || calls != 2 {
+		t.Fatalf("changed plan bytes did not force fresh review: state=%q code=%d calls=%d", state, code, calls)
+	}
+
 	textOnly := append([]workStep(nil), steps...)
 	textOnly[0].Title = "different title"
-	if state, code := ensurePlanReview(c, planPath, textOnly); state != "PASS" || code != 0 || calls != 1 {
+	if state, code := ensurePlanReview(c, planPath, textOnly); state != "PASS" || code != 0 || calls != 2 {
 		t.Fatalf("text-only state=%q code=%d calls=%d", state, code, calls)
 	}
 
 	tierChanged := append([]workStep(nil), steps...)
 	tierChanged[0].Tier = "sol:medium"
-	if state, code := ensurePlanReview(c, planPath, tierChanged); state != "PASS" || code != 0 || calls != 2 {
+	if state, code := ensurePlanReview(c, planPath, tierChanged); state != "PASS" || code != 0 || calls != 3 {
 		t.Fatalf("tier-change state=%q code=%d calls=%d", state, code, calls)
 	}
 }
@@ -262,9 +321,13 @@ func TestFirstOpenModelExecutorSkipsScriptAndUsesConfiguredVendor(t *testing.T) 
 }
 
 func TestPlanReviewCacheRejectsSameVendorOrMismatchedHashes(t *testing.T) {
-	root, _, _, steps := writePlanReviewFixture(t)
+	root, _, planPath, steps := writePlanReviewFixture(t)
 	comp := planCompositionSHA(steps)
-	planSHA := strings.Repeat("a", 64)
+	planBytes, err := os.ReadFile(planPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	planSHA := sha256Hex(planBytes)
 	rec := planReviewRecord{
 		Schema: planReviewSchemaVersion, Subject: "plan",
 		PlanSHA256: planSHA, CompositionSHA256: comp,
@@ -275,15 +338,56 @@ func TestPlanReviewCacheRejectsSameVendorOrMismatchedHashes(t *testing.T) {
 		},
 	}
 	publishPlanReview(root, rec)
-	if _, state, ok := readCurrentPlanReview(root, comp); !ok || state != "NOT_PROVEN" {
+	if _, state, ok := readCurrentPlanReview(root, planSHA, comp); !ok || state != "NOT_PROVEN" {
 		t.Fatalf("same-vendor cached PASS accepted: ok=%v state=%q", ok, state)
 	}
 
 	rec.ReviewerVendor = "claude"
 	rec.Verdict.CompositionSHA256 = strings.Repeat("b", 64)
 	publishPlanReview(root, rec)
-	if _, state, ok := readCurrentPlanReview(root, comp); !ok || state != "NOT_PROVEN" {
+	if _, state, ok := readCurrentPlanReview(root, planSHA, comp); !ok || state != "NOT_PROVEN" {
 		t.Fatalf("mismatched cached hash accepted: ok=%v state=%q", ok, state)
+	}
+}
+
+func TestPlanReviewCacheIsBoundToExplicitJudgeRoute(t *testing.T) {
+	root, _, planPath, steps := writePlanReviewFixture(t)
+	comp := planCompositionSHA(steps)
+	planBytes, err := os.ReadFile(planPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	planSHA := sha256Hex(planBytes)
+	rec := planReviewRecord{
+		Schema: planReviewSchemaVersion, Subject: "plan",
+		PlanSHA256: planSHA, CompositionSHA256: comp,
+		ExecutorVendor: "codex", ReviewerVendor: "codex", ReviewerModel: "gpt-6-sol",
+		ReviewerEffort: "medium", ReviewerOverride: true, ReleaseVersion: "0.11.9", ReviewerSandbox: "read-only",
+		Verdict: &planReviewVerdict{
+			Verdict: "PASS", PlanSHA256: planSHA, CompositionSHA256: comp,
+			Findings: []planReviewFinding{}, Next: "continue",
+		},
+	}
+	publishPlanReview(root, rec)
+	expected := planReviewExpectation{
+		Executor:         runnerSpec{Kind: "codex"},
+		Reviewer:         runnerSpec{Kind: "codex", Model: "gpt-6-sol", Effort: "medium"},
+		ExplicitOverride: true,
+		ReleaseVersion:   "0.11.9"}
+	if _, state, ok := readCurrentPlanReview(root, planSHA, comp, expected); !ok || state != "PASS" {
+		t.Fatalf("explicit Codex Sol medium review was not accepted: ok=%v state=%q", ok, state)
+	}
+	defaultRoute := planReviewExpectation{
+		Executor: runnerSpec{Kind: "codex"},
+		Reviewer: runnerSpec{Kind: "claude", Model: "claude-sonnet-5-5", Effort: "low"},
+	}
+	if _, _, ok := readCurrentPlanReview(root, planSHA, comp, defaultRoute); ok {
+		t.Fatal("cached Codex Sol review was reused under the default Claude route")
+	}
+	wrongRelease := expected
+	wrongRelease.ReleaseVersion = "0.11.10"
+	if _, _, ok := readCurrentPlanReview(root, planSHA, comp, wrongRelease); ok {
+		t.Fatal("cached 0.11.9 review was reused for a different release")
 	}
 }
 

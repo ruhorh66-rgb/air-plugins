@@ -73,20 +73,23 @@ type semanticPacket struct {
 }
 
 type semanticRecord struct {
-	At              string           `json:"at"`
-	Subject         string           `json:"subject"`
-	Step            string           `json:"step"`
-	ExecutorVendor  string           `json:"executor_vendor"`
-	ReviewerVendor  string           `json:"reviewer_vendor"`
-	ReviewerModel   string           `json:"reviewer_model,omitempty"`
-	ReviewerRole    string           `json:"reviewer_role,omitempty"`
-	ReviewerSandbox string           `json:"reviewer_sandbox,omitempty"`
-	Session         string           `json:"session_id,omitempty"`
-	FactualCode     int              `json:"factual_code"`
-	Verdict         *semanticVerdict `json:"verdict,omitempty"`
-	Error           string           `json:"error,omitempty"`
-	CostUSD         *float64         `json:"cost_usd,omitempty"`
-	Turns           *int             `json:"turns,omitempty"`
+	At               string           `json:"at"`
+	Subject          string           `json:"subject"`
+	Step             string           `json:"step"`
+	ExecutorVendor   string           `json:"executor_vendor"`
+	ReviewerVendor   string           `json:"reviewer_vendor"`
+	ReviewerModel    string           `json:"reviewer_model,omitempty"`
+	ReviewerEffort   string           `json:"reviewer_effort,omitempty"`
+	ReviewerOverride bool             `json:"reviewer_override,omitempty"`
+	ReleaseVersion   string           `json:"release_version,omitempty"`
+	ReviewerRole     string           `json:"reviewer_role,omitempty"`
+	ReviewerSandbox  string           `json:"reviewer_sandbox,omitempty"`
+	Session          string           `json:"session_id,omitempty"`
+	FactualCode      int              `json:"factual_code"`
+	Verdict          *semanticVerdict `json:"verdict,omitempty"`
+	Error            string           `json:"error,omitempty"`
+	CostUSD          *float64         `json:"cost_usd,omitempty"`
+	Turns            *int             `json:"turns,omitempty"`
 }
 
 var semanticCommand = exec.Command
@@ -180,6 +183,79 @@ func oppositeSemanticReviewer(executor runnerSpec) (runnerSpec, error) {
 	}
 }
 
+// semanticJudgePolicy is a release-scoped override. A configured route is active
+// only when the product's goal/goal.json names the same release version; otherwise
+// the default cross-vendor reviewer remains in force.
+type semanticJudgePolicy struct {
+	ReleaseVersion string `json:"release_version"`
+	Kind           string `json:"kind"`
+	Model          string `json:"model"`
+	Effort         string `json:"effort"`
+}
+
+func (p semanticJudgePolicy) Validate() error {
+	release := strings.TrimSpace(p.ReleaseVersion)
+	kind := strings.ToLower(strings.TrimSpace(p.Kind))
+	model := strings.TrimSpace(p.Model)
+	effort := strings.ToLower(strings.TrimSpace(p.Effort))
+	if release == "" && kind == "" && model == "" && effort == "" {
+		return nil
+	}
+	parts := strings.Split(release, ".")
+	if len(parts) != 3 {
+		return fmt.Errorf("semantic_judge.release_version must be SemVer X.Y.Z")
+	}
+	for _, part := range parts {
+		if part == "" {
+			return fmt.Errorf("semantic_judge.release_version must be SemVer X.Y.Z")
+		}
+		for _, r := range part {
+			if r < '0' || r > '9' {
+				return fmt.Errorf("semantic_judge.release_version must be SemVer X.Y.Z")
+			}
+		}
+	}
+	if kind != "codex" && kind != "claude" {
+		return fmt.Errorf("semantic_judge.kind must be codex or claude")
+	}
+	if model == "" {
+		return fmt.Errorf("semantic_judge.model is required")
+	}
+	if !allowedModelEffort(effort) {
+		return fmt.Errorf("semantic_judge.effort must be low, medium, or high")
+	}
+	return nil
+}
+
+func (p semanticJudgePolicy) Resolve(executor runnerSpec, activeReleaseVersion string) (runnerSpec, bool, error) {
+	if err := p.Validate(); err != nil {
+		return runnerSpec{}, true, err
+	}
+	if strings.TrimSpace(p.Kind) == "" || !strings.EqualFold(strings.TrimSpace(p.ReleaseVersion), strings.TrimSpace(activeReleaseVersion)) {
+		reviewer, err := oppositeSemanticReviewer(executor)
+		return reviewer, false, err
+	}
+	return runnerSpec{
+		Kind:   strings.ToLower(strings.TrimSpace(p.Kind)),
+		Model:  strings.TrimSpace(p.Model),
+		Effort: strings.ToLower(strings.TrimSpace(p.Effort)),
+	}, true, nil
+}
+
+func activeProductReleaseVersion(root string) string {
+	raw, err := os.ReadFile(filepath.Join(root, "goal", "goal.json"))
+	if err != nil {
+		return ""
+	}
+	var goal struct {
+		ReleaseVersion string `json:"release_version"`
+	}
+	if json.Unmarshal(raw, &goal) != nil {
+		return ""
+	}
+	return strings.TrimSpace(goal.ReleaseVersion)
+}
+
 func semanticCodexArgs(root string, reviewer runnerSpec, schemaPath string) []string {
 	args := []string{"exec", "--json", "--skip-git-repo-check", "-s", "read-only", "-C", root,
 		"--output-schema", schemaPath}
@@ -218,6 +294,233 @@ func semanticCodexCommand(exePath, root, prompt string, reviewer runnerSpec, sch
 	return cmd
 }
 
+func supportedCodexItemType(itemType string) bool {
+	switch itemType {
+	case "agent_message", "reasoning", "command_execution", "file_change", "mcp_tool_call", "collab_tool_call", "web_search", "todo_list", "error":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateUniqueJSONKeys(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if err := consumeJSONValue(decoder); err != nil {
+		return err
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		if err != nil {
+			return err
+		}
+		return errors.New("multiple JSON values")
+	}
+	return nil
+}
+
+func consumeJSONValue(decoder *json.Decoder) error {
+	token, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	delim, ok := token.(json.Delim)
+	if !ok {
+		return nil
+	}
+	switch delim {
+	case '{':
+		seen := make([]string, 0)
+		for decoder.More() {
+			keyToken, err := decoder.Token()
+			if err != nil {
+				return err
+			}
+			key, ok := keyToken.(string)
+			if !ok {
+				return errors.New("JSON object key is not a string")
+			}
+			for _, existing := range seen {
+				if strings.EqualFold(existing, key) {
+					return fmt.Errorf("duplicate JSON object key %q (case-insensitive collision with %q)", key, existing)
+				}
+			}
+			seen = append(seen, key)
+			if err := consumeJSONValue(decoder); err != nil {
+				return err
+			}
+		}
+		closing, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		if closing != json.Delim('}') {
+			return errors.New("malformed JSON object")
+		}
+	case '[':
+		for decoder.More() {
+			if err := consumeJSONValue(decoder); err != nil {
+				return err
+			}
+		}
+		closing, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		if closing != json.Delim(']') {
+			return errors.New("malformed JSON array")
+		}
+	default:
+		return errors.New("unexpected JSON delimiter")
+	}
+	return nil
+}
+
+func parseCodexReviewerStream(out []byte, runErr error, subject string) (string, string, *float64, *int, error) {
+	completed, failed := false, false
+	threadStarted, turnOpen := false, false
+	session, turns := "", 0
+	var cost *float64
+	var currentMessages, failures []string
+	for _, line := range strings.Split(strings.ReplaceAll(decodeOutput(out), "\r\n", "\n"), "\n") {
+		t := strings.TrimSpace(line)
+		if t == "" {
+			continue
+		}
+		if err := validateUniqueJSONKeys([]byte(t)); err != nil {
+			failed = true
+			failures = append(failures, fmt.Sprintf("%s stream contained invalid JSON event: %v", subject, err))
+			continue
+		}
+		var e codexEvent
+		if err := json.Unmarshal([]byte(t), &e); err != nil {
+			failed = true
+			failures = append(failures, subject+" stream contained invalid JSON event")
+			continue
+		}
+		switch e.Type {
+		case "thread.started":
+			if threadStarted || turns > 0 || turnOpen {
+				failed = true
+				failures = append(failures, subject+" stream contained thread.started out of order")
+			}
+			threadStarted = true
+			session = e.ThreadID
+			if strings.TrimSpace(session) == "" {
+				failed = true
+				failures = append(failures, subject+" stream contained thread.started missing thread_id")
+			}
+		case "turn.started":
+			if !threadStarted {
+				failed = true
+				failures = append(failures, subject+" stream started turn without thread.started")
+			}
+			if turnOpen {
+				failed = true
+				failures = append(failures, subject+" stream started a new turn before the prior turn terminated")
+			}
+			completed = false
+			currentMessages = nil
+			cost = nil
+			turns++
+			turnOpen = true
+		case "item.started", "item.updated":
+			if !turnOpen {
+				failed = true
+				failures = append(failures, subject+" stream contained item without an active turn")
+			}
+			if e.Item == nil || strings.TrimSpace(e.Item.Type) == "" {
+				failed = true
+				failures = append(failures, subject+" stream contained item event without a valid item")
+			} else if !supportedCodexItemType(e.Item.Type) {
+				failed = true
+				failures = append(failures, fmt.Sprintf("%s stream contained unsupported item type %q", subject, e.Item.Type))
+			} else if e.Item.Type == "error" {
+				failed = true
+				message := strings.TrimSpace(e.Item.Message)
+				if message == "" {
+					message = subject + " returned error item"
+				}
+				failures = append(failures, message)
+			}
+		case "item.completed":
+			if completed {
+				failed = true
+				failures = append(failures, subject+" stream contained item after terminal event")
+				continue
+			}
+			if !turnOpen {
+				failed = true
+				failures = append(failures, subject+" stream contained item without an active turn")
+				continue
+			}
+			if e.Item == nil || strings.TrimSpace(e.Item.Type) == "" {
+				failed = true
+				failures = append(failures, subject+" stream contained item.completed without a valid item")
+				continue
+			}
+			if !supportedCodexItemType(e.Item.Type) {
+				failed = true
+				failures = append(failures, fmt.Sprintf("%s stream contained unsupported item type %q", subject, e.Item.Type))
+				continue
+			}
+			if e.Item.Type == "agent_message" {
+				message := strings.TrimSpace(e.Item.Text)
+				if message == "" {
+					failed = true
+					failures = append(failures, subject+" stream contained empty agent_message")
+					continue
+				}
+				currentMessages = append(currentMessages, message)
+			}
+			if e.Item.Type == "error" {
+				failed = true
+				message := strings.TrimSpace(e.Item.Message)
+				if message == "" {
+					message = subject + " returned error item"
+				}
+				failures = append(failures, message)
+			}
+		case "turn.completed":
+			if !turnOpen {
+				failed = true
+				failures = append(failures, subject+" stream contained turn.completed without an active turn")
+				continue
+			}
+			completed = true
+			turnOpen = false
+			if e.Usage != nil {
+				cost = e.Usage.CostUSD
+			}
+		case "turn.failed":
+			failed = true
+			turnOpen = false
+			if e.Error != nil && strings.TrimSpace(e.Error.Message) != "" {
+				failures = append(failures, strings.TrimSpace(e.Error.Message))
+			}
+		case "error":
+			failed = true
+			if strings.TrimSpace(e.Message) != "" {
+				failures = append(failures, strings.TrimSpace(e.Message))
+			}
+		default:
+			failed = true
+			failures = append(failures, fmt.Sprintf("%s stream contained unsupported event type %q", subject, e.Type))
+		}
+	}
+	if runErr != nil {
+		failures = append(failures, fmt.Sprintf("%s process: %v", subject, runErr))
+	}
+	if runErr != nil || failed || !completed || len(failures) > 0 {
+		if len(failures) == 0 {
+			failures = append(failures, subject+" stream ended without successful terminal event")
+		}
+		return "", session, cost, intPtr(turns), errors.New(strings.Join(failures, "; "))
+	}
+	if len(currentMessages) == 0 {
+		return "", session, cost, intPtr(turns), errors.New(subject + " returned no agent_message")
+	}
+	return currentMessages[len(currentMessages)-1], session, cost, intPtr(turns), nil
+}
+
 func invokeSemanticCodex(scope sessionScope, exePath, prompt string, reviewer runnerSpec, step string) (string, string, *float64, *int, error) {
 	root := scope.Root
 	if err := requirePonytailSkill(); err != nil {
@@ -241,62 +544,7 @@ func invokeSemanticCodex(scope sessionScope, exePath, prompt string, reviewer ru
 		Runner: reviewer.Kind, Provider: reviewer.Kind, Model: reviewer.Model, Effort: reviewer.Effort,
 		Role: "semantic-reviewer", Sandbox: "read-only",
 	})
-
-	completed, failed := false, false
-	session, turns := "", 0
-	var cost *float64
-	var messages, failures []string
-	for _, line := range strings.Split(strings.ReplaceAll(decodeOutput(out), "\r\n", "\n"), "\n") {
-		t := strings.TrimSpace(line)
-		if !strings.HasPrefix(t, "{") {
-			continue
-		}
-		var e codexEvent
-		if json.Unmarshal([]byte(t), &e) != nil {
-			continue
-		}
-		switch e.Type {
-		case "thread.started":
-			session = e.ThreadID
-		case "turn.started":
-			turns++
-		case "item.completed":
-			if e.Item != nil && e.Item.Type == "agent_message" && strings.TrimSpace(e.Item.Text) != "" {
-				messages = append(messages, strings.TrimSpace(e.Item.Text))
-			}
-			if e.Item != nil && e.Item.Type == "error" && strings.TrimSpace(e.Item.Message) != "" {
-				failures = append(failures, strings.TrimSpace(e.Item.Message))
-			}
-		case "turn.completed":
-			completed = true
-			if e.Usage != nil {
-				cost = e.Usage.CostUSD
-			}
-		case "turn.failed":
-			failed = true
-			if e.Error != nil && strings.TrimSpace(e.Error.Message) != "" {
-				failures = append(failures, strings.TrimSpace(e.Error.Message))
-			}
-		case "error":
-			failed = true
-			if strings.TrimSpace(e.Message) != "" {
-				failures = append(failures, strings.TrimSpace(e.Message))
-			}
-		}
-	}
-	if runErr != nil && !completed {
-		failures = append(failures, runErr.Error())
-	}
-	if failed || !completed {
-		if len(failures) == 0 {
-			failures = append(failures, "codex semantic stream ended without successful terminal event")
-		}
-		return "", session, cost, intPtr(turns), errors.New(strings.Join(failures, "; "))
-	}
-	if len(messages) == 0 {
-		return "", session, cost, intPtr(turns), errors.New("codex semantic judge returned no agent_message")
-	}
-	return messages[len(messages)-1], session, cost, intPtr(turns), nil
+	return parseCodexReviewerStream(out, runErr, "codex semantic judge")
 }
 func invokeSemanticClaude(scope sessionScope, exePath, prompt string, reviewer runnerSpec, step string) (string, string, *float64, *int, error) {
 	root := scope.Root
@@ -412,17 +660,20 @@ func publishSemantic(root string, rec semanticRecord) {
 }
 
 func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factual semanticFactualPacket, executorClaim string) semanticRun {
-	reviewer, err := oppositeSemanticReviewer(executor)
+	reviewer, explicitOverride, err := c.Cfg.SemanticJudge.Resolve(executor, activeProductReleaseVersion(c.Root))
 	run := semanticRun{Reviewer: reviewer}
 	rec := semanticRecord{
-		At:             time.Now().UTC().Format(time.RFC3339Nano),
-		Subject:        "step",
-		Step:           step.Num,
-		ExecutorVendor: executor.Kind,
-		ReviewerVendor: reviewer.Kind,
-		ReviewerModel:  reviewer.Model,
-		ReviewerRole:   "semantic-reviewer",
-		FactualCode:    factual.Code,
+		At:               time.Now().UTC().Format(time.RFC3339Nano),
+		Subject:          "step",
+		Step:             step.Num,
+		ExecutorVendor:   executor.Kind,
+		ReviewerVendor:   reviewer.Kind,
+		ReviewerModel:    reviewer.Model,
+		ReviewerEffort:   reviewer.Effort,
+		ReviewerOverride: explicitOverride,
+		ReleaseVersion:   activeProductReleaseVersion(c.Root),
+		ReviewerRole:     "semantic-reviewer",
+		FactualCode:      factual.Code,
 	}
 	if err != nil {
 		run.Error = err.Error()

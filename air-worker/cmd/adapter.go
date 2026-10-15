@@ -219,6 +219,28 @@ func readAdapterReceipts(root, currentStep, principal, sessionKey string) ([]ada
 	return receipts, workers, detailPath, len(items) - len(selected), hasLiveWorker
 }
 
+func buildAdapterReleaseSliceStatus(root, releasePath string, state releaseSlicesSummary, principal, sessionKey string) adapterEnvelope {
+	result := newAdapterEnvelope("status")
+	result.ExitCode = 0
+	result.Outcome = "needs_action"
+	result.Progress = adapterProgress{Closed: state.ActiveClosed, Total: state.ActiveTotal}
+	result.CurrentStep = state.NextStep
+	result.NextAction = "run_loop"
+	result.StopReason = "no_live_worker"
+	result.DetailPath = releasePath
+	var hasLiveWorker bool
+	result.Receipts, result.Workers, result.DetailPath, result.ReceiptsOmitted, hasLiveWorker = readAdapterReceipts(root, state.NextStep, principal, sessionKey)
+	if result.DetailPath == "" {
+		result.DetailPath = releasePath
+	}
+	if hasLiveWorker {
+		result.Outcome = "running"
+		result.NextAction = "wait"
+		result.StopReason = ""
+	}
+	return result
+}
+
 func buildAdapterStatus(root, configPath, principal, sessionKey string) adapterEnvelope {
 	result := newAdapterEnvelope("status")
 	result.DetailPath = root
@@ -243,6 +265,28 @@ func buildAdapterStatus(root, configPath, principal, sessionKey string) adapterE
 		result.DetailPath = planPath
 		return result
 	}
+
+	releaseState := inspectReleaseSlices(root)
+	releasePath := filepath.Join(root, "plan", "release-slices.json")
+	if releaseState.Found {
+		if len(releaseState.Problems) != 0 || releaseState.NextStep == "" || releaseState.ActiveTotal < 1 {
+			result.StopReason = "release_slices_invalid"
+			result.DetailPath = releasePath
+			return result
+		}
+		return buildAdapterReleaseSliceStatus(root, releasePath, releaseState, principal, sessionKey)
+	}
+	if len(releaseState.Problems) != 0 {
+		result.StopReason = "release_slices_invalid"
+		result.DetailPath = releasePath
+		return result
+	}
+	if releaseSlicesExpected(root) {
+		result.StopReason = "release_slices_missing"
+		result.DetailPath = releasePath
+		return result
+	}
+
 	steps := readPlanSteps(planPath)
 	if len(steps) == 0 {
 		result.StopReason = "plan_empty"

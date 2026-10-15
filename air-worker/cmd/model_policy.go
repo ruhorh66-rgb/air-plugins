@@ -86,6 +86,9 @@ func judgeLaneRunner(cfg runConfig, class string) (runnerSpec, error) {
 }
 
 func validateModelPolicy(cfg runConfig) error {
+	if err := cfg.SemanticJudge.Validate(); err != nil {
+		return err
+	}
 	p := cfg.ModelPolicy
 	if p.Schema == "" {
 		return nil // backward-compatible products without the 0.11.3 policy

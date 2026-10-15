@@ -1,7 +1,8 @@
 {
-  "goal": "Release AirWorker 0.10.11 as a minimal three-P1 correction line that enforces open LPR gates, sanitizes Windows PowerShell 5.1 child PSModulePath, and reports a live semantic reviewer truthfully without changing the v1 adapter schema.",
+  "goal": "Release AirWorker 0.11.9: complete the scoped self-learning release gates, preserve installed 0.11.8 until separate install approval, and use read-only semantic reviewer Codex gpt-6-sol at medium effort on the exact source SHA.",
+  "release_version": "0.11.9",
   "objective": "OBJECTIVE.md",
-  "enabled": false,
+  "enabled": true,
   "workdir": ".",
   "taskFile": "PLAN.md",
   "judge": "bin\\air-worker.exe judge -product .",

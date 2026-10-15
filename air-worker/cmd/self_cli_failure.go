@@ -87,7 +87,11 @@ func autoCaptureOwnCLIExit(argv []string, rc int) error {
 		return nil
 	}
 	runID := "AW-CLI-" + learnSHA([]byte(action + "|" + strconv.Itoa(os.Getpid()) + "|" + time.Now().UTC().Format(time.RFC3339Nano)))[:24]
-	return autoCaptureOwnCLIExitWithRunID(argv, rc, runID, startSharedLearningReviewBatchProcess)
+	start := startSharedLearningReviewBatchProcess
+	if shouldDeferOwnCLIReviewForR02(argv, rc) {
+		start = nil
+	}
+	return autoCaptureOwnCLIExitWithRunID(argv, rc, runID, start)
 }
 
 func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start func([]sharedDeferredReviewJob) error) error {

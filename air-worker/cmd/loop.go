@@ -161,6 +161,10 @@ func closeWoody(next, await string, code int) {
 }
 
 func cmdLoop(argv []string) int {
+	return cmdLoopWithReleaseSliceRunner(argv, cmdReleaseSliceLoop)
+}
+
+func cmdLoopWithReleaseSliceRunner(argv []string, releaseRunner func(string, runConfig, releaseSlicesSummary) int) int {
 	fs := flag.NewFlagSet("loop", flag.ContinueOnError)
 	product := fs.String("product", ".", "корень продукта")
 	configPath := fs.String("config", "", "путь к run-config.json")
@@ -232,6 +236,30 @@ func cmdLoop(argv []string) int {
 	}
 	if err := validateModelPolicy(cfg); err != nil {
 		line("ОТКАЗ: model_policy: " + err.Error())
+		return 2
+	}
+
+	// A machine release-slice plan is authoritative over legacy numeric PLAN.md rows.
+	// Once present, malformed or unsupported state must fail closed; never fall back
+	// to the stale numeric step (e.g. 93) while an R0.11.9 slice is active.
+	releaseState := inspectReleaseSlices(root)
+	if releaseState.Found {
+		if len(releaseState.Problems) != 0 {
+			line("ОТКАЗ: release-slices.json invalid; numeric PLAN fallback запрещён.")
+			return 2
+		}
+		if err := releaseSliceLoopSupported(releaseState, version); err != nil {
+			line("ОТКАЗ: " + err.Error() + "; numeric PLAN fallback запрещён.")
+			return 2
+		}
+		return releaseRunner(root, cfg, releaseState)
+	}
+	if len(releaseState.Problems) != 0 {
+		line("ОТКАЗ: release-slices.json could not be inspected; numeric PLAN fallback запрещён.")
+		return 2
+	}
+	if releaseSlicesExpected(root) {
+		line("ОТКАЗ: AirWorker release-slices.json is missing; numeric PLAN fallback запрещён.")
 		return 2
 	}
 

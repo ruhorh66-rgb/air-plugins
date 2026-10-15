@@ -314,3 +314,48 @@ func TestAdapterStatusGateCompleteAndErrors(t *testing.T) {
 		t.Fatalf("unexpected unsupported-action result: code=%d result=%+v", code, got)
 	}
 }
+
+func writeAdapterReleaseSlices(t *testing.T, root string) {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "plan", "release-slices.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "plan"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "plan", "release-slices.json"), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAdapterStatusUsesActiveReleaseSliceInsteadOfLegacyNumericStep(t *testing.T) {
+	root := t.TempDir()
+	writeAdapterFixture(t, root, "| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n| 93 | legacy | script | old route |\n")
+	writeAdapterReleaseSlices(t, root)
+	before := adapterTreeSnapshot(t, root)
+
+	code, got := runAdapterForTest(t, "-action", "status", "-product", root)
+	if code != 0 || got.ExitCode != 0 || got.Outcome != "needs_action" {
+		t.Fatalf("unexpected result: code=%d result=%+v", code, got)
+	}
+	if got.Progress != (adapterProgress{Closed: 1, Total: 7}) || got.CurrentStep != "R0.11.9-02" || got.NextAction != "run_loop" {
+		t.Fatalf("status did not follow active release slice: %+v", got)
+	}
+	if after := adapterTreeSnapshot(t, root); !reflect.DeepEqual(before, after) {
+		t.Fatalf("status mutated product tree\\nbefore: %#v\\nafter:  %#v", before, after)
+	}
+}
+
+func TestAdapterStatusFailsClosedOnMalformedReleaseSlices(t *testing.T) {
+	root := t.TempDir()
+	writeAdapterFixture(t, root, "| № | Шаг | Ступень | Судья |\n|---|---|---|---|\n| 93 | legacy | script | old route |\n")
+	writeAdapterReleaseSlices(t, root)
+	if err := os.WriteFile(filepath.Join(root, "plan", "release-slices.json"), []byte("{broken"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, got := runAdapterForTest(t, "-action", "status", "-product", root)
+	if code != 2 || got.ExitCode != 2 || got.Outcome != "error" || got.StopReason != "release_slices_invalid" || got.CurrentStep != "" {
+		t.Fatalf("malformed release slices fell back to legacy PLAN step: code=%d result=%+v", code, got)
+	}
+}

@@ -117,6 +117,7 @@ type runConfig struct {
 	Ladder        []string              `json:"ladder"`
 	Runners       map[string]runnerSpec `json:"runners"`
 	ModelPolicy   modelPolicySpec       `json:"model_policy"`
+	SemanticJudge semanticJudgePolicy   `json:"semantic_judge,omitempty"`
 	Orchestration orchestrationSpec     `json:"orchestration"`
 	Learning      learningSpec          `json:"learning"`
 	Budget        budgetSpec            `json:"budget"`

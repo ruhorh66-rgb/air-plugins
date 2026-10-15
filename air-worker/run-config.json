@@ -131,6 +131,13 @@
       }
     }
   },
+  "semantic_judge": {
+    "_": "Release-scoped override: use only when goal/goal.json release_version matches; later releases retain the default independent cross-vendor reviewer.",
+    "release_version": "0.11.9",
+    "kind": "codex",
+    "model": "gpt-6-sol",
+    "effort": "medium"
+  },
   "openai": {
     "_": "Прямой Responses API transport только текстовый: локальные файлы и команды остаются у Codex CLI. Ключ читается по имени переменной и не пишется в config/receipt.",
     "base_url": "https://api.openai.com/v1",

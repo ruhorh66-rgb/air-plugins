@@ -69,6 +69,9 @@ type planReviewRecord struct {
 	ExecutorVendor    string             `json:"executor_vendor"`
 	ReviewerVendor    string             `json:"reviewer_vendor"`
 	ReviewerModel     string             `json:"reviewer_model,omitempty"`
+	ReviewerEffort    string             `json:"reviewer_effort,omitempty"`
+	ReviewerOverride  bool               `json:"reviewer_override,omitempty"`
+	ReleaseVersion    string             `json:"release_version,omitempty"`
 	ReviewerRole      string             `json:"reviewer_role"`
 	ReviewerSandbox   string             `json:"reviewer_sandbox"`
 	Session           string             `json:"session_id,omitempty"`
@@ -189,22 +192,41 @@ func publishPlanReview(root string, rec planReviewRecord) {
 	}
 }
 
-func readCurrentPlanReview(root, compositionSHA string) (planReviewRecord, string, bool) {
+type planReviewExpectation struct {
+	Executor         runnerSpec
+	Reviewer         runnerSpec
+	ExplicitOverride bool
+	ReleaseVersion   string
+}
+
+func readCurrentPlanReview(root, planSHA, compositionSHA string, expectations ...planReviewExpectation) (planReviewRecord, string, bool) {
 	latest, _ := planReviewPaths(root)
 	var rec planReviewRecord
 	if readJSON(latest, &rec) != nil || rec.Schema != planReviewSchemaVersion || rec.Subject != "plan" {
 		return planReviewRecord{}, "", false
 	}
-	if !strings.EqualFold(rec.CompositionSHA256, compositionSHA) {
+	if !strings.EqualFold(rec.PlanSHA256, planSHA) || !strings.EqualFold(rec.CompositionSHA256, compositionSHA) {
 		return rec, "", false
+	}
+	if len(expectations) > 0 {
+		expected := expectations[0]
+		if !strings.EqualFold(rec.ExecutorVendor, expected.Executor.Kind) ||
+			!strings.EqualFold(rec.ReviewerVendor, expected.Reviewer.Kind) ||
+			!strings.EqualFold(rec.ReviewerModel, expected.Reviewer.Model) ||
+			!strings.EqualFold(rec.ReviewerEffort, expected.Reviewer.Effort) ||
+			rec.ReviewerOverride != expected.ExplicitOverride ||
+			!strings.EqualFold(rec.ReleaseVersion, expected.ReleaseVersion) {
+			return rec, "", false
+		}
 	}
 	if strings.TrimSpace(rec.Error) != "" || rec.Verdict == nil {
 		return rec, "NOT_PROVEN", true
 	}
-	if !strings.EqualFold(rec.Verdict.PlanSHA256, rec.PlanSHA256) ||
-		!strings.EqualFold(rec.Verdict.CompositionSHA256, rec.CompositionSHA256) ||
+	allowSameVendor := len(expectations) > 0 && expectations[0].ExplicitOverride && rec.ReviewerOverride
+	if !strings.EqualFold(rec.Verdict.PlanSHA256, planSHA) ||
+		!strings.EqualFold(rec.Verdict.CompositionSHA256, compositionSHA) ||
 		strings.TrimSpace(rec.ReviewerVendor) == "" ||
-		strings.EqualFold(rec.ReviewerVendor, rec.ExecutorVendor) ||
+		(strings.EqualFold(rec.ReviewerVendor, rec.ExecutorVendor) && !allowSameVendor) ||
 		rec.ReviewerSandbox != "read-only" {
 		return rec, "NOT_PROVEN", true
 	}
@@ -262,61 +284,7 @@ func invokePlanReviewCodex(req planReviewRequest, exePath string) (string, strin
 		Runner: req.Reviewer.Kind, Provider: req.Reviewer.Kind, Model: req.Reviewer.Model, Effort: req.Reviewer.Effort,
 		Role: "semantic-plan-reviewer", Sandbox: "read-only",
 	})
-	completed, failed := false, false
-	session, turns := "", 0
-	var cost *float64
-	var messages, failures []string
-	for _, line := range strings.Split(strings.ReplaceAll(decodeOutput(out), "\r\n", "\n"), "\n") {
-		text := strings.TrimSpace(line)
-		if !strings.HasPrefix(text, "{") {
-			continue
-		}
-		var event codexEvent
-		if json.Unmarshal([]byte(text), &event) != nil {
-			continue
-		}
-		switch event.Type {
-		case "thread.started":
-			session = event.ThreadID
-		case "turn.started":
-			turns++
-		case "item.completed":
-			if event.Item != nil && event.Item.Type == "agent_message" && strings.TrimSpace(event.Item.Text) != "" {
-				messages = append(messages, strings.TrimSpace(event.Item.Text))
-			}
-			if event.Item != nil && event.Item.Type == "error" && strings.TrimSpace(event.Item.Message) != "" {
-				failures = append(failures, strings.TrimSpace(event.Item.Message))
-			}
-		case "turn.completed":
-			completed = true
-			if event.Usage != nil {
-				cost = event.Usage.CostUSD
-			}
-		case "turn.failed":
-			failed = true
-			if event.Error != nil && strings.TrimSpace(event.Error.Message) != "" {
-				failures = append(failures, strings.TrimSpace(event.Error.Message))
-			}
-		case "error":
-			failed = true
-			if strings.TrimSpace(event.Message) != "" {
-				failures = append(failures, strings.TrimSpace(event.Message))
-			}
-		}
-	}
-	if runErr != nil && !completed {
-		failures = append(failures, runErr.Error())
-	}
-	if failed || !completed {
-		if len(failures) == 0 {
-			failures = append(failures, "codex plan review ended without successful terminal event")
-		}
-		return "", session, cost, intPtr(turns), errors.New(strings.Join(failures, "; "))
-	}
-	if len(messages) == 0 {
-		return "", session, cost, intPtr(turns), errors.New("codex plan reviewer returned no agent_message")
-	}
-	return messages[len(messages)-1], session, cost, intPtr(turns), nil
+	return parseCodexReviewerStream(out, runErr, "codex plan reviewer")
 }
 
 func invokePlanReviewModel(req planReviewRequest) (string, string, *float64, *int, error) {
@@ -334,19 +302,25 @@ func invokePlanReviewModel(req planReviewRequest) (string, string, *float64, *in
 	}
 }
 
-func runPlanReview(root, planPath string, steps []workStep, scope sessionScope, executor runnerSpec) planReviewRun {
+func runPlanReview(root, planPath string, steps []workStep, scope sessionScope, executor runnerSpec, policies ...runConfig) planReviewRun {
 	rawBefore, err := os.ReadFile(planPath)
 	planSHA := ""
 	if err == nil {
 		planSHA = sha256Hex(rawBefore)
 	}
 	compositionSHA := planCompositionSHA(steps)
-	reviewer, reviewerErr := oppositeSemanticReviewer(executor)
+	cfg := runConfig{}
+	if len(policies) > 0 {
+		cfg = policies[0]
+	}
+	reviewer, explicitOverride, reviewerErr := cfg.SemanticJudge.Resolve(executor, activeProductReleaseVersion(root))
 	rec := planReviewRecord{
 		Schema: planReviewSchemaVersion, At: time.Now().UTC().Format(time.RFC3339Nano), Subject: "plan",
 		Plan: planPath, PlanSHA256: planSHA, CompositionSHA256: compositionSHA,
 		ExecutorVendor: executor.Kind, ReviewerVendor: reviewer.Kind, ReviewerModel: reviewer.Model,
-		ReviewerRole: "semantic-plan-reviewer", ReviewerSandbox: "read-only",
+		ReviewerEffort: reviewer.Effort, ReviewerOverride: explicitOverride,
+		ReleaseVersion: activeProductReleaseVersion(root),
+		ReviewerRole:   "semantic-plan-reviewer", ReviewerSandbox: "read-only",
 	}
 	fail := func(e error) planReviewRun {
 		rec.Error = e.Error()
@@ -359,8 +333,8 @@ func runPlanReview(root, planPath string, steps []workStep, scope sessionScope, 
 	if reviewerErr != nil {
 		return fail(reviewerErr)
 	}
-	if reviewer.Kind == executor.Kind || reviewer.Kind == "" {
-		return fail(fmt.Errorf("plan reviewer must be opposite vendor: executor=%s reviewer=%s", executor.Kind, reviewer.Kind))
+	if reviewer.Kind == executor.Kind && !explicitOverride || reviewer.Kind == "" {
+		return fail(fmt.Errorf("plan reviewer must be opposite vendor unless explicitly configured: executor=%s reviewer=%s", executor.Kind, reviewer.Kind))
 	}
 	req := planReviewRequest{
 		Scope: scope, PlanPath: planPath, PlanSHA256: planSHA, CompositionSHA256: compositionSHA,
@@ -425,17 +399,29 @@ func ensurePlanReview(c *loopCtx, planPath string, steps []workStep) (string, in
 	if !needed {
 		return "NOT_REQUIRED", 0
 	}
+	reviewer, explicitOverride, err := c.Cfg.SemanticJudge.Resolve(executor, activeProductReleaseVersion(c.Root))
+	if err != nil {
+		line("plan review: NOT_PROVEN — " + err.Error())
+		return "NOT_PROVEN", 2
+	}
+	expectation := planReviewExpectation{Executor: executor, Reviewer: reviewer, ExplicitOverride: explicitOverride, ReleaseVersion: activeProductReleaseVersion(c.Root)}
 	compositionSHA := planCompositionSHA(steps)
-	if rec, state, ok := readCurrentPlanReview(c.Root, compositionSHA); ok {
+	planBytes, err := os.ReadFile(planPath)
+	if err != nil {
+		line("plan review: NOT_PROVEN — " + err.Error())
+		return "NOT_PROVEN", 2
+	}
+	planSHA := sha256Hex(planBytes)
+	if rec, state, ok := readCurrentPlanReview(c.Root, planSHA, compositionSHA, expectation); ok {
 		line(fmt.Sprintf("plan review: cached %s · composition %s · reviewer %s",
 			state, compositionSHA[:12], rec.ReviewerVendor))
 		return state, planReviewExit(state)
 	}
 	if c.WhatIf {
-		line("plan review: WHATIF — composition changed/unreviewed; model call skipped")
+		line("plan review: WHATIF — plan bytes/composition changed or unreviewed; model call skipped")
 		return "NOT_PROVEN", 0
 	}
-	run := runPlanReview(c.Root, planPath, steps, c.scope(), executor)
+	run := runPlanReview(c.Root, planPath, steps, c.scope(), executor, c.Cfg)
 	line(fmt.Sprintf("plan review: %s · composition %s · reviewer %s",
 		run.State, compositionSHA[:12], run.Record.ReviewerVendor))
 	return run.State, planReviewExit(run.State)
@@ -480,18 +466,12 @@ func cmdPlanReview(argv []string) int {
 	planPath := nativePlanPath(root, cfg)
 	steps := readPlanSteps(planPath)
 	compositionSHA := planCompositionSHA(steps)
-	if !*force {
-		if rec, state, ok := readCurrentPlanReview(root, compositionSHA); ok {
-			if *asJSON {
-				b, _ := json.MarshalIndent(map[string]any{"state": state, "cached": true, "record": rec}, "", "  ")
-				fmt.Println(string(b))
-			} else {
-				fmt.Printf("plan-review: cached %s · composition %s · reviewer %s%s",
-					state, compositionSHA[:12], rec.ReviewerVendor, lineEnding)
-			}
-			return planReviewExit(state)
-		}
+	planBytes, err := os.ReadFile(planPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "plan-review:", err)
+		return 2
 	}
+	planSHA := sha256Hex(planBytes)
 	var executor runnerSpec
 	if strings.EqualFold(strings.TrimSpace(*executorName), "auto") || strings.TrimSpace(*executorName) == "" {
 		ladder := cfg.Ladder
@@ -519,7 +499,25 @@ func cmdPlanReview(argv []string) int {
 			return 2
 		}
 	}
-	run := runPlanReview(root, planPath, steps, legacyScope(root), executor)
+	reviewer, explicitOverride, err := cfg.SemanticJudge.Resolve(executor, activeProductReleaseVersion(root))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "plan-review:", err)
+		return 2
+	}
+	expectation := planReviewExpectation{Executor: executor, Reviewer: reviewer, ExplicitOverride: explicitOverride, ReleaseVersion: activeProductReleaseVersion(root)}
+	if !*force {
+		if rec, state, ok := readCurrentPlanReview(root, planSHA, compositionSHA, expectation); ok {
+			if *asJSON {
+				b, _ := json.MarshalIndent(map[string]any{"state": state, "cached": true, "record": rec}, "", "  ")
+				fmt.Println(string(b))
+			} else {
+				fmt.Printf("plan-review: cached %s · composition %s · reviewer %s%s",
+					state, compositionSHA[:12], rec.ReviewerVendor, lineEnding)
+			}
+			return planReviewExit(state)
+		}
+	}
+	run := runPlanReview(root, planPath, steps, legacyScope(root), executor, cfg)
 	if *asJSON {
 		b, _ := json.MarshalIndent(map[string]any{"state": run.State, "cached": false, "record": run.Record}, "", "  ")
 		fmt.Println(string(b))
