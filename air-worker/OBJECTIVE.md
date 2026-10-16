@@ -1,33 +1,23 @@
-# AirWorker 0.10.11 — three P1 corrections
+# AirWorker 0.11.9 — self-learning-only release
 
-Planner source and authority: `E:\-5-\011_Plugins\AirWorker_Wiki\01_TASKS\ARCH_2026-09-19_AIRWORKER_GOALS_ARCHITECTURE.md@9726f65` (ARCH v0.3), including its §4.1 review checklist, plus Voody outbox blocks №4–№6.
+## Scope and release plan
 
-This campaign is a clean release line directly from `origin/main@33edba96ef736baf609bc98fd076de0c69c46300`. The earlier D: worktree is quarantine only. Its campaign/config/reviewer commits, feedback-only canonical commit `26d06fe`, and `31efe68` stdin transport are not part of the release branch.
+Release the self-learning vertical slice only, per `plan/release-slices.json` and the 2026-10-15 continuation handoff. Do not re-scope into the full legacy `PLAN.md` backlog or later releases. The candidate source baseline is branch `dev/airworker-0.11.9-selflearning-only-20261011`, HEAD `e3ca3a72376a3d9c5d53ea235bd29e77ef95a231`; verify branch tip/dirty before any edits. Keep installed 0.11.8 untouched until the signed stable artifact and package are ready.
 
-**Ц1.** AirWorker 0.10.11 closes exactly three production P1 defects with minimal, fail-closed changes: an open LPR gate is an execution barrier; Windows PowerShell 5.1 children receive a sanitized `PSModulePath`; adapter/enforce status remains truthful while a semantic reviewer is alive.
+Completion requires:
+- Real, non-injected native capture of one allowed CLI failure, HMAC receipt, exact replay/no duplicate, safe auto-learning review/application, and a fresh process that selects and uses the procedure with observed outcome/effect.
+- Close release slices 02–04 with exact-SHA receipts.
+- Before QA freeze, resolve N-070: exact published shared-module tag/SHA, AirWorker consumer pin, integration regression. Reconcile N-071 by the canonical native process; do not reuse receipts from a different source SHA or edit native nodes/receipts manually.
+- Freeze clean source + release-plan SHA; run full Go tests, vet/build, negative/security regressions, smoke/rollback checks, factual acceptance and independent read-only Codex `gpt-6-sol:medium` review on the exact SHA. Record every result and receipt.
+- Package a stable 0.11.9 GitHub/marketplace artifact through the supported Hermes installation path; verify tag/release, both manifests, source/revision, artifact SHA, marketplace caches, installed version/SHA and status. Retain 0.11.8 as rollback.
 
-## Acceptance criteria
+## Boundaries
 
-| Критерий | Цель | Признак достижения | Чем меряется |
-|---|---|---|---|
-| К1 | Ц1 | ARCH Ц7-1: after step 8 closes, an open gate 9 prevents selection of step 10 and reports the gate number with `ЖДЁТ ЛПР` using the established gate terminal code | проверка `AirWorker release suite` · тест `TestLoopStopsAtOpenGate` |
-| К2 | Ц1 | ARCH Ц7-2: nothing below an open gate runs at any tier; a failing script below a gate cannot escalate to a model and model-runner call count stays zero | проверка `AirWorker release suite` · тест `TestLoopOpenGateExactStop` |
-| К3 | Ц1 | ARCH Ц7-3: a closed gate is not a barrier; every recognized open-gate spelling is a barrier; a malformed gate-like row fails closed with a named reason instead of being skipped | проверка `AirWorker release suite` · тест `TestLoopGateParsingFailClosed` |
-| К4 | Ц1 | ARCH Ц7-4: every Windows PowerShell 5.1 child launched by the core receives `PSModulePath` without PowerShell 7 paths, case-insensitively; pwsh children keep their environment; judge from pwsh 7 passes a Get-FileHash fixture | проверка `AirWorker release suite` · тест `TestChildEnvironmentSanitizesPSModulePath` |
-| К5 | Ц1 | ARCH Ц7-5: all Windows PowerShell 5.1 launch points use one sanitizing constructor/helper; a source guard fails on direct bypass | проверка `AirWorker release suite` · тест `TestAllWindowsPowerShellLaunchesUseSanitizedHelper` |
-| К6 | Ц1 | ARCH Ц7-6: while any receipt-correlated run process is alive (executor, orchestration subagent, or semantic reviewer, with matching PID/start-time), `adapter status` does not return `no_live_worker`, returns `outcome=running`, and includes the process in `workers[]` with its role; PID-reuse defenses remain green | проверка `AirWorker release suite` · тест `TestAdapterStatusReportsLiveSemanticReviewerIdentity` |
-| К7 | Ц1 | ARCH Ц7-7: enforce status does not relaunch the loop while a semantic reviewer is alive; it launches exactly once only for truthful `no_live_worker` with no live process | проверка `AirWorker release suite` · тест `TestEnforceDoesNotRelaunchWithLiveSemanticReviewerFromClosedStep` |
+The active AirWorker self-learning selector is process/installation state in `%ProgramData%` (or `AIR_WORKER_HOOK_STATE_DIR` when explicitly set); it is not bound to the candidate source tree. The existing selector/runtime is product-owned by the canonical F: development line and the plan explicitly says that line is the sole active 0.11.9 worktree. The R: release-slice tree is a separate candidate copy; its native `release-slices` operation requires the owner root to equal the candidate root. There is no documented retarget/reattach operation: `learn self enable` rejects a different identity, and `learn init-shared` cannot attach an already-complete runtime intent to another product. Thus this is a real interface-contract mismatch, not a reason to rewrite shared runtime state. Preserve the canonical owner, do not disable or repoint it, and do not treat a `plan-only` invocation as bypassing that guard. Continue source work on the authorized canonical line where safe, or implement and test a supported release workflow that uses the canonical owner; do not claim R02 acceptance until it produces exact-candidate receipts through supported code.
 
-## Required implementation boundaries
+## Reporting
 
-1. The first executable work must confirm the tree/base, enumerate every Windows PowerShell launch point, and determine whether the semantic reviewer already has a receipt carrying PID/start-time and why adapter status omits it. Do not invent a new actor registry.
-2. Use the smallest change that satisfies the criteria. Preserve explicit-only activation, profile isolation, PID/start-time matching, receipts, deterministic factual judge, and semantic review.
-3. `air-worker.tool/v1` remains backwards compatible. No `actors[]`, adapter v2, durable actor ledger, heartbeat/stall framework, signed curator protocol, curator desk, wake mechanism, decision cards, planner transport redesign, or Codex executor transport change belongs in 0.10.11.
-4. Executor steps are script-first where deterministic and Claude where source implementation is required. While the Codex sandbox is defective, the independent read-only semantic reviewer is Claude as directed by the curator. Never bypass semantic review.
-5. Run targeted tests, full Go tests, `go vet`, Python plugin tests, contract/checker suites, version parity, whitespace integrity, and a disposable end-to-end canary.
-6. Version bump, changelog, package assets and acceptance receipt are ordered executable work. Plan fixation, tag, GitHub Release, marketplace update, and installation are five distinct LPR gate steps. Nothing executable may appear below an open gate. Published 0.10.10 is immutable.
-7. The plan must include mutation proofs for ARCH Ц7-1 and Ц7-5, exact script commands after `::`, and no work from Ц8–Ц11.
-8. Do not modify `F:\-0-\AIR_OS\04_AI_OPERATIONS\WOODY_RUNS\srvlm01-airenv002-storage-order-0109`.
+Report actual progress, commits, receipt/artifact URLs and SHA values, installed identity, and remaining blockers. If any gate cannot be completed, stop before publishing/installing and identify it plainly.
 
 ## Planning bypass disclosure
 

@@ -783,7 +783,7 @@ func initSharedLearning(product, runtimeRoot, productID string) (sharedLearningI
 		return report, errors.New("bootstrap intent belongs to a different product id")
 	}
 	if intent.Status == "complete" {
-		return report, errors.New("complete shared-learning bootstrap intent exists without selector; explicit reconciliation required")
+		return report, errors.New("complete shared-learning bootstrap intent exists without selector; use learn self transfer-owner only with a verified target binding")
 	}
 
 	s := sharedLearningSettingsForBootstrap(productID, runtimeRoot)

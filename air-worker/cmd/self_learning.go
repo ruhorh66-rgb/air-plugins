@@ -214,6 +214,8 @@ func cmdLearnSelf(argv []string) int {
 	switch argv[0] {
 	case "enable":
 		return cmdLearnSelfEnable(argv[1:])
+	case "transfer-owner":
+		return cmdLearnSelfTransferOwner(argv[1:])
 	case "status":
 		return cmdLearnSelfStatus(argv[1:])
 	case "disable":
@@ -299,6 +301,27 @@ func cmdLearnSelfEnable(argv []string) int {
 		_ = json.NewEncoder(os.Stdout).Encode(doc)
 	} else {
 		fmt.Printf("enabled %s -> %s\n", sel.ProductRoot, sel.RuntimeRoot)
+	}
+	return 0
+}
+
+func cmdLearnSelfTransferOwner(argv []string) int {
+	fs := flag.NewFlagSet("learn self transfer-owner", flag.ContinueOnError)
+	product := fs.String("product", "", "destination AirWorker product GitRoot")
+	asJSON := fs.Bool("json", true, "machine-readable JSON")
+	if err := fs.Parse(argv); err != nil || fs.NArg() != 0 || strings.TrimSpace(*product) == "" {
+		fmt.Fprintln(os.Stderr, "usage: air-worker learn self transfer-owner -product <bootstrapped-product-root>")
+		return 2
+	}
+	selector, err := transferAirWorkerSelfLearningOwner(*product)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "learn self transfer-owner:", err)
+		return 2
+	}
+	if *asJSON {
+		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"schema": selfLearningTransferSchema, "status": "transferred", "selector": selector})
+	} else {
+		fmt.Printf("transferred %s -> %s (runtime %s)\n", selector.ProductRoot, selector.ProductID, selector.RuntimeRoot)
 	}
 	return 0
 }
