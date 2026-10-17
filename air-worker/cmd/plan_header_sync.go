@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -137,6 +136,31 @@ func replaceManagedPlanHeader(raw []byte, facts planHeaderFacts, bootstrap bool)
 	if i < 0 || j <= i+len(begin) {
 		return nil, false, errors.New("PLAN managed header order invalid")
 	}
+	// Only exact standalone marker lines inside the first H1 preamble are
+	// machine-owned. Marker strings in prose, headings and fenced examples
+	// are inert and must never grant write access to that content.
+	firstLineEnd := bytes.IndexByte(raw, '\n')
+	if firstLineEnd < 3 || !bytes.HasPrefix(raw, []byte("# ")) ||
+		i <= firstLineEnd || j > 16*1024 {
+		return nil, false, errors.New("managed header outside first PLAN preamble")
+	}
+	markerLine := func(at int, marker []byte) bool {
+		if at <= 0 || raw[at-1] != '\n' {
+			return false
+		}
+		tail := raw[at+len(marker):]
+		return bytes.HasPrefix(tail, []byte("\n")) ||
+			bytes.HasPrefix(tail, []byte("\r\n"))
+	}
+	if !markerLine(i, begin) || !markerLine(j, end) {
+		return nil, false, errors.New("managed header markers must be standalone lines")
+	}
+	preamble := raw[:j]
+	if bytes.Contains(preamble, []byte("\n## ")) ||
+		bytes.Contains(preamble, []byte("\n\x60\x60\x60")) ||
+		bytes.Contains(preamble, []byte("\n~~~")) {
+		return nil, false, errors.New("managed header may not occur in section or code fence")
+	}
 	before, after := raw[:i+len(begin)], raw[j:]
 	updated := make([]byte, 0, len(before)+len(block)+len(after))
 	updated = append(updated, before...)
@@ -186,14 +210,10 @@ func writeManagedPlanHeaderCAS(path, expectedSHA string, desired []byte, beforeP
 	if bytes.Equal(latest, desired) {
 		return nil
 	}
-	if err := writeFileAtomicDurable(path, desired); err != nil {
-		return fmt.Errorf("atomic PLAN header update: %w", err)
-	}
-	after, err := os.ReadFile(path)
-	if err != nil || !bytes.Equal(after, desired) {
-		return errors.New("PLAN header readback mismatch")
-	}
-	return nil
+	// A1 is read-only pending global N124 authority and root-handle CAS.
+	// The native CLI must not publish changed bytes until every PLAN writer
+	// shares a proven exclusion boundary and parent reparse paths are pinned.
+	return errors.New("PLAN header mutation disabled until native generation and path-lock acceptance")
 }
 
 var managedPlanSpineLine = regexp.MustCompile("^- \\[(open|blocked|closed)\\].*\\[\\[(N-[0-9]{3}_[^\\]]+)\\]\\]")

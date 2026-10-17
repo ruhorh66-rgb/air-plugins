@@ -228,3 +228,40 @@ func TestPlanHeaderRejectsControlInNativeNodeEvenIfLintPasses(t *testing.T) {
 		t.Fatal("C0 invalid node treated as canonical")
 	}
 }
+
+func TestPlanHeaderRejectsEmbeddedMarkersInProseOrCodeFences(t *testing.T) {
+	begin, end := "<!-- air-worker-managed-header:start -->", "<!-- air-worker-managed-header:end -->"
+	for _, tt := range []struct {
+		name string
+		plan string
+	}{
+		{"inline", "# Plan\n" + "example " + begin + "\ncontent\n" + end + "\n"},
+		{"fenced", "# Plan\n" + "```md\n" + begin + "\ncontent\n" + end + "\n```\n"},
+		{"afterSection", "# Plan\n" + "## Foreign content\n" + begin + "\ncontent\n" + end + "\n"},
+		{"inlineEnd", "# Plan\n" + begin + "\ncontent\n" + "code " + end + "\n"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, _, err := replaceManagedPlanHeader([]byte(tt.plan), headerTestFacts(), false); err == nil {
+				t.Fatal("accepted a managed marker outside the designated header region")
+			}
+		})
+	}
+}
+
+func TestPlanHeaderCASRefusesChangedBytesUntilNativeAuthority(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "PLAN.md")
+	before := []byte("# Plan\nold original\n")
+	if err := os.WriteFile(path, before, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	hash := sha256.Sum256(before)
+	sha := hex.EncodeToString(hash[:])
+	err := writeManagedPlanHeaderCAS(path, sha, []byte("# Plan\nchanged by unknown owner\n"), nil)
+	if err == nil {
+		t.Fatal("header mutation allowed without verified native authority and path locking")
+	}
+	after, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("changed bytes published despite authority gate")
+	}
+}
