@@ -155,11 +155,27 @@ func replaceManagedPlanHeader(raw []byte, facts planHeaderFacts, bootstrap bool)
 	if !markerLine(i, begin) || !markerLine(j, end) {
 		return nil, false, errors.New("managed header markers must be standalone lines")
 	}
-	preamble := raw[:j]
-	if bytes.Contains(preamble, []byte("\n## ")) ||
-		bytes.Contains(preamble, []byte("\n\x60\x60\x60")) ||
-		bytes.Contains(preamble, []byte("\n~~~")) {
-		return nil, false, errors.New("managed header may not occur in section or code fence")
+	// A marker in a nested section or in a Markdown code block is prose,
+	// not authority. Markdown allows up to three leading spaces for fences
+	// and headings; all heading levels below H1 must be rejected.
+	preamble := string(raw[firstLineEnd+1 : j])
+	for _, untrimmed := range strings.Split(preamble, "\n") {
+		line := strings.TrimSuffix(untrimmed, "\r")
+		trim := strings.TrimLeft(line, " \t")
+		if trim == "" {
+			continue
+		}
+		indent := len(line) - len(trim)
+		if indent > 3 {
+			return nil, false, errors.New("managed header after indented code or paragraph")
+		}
+		if strings.HasPrefix(trim, "##") {
+			return nil, false, errors.New("managed header after a nested heading")
+		}
+		if strings.HasPrefix(trim, "\x60\x60\x60") || strings.HasPrefix(trim, "~~~") ||
+			trim == "---" || trim == "===" {
+			return nil, false, errors.New("managed header inside a Markdown fenced or setext block")
+		}
 	}
 	before, after := raw[:i+len(begin)], raw[j:]
 	updated := make([]byte, 0, len(before)+len(block)+len(after))

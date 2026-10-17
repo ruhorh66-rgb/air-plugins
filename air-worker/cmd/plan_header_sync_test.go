@@ -238,6 +238,9 @@ func TestPlanHeaderRejectsEmbeddedMarkersInProseOrCodeFences(t *testing.T) {
 		{"inline", "# Plan\n" + "example " + begin + "\ncontent\n" + end + "\n"},
 		{"fenced", "# Plan\n" + "```md\n" + begin + "\ncontent\n" + end + "\n```\n"},
 		{"afterSection", "# Plan\n" + "## Foreign content\n" + begin + "\ncontent\n" + end + "\n"},
+		{"indentedFence", "# Plan\n" + "   \x60\x60\x60md\n" + begin + "\ncontent\n" + end + "\n"},
+		{"tildeFence", "# Plan\n" + "  ~~~\n" + begin + "\ncontent\n" + end + "\n"},
+		{"nestedSection", "# Plan\n" + "### Foreign subsection\n" + begin + "\ncontent\n" + end + "\n"},
 		{"inlineEnd", "# Plan\n" + begin + "\ncontent\n" + "code " + end + "\n"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -263,5 +266,141 @@ func TestPlanHeaderCASRefusesChangedBytesUntilNativeAuthority(t *testing.T) {
 	after, err := os.ReadFile(path)
 	if err != nil || !bytes.Equal(before, after) {
 		t.Fatal("changed bytes published despite authority gate")
+	}
+}
+
+func TestPlanHeaderSyncCLIRejectsApplyUntilN124Gate(t *testing.T) {
+	root := seedPlanNodeProduct(t)
+	planPath := filepath.Join(root, "PLAN.md")
+	before, err := os.ReadFile(planPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := cmdPlanHeaderSync([]string{"-product", root, "-apply", "-json"})
+	if code == 0 {
+		t.Fatal("CLI applied PLAN without N124 authority")
+	}
+	after, err := os.ReadFile(planPath)
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("CLI changed legacy PLAN despite missing authority")
+	}
+}
+
+func TestPlanHeaderSyncCLIDryRunDoesNotMutateForeignData(t *testing.T) {
+	root := seedPlanNodeProduct(t)
+	if code := cmdPlanNodeNew([]string{
+		"-product", root, "-title", "Existing native node",
+		"-parent", "Legal", "-owner", "Legal",
+		"-trigger", "test", "-done-when", "PASS",
+	}); code != 0 {
+		t.Fatal("fixture node new")
+	}
+	plan := filepath.Join(root, "PLAN.md")
+	learn := filepath.Join(root, "learn", "events.jsonl")
+	beforePlan, err := os.ReadFile(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeLearn, err := os.ReadFile(learn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodeFiles, err := filepath.Glob(filepath.Join(root, "plan", "N-*.md"))
+	if err != nil || len(nodeFiles) != 1 {
+		t.Fatal("native node files missing")
+	}
+	beforeNode, err := os.ReadFile(nodeFiles[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := cmdPlanHeaderSync([]string{"-product", root, "-dry-run", "-json"})
+	if code == 0 {
+		t.Fatal("CLI incorrectly certified untrusted git/installed attestation")
+	}
+	afterPlan, err := os.ReadFile(plan)
+	if err != nil || !bytes.Equal(beforePlan, afterPlan) {
+		t.Fatal("dry-run changed PLAN")
+	}
+	afterLearn, err := os.ReadFile(learn)
+	if err != nil || !bytes.Equal(beforeLearn, afterLearn) {
+		t.Fatal("dry-run changed LEARN")
+	}
+	afterNode, err := os.ReadFile(nodeFiles[0])
+	if err != nil || !bytes.Equal(beforeNode, afterNode) {
+		t.Fatal("dry-run changed native node")
+	}
+}
+
+func TestPlanHeaderSyncCLIUnknownActionFailsClosed(t *testing.T) {
+	if rc := cmdPlanHeader([]string{"mutate"}); rc == 0 {
+		t.Fatal("unknown action accepted")
+	}
+}
+
+func TestPlanHeaderRemoteURLStrictAllowlist(t *testing.T) {
+	for _, u := range []string{
+		"https://github.com/example/canonical.git",
+		"https://github.com/ruhorh66-rgb/air-plugins.git",
+	} {
+		if !planHeaderAllowedRemote(u) {
+			t.Fatalf("trusted GitHub URL rejected %q", u)
+		}
+	}
+	for _, u := range []string{
+		"ssh://git@github.com/example/repo.git",
+		"file:///tmp/private.git",
+		"https://evil.example.com/example/repo.git",
+		"https://github.com.evil.example/repo.git",
+		"https://user:password@github.com/example/repo.git",
+		"https://github.com/example/repo.git#fragment",
+		"https://github.com/example/repo.git?branch=main",
+		"https://github.com/example/repo",
+	} {
+		if planHeaderAllowedRemote(u) {
+			t.Fatalf("unsafe remote accepted %q", u)
+		}
+	}
+	for _, r := range []string{"", "..", "github;touch", "remote/name", "-bad", "a.b"} {
+		if safePlanHeaderRemoteName(r) {
+			t.Fatalf("unsafe remote name accepted %q", r)
+		}
+	}
+	for _, r := range []string{"origin", "github", "private-1"} {
+		if !safePlanHeaderRemoteName(r) {
+			t.Fatalf("safe remote name rejected %q", r)
+		}
+	}
+}
+
+func TestPlanHeaderActiveReleaseFromMachineSidecarOnly(t *testing.T) {
+	root := t.TempDir()
+	if _, err := planHeaderActiveRelease(root); err == nil {
+		t.Fatal("missing release-slices accepted")
+	}
+	dir := filepath.Join(root, "plan")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "release-slices.json")
+	for _, tc := range []struct {
+		name string
+		json string
+		want bool
+	}{
+		{"valid", `{"active_release":"1.9.7","releases":[{"version":"1.9.6"},{"version":"1.9.7"}]}`, true},
+		{"notInList", `{"active_release":"1.9.7","releases":[{"version":"1.9.6"}]}`, false},
+		{"duplicate", `{"active_release":"1.9.7","releases":[{"version":"1.9.7"},{"version":"1.9.7"}]}`, false},
+		{"invalidVersion", `{"active_release":"0.11.9A","releases":[{"version":"0.11.9A"}]}`, false},
+		{"malformed", `{"active_release":`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := os.WriteFile(path, []byte(tc.json), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			v, err := planHeaderActiveRelease(root)
+			if (err == nil) != tc.want {
+				t.Fatalf("got %q, err=%v wantvalid=%v", v, err, tc.want)
+			}
+		})
 	}
 }

@@ -81,6 +81,8 @@ func usage() {
   air-worker plan node new -product <корень> -title <...> -parent <этап> -owner <окно> -done-when <...>
   air-worker plan node close <id> -product <корень> -receipt <ref>
   air-worker plan node list -product <корень> [-open] [-stale 24h] [-no-owner] [-json]
+  air-worker plan header sync -product <корень> -dry-run [-json] [-remote origin]
+        DEV136 A1 read-only preflight; изменение PLAN.md отключено до N-124 и проверки источников installed/version.
   air-worker plan spine -product <корень> [-json]
   air-worker plan migrate -product <корень> [-owner <окно>] [-trigger <слово ЛПР>]
         L11-7: PLAN.md остаётся нитью, подробности живут в plan/N-*.md; запись узлов

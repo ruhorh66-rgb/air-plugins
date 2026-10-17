@@ -42,6 +42,8 @@ func cmdPlan(argv []string) int {
 			return cmdPlanSpine(argv[1:])
 		case "migrate":
 			return cmdPlanMigrate(argv[1:])
+		case "header":
+			return cmdPlanHeader(argv[1:])
 		}
 	}
 	fs := flag.NewFlagSet("plan", flag.ContinueOnError)
