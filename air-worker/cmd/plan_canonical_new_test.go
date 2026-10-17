@@ -89,12 +89,64 @@ func TestPlanCanonicalNewNative(t *testing.T) {
 			"-title", "Next", "-parent", "PLAN.md", "-owner", "fixture",
 			"-done-when", "verified", "-trigger", "fixture", "-json"})
 	})
-	var replay struct{ Action string }
-	if err := json.Unmarshal([]byte(retry), &replay); err != nil || code == 0 || replay.Action != "conflict" {
-		t.Fatalf("retry must fail closed: exit=%d %s", code, retry)
+	var replay struct {
+		Action string   `json:"action"`
+		OID    string   `json:"remote_oid"`
+		Node   planNode `json:"node"`
+	}
+	if err := json.Unmarshal([]byte(retry), &replay); err != nil || code != 0 ||
+		replay.Action != "created" || replay.OID != result.OID ||
+		replay.Node.ID != result.Node.ID || replay.Node.CreatedAt != result.Node.CreatedAt {
+		t.Fatalf("exact accepted replay did not recover the original immutable result: exit=%d %s", code, retry)
 	}
 	if candidateGit(t, origin, "rev-parse", publishRef) != result.OID || !reflect.DeepEqual(before, candidateOriginal(t, root)) {
 		t.Fatal("retry mutated original or published another event")
+	}
+	changed, code := captureStdout(t, func() int {
+		return cmdPlanNode([]string{"new", "-product", root, "-request-id", "native-120",
+			"-title", "Different", "-parent", "PLAN.md", "-owner", "fixture",
+			"-done-when", "verified", "-trigger", "fixture", "-json"})
+	})
+	var wrong struct {
+		Action string `json:"action"`
+	}
+	if json.Unmarshal([]byte(changed), &wrong) != nil || code == 0 || wrong.Action != "conflict" {
+		t.Fatalf("changed request payload was accepted: code=%d output=%s", code, changed)
+	}
+	if candidateGit(t, origin, "rev-parse", publishRef) != result.OID || !reflect.DeepEqual(before, candidateOriginal(t, root)) {
+		t.Fatal("changed-payload retry mutated original or canonical ref")
+	}
+	// Only a readback-verified, clean disposable publisher may advance its
+	// source generation. A different logical request after this sync must get
+	// N121, not reuse the stale N120; production WIP is never reset.
+	if dirty := candidateGit(t, root, "status", "--porcelain"); dirty != "" {
+		t.Fatalf("cannot synchronize dirty disposable publisher: %s", dirty)
+	}
+	candidateGit(t, root, "reset", "--hard", result.OID)
+	if got := candidateGit(t, root, "rev-parse", "HEAD"); got != result.OID {
+		t.Fatalf("publisher did not sync accepted generation: %s", got)
+	}
+	syncedBefore := candidateOriginal(t, root)
+	next, nextCode := captureStdout(t, func() int {
+		return cmdPlanNode([]string{"new", "-product", root, "-request-id", "fresh-121",
+			"-title", "After", "-parent", "PLAN.md", "-owner", "fixture",
+			"-done-when", "verified", "-trigger", "fixture", "-json"})
+	})
+	var nextResult struct {
+		Action string   `json:"action"`
+		OID    string   `json:"remote_oid"`
+		Node   planNode `json:"node"`
+	}
+	if err := json.Unmarshal([]byte(next), &nextResult); err != nil ||
+		nextCode != 0 || nextResult.Action != "created" ||
+		nextResult.Node.ID != "N-121_after" ||
+		nextResult.OID == result.OID ||
+		candidateGit(t, origin, "rev-parse", publishRef) != nextResult.OID ||
+		candidateGit(t, origin, "show", "-s", "--format=%P", nextResult.OID) != result.OID {
+		t.Fatalf("fresh request must allocate unique canonical N121: exit=%d output=%s", nextCode, next)
+	}
+	if !reflect.DeepEqual(syncedBefore, candidateOriginal(t, root)) {
+		t.Fatal("fresh N121 allocation modified local PLAN/LEARN/WIP")
 	}
 }
 
