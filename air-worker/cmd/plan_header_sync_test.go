@@ -148,8 +148,8 @@ func TestPlanHeaderFileCASNoopKeepsBytes(t *testing.T) {
 	}
 	sum := sha256.Sum256(body)
 	expected := hex.EncodeToString(sum[:])
-	if err := writeManagedPlanHeaderCAS(path, expected, body, nil); err != nil {
-		t.Fatal(err)
+	if err := writeManagedPlanHeaderCAS(path, expected, body, nil); err == nil {
+		t.Fatal("unlocked PLAN no-op claimed authority before N124 generation")
 	}
 	got, err := os.ReadFile(path)
 	if err != nil || !bytes.Equal(got, body) {
@@ -423,11 +423,134 @@ func TestPlanHeaderGitReadNeverHonorsCallerTraceOrHooks(t *testing.T) {
 	t.Setenv("GIT_CONFIG_COUNT", "1")
 	t.Setenv("GIT_CONFIG_KEY_0", "core.fsmonitor")
 	t.Setenv("GIT_CONFIG_VALUE_0", "false")
-	result, err := planHeaderGitRead(root, "rev-parse", "--is-inside-work-tree")
+	gitBin, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("Git binary unavailable")
+	}
+	data, err := os.ReadFile(gitBin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binSHA := sha256.Sum256(data)
+	pin := planHeaderGitTool{Path: gitBin, SHA256: hex.EncodeToString(binSHA[:])}
+	result, err := planHeaderGitReadPinned(pin, root, "rev-parse", "--is-inside-work-tree")
 	if err != nil || result != "true" {
 		t.Fatalf("Git read-only preflight failed: %q, %v", result, err)
 	}
 	if _, err := os.Stat(tracePath); !os.IsNotExist(err) {
 		t.Fatal("Git inherited untrusted environment and wrote a trace")
+	}
+}
+
+func planHeaderTestGitPin(t *testing.T) planHeaderGitTool {
+	t.Helper()
+	path, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("Git binary unavailable")
+	}
+	path, err = filepath.Abs(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(raw)
+	return planHeaderGitTool{Path: path, SHA256: hex.EncodeToString(digest[:])}
+}
+
+func TestPlanHeaderUnpinnedGitNeverUsesPATH(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	if _, err := planHeaderGitRead(t.TempDir(), "rev-parse", "--show-toplevel"); err == nil {
+		t.Fatal("unpinned Git executable was allowed")
+	}
+}
+
+func TestPlanHeaderGitPinRejectsWrongSHAAndRelativePath(t *testing.T) {
+	pin := planHeaderTestGitPin(t)
+	if _, err := planHeaderGitReadPinned(planHeaderGitTool{Path: "git", SHA256: pin.SHA256},
+		t.TempDir(), "rev-parse", "--is-inside-work-tree"); err == nil {
+		t.Fatal("relative Git binary accepted")
+	}
+	pin.SHA256 = strings.Repeat("0", 64)
+	if _, err := planHeaderGitReadPinned(pin, t.TempDir(),
+		"rev-parse", "--is-inside-work-tree"); err == nil {
+		t.Fatal("untrusted Git binary SHA accepted")
+	}
+}
+
+func TestPlanHeaderRepoRootMustBeAuthorizedProduct(t *testing.T) {
+	pin := planHeaderTestGitPin(t)
+	root := filepath.Join(t.TempDir(), "canonical")
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	git := exec.Command(pin.Path, "init", "-q", root)
+	if data, err := git.CombinedOutput(); err != nil {
+		t.Skipf("Git fixtures unavailable: %v %s", err, data)
+	}
+	if err := planHeaderValidateRepository(root, pin); err != nil {
+		t.Fatalf("repo root rejected: %v", err)
+	}
+	foreign := filepath.Join(root, "unrelated")
+	if err := os.MkdirAll(foreign, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := planHeaderValidateRepository(foreign, pin); err == nil {
+		t.Fatal("ancestor Git repo was used as the foreign product's identity")
+	}
+	product := filepath.Join(root, "air-worker")
+	if err := os.MkdirAll(product, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := planHeaderValidateRepository(product, pin); err != nil {
+		t.Fatalf("legitimate one-layer product root rejected: %v", err)
+	}
+}
+
+func TestPlanHeaderReadRejectsSymlinkLeaf(t *testing.T) {
+	root := t.TempDir()
+	foreign := filepath.Join(t.TempDir(), "foreign-content")
+	if err := os.WriteFile(foreign, []byte("# Foreign\nsecret text"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "PLAN.md")
+	if err := os.Symlink(foreign, path); err != nil {
+		t.Skipf("symlink privilege missing: %v", err)
+	}
+	if _, err := planHeaderReadPlan(root); err == nil {
+		t.Fatal("PLAN symlink leaf allowed")
+	}
+}
+
+func TestPlanHeaderReadPlanRegularFileNoMutation(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "PLAN.md")
+	body := []byte("# Canonical PLAN\r\nother bytes\r\n")
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := planHeaderReadPlan(root)
+	if err != nil || !bytes.Equal(body, got) {
+		t.Fatalf("regular PLAN not read intact: %v", err)
+	}
+	after, _ := os.ReadFile(path)
+	if !bytes.Equal(body, after) {
+		t.Fatal("read-only PLAN read changed bytes")
+	}
+}
+
+func TestPlanHeaderRemoteReadRejectsUntrustedURLWithoutNetwork(t *testing.T) {
+	pin := planHeaderTestGitPin(t)
+	for _, url := range []string{"file:///tmp/repo", "ext::open", "ssh://git@github.com/test/repo.git",
+		"https://github.com.evil.com/test/repo.git"} {
+		if _, err := planHeaderGitRemoteRead(pin, url, "refs/heads/main"); err == nil {
+			t.Fatalf("unsafe remote URL accepted %q", url)
+		}
+	}
+	if _, err := planHeaderGitRemoteRead(pin, "https://github.com/test/repo.git",
+		"refs/heads/../malicious"); err == nil {
+		t.Fatal("unsafe ref accepted")
 	}
 }

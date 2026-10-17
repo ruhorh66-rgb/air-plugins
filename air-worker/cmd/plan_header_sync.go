@@ -229,7 +229,9 @@ func writeManagedPlanHeaderCAS(path, expectedSHA string, desired []byte, beforeP
 		return errors.New("concurrent PLAN change")
 	}
 	if bytes.Equal(latest, desired) {
-		return nil
+		// A byte-identical read does not prove stable canonical generation.
+		// Keep the result informational until native N124 owns exclusion.
+		return errors.New("PLAN no-op cannot claim verified generation without N124")
 	}
 	// A1 is read-only pending global N124 authority and root-handle CAS.
 	// The native CLI must not publish changed bytes until every PLAN writer

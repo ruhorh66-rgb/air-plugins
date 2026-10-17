@@ -1,17 +1,14 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 	"unicode/utf8"
 )
 
@@ -87,8 +84,7 @@ func cmdPlanHeaderSync(argv []string) int {
 		if err := planHeaderValidateAncestors(root); err != nil {
 			block("untrusted_product_path_or_reparse")
 		} else {
-			plan := filepath.Join(root, "PLAN.md")
-			if raw, err := os.ReadFile(plan); err != nil {
+			if raw, err := planHeaderReadPlan(root); err != nil {
 				block("plan_read_failed")
 			} else {
 				report.PlanSHA256 = planHeaderSHA(raw)
@@ -104,41 +100,48 @@ func cmdPlanHeaderSync(argv []string) int {
 					report.ActiveRelease = release
 				}
 			}
-			branch, brErr := planHeaderGitRead(root, "branch", "--show-current")
-			head, shaErr := planHeaderGitRead(root, "rev-parse", "--verify", "HEAD")
-			if brErr != nil || shaErr != nil ||
-				!planHeaderBranchRegex.MatchString(branch) || !planHeaderGitSHARegex.MatchString(head) {
-				block("source_git_identity_not_proven")
+			tool := planHeaderConfiguredGitTool()
+			if err := planHeaderVerifyGitPin(tool); err != nil {
+				block("trusted_git_binary_sha_pin_unavailable")
+			} else if err := planHeaderValidateRepository(root, tool); err != nil {
+				block("git_product_root_not_authorized")
 			} else {
-				report.GitBranch, report.GitHead = branch, head
-				if *remote != "" && safePlanHeaderRemoteName(*remote) {
-					remoteURL, e := planHeaderGitRead(root, "remote", "get-url", *remote)
-					if e != nil || !planHeaderAllowedRemote(remoteURL) {
-						block("remote_is_not_authorized_github")
-					} else {
-						report.GitRemote = *remote
-						ref := "refs/heads/" + branch
-						raw, e := planHeaderGitRead(root, "ls-remote", "--exit-code", *remote, ref)
-						if e != nil {
-							block("remote_head_not_proven")
+				branch, brErr := planHeaderGitRead(root, "branch", "--show-current")
+				head, shaErr := planHeaderGitRead(root, "rev-parse", "--verify", "HEAD")
+				if brErr != nil || shaErr != nil ||
+					!planHeaderBranchRegex.MatchString(branch) || !planHeaderGitSHARegex.MatchString(head) {
+					block("source_git_identity_not_proven")
+				} else {
+					report.GitBranch, report.GitHead = branch, head
+					if *remote != "" && safePlanHeaderRemoteName(*remote) {
+						remoteURL, e := planHeaderGitRead(root, "config", "--local", "--get", "remote."+*remote+".url")
+						if e != nil || !planHeaderAllowedRemote(remoteURL) {
+							block("remote_is_not_authorized_github")
 						} else {
-							fields := strings.Fields(raw)
-							if len(fields) != 2 || fields[1] != ref || !planHeaderGitSHARegex.MatchString(fields[0]) {
-								block("remote_response_invalid")
+							report.GitRemote = *remote
+							ref := "refs/heads/" + branch
+							raw, e := planHeaderGitRemoteRead(tool, remoteURL, ref)
+							if e != nil {
+								block("remote_head_not_proven")
 							} else {
-								report.RemoteHead = fields[0]
-								if fields[0] != head {
-									block("remote_head_diverged")
+								fields := strings.Fields(raw)
+								if len(fields) != 2 || fields[1] != ref || !planHeaderGitSHARegex.MatchString(fields[0]) {
+									block("remote_response_invalid")
+								} else {
+									report.RemoteHead = fields[0]
+									if fields[0] != head {
+										block("remote_head_diverged")
+									}
 								}
 							}
 						}
 					}
 				}
-			}
-			if status, e := planHeaderGitRead(root, "status", "--porcelain", "-uall", "--", "PLAN.md", "plan"); e != nil {
-				block("git_plan_status_unavailable")
-			} else if status != "" {
-				block("local_plan_or_nodes_dirty")
+				if status, e := planHeaderGitRead(root, "status", "--porcelain", "-uall", "--", "PLAN.md", "plan"); e != nil {
+					block("git_plan_status_unavailable")
+				} else if status != "" {
+					block("local_plan_or_nodes_dirty")
+				}
 			}
 		}
 	}
@@ -235,36 +238,6 @@ func planHeaderSafeGitEnvironment() []string {
 		"GIT_CONFIG_GLOBAL="+os.DevNull,
 		"GIT_NO_LAZY_FETCH=1",
 	)
-}
-
-func planHeaderGitRead(root string, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-	defer cancel()
-	// Override repository-local executable helpers and non-HTTPS transports.
-	// Remote URL is validated separately, before ls-remote.
-	prefix := []string{
-		"-c", "core.fsmonitor=false",
-		"-c", "core.hooksPath=" + os.DevNull,
-		"-c", "credential.helper=",
-		"-c", "credential.interactive=never",
-		"-c", "http.followRedirects=false",
-		"-c", "protocol.ext.allow=never",
-		"-c", "protocol.file.allow=never",
-		"-c", "protocol.ssh.allow=never",
-		"-c", "protocol.git.allow=never",
-		"-C", root,
-	}
-	cmd := exec.CommandContext(ctx, "git", append(prefix, args...)...)
-	cmd.Env = planHeaderSafeGitEnvironment()
-	out, err := cmd.CombinedOutput()
-	if err != nil || len(out) > 65536 {
-		return "", errors.New("git preflight unavailable")
-	}
-	s := strings.TrimSpace(string(out))
-	if !utf8.ValidString(s) {
-		return "", errors.New("Git output is not UTF-8")
-	}
-	return s, nil
 }
 
 func planHeaderActiveRelease(root string) (string, error) {
