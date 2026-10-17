@@ -125,11 +125,16 @@ func cmdPlanCanonicalFixtureNew(root, origin string, req sharedPlanCreateRequest
 	if err != nil {
 		return fail(err)
 	}
-	run := func(dir string, args ...string) (string, error) {
+	// Preserve raw blob bytes for accepted-operation recovery. Metadata-only
+	// reads may trim whitespace, but signed PLAN/node/outbox evidence may not.
+	runRaw := func(dir string, args ...string) ([]byte, error) {
 		cmd := exec.CommandContext(ctx, git, append([]string{"-C", dir, "-c", "core.fsmonitor=false", "-c", "core.hooksPath=" + os.DevNull}, args...)...)
 		cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_OPTIONAL_LOCKS=0", "GIT_NO_REPLACE_OBJECTS=1", "GIT_NO_LAZY_FETCH=1", "GIT_TERMINAL_PROMPT=0")
 		cmd.WaitDelay = time.Second
-		out, err := cmd.Output()
+		return cmd.Output()
+	}
+	run := func(dir string, args ...string) (string, error) {
+		out, err := runRaw(dir, args...)
 		return strings.TrimSpace(string(out)), err
 	}
 	for _, item := range []struct{ dir, metadata, bare string }{{root, filepath.Join(root, ".git"), "false"}, {origin, origin, "true"}} {
@@ -178,9 +183,28 @@ func cmdPlanCanonicalFixtureNew(root, origin string, req sharedPlanCreateRequest
 		return fail(fmt.Errorf("source HEAD unavailable"))
 	}
 	remote, err := run(origin, "rev-parse", "--verify", "refs/heads/canonical")
-	// shortcut: replay on an advanced remote fails closed; trusted recovery belongs to A3-2.
-	if err != nil || remote != old {
-		return fail(fmt.Errorf("canonical differs from source HEAD; retry requires reconciliation"))
+	if err != nil {
+		return fail(fmt.Errorf("canonical ref unavailable"))
+	}
+	// The already accepted request can be recovered from the exact single
+	// canonical child, with no new commit, local projection or authority grant.
+	// All other stale operations remain a nonzero conflict.
+	if remote != old {
+		node, err := recoverCanonicalFixtureNew(root, origin, old, remote, req, eventActor, run, runRaw)
+		if err != nil {
+			return fail(fmt.Errorf("canonical differs from source HEAD; retry requires reconciliation: %w", err))
+		}
+		if confirmed, e := run(origin, "rev-parse", "--verify", "refs/heads/canonical"); e != nil || confirmed != remote {
+			return fail(fmt.Errorf("canonical ref changed during recovery"))
+		}
+		if asJSON {
+			if e := json.NewEncoder(os.Stdout).Encode(map[string]any{"schema": "air-worker.plan.node.mutation/v1", "action": "created", "source": "git-canonical-fixture", "node": node, "remote_oid": remote, "operation_id": req.ID, "actor": eventActor}); e != nil {
+				return fail(fmt.Errorf("accepted recovery JSON output unavailable"))
+			}
+		} else {
+			fmt.Printf("%s %s%s", node.ID, remote, lineEnding)
+		}
+		return 0
 	}
 	entries, err := os.ReadDir(planNodeDir(root))
 	if err != nil && !os.IsNotExist(err) {

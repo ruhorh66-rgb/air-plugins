@@ -30,6 +30,16 @@ var candidateOperationRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`
 // preparePlanCandidate is fixture-only A1 plumbing, intentionally not a production caller.
 // shortcut: identical inputs have identical OIDs, cross-request operation fencing belongs to A2 CAS/recovery.
 func preparePlanCandidate(ctx context.Context, root, old, operation string, files map[string][]byte) (planCandidate, error) {
+	return preparePlanCandidateWithMode(ctx, root, old, operation, files, false)
+}
+
+// Only the already authenticated canonical fixture close may replace an
+// existing native node. The generic create path remains strictly additive.
+func preparePlanCloseCandidate(ctx context.Context, root, old, operation string, files map[string][]byte) (planCandidate, error) {
+	return preparePlanCandidateWithMode(ctx, root, old, operation, files, true)
+}
+
+func preparePlanCandidateWithMode(ctx context.Context, root, old, operation string, files map[string][]byte, closeMode bool) (planCandidate, error) {
 	fail := func(err error) (planCandidate, error) { return planCandidate{}, err }
 	if !candidateOIDRE.MatchString(old) || !candidateOperationRE.MatchString(operation) || len(files) == 0 || len(files) > 16 {
 		return fail(fmt.Errorf("invalid candidate identity or file count"))
@@ -189,20 +199,26 @@ func preparePlanCandidate(ctx context.Context, root, old, operation string, file
 			return fail(err)
 		}
 		if local != "PLAN.md" {
-			if _, err := os.Lstat(filepath.Join(root, filepath.FromSlash(name))); !os.IsNotExist(err) {
+			localPath := filepath.Join(root, filepath.FromSlash(name))
+			if closeMode && validNode {
+				st, err := os.Lstat(localPath)
+				if err != nil || !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 {
+					return fail(fmt.Errorf("close requires an existing regular canonical node: %s", name))
+				}
+			} else if _, err := os.Lstat(localPath); !os.IsNotExist(err) {
 				return fail(fmt.Errorf("existing candidate worktree path collision: %s", name))
 			}
 		}
 		for existing, meta := range entries {
 			if strings.EqualFold(existing, name) {
-				if local != "PLAN.md" || existing != name || !strings.HasPrefix(meta, "100644 blob ") {
+				if (local != "PLAN.md" && !(closeMode && validNode)) || existing != name || !strings.HasPrefix(meta, "100644 blob ") {
 					return fail(fmt.Errorf("existing candidate path collision: %s", existing))
 				}
 			}
 			if strings.HasPrefix(key, strings.ToLower(existing)+"/") && (!strings.HasPrefix(meta, "040000 tree ") || !strings.HasPrefix(name, existing+"/")) {
 				return fail(fmt.Errorf("candidate ancestor collision"))
 			}
-			if validNode && path.Dir(existing) == prefix+"plan" && strings.HasPrefix(path.Base(existing), path.Base(name)[:5]+"_") {
+			if validNode && path.Dir(existing) == prefix+"plan" && strings.HasPrefix(path.Base(existing), path.Base(name)[:5]+"_") && !(closeMode && existing == name) {
 				return fail(fmt.Errorf("node number collision"))
 			}
 		}
@@ -214,7 +230,20 @@ func preparePlanCandidate(ctx context.Context, root, old, operation string, file
 	if len(numbers) != 1 || !hasOutbox {
 		return fail(fmt.Errorf("candidate requires exactly one new plan node and operation outbox"))
 	}
-	if err := validateCandidateContent(prefix, operation, files); err != nil {
+	if closeMode {
+		// A close changes exactly the already tracked PLAN and node, and adds
+		// exactly one receipt-bound outbox. Validate the entire old Git blob
+		// generation before preparing the private, unpublished candidate.
+		readBase := func(name string) ([]byte, error) {
+			if name == "" || name != path.Clean(name) || path.IsAbs(name) || strings.ContainsAny(name, "\\:\x00\r\n\t") {
+				return nil, fmt.Errorf("unsafe canonical base blob path")
+			}
+			return run(nil, "cat-file", "blob", old+":"+name)
+		}
+		if err := validatePlanCloseCandidate(root, old, operation, files, readBase); err != nil {
+			return fail(err)
+		}
+	} else if err := validateCandidateContent(prefix, operation, files); err != nil {
 		return fail(err)
 	}
 	sort.Strings(paths)

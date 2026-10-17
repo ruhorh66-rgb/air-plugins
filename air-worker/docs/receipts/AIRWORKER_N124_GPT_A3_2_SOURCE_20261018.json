@@ -1,0 +1,122 @@
+{
+    "schema":  "airworker.n124.gpt-source-candidate/v1",
+    "work_code":  "AW119_G1_N124_GPT_20261018",
+    "scope":  "ISOLATED_GIT_FIXTURES_ONLY",
+    "state":  "SOURCE_SCOPED_PASS_FULL_REGRESSION_AND_INDEPENDENT_JUDGE_PENDING",
+    "observed_utc":  "2026-10-17T19:02:33.3558648Z",
+    "node":  "SRVLM01",
+    "source_branch":  "dev/airworker-n124-gpt-0119-20261018",
+    "base_head":  "2e825982efd1b1aa468f073739b87a666bcb7b84",
+    "code_tree_before_receipt":  "b93ca2343b1bb6e9db9885d503314c37b905cf5a",
+    "code_files":  [
+                       {
+                           "path":  "air-worker/cmd/plan_candidate.go",
+                           "sha256":  "aaec4f990588722d9e42edd36b4ccb4f00346f2b2d5e99c98ca835291db92391"
+                       },
+                       {
+                           "path":  "air-worker/cmd/plan_canonical_new.go",
+                           "sha256":  "40319b835743f5dc7f6204305d4b2f26ed9617ea9922de6895427653dc1d79ee"
+                       },
+                       {
+                           "path":  "air-worker/cmd/plan_canonical_new_test.go",
+                           "sha256":  "21a31eeacd3b0c75f212cc2ce4846f005cddfdb3a224cac3245df7b5f7ab98c6"
+                       },
+                       {
+                           "path":  "air-worker/cmd/plan_nodes.go",
+                           "sha256":  "1a4ea3d826576b35f73bd22f1721cca190959da266ffddce2570f741d08a012b"
+                       },
+                       {
+                           "path":  "air-worker/cmd/plan_canonical_close.go",
+                           "sha256":  "a23e125919301dbe4352b9dca8a0687518f114f43b7a9f9b54231e9a3f61fe14"
+                       },
+                       {
+                           "path":  "air-worker/cmd/plan_canonical_close_test.go",
+                           "sha256":  "a4b4287cf27811bf1ec50cd218d683ecf15346514edf4313165b6fa71c995cfb"
+                       },
+                       {
+                           "path":  "air-worker/cmd/plan_canonical_logical_recovery_test.go",
+                           "sha256":  "074efc11cf45e2a445114b4f74ddba8b477c42a54457c8e0773ead4951465c92"
+                       },
+                       {
+                           "path":  "air-worker/cmd/plan_canonical_recovery_test.go",
+                           "sha256":  "590a2bfc57b2a9f982fc7e7e0289c54b202f378fcae5b124391e3f4ef205d15d"
+                       },
+                       {
+                           "path":  "air-worker/cmd/plan_canonical_replay.go",
+                           "sha256":  "b40f0e15f349dc049209462d25f6712eafc42b046e50a51974b785f697566c8a"
+                       }
+                   ],
+    "checks":  [
+                   {
+                       "test":  "critical-new-close-replay-N121",
+                       "log":  "R:\\-4-\\air-worker\\work\\N124_0119_LPR_PRIORITY_20261018\\diag\\n124-n121-and-rejected-physical.log",
+                       "exit_code":  0,
+                       "sha256":  "585e210710af9ee578dcefb156dc3a1e8506911104159ca62bc0880047bc5484"
+                   },
+                   {
+                       "test":  "negative-new-close",
+                       "log":  "R:\\-4-\\air-worker\\work\\N124_0119_LPR_PRIORITY_20261018\\diag\\n124-native-negatives.log",
+                       "exit_code":  0,
+                       "sha256":  "18f2e5c85adb9b9043d73a364081bf0590915afef2b3017ef4b59eec053cf2ba"
+                   },
+                   {
+                       "test":  "candidate-rejects",
+                       "log":  "R:\\-4-\\air-worker\\work\\N124_0119_LPR_PRIORITY_20261018\\diag\\n124-candidate-rejects.log",
+                       "exit_code":  0,
+                       "sha256":  "c2d58c8ae4bb4b73ea0a2a7148113f67036ba2f721ddab52a17407a3adb1a8bf"
+                   },
+                   {
+                       "test":  "candidate-partial-timeout",
+                       "log":  "R:\\-4-\\air-worker\\work\\N124_0119_LPR_PRIORITY_20261018\\diag\\n124-candidate-regression.log",
+                       "exit_code":  1,
+                       "sha256":  "275c3559138ba6ad1e646d96fc6ac4aa714c8dfee1e83a100b6f339568e99815"
+                   },
+                   {
+                       "test":  "go-vet",
+                       "log":  "R:\\-4-\\air-worker\\work\\N124_0119_LPR_PRIORITY_20261018\\diag\\n124-go-vet.log",
+                       "exit_code":  0,
+                       "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                   },
+                   {
+                       "test":  "go-build",
+                       "log":  "R:\\-4-\\air-worker\\work\\N124_0119_LPR_PRIORITY_20261018\\diag\\n124-build.log",
+                       "exit_code":  0,
+                       "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                   }
+               ],
+    "positive_proofs":  [
+                            "native_close_pass",
+                            "native_new_pass",
+                            "exact_replay_original_oid_and_created_at_pass",
+                            "changed_payload_conflict_pass",
+                            "stale_competitor_conflict_pass",
+                            "unrelated_descendant_conflict_pass",
+                            "fresh_source_n120_then_n121_pass",
+                            "untrusted_second_physical_publisher_denied"
+                        ],
+    "negative_cases":  65,
+    "go_vet_rc":  0,
+    "candidate_build_rc":  0,
+    "candidate_binary_sha256":  "a01bd1eff976181405966e35b23467cf9a732b6e28dfd8210c1dd7bad2d815d5",
+    "independent_semantic_judge":  "NOT_RUN",
+    "native_N124_status":  "OPEN",
+    "installed_airworker_unchanged":  "0.11.8",
+    "installed_executable_sha256":  "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "not_proven":  [
+                       "full_go_regression_rc0",
+                       "cross_machine_authenticated_GitHub_authority",
+                       "independent_gpt_6_sol_low",
+                       "native_N124_close",
+                       "release_0_11_9",
+                       "install"
+                   ],
+    "not_performed":  [
+                          "source_PLAN_node_edit",
+                          "LEARN_edit",
+                          "gateway_restart",
+                          "production_Git_ref_mutation",
+                          "release_tag",
+                          "install"
+                      ],
+    "rollback":  "revert scoped feature branch to 2e825982efd1b1aa468f073739b87a666bcb7b84; installed 0.11.8 unchanged"
+}

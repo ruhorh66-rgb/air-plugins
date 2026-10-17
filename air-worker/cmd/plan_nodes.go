@@ -526,6 +526,8 @@ func cmdPlanNodeClose(argv []string) int {
 	fs := flag.NewFlagSet("plan node close", flag.ContinueOnError)
 	product := fs.String("product", ".", "product root")
 	receipt := fs.String("receipt", "", "receipt path/ref")
+	requestID := fs.String("request-id", "", "stable canonical close operation ID; fixture-only")
+	receiptSHA := fs.String("receipt-sha256", "", "exact canonical close receipt SHA256; fixture-only")
 	actor := fs.String("actor", "", "actor/session name")
 	actorKind := fs.String("actor-kind", "", "gpt-window or claude-session")
 	asJSON := fs.Bool("json", false, "machine-readable JSON")
@@ -539,6 +541,19 @@ func cmdPlanNodeClose(argv []string) int {
 	root, err := normalizePlanNodeProduct(*product)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	// This path only executes with the exact, isolated canonical fixture authority.
+	// A production plan must never get canonical mutation semantics from flags.
+	if origin, err := planCanonicalFixtureOrigin(root); err == nil {
+		return cmdPlanCanonicalFixtureClose(root, origin, id, *requestID, *receipt, *receiptSHA, *actorKind, *actor, fs.Args(), *asJSON)
+	}
+	if *requestID != "" || *receiptSHA != "" {
+		if *asJSON {
+			_ = json.NewEncoder(os.Stdout).Encode(map[string]string{"schema": "air-worker.plan.node.mutation/v1", "action": "conflict", "reason": "fixture_authority_unproven"})
+		} else {
+			fmt.Fprintln(os.Stderr, "canonical close flags require verified isolated authority")
+		}
 		return 2
 	}
 	if rejectUnprovenPlanAuthority(root, *asJSON) {
