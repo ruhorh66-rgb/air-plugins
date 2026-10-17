@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -241,6 +242,10 @@ func TestPlanHeaderRejectsEmbeddedMarkersInProseOrCodeFences(t *testing.T) {
 		{"indentedFence", "# Plan\n" + "   \x60\x60\x60md\n" + begin + "\ncontent\n" + end + "\n"},
 		{"tildeFence", "# Plan\n" + "  ~~~\n" + begin + "\ncontent\n" + end + "\n"},
 		{"nestedSection", "# Plan\n" + "### Foreign subsection\n" + begin + "\ncontent\n" + end + "\n"},
+		{"secondH1", "# Plan\n" + "# New document heading\n" + begin + "\ncontent\n" + end + "\n"},
+		{"secondH1Indented", "# Plan\n" + "   # Nested H1 heading\n" + begin + "\ncontent\n" + end + "\n"},
+		{"setextDash", "# Plan\n" + "Section\n---   \n" + begin + "\ncontent\n" + end + "\n"},
+		{"setextEqual", "# Plan\n" + "Section\n===  \n" + begin + "\ncontent\n" + end + "\n"},
 		{"inlineEnd", "# Plan\n" + begin + "\ncontent\n" + "code " + end + "\n"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -402,5 +407,27 @@ func TestPlanHeaderActiveReleaseFromMachineSidecarOnly(t *testing.T) {
 				t.Fatalf("got %q, err=%v wantvalid=%v", v, err, tc.want)
 			}
 		})
+	}
+}
+
+func TestPlanHeaderGitReadNeverHonorsCallerTraceOrHooks(t *testing.T) {
+	root := t.TempDir()
+	cmd := exec.Command("git", "init", "-q", root)
+	if data, err := cmd.CombinedOutput(); err != nil {
+		t.Skipf("git unavailable in test environment: %v %s", err, data)
+	}
+	// GIT_TRACE is a harmless deterministic proof that an uncontrolled
+	// inherited Git environment can write outside the requested operation.
+	tracePath := filepath.Join(root, "untrusted-inherited-git-trace.txt")
+	t.Setenv("GIT_TRACE", tracePath)
+	t.Setenv("GIT_CONFIG_COUNT", "1")
+	t.Setenv("GIT_CONFIG_KEY_0", "core.fsmonitor")
+	t.Setenv("GIT_CONFIG_VALUE_0", "false")
+	result, err := planHeaderGitRead(root, "rev-parse", "--is-inside-work-tree")
+	if err != nil || result != "true" {
+		t.Fatalf("Git read-only preflight failed: %q, %v", result, err)
+	}
+	if _, err := os.Stat(tracePath); !os.IsNotExist(err) {
+		t.Fatal("Git inherited untrusted environment and wrote a trace")
 	}
 }

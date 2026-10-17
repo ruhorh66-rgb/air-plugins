@@ -169,11 +169,16 @@ func replaceManagedPlanHeader(raw []byte, facts planHeaderFacts, bootstrap bool)
 		if indent > 3 {
 			return nil, false, errors.New("managed header after indented code or paragraph")
 		}
-		if strings.HasPrefix(trim, "##") {
-			return nil, false, errors.New("managed header after a nested heading")
+		// Another H1 ends the first document's preamble as surely as H2/H3.
+		// Conservatively reject any header-looking line before the marker.
+		if strings.HasPrefix(trim, "#") {
+			return nil, false, errors.New("managed header after a Markdown heading")
 		}
+		trimmedEnd := strings.TrimRight(trim, " \t")
+		isSetextDash := len(trimmedEnd) >= 3 && strings.Trim(trimmedEnd, "-") == ""
+		isSetextEqual := len(trimmedEnd) >= 1 && strings.Trim(trimmedEnd, "=") == ""
 		if strings.HasPrefix(trim, "\x60\x60\x60") || strings.HasPrefix(trim, "~~~") ||
-			trim == "---" || trim == "===" {
+			isSetextDash || isSetextEqual {
 			return nil, false, errors.New("managed header inside a Markdown fenced or setext block")
 		}
 	}

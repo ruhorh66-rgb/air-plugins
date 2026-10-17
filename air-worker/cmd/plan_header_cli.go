@@ -209,11 +209,53 @@ func planHeaderValidateAncestors(root string) error {
 	return nil
 }
 
+// Git's caller environment may activate tracing, pagers, credential helpers
+// or executable fsmonitors. None are needed for an AIR source-only preflight.
+func planHeaderSafeGitEnvironment() []string {
+	env := make([]string, 0, len(os.Environ())+7)
+	for _, v := range os.Environ() {
+		key, _, ok := strings.Cut(v, "=")
+		if !ok {
+			continue
+		}
+		upper := strings.ToUpper(key)
+		if strings.HasPrefix(upper, "GIT_") || strings.HasPrefix(upper, "GCM_") ||
+			strings.HasPrefix(upper, "SSH_") || upper == "PAGER" ||
+			upper == "XDG_CONFIG_HOME" {
+			continue
+		}
+		env = append(env, v)
+	}
+	return append(env,
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_PAGER=cat",
+		"GIT_OPTIONAL_LOCKS=0",
+		"GIT_CONFIG_COUNT=0",
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_CONFIG_GLOBAL="+os.DevNull,
+		"GIT_NO_LAZY_FETCH=1",
+	)
+}
+
 func planHeaderGitRead(root string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", root}, args...)...)
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_PAGER=cat", "GIT_OPTIONAL_LOCKS=0")
+	// Override repository-local executable helpers and non-HTTPS transports.
+	// Remote URL is validated separately, before ls-remote.
+	prefix := []string{
+		"-c", "core.fsmonitor=false",
+		"-c", "core.hooksPath=" + os.DevNull,
+		"-c", "credential.helper=",
+		"-c", "credential.interactive=never",
+		"-c", "http.followRedirects=false",
+		"-c", "protocol.ext.allow=never",
+		"-c", "protocol.file.allow=never",
+		"-c", "protocol.ssh.allow=never",
+		"-c", "protocol.git.allow=never",
+		"-C", root,
+	}
+	cmd := exec.CommandContext(ctx, "git", append(prefix, args...)...)
+	cmd.Env = planHeaderSafeGitEnvironment()
 	out, err := cmd.CombinedOutput()
 	if err != nil || len(out) > 65536 {
 		return "", errors.New("git preflight unavailable")
