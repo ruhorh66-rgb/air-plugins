@@ -1,0 +1,93 @@
+{
+  "schema": "airworker.n124.cross-branch-github-readback-audit/v1",
+  "work_code": "AW-N124-A2-PROD-AUTH-READONLY-20261018",
+  "node": "SRVLM01",
+  "date_sgt": "2026-10-18",
+  "status": "SOURCE_ONLY_READBACK_PASS__PRODUCTION_PUBLISHER_AUTHORITY_NOT_PROVEN__N124_OPEN",
+  "owner": "AirWorker worker A",
+  "trigger": "resume source-only N124 after A1 targeted PASS; AirLegal N111 blocked by DEV136 stale PLAN",
+  "done_when": "Capture exact HEAD for five public feature branches, compare native plan node numeric ID and blob SHA, distinguish ID collision from stale state, no mutation",
+  "judge": "GitHub ls-remote exact branch/HEAD plus Git ls-tree/blob SHA and frontmatter status; read-only factual verification",
+  "receipt": "air-worker/docs/receipts/AIRWORKER_N124_A2_CROSS_BRANCH_AUTHORITY_READBACK_20261018.json",
+  "source": {
+    "repo": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "source_worktree": "R:/-4-/air-worker/worktrees/airworker-n124-authority-gpt-20261018/air-worker",
+    "source_head_before_receipt": "e1e113a402393a3048c500b32dff3b81e7582a8e",
+    "remote_lookups": "github named remote, ls-remote",
+    "refs": [
+      {
+        "branch": "dev/airworker-n124-worker-a-20261018",
+        "remote_head": "e1e113a402393a3048c500b32dff3b81e7582a8e",
+        "node_count": 117
+      },
+      {
+        "branch": "dev/airworker-n124-native-identity-20261011",
+        "remote_head": "2e825982efd1b1aa468f073739b87a666bcb7b84",
+        "node_count": 117
+      },
+      {
+        "branch": "dev/airworker-n124-gpt-0119-20261018",
+        "remote_head": "7feeaa16848ede938e5d1291f1d8b793679fd125",
+        "node_count": 117
+      },
+      {
+        "branch": "dev/airworker-dev136-header-sync-20261017",
+        "remote_head": "e88af56b7ae8457907423563c1575771909ef225",
+        "node_count": 60,
+        "warning": "stale_native_plan_generation"
+      },
+      {
+        "branch": "dev/airworker-0.11.9-selflearning-only-20261011",
+        "remote_head": "f226e42f2819c59c5887ccec0f10c0796219de08",
+        "node_count": 117
+      }
+    ]
+  },
+  "findings": {
+    "branch_count": 5,
+    "shared_full_numeric_id_with_different_names": 0,
+    "stale_same_id_blob_variants": 2,
+    "status_drift": [
+      {
+        "id": "N-067_live-0-11-7-promote-marketplace-install-refresh-c",
+        "old_blob": "8d6a34c240fc088de1efccd219ee11615ef0ec23",
+        "old_status": "open",
+        "new_blob": "410174f113b6be3147737bc777b4d2bdd8422990",
+        "new_status": "closed"
+      },
+      {
+        "id": "N-068_hotfix-0-11-8-preserve-lf-aircurator-skill-paylo",
+        "old_blob": "eb7aba968af0cffc6717f813f9c7390e5042c8c3",
+        "old_status": "open",
+        "new_blob": "8711854e712d4cffbe7591c76365583450a1c2c1",
+        "new_status": "closed"
+      }
+    ],
+    "baseline_note": "DEV136 feature from an older ancestor includes 60 nodes; other inspected refs have 117; zero different numeric ID names detected in these five refs only",
+    "common_ancestor_sha": "e1213a6d71e1ccdd3d487e244cf5ad21d9d1e9ae",
+    "merge_risk": "Generic Git merge/copy of DEV136 PLAN or plan/N-* may reintroduce OPEN for nodes already CLOSED; preserve latest native statuses through accepted core CAS readback, only port scoped CODE changes",
+    "scope_limit": "5 named public feature refs, not exhaustive all private branches or foreign staged nodes"
+  },
+  "next": {
+    "id": "N124-A2-CORE-GITHUB",
+    "owner": "AirWorker core developer then Voody QA",
+    "trigger": "A2 read-only source proof",
+    "done_when": "One trusted GitHub canonical publisher authorized independently of caller-supplied branch; exact expected-old HEAD/generation CAS; authenticated request idempotency, N-ID collision and stale rejection, commit/tree/outbox receipts, verified installed product binary. No fake local fixture authority or stale private PLAN copy.",
+    "judge": "Windows positive and adversarial Git fixture tests plus independent Sol frozen source and GitHub exact remote readback",
+    "receipt": "AIRWORKER_N124_A2_GITHUB_CANONICAL_AUTHORITY_PASS_TBD",
+    "status": "OPEN_UNPROVEN"
+  },
+  "restrictions": {
+    "no_native_PLAN_change": true,
+    "no_node_close": true,
+    "no_LEARN_edit": true,
+    "no_install": true,
+    "no_release": true,
+    "no_GitHub_production_ref_update": true,
+    "no_Hermes_WIP_edit": true,
+    "no_neighbor_B_edit": true,
+    "installed_airworker": "0.11.8",
+    "roll_back": "read-only no mutation"
+  },
+  "release_ready": false
+}
