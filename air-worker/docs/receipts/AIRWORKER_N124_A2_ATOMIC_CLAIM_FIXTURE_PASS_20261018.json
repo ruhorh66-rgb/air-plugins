@@ -1,0 +1,161 @@
+{
+  "schema": "airworker.n124.a2-atomic-canonical-numeric-claim-source/v1",
+  "date_sgt": "2026-10-18",
+  "work_code": "AW-N124-A2-20261018",
+  "node": "SRVLM01",
+  "owner": "AirWorker worker line A",
+  "curator": "Voody",
+  "trigger": "LPR P0: N-124 global Git generation authority before AirLegal N-111; source-only fixture contract",
+  "status": "SOURCE_ONLY_JUDGED_PASS__N124_OPEN__PRODUCTION_AUTHORITY_HOLD",
+  "source": {
+    "repository": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-n124-atomic-claims-a2-20261018",
+    "base_sha": "e1e113a402393a3048c500b32dff3b81e7582a8e",
+    "first_source_sha": "dadee55dbe3155b29d285ff2f7afe0495e0d9ec3",
+    "corrected_source_sha": "da3adfd9d18373bc45cf73283613b54cd0a63d97",
+    "files": [
+      "air-worker/cmd/plan_candidate_publish.go",
+      "air-worker/cmd/plan_candidate_atomic_claim.go",
+      "air-worker/cmd/plan_candidate_atomic_claim_test.go"
+    ],
+    "git_commit_receipt_sha": null
+  },
+  "scope": {
+    "mode": "isolated Git bare OS-temp fixture only",
+    "purpose": "one atomic CAS update of canonical PLAN ref and numeric N-ID reservation; exact replay; fail-closed stale generation",
+    "receiver_ref": "refs/heads/canonical",
+    "reservation_namespace_fixture": "refs/air-worker/claims/N-<digits>",
+    "authorization": "does NOT enable production plan node new/close; does NOT prove GitHub can accept custom refs or atomic push",
+    "publisher": "one physical fixture publisher with two logical candidate requests",
+    "unsafe_claims_not_made": [
+      "global GitHub authority",
+      "GitHub custom refs compatibility",
+      "GitHub atomic push capability",
+      "cross-machine owner identity",
+      "actor attestation",
+      "installed-binary version attestation"
+    ]
+  },
+  "tests": {
+    "first_failing_compile": {
+      "exit_code": 1,
+      "reason": "undefined atomic-claim function before implementation",
+      "log_sha256": "4c42e75c20e4d806f928217ff095867e0a33f48996c37d64f9b3e94e82353849"
+    },
+    "stale_generation_tdd_red": {
+      "exit_code": 1,
+      "subcases_failed": 3,
+      "log_sha256": "2f63f043054971f877659f1be6400ce862b14be5a7216106e4a708963b981bea"
+    },
+    "stale_generation_tdd_green": {
+      "exit_code": 0,
+      "subcases_passed": 3,
+      "log_sha256": "5baedc5af9f8c7b2e28abc6d08207765a82c5477475f600393db2aef18da97e8"
+    },
+    "final_atomic_claim": {
+      "exit_code": 0,
+      "main_passed": 4,
+      "nested_passed": 11,
+      "coverage": [
+        "exact accepted atomic publication and replay",
+        "same numeric N-ID different slug two contenders one winner",
+        "wrong slug/number/traversal denied",
+        "preexisting claim denied even if identical commit",
+        "symbolic claim denied",
+        "stale remote denied",
+        "outbox tamper denied",
+        "HEAD drift before publication, after preflight, on replay denied"
+      ],
+      "log_sha256": "b8777b4e46cd44aa593a21bbc3d6e365fc32738e80e2c36e66c8e0a5ea4cb51a"
+    },
+    "legacy_regression": {
+      "exit_code": 0,
+      "main_passed": 6,
+      "selectors": [
+        "TestPlanCandidatePublishReplay",
+        "TestPlanCandidatePublishPending",
+        "TestPlanCandidatePublishSameObjectIsReplayNotClaim",
+        "TestPlanCandidatePublishRace",
+        "TestPlanCanonicalCloseNative",
+        "TestPlanCanonicalRecoveryLogicalRequests"
+      ],
+      "log_sha256": "fa54478098716742260680f8b684c09af5852ff134093745d8d0b559715d8754"
+    },
+    "go_vet": {
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go_build": {
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_only_binary_sha256": "3ba289de601c613a6e03a11db2ede36a63d8effe8115a5ba18c7830d883a3cc9"
+    },
+    "native_plan_lint": {
+      "exit_code": 0
+    },
+    "native_validate": {
+      "exit_code": 0
+    },
+    "full_repository_regression": "NOT_PROVEN"
+  },
+  "independent_judge": {
+    "model": "gpt-6-sol",
+    "provider": "OpenAI Codex",
+    "effort": "low",
+    "sandbox": "read-only",
+    "first": {
+      "source_sha": "dadee55dbe3155b29d285ff2f7afe0495e0d9ec3",
+      "verdict": "FAIL_P1",
+      "issue": "stale local source HEAD not checked before push/replay",
+      "result_sha256": "19164a5769f748159759d7685c9d6862182365b161eb326fa1a80dad2b9b5d9e"
+    },
+    "corrected": {
+      "source_sha": "da3adfd9d18373bc45cf73283613b54cd0a63d97",
+      "verdict": "PASS_LIMITED_FIXTURE",
+      "p0": 0,
+      "p1": 0,
+      "result_sha256": "7acb1bd97a54efa158e05fdb2456764824ff3189394a96ef551c43532925e5a1",
+      "events_sha256": "51f5e8311d59aa5438d6034a2050ef49f96913bd006bd6081a92c44cd9beed4d"
+    },
+    "limitations": [
+      "no reproduction of Go logs by reviewer",
+      "remote transaction could be in flight when source HEAD changes; pending/readback not prevention",
+      "GitHub custom-ref/atomic push and production owner attestation remain unverified"
+    ]
+  },
+  "evidence_root": "R:/-4-/air-worker/work/N124_WORKER_A_20261018",
+  "standard": "F:/-0-/AIR_OS/00_REGISTRY/00_STANDARDS/Development/DEV-136-PLAN-AUTHORITY-VAULT-INDEX.md",
+  "reference_docs": [
+    "https://git-scm.com/docs/git-push",
+    "https://docs.github.com/en/rest/git/refs"
+  ],
+  "native_state": {
+    "N124": "OPEN",
+    "DEV136": "SOURCE_ONLY_BLOCKED",
+    "AirLegal_N111": "OPEN",
+    "AirLegal_N109": "OPEN_BLOCKED"
+  },
+  "installed": {
+    "air_worker": "0.11.8",
+    "sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "unchanged": true
+  },
+  "safeguards": {
+    "no_native_PLAN_N_LEARN_direct_change": true,
+    "no_production_GitHub_canonical_refs": true,
+    "no_worker_B_files": true,
+    "no_foreign_Hermes_WIP": true,
+    "no_runtime_install": true,
+    "no_UAC_reboot_stop": true,
+    "no_published_release": true
+  },
+  "rollback": "discard/revert feature commits on isolated A2 branch; installed 0.11.8 unchanged",
+  "next": {
+    "owner": "AirWorker core + curator",
+    "trigger": "A2 fixture source PASS",
+    "done_when": "select and prove trusted GitHub canonical branch and ref namespace, server atomic CAS capability, actor/installed binary authority and full regression; then native integrate N124, DEV136 and AirLegal N111",
+    "judge": "native factual + independent source-bound semantic",
+    "receipt": "AIRWORKER_N124_PRODUCTION_GIT_AUTHORITY_PASS_TBD",
+    "status": "OPEN"
+  }
+}
