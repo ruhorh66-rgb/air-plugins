@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -245,6 +246,11 @@ var managedPlanSpineLine = regexp.MustCompile("^- \\[(open|blocked|closed)\\].*\
 // arbitrary lexicographic sort or text heading. This local preflight does
 // not replace global N124 Git authority reconciliation.
 func selectCanonicalNextOpenNode(root string, plan []byte) (string, error) {
+	// The N-node tree must be physically inside the canonical product.
+	// On Windows a junction to a foreign plan/ may look like a normal directory.
+	if err := planHeaderValidateAncestors(planNodeDir(root)); err != nil {
+		return "", err
+	}
 	if !utf8.Valid(plan) {
 		return "", errors.New("PLAN is not valid UTF-8")
 	}
@@ -276,6 +282,9 @@ func selectCanonicalNextOpenNode(root string, plan []byte) (string, error) {
 		}
 		if !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 {
 			return "", errors.New("native node file is not regular")
+		}
+		if err := planHeaderRejectOSReparse(node.Path); err != nil {
+			return "", fmt.Errorf("native node leaf reparse point: %w", err)
 		}
 		parts := planNodeIDRE.FindStringSubmatch(full)
 		if prev, exists := numeric[parts[1]]; exists && prev != full {

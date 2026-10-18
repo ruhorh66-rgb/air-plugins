@@ -48,6 +48,9 @@ func planHeaderVerifyGitPin(tool planHeaderGitTool) error {
 	if err != nil || !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || st.Size() > 300*1024*1024 {
 		return errors.New("Git tool is not a trusted regular file")
 	}
+	if err := planHeaderRejectOSReparse(tool.Path); err != nil {
+		return fmt.Errorf("Git tool leaf is a reparse point: %w", err)
+	}
 	f, err := os.Open(tool.Path)
 	if err != nil {
 		return err
@@ -206,6 +209,9 @@ func planHeaderReadPlan(root string) ([]byte, error) {
 	}
 	if !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || st.Size() > 8*1024*1024 {
 		return nil, errors.New("PLAN leaf is linked, irregular or too large")
+	}
+	if err := planHeaderRejectOSReparse(path); err != nil {
+		return nil, fmt.Errorf("PLAN leaf reparse point: %w", err)
 	}
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil || !strings.EqualFold(filepath.Clean(resolved), filepath.Clean(path)) {

@@ -205,6 +205,11 @@ func planHeaderValidateAncestors(root string) error {
 		if err != nil || info.Mode()&os.ModeSymlink != 0 {
 			return errors.New("untrusted ancestor")
 		}
+		// An NTFS junction can appear regular to Go's Lstat/EvalSymlinks.
+		// Fail closed on the Windows FILE_ATTRIBUTE_REPARSE_POINT flag.
+		if err := planHeaderRejectOSReparse(p); err != nil {
+			return fmt.Errorf("untrusted OS reparse ancestor: %w", err)
+		}
 		if parent := filepath.Dir(p); parent == p {
 			break
 		}
@@ -241,7 +246,14 @@ func planHeaderSafeGitEnvironment() []string {
 }
 
 func planHeaderActiveRelease(root string) (string, error) {
-	path := filepath.Join(root, "plan", "release-slices.json")
+	planDir := filepath.Join(root, "plan")
+	if err := planHeaderValidateAncestors(planDir); err != nil {
+		return "", fmt.Errorf("untrusted release plan directory: %w", err)
+	}
+	path := filepath.Join(planDir, "release-slices.json")
+	if err := planHeaderRejectOSReparse(path); err != nil {
+		return "", err
+	}
 	fi, err := os.Lstat(path)
 	if err != nil || !fi.Mode().IsRegular() || fi.Size() > 1048576 {
 		return "", errors.New("machine release-slices not available")
