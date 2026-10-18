@@ -1,0 +1,119 @@
+{
+  "schema": "airworker.n124.a3-windows-junction-negative-source-only/v1",
+  "date_sgt": "2026-10-18",
+  "node": "SRVLM01",
+  "work_code": "AW-N124-A3-JUNCTION-REGRESSION-20261018",
+  "status": "SOURCE_ONLY_TEST_AND_INDEPENDENT_JUDGE_PASS__N124_OPEN__A3_1_WAIT_LPR",
+  "owner": "AirWorker line A independent source worker",
+  "curator": "Voody",
+  "native_node": "N-124_p1-detect-cross-branch-node-id-collision-and-sta",
+  "native_node_status": "OPEN",
+  "trigger": "LPR requested continue after interruption; verify Windows NTFS-junction safety of native plan candidate path while GitHub canonical authority A3-1 waits explicit LPR scope",
+  "done_when": "A real disposable Windows junction must be denied for direct path, existing foreign leaf, and absent future N-leaf. Ordinary sibling and future leaf in same root must succeed. Denial must name junction itself, failed fixture construction is fatal, foreign target unchanged, native new/replay regression and vet/build RC0, independent Sol low source verdict P0/P1=0, scoped commit and GitHub exact readback.",
+  "judge": "Go host-scoped output+SHA and independent Codex gpt-6-sol low read-only on frozen corrected test SHA",
+  "source": {
+    "repo": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-n124-a3-windows-reparse-20261018",
+    "baseline_sha": "540bc7c21eb25febeba8e545b6f54290d09068ff",
+    "original_test_sha": "ecd46c7957cfe178bd8d58e3c464f143b7d96b4d",
+    "corrected_test_sha": "9b1791b0c53d9d5c3a97568b64de601daca3b5b8",
+    "only_changed_path": "air-worker/cmd/plan_candidate_junction_windows_test.go",
+    "executable_go_changed": false,
+    "original_accepted_A3_fixture_branch_untouched": true,
+    "testing_source_code_vs_accepted_baseline": "only the test file changed"
+  },
+  "verification": {
+    "original_test": {
+      "status": "PASS_BEFORE_REVIEW_NOT_TDD_RED",
+      "exit_code": 0,
+      "main_pass": 1,
+      "nested_pass": 3,
+      "log_sha256": "cb3496c2562d92a5a4e9c89545ef9107505867fb482b600a27601459f2cdae19"
+    },
+    "original_scoped_suite": {
+      "exit_code": 0,
+      "main_pass": 3,
+      "main_skip": 2,
+      "nested_junction_pass": 3,
+      "log_sha256": "268f5822d29a33a1efb4ffe485a6632443f4e52a4921cf776b05ad9acfb363a6"
+    },
+    "corrected_scoped_suite": {
+      "selector": "^Test(CandidateNoLinksRejectsWindowsJunction|PlanCandidateExistingJunctionAncestor|PlanCandidateLinkAncestor|PlanCanonicalNewNative|PlanCanonicalRecoveryLogicalRequests)$",
+      "exit_code": 0,
+      "main_pass": 3,
+      "main_skip": 2,
+      "nested_junction_pass": 3,
+      "log_sha256": "0e7d17628b4c8bb3bfd2874d332f800741c2e1f9f5ba957dc9ba994ad7704ff7"
+    },
+    "corrected_assertions": [
+      "ordinary same-root control must be accepted, avoiding false positive from linked temp ancestor",
+      "real junction creation via cmd mklink /J, failure is fatal rather than skipped",
+      "verified foreign sentinel can be read through redirect",
+      "three denial cases require error naming exact junction path",
+      "foreign target remains unmodified"
+    ],
+    "existing_skips": [
+      "TestPlanCandidateExistingJunctionAncestor: no junction/link ancestor in OS temp",
+      "TestPlanCandidateLinkAncestor: Windows symlink privilege unavailable"
+    ],
+    "go_vet": {
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go_build": {
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_only_binary_sha256": "6333ad7a6c37d5d9bbc38efe5c5d3e5a933e3a797ea289673b7c2c0078d90d85"
+    },
+    "full_repository_go_suite": "NOT_PROVEN"
+  },
+  "independent_review": {
+    "first": {
+      "model": "gpt-6-sol",
+      "effort": "low",
+      "sandbox": "read-only",
+      "source_sha": "ecd46c7957cfe178bd8d58e3c464f143b7d96b4d",
+      "verdict": "FAIL",
+      "p0": 0,
+      "p1": 1,
+      "reason": "False-positive test possible due linked test temp-root ancestor; no exact junction attribution",
+      "result_sha256": "17ae82ee6e88b2a0d37da96b216ad0503c75d64cb0df0fc5871f8cf8e89f989d"
+    },
+    "corrected": {
+      "model": "gpt-6-sol",
+      "effort": "low",
+      "sandbox": "read-only",
+      "source_sha": "9b1791b0c53d9d5c3a97568b64de601daca3b5b8",
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 0,
+      "exit_code": 0,
+      "result_sha256": "070df32bb080ff45f414b771d13d2bb336f7941760074952bc38fca10ae9ed0d",
+      "events_sha256": "01b579b0a031e1a0b4fd3081aa98ac0973112c81e9786dc8bd538a370f354c0b",
+      "scope": "test diff only, no independent execution of host tests"
+    }
+  },
+  "safety": {
+    "installed_airworker_version": "0.11.8",
+    "installed_airworker_unchanged": true,
+    "foreign_hermes_WIP_unchanged": true,
+    "worker_B_untouched": true,
+    "airlegal_PLAN_N_LEARN_untouched": true,
+    "no_manual_native_PLAN_or_N_or_LEARN": true,
+    "no_GitHub_claim_refs_or_production_plan_refs_written": true,
+    "no_LPR_approval_inferred": true,
+    "no_release_tag_install_or_reboot_uac_service_stop": true,
+    "rollback": "Feature test commits only; installed AirWorker 0.11.8 remains"
+  },
+  "open_gates": [
+    "A3-1 GitHub custom ref namespace capability and trust/signer/canonical source branch approval WAIT_LPR",
+    "A3-2 production generation handle/CAS and installed binary attestation NOT_PROVEN",
+    "N-124 native close OPEN",
+    "DEV-136 header -apply BLOCKED",
+    "AirLegal N-111 OPEN",
+    "Full Go regression and general Windows junction/symlink matrix NOT_PROVEN"
+  ],
+  "evidence_root": "R:/-4-/air-worker/work/N124_WORKER_A_20261018",
+  "next": "Preserve this source-only Windows fixture PASS, obtain explicit LPR approval for precisely scoped GitHub A3-1 two-ref capability probe and separate production authority before any real canonical ref mutation."
+}
