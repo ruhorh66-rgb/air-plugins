@@ -5,9 +5,11 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"testing"
 )
 
@@ -77,6 +79,11 @@ func TestN124ProjectionHoldRejectsNativeConcurrentWrites(t *testing.T) {
 			path := filepath.Join(root, filepath.FromSlash(name))
 			if err := os.WriteFile(path, []byte("malicious writer\n"), 0600); err == nil {
 				t.Fatalf("write to held native projection succeeded: %s", name)
+			} else if !errors.Is(err, syscall.Errno(32)) {
+				t.Fatalf("write denied for wrong reason (expected Windows ERROR_SHARING_VIOLATION): %s: %v", name, err)
+			}
+			if err := os.Rename(path, path+".moved"); err == nil {
+				t.Fatalf("rename of held native projection succeeded: %s", name)
 			}
 			if err := os.Remove(path); err == nil {
 				t.Fatalf("delete of held native projection succeeded: %s", name)
@@ -127,8 +134,10 @@ func TestN124ProjectionHoldDeniesSecondProcessWriter(t *testing.T) {
 	if target := os.Getenv("N124_PROJECTION_CHILD_WRITER"); target != "" {
 		if err := os.WriteFile(target, []byte("unexpected independent write\n"), 0600); err == nil {
 			t.Fatal("separate process modified held native source")
+		} else if !errors.Is(err, syscall.Errno(32)) {
+			t.Fatalf("separate writer failed for wrong reason (not Windows sharing violation): %v", err)
 		}
-		println("N124_CHILD_WRITE_DENIED")
+		println("N124_CHILD_SHARING_VIOLATION_CONFIRMED")
 		return
 	}
 	root, _, _ := n124ProjectionHoldFixture(t)
@@ -145,7 +154,7 @@ func TestN124ProjectionHoldDeniesSecondProcessWriter(t *testing.T) {
 	cmd := exec.Command(os.Args[0], "-test.run=^TestN124ProjectionHoldDeniesSecondProcessWriter$", "-test.v")
 	cmd.Env = append(os.Environ(), "N124_PROJECTION_CHILD_WRITER="+path)
 	output, childErr := cmd.CombinedOutput()
-	if childErr != nil || !bytes.Contains(output, []byte("N124_CHILD_WRITE_DENIED")) {
+	if childErr != nil || !bytes.Contains(output, []byte("N124_CHILD_SHARING_VIOLATION_CONFIRMED")) {
 		t.Fatalf("separate writer not held safely: err=%v output=%s", childErr, output)
 	}
 	current, err := os.ReadFile(path)
