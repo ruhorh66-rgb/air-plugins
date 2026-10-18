@@ -1,0 +1,151 @@
+{
+  "schema": "airworker.n124.a3-2-windows-handle-fixture-evidence/v1",
+  "date_sgt": "2026-10-18",
+  "node": "SRVLM01",
+  "work_code": "AW-N124-A3-2-WINDOWS-HANDLE-20261018",
+  "status": "SOURCE_ONLY_SCOPED_JUDGED_PASS__N124_OPEN__TRUSTED_CANONICAL_AUTHORITY_HOLD",
+  "owner": "AirWorker line A source worker",
+  "curator": "Voody",
+  "trigger": "LPR continue after A3-1 GitHub atomic capability PASS and guarded cleanup; N124 still OPEN, mid-read race P2 remains without stable OS handles",
+  "done_when": "Source-only Windows file-handle prototype with isolated-fixture declaration and pinned authority, bounded PLAN/node/LEARN reads, negative cross-process write/delete/rename, hardlink, junction, overlimit and N-ID addition detection; targeted native CAS regression; full source SHA, independent Sol medium P0/P1=0, commit/readback, explicit nonproduction limits",
+  "judge": "SRVLM01 native Go exact exit+log hash and read-only Codex gpt-6-sol medium on frozen source SHA",
+  "receipt": "docs/receipts/AIRWORKER_N124_A3_2_WINDOWS_HANDLE_FIXTURE_20261018.json",
+  "rollback": "Discard/revert only this feature branch source commits 7c1fa93, 3fe560e and 12f1db3; leave installed AirWorker 0.11.8 and every other WIP untouched",
+  "native_node": "N-124_p1-detect-cross-branch-node-id-collision-and-sta",
+  "native_status": "OPEN",
+  "source": {
+    "repository": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-n124-a3-handle-fence-20261018",
+    "baseline": "f0a504c48607934f9900ab076d3590bbae178596",
+    "source_commits": [
+      "7c1fa93476eb8dcf6510f9de524165a6bea161d6",
+      "3fe560e4656444c97b988300452185123177a6a2",
+      "12f1db361b3ad803e3c9c4dc83a3552b13c46c4c"
+    ],
+    "frozen_executable_and_test_sha": "12f1db361b3ad803e3c9c4dc83a3552b13c46c4c",
+    "source_paths": [
+      "air-worker/cmd/plan_canonical_projection_hold_windows.go",
+      "air-worker/cmd/plan_canonical_projection_hold_windows_test.go"
+    ],
+    "native_core_new_close_routing_modified": false,
+    "source_only_windows_build": true
+  },
+  "scope": {
+    "isolated_temp_root_only": true,
+    "declared_authority_mode": "isolated-fixture",
+    "authority_json_cryptographically_trusted": false,
+    "fixed_local_ntfs_refs_required": true,
+    "immutable_existing_files_during_held_handles": true,
+    "stable_global_generation_claim": false,
+    "durable_owner_authority": false,
+    "production_plan_mutation_allowed": false
+  },
+  "behavior": {
+    "existing_native_and_authority_files": "Windows GENERIC_READ + FILE_SHARE_READ blocks write and delete; rename denied while handle held",
+    "cross_process": "second spawned Go test process got ERROR_SHARING_VIOLATION 32",
+    "pinned_authority": "plan-authority.json is held and reverified, fails if missing or declared production mode",
+    "untrusted_files": "hardlink, NTFS junction, oversized, existing writer rejected, no UAC",
+    "new_node": "Windows directory handle does NOT block new file creation; persistent new N-ID is detected by Verify and results in denial",
+    "foreign_wip": "unrelated path remains writable",
+    "after_release": "test confirms PLAN file writable after Close"
+  },
+  "tests": {
+    "expected_compile_red": {
+      "exit_code": 1,
+      "sha256": "6ac9310187ad63cf6e83b41b2e2620a3e0832d14bce8a464b4e220e5fb485944",
+      "reason": "undefined holdN124ReplayProjection before first implementation"
+    },
+    "functional_red_directory_create": {
+      "exit_code": 1,
+      "sha256": "35b36400f17815ad221cf1ef6085363c4efeaa2af4197bf42dbca21a28431151",
+      "reason": "initial assumption directory share handle forbids new N-ID was false; corrected to detect persistent membership rather than claim impossible prevention"
+    },
+    "final_host_window_matrix": {
+      "selector": "^TestN124ProjectionHold",
+      "main_pass": 7,
+      "nested_pass": 6,
+      "skip": 0,
+      "exit_code": 0,
+      "log_sha256": "cccdbc0a4306429359dd332fbcf297c43e299d13faa4777c4cb67f404ab464f5"
+    },
+    "final_sha_native_regression": {
+      "selector": "^TestPlanCanonical(NewNative|RecoveryLogicalRequests|CloseNative|RecoveryRejectsMidReadMutation)$",
+      "main_pass": 4,
+      "nested_pass": 3,
+      "exit_code": 0,
+      "log_sha256": "2588c13243224d66f1d65e24f8c46d4e6392a845f5464c7dff169ddece0987ed"
+    },
+    "final_sha_atomic_numeric_claim": {
+      "selector": "^TestPlanCandidateAtomicClaim",
+      "main_pass": 4,
+      "nested_pass": 11,
+      "exit_code": 0,
+      "log_sha256": "9c2d9174013f0f707a76fecc2f092485a49e4d4931872e77d6c0a3af45215eb7"
+    },
+    "go_vet": {
+      "exit_code": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go_build": {
+      "exit_code": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_only_binary_sha256": "2d66678da266d0f2ec9e9cb053daf9bcf0824e4588007f42037d7e7cf8432b70"
+    },
+    "installed_version": "0.11.8",
+    "native_plan_lint_exit_code": 0,
+    "native_validate_exit_code": 0,
+    "full_go_regression": "NOT_PROVEN"
+  },
+  "independent_reviews": [
+    {
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "source_sha": "3fe560e4656444c97b988300452185123177a6a2",
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 2,
+      "sha256": "74d8af92514c31c6d23ba855b5d62a95cdd29e37ce0955ecfd0ae8cda27a9d32",
+      "note": "P2 child-process error attribution and rename test missing"
+    },
+    {
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "source_sha": "12f1db361b3ad803e3c9c4dc83a3552b13c46c4c",
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 0,
+      "exit_code": 0,
+      "sha256": "2f9ebe1d9dc3b968134f63f3088b191ea57b908f99f45c7e5195b06c5be0a316",
+      "events_sha256": "3ff6012d64fea6bbe8e672d7ffb04130086a560beb284512c9fce3ff0758229e",
+      "note": "two P2 test gaps corrected; source-only verdict, not independent Go replay"
+    }
+  ],
+  "unresolved": [
+    "Untrusted process can transiently create then remove N before Verify, or mutate after handles Close; no durable global generation lock",
+    "Only cooperative native writers are within eventual publisher authority; no production shared state owner lease",
+    "Actual production canonical GitHub branch/ref and cryptographic publisher signer not decided",
+    "No installed AirWorker version contains this primitive; full Go regression not proven",
+    "N-124 and AirLegal N-111 remain OPEN; DEV136 header sync -apply blocked"
+  ],
+  "safety": {
+    "github_production_claim_refs_written": false,
+    "github_A3_1_probe_cleaned_separately": true,
+    "native_PLAN_nodes_LEARN_modified": false,
+    "foreign_Hermes_WIP_preserved": true,
+    "neighbor_worker_B_untouched": true,
+    "airlegal_dirty_plan_preserved": true,
+    "no_tag_release_install_reboot_uac_service_stop": true,
+    "installed_rollback_baseline_sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94"
+  },
+  "next": {
+    "stage": "N124-A3-2-PRODUCTION_GEN_LOCK_AND_SIGNER",
+    "status": "WAIT_TRUSTED_CANONICAL_OWNER_AND_MORE_SOURCE_WORK",
+    "owner": "Voody curator + AirWorker core",
+    "trigger": "A3-1 GitHub atomic protocol PASS plus bounded Windows fixture PASS",
+    "done_when": "Select and attest canonical GitHub PLAN ref, trusted publisher and installed binary; implement native core integration with durable cross-process generation claim eliminating ABA and changed-after-final-read; full Windows/Go QA, factual/semantic judges, rollback before native N124 close",
+    "judge": "native end-to-end + independent gpt-6-sol medium exact SHA",
+    "receipt": "AIRWORKER_N124_A3_PRODUCTION_AUTHORITY_PASS_TBD"
+  }
+}
