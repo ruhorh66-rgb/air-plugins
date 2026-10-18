@@ -109,8 +109,26 @@ func recoverCanonicalFixtureNew(
 		node.CreatedAt != node.UpdatedAt || len(node.Receipts) != 0 {
 		return conflict("accepted node creation provenance malformed")
 	}
+	// A canonical child alone is not an accepted atomic node allocation.
+	// The original numeric N-ID must still be bound to that EXACT commit,
+	// with no symbolic ref or competing slug. The caller already holds the
+	// disposable origin lock. This grants no GitHub or production authority.
+	match := planNodeIDRE.FindStringSubmatch(id)
+	if match == nil {
+		return conflict("accepted native node number unavailable")
+	}
+	claimRef := "refs/air-worker/claims/N-" + match[1]
+	claimed, err := run(origin, "for-each-ref", "--format=%(refname)|%(objectname)|%(symref)", claimRef)
+	if err != nil || claimed != claimRef+"|"+remote+"|" {
+		return conflict("canonical exact replay lacks immutable numeric N-ID claim")
+	}
 	if accepted, err := run(origin, "rev-parse", "--verify", "refs/heads/canonical"); err != nil || accepted != remote {
 		return conflict("canonical ref changed while verifying recovery")
+	}
+	// Final claim readback fences an independently altered reservation after
+	// verifying the canonical ref; mismatch fails closed, never repairs refs.
+	if confirmed, err := run(origin, "for-each-ref", "--format=%(refname)|%(objectname)|%(symref)", claimRef); err != nil || confirmed != claimed {
+		return conflict("numeric N-ID claim changed while verifying recovery")
 	}
 	return node, nil
 }

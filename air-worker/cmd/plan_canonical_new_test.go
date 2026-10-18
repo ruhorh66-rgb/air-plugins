@@ -65,6 +65,12 @@ func TestPlanCanonicalNewNative(t *testing.T) {
 	if result.OID == old || result.OID != candidateGit(t, origin, "rev-parse", publishRef) {
 		t.Fatalf("native result does not identify remote candidate: %s", out)
 	}
+	// A native new MUST reserve its numeric N-ID atomically with PLAN.
+	// A plain canonical commit is insufficient: another stale branch could
+	// reuse N120 under a different slug.
+	if claim := candidateGit(t, origin, "rev-parse", "refs/air-worker/claims/N-120"); claim != result.OID {
+		t.Fatalf("native new lacks atomic N120 numeric claim: claim=%s want=%s", claim, result.OID)
+	}
 	if !reflect.DeepEqual(before, candidateOriginal(t, root)) {
 		t.Fatal("native canonical new changed local PLAN/node/LEARN/index/refs")
 	}
@@ -84,6 +90,35 @@ func TestPlanCanonicalNewNative(t *testing.T) {
 	if err := validateCandidateContent("", "native-120", files); err != nil {
 		t.Fatal(err)
 	}
+	// A malicious or failed publisher can leave the canonical commit without
+	// the numeric N-ID reservation. A retry MUST NOT claim that partial state
+	// was an accepted atomic operation.
+	claim120 := "refs/air-worker/claims/N-120"
+	candidateGit(t, origin, "update-ref", "-d", claim120, result.OID)
+	missingBefore, missingRemoteBefore := candidateOriginal(t, root), n124Snapshot(t, origin)
+	missing, missingRC := captureStdout(t, func() int {
+		return cmdPlanNode([]string{"new", "-product", root, "-request-id", "native-120",
+			"-title", "Next", "-parent", "PLAN.md", "-owner", "fixture",
+			"-done-when", "verified", "-trigger", "fixture", "-json"})
+	})
+	if missingRC == 0 || !strings.Contains(missing, `"action":"conflict"`) ||
+		!reflect.DeepEqual(missingBefore, candidateOriginal(t, root)) ||
+		!reflect.DeepEqual(missingRemoteBefore, n124Snapshot(t, origin)) {
+		t.Fatalf("replayed canonical without numeric claim: rc=%d %s", missingRC, missing)
+	}
+	candidateGit(t, origin, "update-ref", claim120, old)
+	wrongBefore, wrongRemoteBefore := candidateOriginal(t, root), n124Snapshot(t, origin)
+	wrongClaim, wrongClaimRC := captureStdout(t, func() int {
+		return cmdPlanNode([]string{"new", "-product", root, "-request-id", "native-120",
+			"-title", "Next", "-parent", "PLAN.md", "-owner", "fixture",
+			"-done-when", "verified", "-trigger", "fixture", "-json"})
+	})
+	if wrongClaimRC == 0 || !strings.Contains(wrongClaim, `"action":"conflict"`) ||
+		!reflect.DeepEqual(wrongBefore, candidateOriginal(t, root)) ||
+		!reflect.DeepEqual(wrongRemoteBefore, n124Snapshot(t, origin)) {
+		t.Fatalf("replayed canonical with foreign numeric claim: rc=%d %s", wrongClaimRC, wrongClaim)
+	}
+	candidateGit(t, origin, "update-ref", claim120, result.OID, old)
 	retry, code := captureStdout(t, func() int {
 		return cmdPlanNode([]string{"new", "-product", root, "-request-id", "native-120",
 			"-title", "Next", "-parent", "PLAN.md", "-owner", "fixture",
@@ -147,6 +182,13 @@ func TestPlanCanonicalNewNative(t *testing.T) {
 	}
 	if !reflect.DeepEqual(syncedBefore, candidateOriginal(t, root)) {
 		t.Fatal("fresh N121 allocation modified local PLAN/LEARN/WIP")
+	}
+	if claim := candidateGit(t, origin, "rev-parse", "refs/air-worker/claims/N-121"); claim != nextResult.OID {
+		t.Fatalf("native new lacks atomic N121 claim: claim=%s want=%s", claim, nextResult.OID)
+	}
+	if got := candidateGit(t, origin, "for-each-ref", "--format=%(refname)", "refs/air-worker/claims/"); got !=
+		"refs/air-worker/claims/N-120\nrefs/air-worker/claims/N-121" {
+		t.Fatalf("expected exactly one immutable claim per native allocation, got %s", got)
 	}
 }
 

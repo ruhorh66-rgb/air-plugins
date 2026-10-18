@@ -268,7 +268,11 @@ func cmdPlanCanonicalFixtureNew(root, origin string, req sharedPlanCreateRequest
 	if err := configLock.Verify(); err != nil {
 		return fail(err)
 	}
-	if err := publishPlanCandidateCAS(ctx, root, origin, "refs/heads/canonical", candidate, old); err != nil {
+	// The standalone Git fixture publisher must commit its numeric N-ID
+	// reservation and canonical PLAN generation in the SAME atomic transaction.
+	// No production path is routed here: planCanonicalFixtureOrigin checked
+	// disposable OS-temp Git identity above, and production remains blocked.
+	if err := publishPlanCandidateAtomicClaim(ctx, root, origin, candidate, old, id); err != nil {
 		return fail(err)
 	}
 	if asJSON {
