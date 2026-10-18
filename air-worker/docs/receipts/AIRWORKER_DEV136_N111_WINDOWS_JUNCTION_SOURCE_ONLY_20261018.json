@@ -1,0 +1,106 @@
+{
+  "schema": "airworker.dev136.n111.windows-junction-source-acceptance/v1",
+  "work_code": "AW-DEV136-A3-P0-20261018",
+  "date_sgt": "2026-10-18",
+  "status": "SOURCE_ONLY_TARGETED_PASS_P0P1_0_P2_1__N124_N111_OPEN",
+  "owner": "AirWorker worker A",
+  "curator": "Voody",
+  "node": "SRVLM01",
+  "trigger": "AirLegal N111 DEV136 source header-sync guard, verified Windows NTFS junction bypass",
+  "scope": "source-only Windows reparse protection for DEV136 read-only plan-header preflight, not production authority or applied plan header",
+  "source": {
+    "repository": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-dev136-negative-a-20261018",
+    "base": "e88af56b7ae8457907423563c1575771909ef225",
+    "code_commit": "96e31392c70ddb54e41d093676614fb0bb795400",
+    "final_test_commit": "87c31ec0cb97f3f78194eba82c807e7868ebb65d",
+    "source_root": "R:/-4-/air-worker/worktrees/airworker-dev136-negative-a-20261018/air-worker",
+    "changed_paths": [
+      "air-worker/cmd/plan_header_cli.go",
+      "air-worker/cmd/plan_header_git_safe.go",
+      "air-worker/cmd/plan_header_sync.go",
+      "air-worker/cmd/plan_header_junction_windows_test.go",
+      "air-worker/cmd/plan_header_reparse_windows.go",
+      "air-worker/cmd/plan_header_reparse_other.go"
+    ]
+  },
+  "defect": {
+    "description": "Windows Go Lstat/EvalSymlinks did not recognize disposable NTFS junction in plan/; active release parser accepted foreign release-slices.json 1.9.7",
+    "real_physical_file_alias": "verified by os.SameFile on temporary test data",
+    "red_rc": 1,
+    "red_log_sha256": "8e73d2db390170fad875f94725b3970cf1ed4836db084a3292c449739028b8ff",
+    "fix": "GetFileAttributes FILE_ATTRIBUTE_REPARSE_POINT checked on every product ancestor and Git/PLAN/release/node leaves before trusting them",
+    "no_prod_read_or_mutation": true
+  },
+  "tests": {
+    "early_green_rc": 0,
+    "early_green_sha256": "c2c3f41953b9a777dfa7375e40dbe13ac8c2c0cd74a55c2e24b1486c8063a6b6",
+    "p2_focused": {
+      "main": 3,
+      "passed": 3,
+      "rc": 0,
+      "sha256": "c3b46bf2f88f851ece484ae35114ac6b98488d5d5ebacb924c47098ff9b46bb8"
+    },
+    "final_targeted": {
+      "selector": "^TestPlanHeader",
+      "main_pass": 24,
+      "nested_pass": 29,
+      "skip": 1,
+      "rc": 0,
+      "sha256": "2940b5fc4011a55e8f1e6d4d54116dc31641702c54f86f19555eaf9fe1e335d3",
+      "skip_reason": "legacy symlink-leaf test needs Windows privilege; new NTFS junction tests pass without UAC"
+    },
+    "go_vet_rc": 0,
+    "go_build_rc": 0,
+    "isolated_binary_sha256": "1a29d0e2f6ab1f1aa8632648c131117eef9f06fdeaaaff7cda95e5778164a06a",
+    "test_log_dir": "R:/-4-/air-worker/work/DEV136_A3_SOURCE_QA_20261018",
+    "full_go_regression": "NOT_PROVEN",
+    "git_diff_check": "PASS"
+  },
+  "independent_semantic": {
+    "model": "gpt-6-sol",
+    "effort": "medium",
+    "sandbox": "read-only",
+    "first_review": {
+      "source_sha": "96e31392c70ddb54e41d093676614fb0bb795400",
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 1,
+      "review_sha256": "ea12fb4d57d6d22d1fda9980cf0806ef4b9248535391a8ebf048e4e8e0a265f3"
+    },
+    "second_review": {
+      "source_sha": "87c31ec0cb97f3f78194eba82c807e7868ebb65d",
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 1,
+      "review_sha256": "93775056e0f24b59580acb6a7deae02437e2fbcc72003c3e0c870ec6291f4017",
+      "remaining_p2": "Concurrent replacement or growth remains possible between preflight and unbounded readPlanNode; only read-only diagnostic; fix with bounded stable-handle reads under N124 authority before enabling mutation"
+    }
+  },
+  "dependencies": {
+    "native_N124": "OPEN_PRODUCTION_AUTHORITY_NOT_PROVEN",
+    "AirLegal_N111": "OPEN",
+    "DEV136_header_apply": "BLOCKED_ALWAYS_SOURCE_ONLY",
+    "installed_binary_attestation": "NOT_PROVEN",
+    "live_airworker": "0.11.8",
+    "native_plan_close": "NOT_ALLOWED",
+    "AirLegal_release_1_9_7": "NOT_ALLOWED"
+  },
+  "safety": {
+    "no_plan_nodes_LEARN_manual_edit": true,
+    "no_foreign_WIP_overwrite": true,
+    "original_DEV136_16_untracked_preserved": true,
+    "neighbor_B_untouched": true,
+    "no_GitHub_canonical_ref_write": true,
+    "no_release_install_reboot_uac_service_stop": true,
+    "no_privilege_escalation": true,
+    "rollback": "revert feature branch only; installed AirWorker 0.11.8 remains unchanged"
+  },
+  "next": {
+    "step": "A3 native authority and stable-handle/canonical lock proof, then DEV136 apply with verified installed binary and AirLegal N111 acceptance",
+    "judge": "full native Go and independent reviewer frozen HEAD",
+    "status": "BLOCKED_GLOBAL_AUTHORITY"
+  }
+}
