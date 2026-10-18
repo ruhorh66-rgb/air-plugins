@@ -1,0 +1,119 @@
+{
+  "schema": "airworker.n124.a3-mid-read-race-source-only/v1",
+  "date_sgt": "2026-10-18",
+  "node": "SRVLM01",
+  "work_code": "AW-N124-A3-MIDREAD-20261018",
+  "status": "SOURCE_ONLY_SCOPED_JUDGED_PASS__N124_OPEN__PRODUCTION_GENERATION_HOLD",
+  "priority": "P0 AirWorker N124 before DEV136 and AirLegal N111",
+  "native_node": "N-124_p1-detect-cross-branch-node-id-collision-and-sta",
+  "native_node_status": "OPEN",
+  "scope": "Only exact replay inside disposable OS-temp git-canonical-fixture; no changes to real canonical GitHub refs, PLAN.md, plan/N-*, LEARN, or installed binary",
+  "source": {
+    "repository": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-n124-a3-race-read-20261018",
+    "base_head": "540bc7c21eb25febeba8e545b6f54290d09068ff",
+    "frozen_code_commit": "36b6febd16eba8058d18034a8f78e4705a2ea7d8",
+    "changed_paths": [
+      "air-worker/cmd/plan_canonical_replay.go",
+      "air-worker/cmd/plan_canonical_projection_race_test.go"
+    ],
+    "executable_changes_only_in_disposable_fixture_recovery": true
+  },
+  "factual": {
+    "failure": {
+      "test": "TestPlanCanonicalRecoveryRejectsMidReadMutation",
+      "subcases_failed": 3,
+      "exit_code": 1,
+      "log_sha256": "1711bfa78f2009f42fa332020facb4d0bc0f4e4f262741b3c098814c86798169",
+      "reason": "Previous native replay wrongly acknowledged changed N119, LEARN, and PLAN during Git parent blob reads"
+    },
+    "initial_green": {
+      "test": "TestPlanCanonicalRecoveryRejectsMidReadMutation",
+      "subcases_passed": 3,
+      "exit_code": 0,
+      "log_sha256": "83fa99fb03dfc23bb6d7f2c4812c2303c1aea6f908d30337c779e706d3cf7158"
+    },
+    "regression": {
+      "selector": "^TestPlanCanonical(RecoveryRejectsMidReadMutation|NewNative|RecoveryLogicalRequests|CloseNative|CloseRejects)$",
+      "main_pass": 5,
+      "nested_pass": 25,
+      "exit_code": 0,
+      "log_sha256": "fd05442aa7c6ca0843002cf6d99da1440d4ca3f53f00eb0134439699d97c2787"
+    },
+    "go_vet": {
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go_build": {
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "candidate_binary_sha256": "5fc0553bbce7bcec7ce7a70f246dbe75bafcf1a6eb8feec1971fda49616aeb6b",
+      "candidate_installed": false
+    },
+    "native_plan_lint": {
+      "exit_code": 0
+    },
+    "native_validate": {
+      "exit_code": 0
+    },
+    "full_go_regression": "NOT_PROVEN",
+    "privileged_windows_junction_matrix": "NOT_PROVEN"
+  },
+  "independent_judge": {
+    "tool": "OpenAI Codex",
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "sandbox": "read-only",
+    "source_sha": "36b6febd16eba8058d18034a8f78e4705a2ea7d8",
+    "process_exit_code": 0,
+    "verdict": "PASS",
+    "p0": 0,
+    "p1": 0,
+    "p2": 2,
+    "result_sha256": "ee16d7274a195d3d812cf58e7ae06c2ee950fe87c54109b9e4979589a2b659b3",
+    "limitations": [
+      "TOCTOU remains after final projection scan, before returned success; stable cross-process generation fence is not proven",
+      "File identity/mtime checks cannot defeat in-place same-identity same-size changes with restored timestamps or Windows reparse races"
+    ]
+  },
+  "behavior": {
+    "before": "os.ReadFile(native file) then untrusted gap while Git cat-file returns original bytes; mid-read mutation can be accepted",
+    "after": "bounded file read with pre/open/post OS identity and size/modtime checks; second bounded read after Git blob; same identity and both bytes must match original Git blob",
+    "deterministic_scenarios": [
+      "native plan N-119 node changed during immutable Git read",
+      "learn/events.jsonl changed during immutable Git read",
+      "PLAN.md changed during immutable Git read"
+    ],
+    "test_mutations_disposable_fixture_only": true
+  },
+  "approvals": {
+    "github_probe_approval_packet": "https://github.com/ruhorh66-rgb/AirWorker_Wiki/blob/8303097a9395366810940341a4a29d17049b12b0/01_TASKS/AIRWORKER_N124_A3_1_GITHUB_PROBE_APPROVAL_20261018.md",
+    "status": "WAIT_LPR_EXPLICIT_YES",
+    "github_custom_claim_ref_capability": "NOT_PROVEN",
+    "global_nid_cas_trusted_publisher": "NOT_PROVEN",
+    "installed_binary_authority": "NOT_PROVEN",
+    "permission_to_close_N124": false,
+    "permission_to_apply_DEV136": false,
+    "permission_to_publish_release": false,
+    "permission_to_install_release": false
+  },
+  "safety": {
+    "foreign_Hermes_WIP_preserved": true,
+    "worker_B_untouched": true,
+    "AirLegal_foreign_WIP_untouched": true,
+    "native_PLAN_nodes_LEARN_untouched": true,
+    "installed_airworker_version": "0.11.8",
+    "installed_sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "rollback": "revert only scoped source code commit 36b6feb if rejected; installed 0.11.8 unchanged",
+    "no_reboot_uac_service_stop": true
+  },
+  "next": {
+    "owner": "AirWorker line A and Voody curator",
+    "trigger": "A3 fixture source pass",
+    "done_when": "Approved trusted GitHub canonical ref/publisher plus generation lock, Windows reparse and final-read race closed by stable handles or equivalent independent mechanism, native full regression, independent judgment; then DEV136 and AirLegal N111",
+    "judge": "factual native + independent source-bound reviewer",
+    "receipt": "AIRWORKER_N124_A3_PRODUCTION_AUTHORITY_PASS.json",
+    "status": "BLOCKED_A3_1_AND_STABLE_HANDLE"
+  },
+  "evidence_root": "R:/-4-/air-worker/work/N124_WORKER_A_20261018"
+}
