@@ -277,8 +277,13 @@ func planAuditReadSnapshot(root, prefix, commit string) (planAuditSnapshot, erro
 		if err != nil || n.ID != id {
 			return planAuditSnapshot{}, errors.New("native node filename/ID/content mismatch")
 		}
-		if bytes.Count(planRaw, []byte("[["+id+"]]")) != 1 {
-			return planAuditSnapshot{}, errors.New("native node does not have exactly one canonical PLAN spine entry")
+		// A single literal [[ID]] anywhere in PLAN is insufficient: it
+		// could be a forged line in prose while the native status/owner
+		// differ. Require the exact line the core emits for this node.
+		planText := strings.ReplaceAll(string(planRaw), "\r\n", "\n")
+		expectedLine := spineNodeLine(n)
+		if strings.Count("\n"+planText+"\n", "\n"+expectedLine+"\n") != 1 {
+			return planAuditSnapshot{}, errors.New("native node and immutable PLAN spine line differ")
 		}
 		sum := sha256.Sum256(content)
 		snapshot.Nodes = append(snapshot.Nodes, planAuditNode{

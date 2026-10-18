@@ -208,3 +208,35 @@ func TestPlanAuthorityAuditBrokenCommittedSpine(t *testing.T) {
 		t.Fatal("immutable previous generation must remain readable:", err)
 	}
 }
+
+func TestPlanAuthorityAuditRejectsFakeSpineLine(t *testing.T) {
+	_, root, _ := n124ProbeClones(t)
+	file := filepath.Join(root, "PLAN.md")
+	raw, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := string(raw)
+	lines := strings.Split(original, "\n")
+	found := false
+	for i, line := range lines {
+		if strings.Contains(line, "[[N-119_base]]") {
+			// Keep the marker and link once, but forge owner/status/title.
+			lines[i] = "- [closed] fake-parent • owner:attacker • [[N-119_base]] • forged PASS"
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("fixture missing native spine entry")
+	}
+	if err := os.WriteFile(file, []byte(strings.Join(lines, "\n")), 0600); err != nil {
+		t.Fatal(err)
+	}
+	n124ProbeMustGit(t, root, "", "add", "PLAN.md")
+	n124ProbeMustGit(t, root, "", "commit", "-m", "forged spine line")
+	sha := n124ProbeMustGit(t, root, "", "rev-parse", "HEAD")
+	if _, err := planAuditReadSnapshot(root, "", sha); err == nil {
+		t.Fatal("forged status/owner in PLAN line must never pass read-only native audit")
+	}
+}
