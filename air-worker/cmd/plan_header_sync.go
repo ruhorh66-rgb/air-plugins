@@ -257,6 +257,30 @@ func selectCanonicalNextOpenNode(root string, plan []byte) (string, error) {
 	if bytes.Count(plan, []byte(planNodeMarker)) != 1 {
 		return "", errors.New("missing or ambiguous native plan spine")
 	}
+	// Validate every candidate leaf BEFORE listPlanNodes opens its bytes.
+	// A Windows junction/reparse leaf can look regular to Go's Lstat and
+	// otherwise could read an arbitrary foreign or oversized file.
+	entries, err := os.ReadDir(planNodeDir(root))
+	if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if !strings.HasPrefix(name, "N-") || !strings.HasSuffix(strings.ToLower(name), ".md") {
+			continue
+		}
+		leaf := filepath.Join(planNodeDir(root), name)
+		if err := planHeaderRejectOSReparse(leaf); err != nil {
+			return "", fmt.Errorf("native node leaf reparse point: %w", err)
+		}
+		st, err := os.Lstat(leaf)
+		if err != nil || !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 {
+			return "", errors.New("native node leaf is not regular")
+		}
+		if st.Size() > 1024*1024 {
+			return "", errors.New("native node leaf exceeds preflight byte limit")
+		}
+	}
 	nodes, err := listPlanNodes(root)
 	if err != nil {
 		return "", err

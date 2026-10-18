@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -92,5 +93,35 @@ func TestPlanHeaderRejectsJunctionProductRoot(t *testing.T) {
 	original, err := os.ReadFile(filepath.Join(physical, "PLAN.md"))
 	if err != nil || !bytes.Equal(original, body) {
 		t.Fatalf("product-root junction guard modified original PLAN: %v", err)
+	}
+}
+
+func TestPlanHeaderRejectsOversizedNodeBeforeParsing(t *testing.T) {
+	root := seedPlanNodeProduct(t)
+	if code := cmdPlanNodeNew([]string{
+		"-product", root, "-title", "Witness", "-parent", "Stage",
+		"-owner", "fixture", "-trigger", "oversize source", "-done-when", "reject",
+	}); code != 0 {
+		t.Fatalf("fixture native node new rc=%d", code)
+	}
+	nodes, err := listPlanNodes(root)
+	if err != nil || len(nodes) != 1 {
+		t.Fatalf("expected one native node: %v", err)
+	}
+	plan, err := os.ReadFile(filepath.Join(root, "PLAN.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	oversize := bytes.Repeat([]byte("X"), 1024*1024+1)
+	if err := os.WriteFile(nodes[0].Path, oversize, 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := selectCanonicalNextOpenNode(root, plan)
+	if err == nil || !strings.Contains(err.Error(), "exceeds preflight byte limit") {
+		t.Fatalf("oversized untrusted node should be rejected before parsing, got=%q err=%v", got, err)
+	}
+	readback, err := os.ReadFile(nodes[0].Path)
+	if err != nil || !bytes.Equal(readback, oversize) {
+		t.Fatalf("preflight changed foreign oversized test bytes: %v", err)
 	}
 }
