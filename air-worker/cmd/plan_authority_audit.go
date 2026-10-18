@@ -282,7 +282,8 @@ func planAuditReadSnapshot(root, prefix, commit string) (planAuditSnapshot, erro
 		// differ. Require the exact line the core emits for this node.
 		planText := strings.ReplaceAll(string(planRaw), "\r\n", "\n")
 		expectedLine := spineNodeLine(n)
-		if strings.Count("\n"+planText+"\n", "\n"+expectedLine+"\n") != 1 {
+		if strings.Count(planText, "[["+id+"]]") != 1 ||
+			strings.Count("\n"+planText+"\n", "\n"+expectedLine+"\n") != 1 {
 			return planAuditSnapshot{}, errors.New("native node and immutable PLAN spine line differ")
 		}
 		sum := sha256.Sum256(content)

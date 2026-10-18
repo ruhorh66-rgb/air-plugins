@@ -240,3 +240,25 @@ func TestPlanAuthorityAuditRejectsFakeSpineLine(t *testing.T) {
 		t.Fatal("forged status/owner in PLAN line must never pass read-only native audit")
 	}
 }
+
+func TestPlanAuthorityAuditRejectsDuplicateSpineLink(t *testing.T) {
+	_, root, _ := n124ProbeClones(t)
+	file := filepath.Join(root, "PLAN.md")
+	raw, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Keep the correct native spine line while injecting a conflicting
+	// second reference with the same numeric/whole ID elsewhere in PLAN.
+	injected := append(append([]byte{}, raw...),
+		[]byte("\n- [closed] forged-parent | owner:attacker | [[N-119_base]] | fake PASS\n")...)
+	if err := os.WriteFile(file, injected, 0600); err != nil {
+		t.Fatal(err)
+	}
+	n124ProbeMustGit(t, root, "", "add", "PLAN.md")
+	n124ProbeMustGit(t, root, "", "commit", "-m", "duplicate native link")
+	sha := n124ProbeMustGit(t, root, "", "rev-parse", "HEAD")
+	if _, err := planAuditReadSnapshot(root, "", sha); err == nil {
+		t.Fatal("duplicate native ID link must be rejected even with one exact spine line")
+	}
+}
