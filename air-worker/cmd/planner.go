@@ -38,6 +38,12 @@ func cmdPlan(argv []string) int {
 		switch argv[0] {
 		case "node":
 			return cmdPlanNode(argv[1:])
+		case "authority":
+			if len(argv) < 2 || argv[1] != "audit" {
+				fmt.Fprintln(os.Stderr, "usage: air-worker plan authority audit [options]")
+				return 2
+			}
+			return cmdPlanAuthorityAudit(argv[2:])
 		case "spine":
 			return cmdPlanSpine(argv[1:])
 		case "migrate":
