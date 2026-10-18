@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -40,10 +41,15 @@ func planHeaderReadReleaseSidecarBounded(path string) ([]byte, error) {
 		_ = f.Close()
 		return nil, errors.New("machine release-slices changed identity or size on open")
 	}
+	if err := planHeaderVerifyReleaseHandle(f); err != nil {
+		_ = f.Close()
+		return nil, err
+	}
 	raw, readErr := io.ReadAll(io.LimitReader(f, planHeaderReleaseSidecarLimit+1))
 	afterOpen, statErr := f.Stat()
+	handleErr := planHeaderVerifyReleaseHandle(f)
 	closeErr := f.Close()
-	if readErr != nil || statErr != nil || closeErr != nil ||
+	if readErr != nil || statErr != nil || handleErr != nil || closeErr != nil ||
 		len(raw) > planHeaderReleaseSidecarLimit ||
 		!os.SameFile(opened, afterOpen) || opened.Size() != afterOpen.Size() ||
 		!opened.ModTime().Equal(afterOpen.ModTime()) {
@@ -61,6 +67,34 @@ func planHeaderReadReleaseSidecarBounded(path string) ([]byte, error) {
 		return nil, errors.New("machine release-slices invalid UTF-8")
 	}
 	return raw, nil
+}
+
+// planHeaderJSONKeyFold mirrors encoding/json's foldName for matching Go
+// struct fields: uppercase ASCII bytes plus Unicode SimpleFold's minimum
+// code point per equivalence class. strings.ToLower is insufficient: the
+// long-s rune (U+017F) folds to ASCII 'S' although ToLower preserves it.
+// Incoming JSON has already been validated as UTF-8.
+func planHeaderJSONKeyFold(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if r < utf8.RuneSelf {
+			if 'a' <= r && r <= 'z' {
+				r -= 'a' - 'A'
+			}
+		} else {
+			for {
+				next := unicode.SimpleFold(r)
+				if next <= r {
+					r = next
+					break
+				}
+				r = next
+			}
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // Go's encoding/json.Unmarshal accepts repeated keys and overwrites earlier
@@ -98,7 +132,7 @@ func planHeaderRejectAmbiguousJSON(raw []byte) error {
 				if !ok {
 					return errors.New("release sidecar object key not a string")
 				}
-				folded := strings.ToLower(key)
+				folded := planHeaderJSONKeyFold(key)
 				if seen[folded] {
 					return fmt.Errorf("duplicate machine release JSON key %q", key)
 				}

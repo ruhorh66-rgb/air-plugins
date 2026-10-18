@@ -28,6 +28,8 @@ func TestPlanHeaderReleaseSidecarRejectsAmbiguousJSON(t *testing.T) {
 		{"duplicate-active-release", `{"active_release":"1.9.6","active_release":"1.9.7","releases":[{"version":"1.9.7"}]}`, false},
 		{"case-fold-duplicate-active-release", `{"ACTIVE_RELEASE":"1.9.6","active_release":"1.9.7","releases":[{"version":"1.9.7"}]}`, false},
 		{"escaped-duplicate-active-release", `{"\u0061ctive_release":"1.9.6","active_release":"1.9.7","releases":[{"version":"1.9.7"}]}`, false},
+		{"unicode-simple-fold-active-release", `{"active_releaſe":"1.9.6","active_release":"1.9.7","releases":[{"version":"1.9.7"}]}`, false},
+		{"unicode-simple-fold-release-version", `{"active_release":"1.9.7","releases":[{"verſion":"1.9.6","version":"1.9.7"}]}`, false},
 		{"deeply-nested-unknown-metadata", `{"active_release":"1.9.7","releases":[{"version":"1.9.7"}],"extra":` + strings.Repeat("[", 70) + "0" + strings.Repeat("]", 70) + "}", false},
 		{"invalid-utf8-in-unknown-metadata", `{"active_release":"1.9.7","releases":[{"version":"1.9.7"}],"extra":"` + string([]byte{0xff}) + `"}`, false},
 		{"duplicate-releases-list", `{"active_release":"1.9.7","releases":[{"version":"1.9.6"}],"releases":[{"version":"1.9.7"}]}`, false},
@@ -46,6 +48,33 @@ func TestPlanHeaderReleaseSidecarRejectsAmbiguousJSON(t *testing.T) {
 			}
 			if tc.accept && active != "1.9.7" {
 				t.Fatalf("valid sidecar read wrong active release: %q", active)
+			}
+		})
+	}
+}
+
+// Go encoding/json defines effective struct-key aliases using Unicode
+// SimpleFold equivalence, not strings.ToLower and not full Unicode case
+// mappings that can change rune count. The strict preflight must follow it.
+func TestPlanHeaderJSONKeyFoldMatchesUnicodeEqualFold(t *testing.T) {
+	for _, pair := range [][2]string{
+		{"active_releaſe", "active_release"},
+		{"verſion", "version"},
+		{"Σ", "ς"},
+		{"σ", "Σ"},
+		{"K", "K"},
+		{"K", "k"},
+		{"ACTIVE_RELEASE", "active_release"},
+		{"Straße", "STRASSE"},
+		{"İ", "i"},
+		{"a-key", "a_key"},
+		{"abc", "abd"},
+	} {
+		t.Run(pair[0]+"-vs-"+pair[1], func(t *testing.T) {
+			want := strings.EqualFold(pair[0], pair[1])
+			got := planHeaderJSONKeyFold(pair[0]) == planHeaderJSONKeyFold(pair[1])
+			if got != want {
+				t.Fatalf("strict key-fold mismatch %q %q: got=%t want=%t", pair[0], pair[1], got, want)
 			}
 		})
 	}
