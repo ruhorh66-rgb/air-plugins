@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"unicode/utf8"
 )
 
 const planHeaderSyncPreviewSchema = "air-worker.plan-header-sync-preview/v1"
@@ -251,16 +250,12 @@ func planHeaderActiveRelease(root string) (string, error) {
 		return "", fmt.Errorf("untrusted release plan directory: %w", err)
 	}
 	path := filepath.Join(planDir, "release-slices.json")
-	if err := planHeaderRejectOSReparse(path); err != nil {
+	raw, err := planHeaderReadReleaseSidecarBounded(path)
+	if err != nil {
+		return "", fmt.Errorf("release sidecar bounded read failed: %w", err)
+	}
+	if err := planHeaderRejectAmbiguousJSON(raw); err != nil {
 		return "", err
-	}
-	fi, err := os.Lstat(path)
-	if err != nil || !fi.Mode().IsRegular() || fi.Size() > 1048576 {
-		return "", errors.New("machine release-slices not available")
-	}
-	raw, err := os.ReadFile(path)
-	if err != nil || !utf8.Valid(raw) {
-		return "", errors.New("release slice read or UTF-8 error")
 	}
 	var doc struct {
 		Active   string `json:"active_release"`
