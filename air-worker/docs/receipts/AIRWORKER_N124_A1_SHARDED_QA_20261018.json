@@ -1,0 +1,155 @@
+{
+  "schema": "airworker.n124.qa-sharded-readback/v1",
+  "work_code": "AW-N124-A1-QA-20261018-R2",
+  "observed_sgt": "2026-10-18",
+  "status": "SHARDED_SOURCE_QA_17_PASS_2_SKIP__N124_OPEN_PRODUCTION_AUTHORITY_HOLD",
+  "node": "SRVLM01",
+  "scope": "Frozen standalone feature branch. Go package airos/air-worker TestPlanCandidate* and TestPlanCanonical* only; not whole-package, full repo, or live GitHub authorization",
+  "source": {
+    "repo": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-n124-worker-a-20261018",
+    "source_head": "b668b6c09011ce303542d58fd800dfa87fdb9525",
+    "github_remote_head_verified_prior": "b668b6c09011ce303542d58fd800dfa87fdb9525",
+    "changed_native_plan": false,
+    "changed_native_nodes": false,
+    "changed_learn": false,
+    "installed_airworker": "0.11.8"
+  },
+  "previous_timeout": {
+    "log": "R:/-4-/air-worker/work/N124_WORKER_A_20261018/A1_CANDIDATE_SPLIT_REGRESSION.log",
+    "sha256": "305f280dbbcff1425403f13bef3254696ebd2b25484ee942a12de3d9ae4b937d",
+    "status": "FAIL_TIME_BUDGET",
+    "go_test_timeout": "145s",
+    "observed_total_seconds": 147.238,
+    "timed_out_in": "TestPlanCandidatePublishRejects/tag-ref",
+    "prior_main_pass_count": 3,
+    "reason": "Combined test budget; tag-ref itself later independently PASS",
+    "no_duplicate_mutation": true
+  },
+  "shards": [
+    {
+      "id": "N124-QA-1",
+      "selector": "^TestPlanCandidate(ConfigLock|PublishConfigRace|PublishReplacement)$",
+      "rc": 0,
+      "main_pass": 3,
+      "main_skip": 0,
+      "log": "A1_CANDIDATE_CONFIG_RACES_SPLIT.log",
+      "sha256": "369685e58f95a64ca201b3d9f280d42a6ffa4e0a86b2592a6f40d96dcdb56b09"
+    },
+    {
+      "id": "N124-QA-2",
+      "selector": "^TestPlanCandidatePublishRejects$/(parent|object-parent|tree|oid|files|operation|unprepared|ref|non-bare|foreign-origin|foreign-marker|stale)$",
+      "rc": 0,
+      "main_pass": 1,
+      "main_skip": 0,
+      "nested_pass": 13,
+      "log": "A1_CANDIDATE_REJECTS_EARLY_CASES.log",
+      "sha256": "9abd6fd943bab8086dbb539429ec33c1165ab78cea72ced493fdd3012fa379a8"
+    },
+    {
+      "id": "N124-QA-3",
+      "selector": "^TestPlanCandidatePublishRejects$/(tag-ref|wrong-old|network|rewrite|receive-command|git-env|alternates|active-hook)$",
+      "rc": 0,
+      "main_pass": 1,
+      "main_skip": 0,
+      "nested_pass": 8,
+      "log": "A1_CANDIDATE_REJECTS_LATE_CASES.log",
+      "sha256": "345efba4c5b6deb6aa5f03e2eb98785c4025ec086b8d2510b44c941a8e095db9",
+      "note": "same top-level suite as QA-2; not counted twice"
+    },
+    {
+      "id": "N124-QA-4",
+      "selector": "^TestPlanCandidatePublish(Replay|Pending|SameObjectIsReplayNotClaim|Race)$",
+      "rc": 0,
+      "main_pass": 4,
+      "main_skip": 0,
+      "log": "A1_CANDIDATE_PUBLISH_STATE_CASES.log",
+      "sha256": "f27b5d3189ee4731a37f5c60fbcf1a69427b86075e2d69ed0b52299388e70188"
+    },
+    {
+      "id": "N124-QA-5",
+      "selector": "^TestPlanCandidate(ContentRejects|Immutable|Rejects|ExistingJunctionAncestor|LinkAncestor)$",
+      "rc": 0,
+      "main_pass": 3,
+      "main_skip": 2,
+      "log": "A1_CANDIDATE_CONTENT_BOUNDARY_TEST.log",
+      "sha256": "310ae453f16b9761f6b378b2029fb871465bce847f3d9b67a3877e31fe8f9aee",
+      "skips": [
+        "TestPlanCandidateExistingJunctionAncestor: OS temp has no existing junction ancestor",
+        "TestPlanCandidateLinkAncestor: symlink privilege unavailable"
+      ]
+    },
+    {
+      "id": "N124-QA-6",
+      "selector": "^TestPlanCanonical(CloseNative|CloseRejects|RecoveryLogicalRequests|NewNative|RecoveryRejectsSecondPhysicalPublisher)$",
+      "rc": 0,
+      "main_pass": 5,
+      "main_skip": 0,
+      "nested_pass": 24,
+      "log": "A1_FINAL_SCOPED_QA.log",
+      "sha256": "9598c2ad6179bd4495b86d64aaf7e9ddb08e33e39dcb91e97c584b263af185a2"
+    },
+    {
+      "id": "N124-QA-7",
+      "selector": "^TestPlanCanonicalNewRejects$",
+      "rc": 0,
+      "main_pass": 1,
+      "main_skip": 0,
+      "nested_pass": 14,
+      "log": "A1_CANONICAL_NEW_REJECTS.log",
+      "sha256": "788c1f945a938ecc9580b407a2104b079022e0c5b3f756e4fac1cb557be03aaf"
+    }
+  ],
+  "aggregate": {
+    "unique_main_discovered": 19,
+    "unique_main_pass": 17,
+    "main_skip": 2,
+    "unique_main_fail": 0,
+    "all_shard_exit_codes_zero": true,
+    "full_repo_go_test_status": "NOT_PROVEN",
+    "skipped_privileged_path_coverage": "NOT_PROVEN"
+  },
+  "independent_semantic": {
+    "source_reviewed": "64f93aec7d21d36513252dd3b82119374a93c28a",
+    "reviewer": "Codex gpt-6-sol low read-only",
+    "verdict": "PASS_SOURCE_ONLY_P0_0_P1_0",
+    "review_sha256": "1bf72887a04deb527f2080c455b6ba1d1018e83e4341e0e9434e9d4140462ecb",
+    "test_followup_sha256": "e6ebe647f80b0c6ee1a28e31bac448a15c58cae2757e7394a0eb60f137af07b4",
+    "note": "Test-only changes accepted after reviewer; executable code unchanged"
+  },
+  "dev136_readonly": {
+    "source_candidate_head": "e88af56b7ae8457907423563c1575771909ef225",
+    "product": "AirLegal",
+    "product_head": "dddd0c2ee44026c8271610e6d2f3be77be262fef",
+    "preview_status": "BLOCKED",
+    "preview_exit_code": 2,
+    "preview_changed": false,
+    "active_release": "1.9.7",
+    "preview_log_sha256": "571bdfe1cfeb6b741c058e582d93515263acbe0d88a98acbc08421d87c8328ed",
+    "blockers": [
+      "native_plan_node_validation_failed",
+      "remote_head_not_proven",
+      "local_plan_or_nodes_dirty",
+      "installed_version_binary_attestation_not_implemented",
+      "N124_global_git_generation_not_accepted"
+    ],
+    "note": "Source-only preview on dirty AirLegal; no plan mutation and no authenticated remote readback inside candidate"
+  },
+  "native_gate": {
+    "node_id": "N-124_p1-detect-cross-branch-node-id-collision-and-sta",
+    "status": "OPEN",
+    "next_milestone": "One trusted canonical GitHub publisher, explicit expected-old Git SHA CAS plus secure product+installed binary authority; two stale clients cannot overwrite canonical refs or duplicate IDs",
+    "release_ready": false
+  },
+  "boundaries": {
+    "no_full_regression_pass_claim": true,
+    "no_native_plan_node_close": true,
+    "no_production_git_ref_writes": true,
+    "no_hermes_wip_edit": true,
+    "no_worker_B_edit": true,
+    "no_release_or_install": true,
+    "no_reboot_UAC_gateway_stop": true,
+    "installed_rollback": "0.11.8"
+  },
+  "evidence_root": "R:/-4-/air-worker/work/N124_WORKER_A_20261018"
+}
