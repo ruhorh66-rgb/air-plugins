@@ -1,0 +1,103 @@
+{
+  "schema": "airworker.dev136.native-node-bounded-read-source-acceptance/v1",
+  "work_code": "AW-DEV136-N124-BOUNDED-A-20261018",
+  "date_sgt": "2026-10-18",
+  "node": "SRVLM01",
+  "status": "SOURCE_ONLY_JUDGED_PASS_P0P1_0_P2_N124_GENERATION_HOLD",
+  "owner": "AirWorker worker A",
+  "curator": "Voody",
+  "trigger": "Independent Sol medium found DEV136 native N-node os.ReadFile unbounded between Windows reparse preflight and read, then aggregate entries/bytes unbounded",
+  "source": {
+    "repo": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-dev136-bounded-a-20261018",
+    "base": "1795c9b14d4fb3708a1a9680845b2fe662a2f77c",
+    "code_commit": "cd1a2d351ed8d94856f168c30d7912d3b17a00d9",
+    "final_commit": "908d46c76f102127ef889398dd33101ef265ae7c",
+    "source_root": "R:/-4-/air-worker/worktrees/airworker-dev136-bounded-a-20261018/air-worker",
+    "changed_files": [
+      "air-worker/cmd/plan_header_native_bounded.go",
+      "air-worker/cmd/plan_header_sync.go",
+      "air-worker/cmd/plan_header_junction_windows_test.go"
+    ]
+  },
+  "implementation": {
+    "tool": "planHeaderListNodesBounded",
+    "features": [
+      "prevalidated NTFS junction/OS reparse leaf",
+      "one opened node-file handle compared to Lstat via os.SameFile",
+      "single read through io.LimitReader(1MiB+1)",
+      "handle size and mtime recheck, post-read path generation recheck",
+      "bounded os.File.ReadDir(1025) with max 1024 entries",
+      "aggregate accepted node bytes cap 16MiB",
+      "final physical directory identity and ancestor check",
+      "retained native node ordering, statuses, and duplicate-ID/plan-spine check"
+    ],
+    "no_mutation_grant": true
+  },
+  "testing": {
+    "focused": {
+      "rc": 0,
+      "sha256": "d365529fd00ebfa9fea002ab7eaa61ebc438d44838aa596c3965668b67fed52d"
+    },
+    "aggregate_negative": {
+      "rc": 0,
+      "sha256": "d3e3095cd6a3506b976372e4bf4b4192bc96adc9accf8c8e9cfc5fa45b8fe20f"
+    },
+    "final_header_suite": {
+      "selector": "^TestPlanHeader",
+      "rc": 0,
+      "main_pass": 26,
+      "sub_pass": 29,
+      "skipped": 1,
+      "sha256": "2d3ad2f999174a5ebc81f096178f307b9ca1302f2ec19b6db7a70a0e4c4012e2",
+      "skipped_case": "TestPlanHeaderReadRejectsSymlinkLeaf needs unavailable Windows symlink privilege; both NTFS junction tests passed"
+    },
+    "vet": {
+      "rc": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build": {
+      "rc": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "isolated_binary_sha256": "26b729fdbf61ae3a8b0f8e17dbe50f659710656372890be5a31ebe61fc7ee7eb"
+    },
+    "full_repository_regression": "NOT_PROVEN",
+    "evidence_root": "R:/-4-/air-worker/work/DEV136_A3_SOURCE_QA_20261018"
+  },
+  "judge": {
+    "model": "gpt-6-sol",
+    "effort": "medium",
+    "mode": "independent read-only",
+    "verified_sha": "908d46c76f102127ef889398dd33101ef265ae7c",
+    "verdict": "PASS",
+    "p0_count": 0,
+    "p1_count": 0,
+    "p2_count": 1,
+    "result_sha256": "53d866a7dce56e05df92f57593e8bccc53857d52cc0260099d55f3ad2de1ca28",
+    "p2_remaining": "True multi-process PLAN/Git generation not proven by path or file metadata; root-handle/CAS native N124 authority required before writes"
+  },
+  "blockers": {
+    "N124": "OPEN, trusted GitHub canonical owner and namespace unresolved",
+    "DEV136_apply": "BLOCKED, native authority and installed artifact attestation not accepted",
+    "AirLegal_N111": "OPEN, independent source acceptance and native close pending",
+    "installed_AirWorker": "0.11.8 unchanged",
+    "release_ready": false
+  },
+  "safety": {
+    "no_native_plan_node_learn_direct_write": true,
+    "no_foreign_WIP_changed": true,
+    "original_DEV136_untracked_files_preserved": 16,
+    "no_neighbor_B_write": true,
+    "no_release_tag_install_uac_reboot_gateway_stop": true,
+    "no_live_mutation": true,
+    "rollback": "source-only feature revert; installed AirWorker 0.11.8 unchanged"
+  },
+  "next": {
+    "owner": "AirWorker N124 authority owner / Voody acceptance",
+    "trigger": "trusted publisher + safe GitHub claims namespace proven",
+    "done_when": "atomic GitHub generation CAS with canonical branch owner signed receipt and independent judge, then integrated stable-handle header-sync",
+    "judge": "native factual + independent Sol medium",
+    "receipt": "AIRWORKER_N124_A3_GITHUB_AUTHORITY_PASS.json",
+    "status": "BLOCKED_AUTHORITY"
+  }
+}
