@@ -10,7 +10,11 @@ import (
 	"strings"
 )
 
-const planHeaderNodeLimit = 1024 * 1024
+const (
+	planHeaderNodeLimit      = 1024 * 1024
+	planHeaderNodeCountLimit = 1024
+	planHeaderAllNodesLimit  = 16 * 1024 * 1024
+)
 
 // planHeaderListNodesBounded reads candidate N-nodes under the read-only
 // DEV136 preflight. It never calls the general listPlanNodes helper, whose
@@ -21,14 +25,29 @@ func planHeaderListNodesBounded(root string) ([]planNode, error) {
 	if err := planHeaderValidateAncestors(dir); err != nil {
 		return nil, err
 	}
-	entries, err := os.ReadDir(dir)
+	// Read at most N+1 directory entries; os.ReadDir(path) would enumerate
+	// the entire untrusted directory before we could apply any limit.
+	dh, err := os.Open(dir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return []planNode{}, nil
 		}
 		return nil, err
 	}
+	defer dh.Close()
+	dirBefore, err := dh.Stat()
+	if err != nil || !dirBefore.IsDir() {
+		return nil, errors.New("untrusted native node directory")
+	}
+	entries, err := dh.ReadDir(planHeaderNodeCountLimit + 1)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, err
+	}
+	if len(entries) > planHeaderNodeCountLimit {
+		return nil, errors.New("native node directory exceeds entry count limit")
+	}
 	nodes := make([]planNode, 0, len(entries))
+	allNodeBytes := 0
 	for _, entry := range entries {
 		name := entry.Name()
 		if !strings.HasPrefix(name, "N-") || !strings.HasSuffix(strings.ToLower(name), ".md") {
@@ -65,6 +84,10 @@ func planHeaderListNodesBounded(root string) ([]planNode, error) {
 			!opened.ModTime().Equal(afterOpen.ModTime()) {
 			return nil, fmt.Errorf("native node changed or exceeded bounded read: %s", name)
 		}
+		allNodeBytes += len(raw)
+		if allNodeBytes > planHeaderAllNodesLimit {
+			return nil, errors.New("native node aggregate read byte limit exceeded")
+		}
 		if err := planHeaderRejectOSReparse(leaf); err != nil {
 			return nil, fmt.Errorf("native node changed to reparse leaf: %w", err)
 		}
@@ -81,6 +104,10 @@ func planHeaderListNodesBounded(root string) ([]planNode, error) {
 	}
 	if err := planHeaderValidateAncestors(dir); err != nil {
 		return nil, err
+	}
+	latestDir, err := os.Lstat(dir)
+	if err != nil || !os.SameFile(dirBefore, latestDir) {
+		return nil, errors.New("native node directory identity changed")
 	}
 	sort.Slice(nodes, func(i, j int) bool { return nodes[i].ID < nodes[j].ID })
 	return nodes, nil

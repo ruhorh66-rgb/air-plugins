@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -123,5 +124,59 @@ func TestPlanHeaderRejectsOversizedNodeBeforeParsing(t *testing.T) {
 	readback, err := os.ReadFile(nodes[0].Path)
 	if err != nil || !bytes.Equal(readback, oversize) {
 		t.Fatalf("preflight changed foreign oversized test bytes: %v", err)
+	}
+}
+
+func TestPlanHeaderRejectsOverlargeNodeDirectoryWithoutFullEnumeration(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "plan")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	// No N-node contents may be opened: bounded ReadDir must reject first.
+	for i := 0; i <= planHeaderNodeCountLimit; i++ {
+		name := fmt.Sprintf("N-%04d_overflow.md", i)
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := planHeaderListNodesBounded(root)
+	if err == nil || !strings.Contains(err.Error(), "entry count limit") {
+		t.Fatalf("untrusted oversized node directory was enumerated/read: %v", err)
+	}
+}
+
+func TestPlanHeaderRejectsAggregateNodeByteGrowth(t *testing.T) {
+	root := seedPlanNodeProduct(t)
+	for i := 0; i < 19; i++ {
+		if code := cmdPlanNodeNew([]string{
+			"-product", root, "-title", fmt.Sprintf("Aggregate %d", i),
+			"-parent", "Stage", "-owner", "fixture", "-trigger", "aggregate-size",
+			"-done-when", "reject too many bytes",
+		}); code != 0 {
+			t.Fatalf("create fixture native node %d: rc=%d", i, code)
+		}
+	}
+	nodes, err := listPlanNodes(root)
+	if err != nil || len(nodes) != 19 {
+		t.Fatalf("native fixture nodes missing: %v", err)
+	}
+	// Each leaf remains below its individual 1 MiB cap but aggregate >16 MiB.
+	for _, node := range nodes {
+		body, err := os.ReadFile(node.Path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body = append(body, bytes.Repeat([]byte("x"), 950000)...)
+		if len(body) >= planHeaderNodeLimit {
+			t.Fatalf("fixture should be below single-node limit: %d", len(body))
+		}
+		if err := os.WriteFile(node.Path, body, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err = planHeaderListNodesBounded(root)
+	if err == nil || !strings.Contains(err.Error(), "aggregate read byte limit") {
+		t.Fatalf("aggregate oversized native nodes were accepted: %v", err)
 	}
 }
