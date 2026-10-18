@@ -1,0 +1,180 @@
+{
+  "schema": "airworker.n124.a3-native-atomic-fixture-acceptance/v1",
+  "date_sgt": "2026-10-18",
+  "work_code": "AW-N124-A3-NATIVE-ATOMIC-FIXTURE-20261018",
+  "node": "SRVLM01",
+  "owner": "AirWorker line A source worker",
+  "curator": "Voody",
+  "status": "SOURCE_ONLY_SCOPED_JUDGED_PASS__N124_OPEN__GITHUB_PRODUCTION_AUTHORITY_HOLD",
+  "native_node": "N-124_p1-detect-cross-branch-node-id-collision-and-sta",
+  "native_status": "OPEN",
+  "phase": "A3-independent-fixture-step-without-A3-1-production-grant",
+  "source": {
+    "repository": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-n124-a3-native-atomic-fixture-20261018",
+    "base_head": "275cca393dbc897796ad60cba02a51ee964ddfa1",
+    "first_source_commit": "ad05d579ba3fd9d0b447fd29ca63e25c6f3c3b62",
+    "corrected_source_commit": "690c8056b8e539890362832d2acb143815e5d1ef",
+    "source_paths": [
+      "air-worker/cmd/plan_canonical_new.go",
+      "air-worker/cmd/plan_canonical_new_test.go",
+      "air-worker/cmd/plan_canonical_replay.go",
+      "air-worker/cmd/plan_canonical_logical_recovery_test.go"
+    ],
+    "mode": "isolated OS-temp Git bare fixture ONLY",
+    "no_production_route": true,
+    "no_PLAN_nodes_LEARN_manual_edits": true
+  },
+  "implemented": {
+    "native_command": "plan node new",
+    "origin_guard": "planCanonicalFixtureOrigin OS-temp pinned local physical identity",
+    "transaction": "atomic CAS for refs/heads/canonical and refs/air-worker/claims/N-<numeric>",
+    "exact_replay": "canonical direct-child, matching immutable outbox, original node fields, numeric claim exact commit, local native projection compared to original parent Git blobs",
+    "forged_or_partial_states_fail_closed": [
+      "missing numeric claim",
+      "claim at wrong Git SHA",
+      "tampered local native node",
+      "tampered LEARN journal",
+      "git skip-worktree fake-clean native node",
+      "git assume-unchanged fake-clean LEARN",
+      "stale generation",
+      "unrelated descendant",
+      "wrong payload"
+    ],
+    "foreign_WIP": "preserved without change and tolerated outside PLAN/node/LEARN",
+    "production_authority": "NOT_GRANTED"
+  },
+  "tests": {
+    "tdd_red_missing_claim": {
+      "rc": 1,
+      "sha256": "70f23a3f22a30e3bd9c9863b3d7c4c6ebbe93d10a99869d5fbbe435d08d38cbd"
+    },
+    "tdd_green_native_claim": {
+      "rc": 0,
+      "sha256": "0f0ae6ebfd07eb35e4a5f8776f9275ea1466af173467911d41e66eddc446e9ce"
+    },
+    "tdd_red_partial_replay": {
+      "rc": 1,
+      "sha256": "b1644e367c1f87df6425a39add27b9e3ab2fb867a365565bfb1e0a4018c2d4cb"
+    },
+    "tdd_green_replay_claim": {
+      "rc": 0,
+      "sha256": "2954a6efc9277fd14a2cd96f5b20228259b7cac1fd8ac8ea7376fc6efee6b364"
+    },
+    "native_new_recovery": {
+      "main": 4,
+      "nested": 16,
+      "rc": 0,
+      "sha256": "6438af7e1f0e0691dc1d14e49762899e56fcd0819293f2dfc890640bb9cac199"
+    },
+    "atomic_claim": {
+      "main": 4,
+      "nested": 11,
+      "rc": 0,
+      "sha256": "04fa1e6d3a70ab1942a93ddbaf3baa6b1e59071398125a20d4a020f6b44e8378"
+    },
+    "legacy_close": {
+      "main": 2,
+      "nested": 22,
+      "rc": 0,
+      "sha256": "785c5cddc8878f068c128867cc64686fea09217007270ce72feeec36cabd00bf"
+    },
+    "tdd_red_native_projection": {
+      "rc": 1,
+      "sha256": "18485d49dff72600ebf6a957c381d339e854ae1bccb21ee6ea85e5bae49aaae1"
+    },
+    "tdd_green_native_projection": {
+      "main": 2,
+      "rc": 0,
+      "sha256": "9e8e918052e123b04762db8ceb0e8367d7ea28cfcd1de71c2af3fd6639b02657"
+    },
+    "post_fix_authority_negatives": {
+      "main": 2,
+      "nested": 16,
+      "rc": 0,
+      "sha256": "cd5e1176c61b89b1b6266ae1c76e3c646c21d152ad229c1a820554372b4627ce"
+    },
+    "hidden_index_flags": {
+      "main": 1,
+      "rc": 0,
+      "sha256": "93311ad522a2009fc810e4a89291a92f00548b33274711b901e8b7b4b0420e12"
+    },
+    "go_vet": {
+      "rc": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go_build": {
+      "rc": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "candidate_executable_sha256": "4fb71a6e05ff2685c6475bea29d8df53f1024730cdd252e9da3e56c876e2ff19"
+    },
+    "native_plan_lint": {
+      "rc": 0
+    },
+    "native_validate": {
+      "rc": 0
+    },
+    "full_go_suite": "NOT_PROVEN",
+    "windows_junction_privilege_matrix": "NOT_FULLY_PROVEN"
+  },
+  "independent_judge": {
+    "provider": "OpenAI Codex",
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "sandbox": "read-only",
+    "first": {
+      "source_sha": "ad05d579ba3fd9d0b447fd29ca63e25c6f3c3b62",
+      "verdict": "FAIL",
+      "p0": 0,
+      "p1": 1,
+      "result_sha256": "3d2add1a5ac6be7d6fbfad70a36d79bf2e120d46b2a0eb3bb0ba0a9b8dc5e8de"
+    },
+    "corrected": {
+      "source_sha": "690c8056b8e539890362832d2acb143815e5d1ef",
+      "verdict": "PASS_LIMITED_FIXTURE",
+      "p0": 0,
+      "p1": 0,
+      "p2": 1,
+      "result_sha256": "46dd26af6f595b497b769e02564d3ce7c60e8d6bd74b7ec4f77004c60ac59e8f"
+    },
+    "remaining_p2": "separate filesystem and Git reads allow concurrent changes after final readback; cannot grant stable-handle production authority"
+  },
+  "installed": {
+    "version": "0.11.8",
+    "sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "changed": false,
+    "rollback": "keep current installed 0.11.8"
+  },
+  "foreign_state": {
+    "hermes_WIP_files_preserved": 4,
+    "worker_B_untouched": true,
+    "AirLegal_dirty_worktree_untouched": true,
+    "live_PLAN_N_LEARN_untouched": true
+  },
+  "production_gate": {
+    "A3_1": "BLOCKED_TRUSTED_GITHUB_BRANCH_OWNER_AND_CLAIM_NAMESPACE_SCOPE",
+    "GitHub_receive_atomic": "dry-run advertised, no authorized real custom claim ref publication",
+    "permission_to_write_real_refs": false,
+    "N124_closed": false,
+    "DEV136_apply": false,
+    "AirLegal_N111_closed": false,
+    "release_or_install_permission": false,
+    "missing": [
+      "trusted GitHub canonical ref/owner signer",
+      "separately permitted test scope for claim namespace",
+      "stable generation CAS and installed artifact attestation",
+      "full independent product regression before native close"
+    ]
+  },
+  "vendor_docs": [
+    "https://git-scm.com/docs/git-push",
+    "https://docs.github.com/en/rest/git/refs"
+  ],
+  "next": {
+    "owner": "Voody curator + AirWorker A",
+    "trigger": "source-only fixture PASS",
+    "done_when": "Readback immutable GitHub source commit and approved authoritative generation CAS; no production claims until separate LPR scope; then DEV136 installed attestation and AirLegal N111",
+    "judge": "native factual + independent Sol read-only exact SHA",
+    "receipt": "AIRWORKER_N124_A3_PRODUCTION_AUTHORITY_PASS_TBD"
+  }
+}
