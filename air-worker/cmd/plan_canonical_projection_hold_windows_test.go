@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 )
@@ -107,11 +108,23 @@ func TestN124ProjectionHoldRejectsNativeConcurrentWrites(t *testing.T) {
 			if err := os.Remove(path); err != nil {
 				t.Fatalf("cannot clean disposable intruder fixture: %v", err)
 			}
+			// ABA is never a safe recovery for the SAME held generation.
+			// The directory watch must stay signaled even after deletion.
+			if err := hold.Verify(); err == nil {
+				t.Fatal("transient N-ID creation was forgotten by the native hold")
+			} else if !strings.Contains(err.Error(), "change notification") {
+				t.Fatalf("native ABA denied for unrelated reason: %v", err)
+			}
+			hold.Close()
+			hold, err = holdN124ReplayProjection(root)
+			if err != nil {
+				t.Fatalf("fresh hold after cleanup should be possible: %v", err)
+			}
 		} else {
 			t.Logf("OS independently denied new child: %v", createErr)
-		}
-		if err := hold.Verify(); err != nil {
-			t.Fatalf("native generation did not recover after disposable negative case: %v", err)
+			if err := hold.Verify(); err != nil {
+				t.Fatalf("denied new child changed native generation: %v", err)
+			}
 		}
 	})
 	// Foreign WIP outside the native projection remains independently writable.

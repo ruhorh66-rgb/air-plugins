@@ -19,6 +19,7 @@ import (
 type n124ReplayProjectionHold struct {
 	ancestors        []*candidateOriginLock
 	directoryHandles []syscall.Handle
+	changeWatches    []*n124NativeDirectoryWatch
 	fileHandles      []syscall.Handle
 	paths            []string
 	ids              []nativeInputIdentity
@@ -41,6 +42,10 @@ func (h *n124ReplayProjectionHold) Close() {
 		_ = syscall.CloseHandle(h.fileHandles[i])
 	}
 	h.fileHandles = nil
+	for i := len(h.changeWatches) - 1; i >= 0; i-- {
+		h.changeWatches[i].Close()
+	}
+	h.changeWatches = nil
 	for i := len(h.directoryHandles) - 1; i >= 0; i-- {
 		_ = syscall.CloseHandle(h.directoryHandles[i])
 	}
@@ -111,6 +116,13 @@ func holdN124ReplayProjection(root string) (*n124ReplayProjectionHold, error) {
 		if err := lock.Verify(); err != nil {
 			return err
 		}
+		// Arm the Windows notification BEFORE enumerating this directory.
+		// It latches even a short-lived new N-ID create/delete (ABA).
+		watch, err := n124OpenNativeDirectoryWatch(dir)
+		if err != nil {
+			return err
+		}
+		h.changeWatches = append(h.changeWatches, watch)
 		h.directories = append(h.directories, dir)
 		return nil
 	}
@@ -228,8 +240,14 @@ func holdN124ReplayProjection(root string) (*n124ReplayProjectionHold, error) {
 
 func (h *n124ReplayProjectionHold) Verify() error {
 	if h == nil || len(h.paths) == 0 || len(h.fileHandles) != len(h.paths) ||
-		len(h.ids) != len(h.paths) || len(h.snapshots) != len(h.paths) {
+		len(h.ids) != len(h.paths) || len(h.snapshots) != len(h.paths) ||
+		len(h.changeWatches) != len(h.directories) || len(h.changeWatches) == 0 {
 		return errors.New("native generation hold incomplete")
+	}
+	for _, watch := range h.changeWatches {
+		if err := watch.Verify(); err != nil {
+			return err
+		}
 	}
 	for _, lock := range h.ancestors {
 		if err := lock.Verify(); err != nil {
@@ -291,6 +309,14 @@ func (h *n124ReplayProjectionHold) Verify() error {
 			if !found {
 				return errors.New("native projection gained an unexpected directory entry")
 			}
+		}
+	}
+	// A post-read notification check catches short-lived ABA mutations even
+	// when the final membership snapshot equals the original generation.
+	// Events remain latched for the lifetime of the hold: never clear them.
+	for _, watch := range h.changeWatches {
+		if err := watch.Verify(); err != nil {
+			return err
 		}
 	}
 	return nil
