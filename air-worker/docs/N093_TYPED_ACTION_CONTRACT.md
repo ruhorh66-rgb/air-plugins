@@ -48,12 +48,19 @@ The native operation requires: signed original CLI failure and invocation,
 unique matching source event, reviewer candidate whose bytes equal the
 current applied file, unique APPLIED ledger row and module index, exact
 current target SHA, no linked file path, correct active product owner and
-machine-verified precondition. Under a serialized lock it then persists
-one immutable action receipt with action ID/version, source run/event,
-session/principal, actual process PID, nonce and product-private HMAC.
-Exactly one module-owned procedure_used event points at its SHA.
-Replay does not modify the receipt or create another event. Signed
-receipt tampering, wrong action, wrong SHA and missing preconditions fail closed.
+machine-verified precondition. Under a serialized lock it first persists an immutable **signed intent**
+(status=pending_procedure_used; effect=NOT_PROVEN) with action ID/version,
+source run/event, session/principal, process PID, deterministic nonce,
+source-owned PLAN.md fingerprint (including absence) and product-private HMAC.
+The native module must then persist exactly one matching procedure_used event
+pointing at the intent SHA. A separate final signed terminal receipt is
+created **only after** exact module event readback and recheck of the current
+review/APPLIED ledger, rule SHA, missing-config OS condition and pinned PLAN
+fingerprint. Its HMAC binds the immutable intent SHA and module event ID.
+Replay cannot rewrite either receipt or create another event. A crash after
+intent or event is resumable under the same idempotency lock. Signed-receipt
+or journal tampering, drift of PLAN/config, wrong action or source identity
+and a missing terminal event fail closed, without claiming validation PASS.
 
 ## Acceptance limits
 

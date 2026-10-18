@@ -49,6 +49,9 @@ type nativePreflightUseReceipt struct {
 	ProcessID                int    `json:"process_id,omitempty"`
 	Nonce                    string `json:"nonce,omitempty"`
 	ReceiptMAC               string `json:"receipt_hmac_sha256,omitempty"`
+	IntentSHA                string `json:"intent_sha256,omitempty"`
+	ConfirmedEventID         string `json:"confirmed_event_id,omitempty"`
+	PlanFingerprint          string `json:"plan_fingerprint,omitempty"`
 }
 
 // A typed native receipt is bound to the same product-private key used for
@@ -152,6 +155,13 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 		return out, errors.New("N093: original native run identity/HMAC changed")
 	}
 	isTyped := rule.SHA256 != n118ApprovedPreflightDeferralSHA
+	planFingerprint := ""
+	if isTyped {
+		planFingerprint, err = n093NativePlanFingerprint(owner.Selector.ProductRoot)
+		if err != nil {
+			return out, fmt.Errorf("N093: cannot pin native PLAN state: %w", err)
+		}
+	}
 	ruleID := rule.Target + "@" + rule.SHA256
 	identity := learnSHA([]byte(prior.RunID + "\x00" + sourceEvent + "\x00" + ruleID))
 	loadID := "N118-LOADED-" + identity[:24]
@@ -188,8 +198,14 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 	// Re-evaluate OS-backed facts after the potentially lengthy module load
 	// and reviewer/ledger readbacks. A configuration created in the meantime
 	// must not be reported as a successful missing-config safeguard.
-	if isTyped && ownCLITrustedFailureCause(argv, 2) != action.Precondition {
-		return out, errors.New("N093: native preflight changed before action commit")
+	if isTyped {
+		if ownCLITrustedFailureCause(argv, 2) != action.Precondition {
+			return out, errors.New("N093: native preflight changed before action commit")
+		}
+		currentPlan, checkErr := n093NativePlanFingerprint(owner.Selector.ProductRoot)
+		if checkErr != nil || currentPlan != planFingerprint {
+			return out, errors.New("N093: native PLAN changed before action intent")
+		}
 	}
 	receipt := nativePreflightUseReceipt{
 		Schema: "air-worker.n118.native-preflight-use/v1",
@@ -204,10 +220,13 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 	if isTyped {
 		// This is an independently checked native read-only action, NOT a
 		// validation PASS. The native validator has not been executed.
-		receipt.Schema = "air-worker.n093.typed-preflight-use/v1"
-		receipt.Status = action.Outcome
-		receipt.Outcome = action.Outcome
-		receipt.Effect = action.Effect
+		// The first durable receipt is a signed INTENT, not an outcome.
+		// Only a later independently read-back module-owned procedure_used
+		// event authorizes a separate final signed result.
+		receipt.Schema = "air-worker.n093.typed-preflight-intent/v1"
+		receipt.Status = "pending_procedure_used"
+		receipt.Outcome = "pending"
+		receipt.Effect = "NOT_PROVEN"
 		receipt.ActionSchema = action.Schema
 		receipt.ActionID = action.ID
 		receipt.ActionVersion = action.Version
@@ -216,6 +235,7 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 		receipt.Session = prior.RunID
 		receipt.ProcessID = os.Getpid()
 		receipt.Nonce = identity[:24]
+		receipt.PlanFingerprint = planFingerprint
 		receipt.ReceiptMAC, err = nativeTypedPreflightReceiptMAC(key, receipt)
 		if err != nil {
 			return out, err
@@ -315,8 +335,14 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 		return out, err
 	}
 	if !usageFound {
-		if isTyped && ownCLITrustedFailureCause(argv, 2) != action.Precondition {
-			return out, errors.New("N093: native preflight changed before use event")
+		if isTyped {
+			if ownCLITrustedFailureCause(argv, 2) != action.Precondition {
+				return out, errors.New("N093: native preflight changed before use event")
+			}
+			currentPlan, checkErr := n093NativePlanFingerprint(owner.Selector.ProductRoot)
+			if checkErr != nil || currentPlan != planFingerprint {
+				return out, errors.New("N093: native PLAN changed before use event")
+			}
 		}
 		response, err := executeSharedLearning(owner.Selector.ProductRoot, owner.Settings, "observe", map[string]string{
 			"run_id": usedID, "kind": "procedure_used", "class": "native-preflight-retry",
@@ -328,8 +354,19 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 			return out, fmt.Errorf("native preflight measured use not recorded: %w", err)
 		}
 	}
+	if isTyped {
+		confirmedPath, confirmed, err := finalizeN093TypedPreflightResult(owner, prior, rule, sourceEvent, path, key)
+		if err != nil {
+			return out, err
+		}
+		if !confirmed {
+			return out, errors.New("N093: module event not durably confirmed; no success receipt")
+		}
+		out.ReceiptPath = confirmedPath
+	} else {
+		out.ReceiptPath = path
+	}
 	out.Deferred = true
 	out.RuleID = ruleID
-	out.ReceiptPath = path
 	return out, nil
 }

@@ -79,9 +79,29 @@ func TestN093ActualNativeTypedUseDeferredOutcomeNoValidationPass(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var receipt nativePreflightUseReceipt
-	if err := json.Unmarshal(data, &receipt); err != nil {
+	var intent nativePreflightUseReceipt
+	if err := json.Unmarshal(data, &intent); err != nil {
 		t.Fatal(err)
+	}
+	if intent.Schema != "air-worker.n093.typed-preflight-intent/v1" ||
+		intent.Status != "pending_procedure_used" || intent.Outcome != "pending" ||
+		intent.Effect != "NOT_PROVEN" || intent.ConfirmedEventID != "" {
+		t.Fatalf("pending native intent claimed completion: %+v", intent)
+	}
+	results, err := os.ReadDir(filepath.Join(settings.RuntimeRoot, "native-preflight-results"))
+	if err != nil || len(results) != 1 {
+		t.Fatalf("no independently confirmed native result: %v count=%d", err, len(results))
+	}
+	confirmedBytes, err := os.ReadFile(filepath.Join(settings.RuntimeRoot, "native-preflight-results", results[0].Name()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var receipt nativePreflightUseReceipt
+	if err := json.Unmarshal(confirmedBytes, &receipt); err != nil {
+		t.Fatal(err)
+	}
+	if receipt.IntentSHA != learnSHA(data) || receipt.ConfirmedEventID == "" {
+		t.Fatalf("final result is not bound to a signed intent and module event: %+v", receipt)
 	}
 	if receipt.Schema != "air-worker.n093.typed-preflight-use/v1" ||
 		receipt.Status != "deferred_missing_configuration" ||
@@ -206,7 +226,7 @@ func TestN093FreshProcessNativeTypedUseAndReplay(t *testing.T) {
 	if got := n104Events(t, settings.RuntimeRoot, "procedure_used"); got != 1 {
 		t.Fatalf("fresh process emitted %d measured use events", got)
 	}
-	receiptDir := filepath.Join(settings.RuntimeRoot, "native-preflight-uses")
+	receiptDir := filepath.Join(settings.RuntimeRoot, "native-preflight-results")
 	entries, err := os.ReadDir(receiptDir)
 	if err != nil || len(entries) != 1 {
 		t.Fatalf("missing native subprocess receipt: %v %d", err, len(entries))
