@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,6 +35,18 @@ func n124ProjectionHoldFixture(t *testing.T) (string, []string, string) {
 			t.Fatal(err)
 		}
 	}
+	declared, err := json.Marshal(map[string]string{
+		"schema": "air-worker.plan.authority/v1",
+		"mode":   "isolated-fixture",
+		"root":   root,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "plan-authority.json"), declared, 0600); err != nil {
+		t.Fatal(err)
+	}
+	names = append(names, "plan-authority.json")
 	foreign := filepath.Join(root, "foreign.txt")
 	if err := os.WriteFile(foreign, []byte("independent foreign WIP\n"), 0600); err != nil {
 		t.Fatal(err)
@@ -247,4 +260,42 @@ func TestN124ProjectionHoldRejectsWindowsJunction(t *testing.T) {
 	if err != nil || !bytes.Equal(actual, content) {
 		t.Fatal("junction rejection mutated the foreign file")
 	}
+}
+
+func TestN124ProjectionHoldRequiresIsolatedFixtureAuthority(t *testing.T) {
+	root, _, _ := n124ProjectionHoldFixture(t)
+	path := filepath.Join(root, "plan-authority.json")
+	original, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if hold, err := holdN124ReplayProjection(root); err == nil {
+		hold.Close()
+		t.Fatal("native hold accepted an undeclared authority root")
+	}
+	bad := bytes.Replace(original, []byte("isolated-fixture"), []byte("production"), 1)
+	if bytes.Equal(original, bad) {
+		t.Fatal("test cannot construct invalid fixture authority")
+	}
+	if err := os.WriteFile(path, bad, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if hold, err := holdN124ReplayProjection(root); err == nil {
+		hold.Close()
+		t.Fatal("native hold accepted a production authority declaration")
+	}
+	if err := os.WriteFile(path, original, 0600); err != nil {
+		t.Fatal(err)
+	}
+	hold, err := holdN124ReplayProjection(root)
+	if err != nil {
+		t.Fatalf("valid disposable declaration was not recoverable: %v", err)
+	}
+	if err := hold.Verify(); err != nil {
+		t.Fatal(err)
+	}
+	hold.Close()
 }

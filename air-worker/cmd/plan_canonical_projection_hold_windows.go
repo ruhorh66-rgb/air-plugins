@@ -65,6 +65,11 @@ func holdN124ReplayProjection(root string) (*n124ReplayProjectionHold, error) {
 	if root == "" || !filepath.IsAbs(root) || filepath.Clean(root) != root || strings.HasPrefix(root, "\\\\") {
 		return fail(errors.New("native projection requires local absolute root"))
 	}
+	// This source-only prototype must NEVER lock a production vault or
+	// masquerade as the new native publication authority.
+	if err := candidatePublishFixture(root); err != nil {
+		return fail(fmt.Errorf("unapproved native hold outside disposable fixture: %w", err))
+	}
 	anchor, err := lockCandidateOrigin(root)
 	if err != nil {
 		return fail(fmt.Errorf("native projection root fence: %w", err))
@@ -167,6 +172,14 @@ func holdN124ReplayProjection(root string) (*n124ReplayProjectionHold, error) {
 		h.ids = append(h.ids, id)
 		h.snapshots = append(h.snapshots, data)
 		return nil
+	}
+	// Pin the authority declaration itself so it cannot change after
+	// validation and before returning source-only readback.
+	if err := pinFile(filepath.Join(root, "plan-authority.json")); err != nil {
+		return fail(err)
+	}
+	if err := candidatePublishFixture(root); err != nil {
+		return fail(fmt.Errorf("fixture authority changed while pinning: %w", err))
 	}
 	if err := pinFile(filepath.Join(root, "PLAN.md")); err != nil {
 		return fail(err)
