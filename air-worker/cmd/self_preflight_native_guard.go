@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,6 +40,29 @@ type nativePreflightUseReceipt struct {
 	Outcome                  string `json:"outcome"`
 	Effect                   string `json:"effect"`
 	CreatedUTC               string `json:"created_utc"`
+	ActionSchema             string `json:"action_schema,omitempty"`
+	ActionID                 string `json:"action_id,omitempty"`
+	ActionVersion            int    `json:"action_version,omitempty"`
+	NativeCommand            string `json:"native_command,omitempty"`
+	Principal                string `json:"principal,omitempty"`
+	Session                  string `json:"session,omitempty"`
+	ProcessID                int    `json:"process_id,omitempty"`
+	Nonce                    string `json:"nonce,omitempty"`
+	ReceiptMAC               string `json:"receipt_hmac_sha256,omitempty"`
+}
+
+// A typed native receipt is bound to the same product-private key used for
+// the original CLI failure. The hash is over the whole typed receipt, so
+// changing its effect, process identity or supported action invalidates it.
+func nativeTypedPreflightReceiptMAC(key []byte, receipt nativePreflightUseReceipt) (string, error) {
+	receipt.ReceiptMAC = ""
+	raw, err := json.Marshal(receipt)
+	if err != nil {
+		return "", err
+	}
+	mac := hmac.New(sha256.New, key)
+	_, _ = mac.Write(raw)
+	return hex.EncodeToString(mac.Sum(nil)), nil
 }
 
 // This guard is called only from the real native cmdValidate before the
@@ -94,12 +120,38 @@ func nativePreflightGuard(argv []string) (nativePreflightGuardResult, error) {
 	if !currentSelfLearningRuleBytes(again, rule) {
 		return out, errors.New("selected reviewed preflight procedure changed after selection")
 	}
-	return recordNativePreflightPreventedRetry(again, prior, rule, eventID)
+	return recordNativePreflightPreventedRetry(again, prior, rule, eventID, argv)
 }
 
 func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFailureReceipt,
-	rule selfLearningLoadedRule, sourceEvent string) (nativePreflightGuardResult, error) {
+	rule selfLearningLoadedRule, sourceEvent string, argv []string) (nativePreflightGuardResult, error) {
 	var out nativePreflightGuardResult
+	// The currently applied SHA alone never selects a machine action: the
+	// complete reviewed bytes must compile to a release-owned typed handler.
+	body, err := readSharedContextSkill(owner.Selector.ProductRoot, rule.Target, 64*1024)
+	if err != nil || learnSHA(body) != rule.SHA256 {
+		return out, errors.New("N093: reviewed target changed before typed native action")
+	}
+	action, err := resolveNativeLearnedAction(body)
+	if err != nil || action != supportedNativePreflightAction() {
+		return out, errors.New("N093: UNSUPPORTED native action")
+	}
+	key, err := ownCLIPrivateKey(owner.Settings.RuntimeRoot)
+	if err != nil {
+		return out, err
+	}
+	defer func() {
+		for i := range key {
+			key[i] = 0
+		}
+	}()
+	if prior.Schema != ownCLIFailureSchema || prior.CauseCode != action.Precondition ||
+		prior.Principal != "air-worker" || prior.Source != "air-worker-cli" ||
+		!hmac.Equal([]byte(prior.InvocationMAC), []byte(ownCLIInvocationMAC(key, argv))) ||
+		!hmac.Equal([]byte(prior.ReceiptMAC), []byte(ownCLIReceiptMAC(key, prior))) {
+		return out, errors.New("N093: original native run identity/HMAC changed")
+	}
+	isTyped := rule.SHA256 != n118ApprovedPreflightDeferralSHA
 	ruleID := rule.Target + "@" + rule.SHA256
 	identity := learnSHA([]byte(prior.RunID + "\x00" + sourceEvent + "\x00" + ruleID))
 	loadID := "N118-LOADED-" + identity[:24]
@@ -124,6 +176,21 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 	if err != nil {
 		return out, err
 	}
+	var signedNow ownCLIFailureReceipt
+	if json.Unmarshal(failureRaw, &signedNow) != nil || signedNow != prior ||
+		!hmac.Equal([]byte(signedNow.ReceiptMAC), []byte(ownCLIReceiptMAC(key, signedNow))) {
+		return out, errors.New("N093: signed original run changed before native action receipt")
+	}
+	freshRule, freshEvent, eligible, err := findAppliedPreflightRule(owner, prior)
+	if err != nil || !eligible || freshRule != rule || freshEvent != sourceEvent {
+		return out, errors.New("N093: review, APPLIED ledger, or current SHA changed")
+	}
+	// Re-evaluate OS-backed facts after the potentially lengthy module load
+	// and reviewer/ledger readbacks. A configuration created in the meantime
+	// must not be reported as a successful missing-config safeguard.
+	if isTyped && ownCLITrustedFailureCause(argv, 2) != action.Precondition {
+		return out, errors.New("N093: native preflight changed before action commit")
+	}
 	receipt := nativePreflightUseReceipt{
 		Schema: "air-worker.n118.native-preflight-use/v1",
 		Status: "native_preflight_retry_prepared", RunID: usedID,
@@ -133,6 +200,26 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 		NativeValidationExecuted: false, Precondition: "validated_run_config_missing",
 		Outcome: "pending", Effect: "pending_correlated_native_use_event",
 		CreatedUTC: time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	if isTyped {
+		// This is an independently checked native read-only action, NOT a
+		// validation PASS. The native validator has not been executed.
+		receipt.Schema = "air-worker.n093.typed-preflight-use/v1"
+		receipt.Status = action.Outcome
+		receipt.Outcome = action.Outcome
+		receipt.Effect = action.Effect
+		receipt.ActionSchema = action.Schema
+		receipt.ActionID = action.ID
+		receipt.ActionVersion = action.Version
+		receipt.NativeCommand = action.NativeCommand
+		receipt.Principal = "air-worker"
+		receipt.Session = prior.RunID
+		receipt.ProcessID = os.Getpid()
+		receipt.Nonce = identity[:24]
+		receipt.ReceiptMAC, err = nativeTypedPreflightReceiptMAC(key, receipt)
+		if err != nil {
+			return out, err
+		}
 	}
 	dir := filepath.Join(owner.Settings.RuntimeRoot, "native-preflight-uses")
 	if err := os.MkdirAll(dir, 0700); err != nil {
@@ -171,6 +258,23 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 	// receipt nor claim a second procedure_used event.
 	originalCreated := receipt.CreatedUTC
 	receipt.CreatedUTC = persisted.CreatedUTC
+	if isTyped {
+		if persisted.ProcessID <= 0 || persisted.Nonce != identity[:24] ||
+			persisted.ReceiptMAC == "" {
+			return out, errors.New("N093: missing immutable native process/nonce/HMAC evidence")
+		}
+		// A replay in another process is the SAME prior measured action.
+		// Preserve its original actor identity, never create another use.
+		receipt.ProcessID = persisted.ProcessID
+		expected, err := nativeTypedPreflightReceiptMAC(key, persisted)
+		if err != nil || !hmac.Equal([]byte(persisted.ReceiptMAC), []byte(expected)) {
+			return out, errors.New("N093: typed action receipt signature changed")
+		}
+		receipt.ReceiptMAC, err = nativeTypedPreflightReceiptMAC(key, receipt)
+		if err != nil {
+			return out, err
+		}
+	}
 	if persisted != receipt || persisted.CreatedUTC == "" {
 		return out, fmt.Errorf("native preflight immutable receipt conflict (original time %s)", originalCreated)
 	}
@@ -211,6 +315,9 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 		return out, err
 	}
 	if !usageFound {
+		if isTyped && ownCLITrustedFailureCause(argv, 2) != action.Precondition {
+			return out, errors.New("N093: native preflight changed before use event")
+		}
 		response, err := executeSharedLearning(owner.Selector.ProductRoot, owner.Settings, "observe", map[string]string{
 			"run_id": usedID, "kind": "procedure_used", "class": "native-preflight-retry",
 			"source": "native-preflight-validate", "principal": "air-worker",

@@ -104,18 +104,21 @@ func findAppliedPreflightRule(owner selfLearningOwner, prior ownCLIFailureReceip
 	if err != nil {
 		return none, "", false, err
 	}
-	if !validLearningProcedureMarkdown(string(body)) ||
-		!strings.Contains(string(body), "run-config.json") ||
-		review.Candidate.Content != string(body) {
-		return none, "", false, errors.New("reviewed candidate differs from exact safe Markdown procedure")
+	if review.Candidate.Content != string(body) {
+		return none, "", false, errors.New("reviewed candidate differs from exact on-disk procedure")
+	}
+	if !validLearningProcedureMarkdown(string(body)) &&
+		!strings.HasPrefix(string(body), nativeLearnedActionEnvelopePrefix) {
+		return none, "", false, errors.New("reviewed candidate is neither safe Markdown nor a typed machine-only procedure")
 	}
 	rule := selfLearningLoadedRule{Target: target, SHA256: learnSHA(body)}
-	// A reviewed candidate is evidence that a new PROCEDURE was generated,
-	// not evidence it instructed this precise native DEFER action. Until a
-	// release-owned verifier supports additional safely typed actions, only
-	// the exact audited positive preflight procedure may be credited.
-	if !strings.EqualFold(rule.SHA256, n118ApprovedPreflightDeferralSHA) {
-		return none, "", false, errors.New("reviewed preflight lesson has no release-owned safe deferral action contract")
+	// The model's Markdown is neither authorization nor proof of use. Bind
+	// the reviewed/APPLIED target@SHA to a strictly compiled native action.
+	// Unknown or conflicting prose never gains a new permission; typed
+	// manifests only select a fixed, read-only, source-owned operation.
+	action, err := resolveNativeLearnedAction(body)
+	if err != nil || action != supportedNativePreflightAction() {
+		return none, "", false, errors.New("UNSUPPORTED: reviewed procedure has no compiled safe typed action")
 	}
 	if !currentSelfLearningRuleBytes(owner, rule) {
 		return none, "", false, errors.New("preflight rule stale/linked after review")

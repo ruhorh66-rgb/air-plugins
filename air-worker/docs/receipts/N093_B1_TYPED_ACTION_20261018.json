@@ -1,0 +1,49 @@
+{
+    "schema":  "airworker.n093.worker-b.b1-source-only/v1",
+    "node":  "SRVLM01",
+    "work_code":  "AW119-N093-WORKER-B-20261018",
+    "owner":  "GPT-worker-B",
+    "base_head":  "f226e42f2819c59c5887ccec0f10c0796219de08",
+    "source_files":  [
+                         "cmd/learn_shared_test.go",
+                         "cmd/self_preflight_native_guard.go",
+                         "cmd/self_preflight_provenance.go",
+                         "cmd/self_preflight_typed_action.go",
+                         "cmd/self_preflight_typed_action_test.go",
+                         "cmd/self_preflight_typed_native_test.go"
+                     ],
+    "action":  {
+                   "schema":  "air-worker.native-learned-action/v1",
+                   "id":  "validate.canonical-config-preflight",
+                   "version":  1,
+                   "effect":  "avoided_repeat_validation_with_missing_config",
+                   "full_validation_claimed":  false
+               },
+    "reviewed_target_sha":  "74692ab86b4b540432fe3b8250ed77cfd96d077618f00f8d28fbf331553bc703",
+    "original_receipts_verified":  4,
+    "baseline_receipt_sha256":  "19b3d39ff0a5ef4047916def4f15b2d17b973248d44ff1d63ff3dc60e8aab224",
+    "qa2_receipt_sha256":  "bbc1b4c062416204b0f442981238fd2bdaab1f3f82dcc8a9597c9e3129ca2aa6",
+    "test_exit":  0,
+    "vet_exit":  0,
+    "build_exit":  0,
+    "test_log_sha256":  "b4676345acc922eb07c1c7a6ff3bfc29bfe1e6c659830096624d10a93cc8c506",
+    "vet_log_sha256":  "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "build_log_sha256":  "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "candidate_binary_sha256":  "6ac1a940543f4341accf126d03780c89c35331758dae9a4249e63fd3d5d5dce9",
+    "n093_test_discovered":  14,
+    "negative_cases":  [
+                           "changed-plan-config-between-preflight-and-commit",
+                           "wrong-original-invocation-MAC",
+                           "tampered-machine-use-HMAC",
+                           "wrong-action-and-JSON-duplicate-keys",
+                           "unknown-schema-or-extra-model-text",
+                           "two-concurrent-calls-one-use",
+                           "fresh-process-replay-no-duplicate",
+                           "without-source-review-ledger-no-use"
+                       ],
+    "independent_semantic_judge":  "PENDING",
+    "native_n093":  "OPEN",
+    "status":  "SOURCE_QA_PASS_SEMANTIC_PENDING",
+    "no_live_mutation":  true,
+    "created_utc":  "2026-10-18T06:40:55.2058831Z"
+}

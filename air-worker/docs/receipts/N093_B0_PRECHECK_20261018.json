@@ -1,0 +1,45 @@
+{
+    "schema":  "air-worker.n093.b0-source-precheck/v1",
+    "node":  "SRVLM01",
+    "work_code":  "AW119-N093-WORKER-B-20261018",
+    "owner":  "GPT-worker-B",
+    "baseline_branch":  "dev/airworker-0119-n093-worker-b-20261018",
+    "baseline_head":  "f226e42f2819c59c5887ccec0f10c0796219de08",
+    "baseline_tree_clean_before_B1":  true,
+    "baseline_clean_witness":  "preflight AIR Commander Test status --porcelain empty before B1",
+    "native_n093":  "open",
+    "source_revision":  "air-modules v0.1.0",
+    "old_r02_r03_not_replayed":  true,
+    "prior_receipts":  [
+                           {
+                               "sha256":  "165012ac50db229add0dc25974a2415185f8a52f912d8256fea007b241596ccc",
+                               "name":  "R02_NATIVE_BOOTSTRAP_20261018.json",
+                               "pass":  true
+                           },
+                           {
+                               "sha256":  "2acf23c39001e06b252b6830fb4e806659a2f7cac94609c4ca8ad106cf248fc6",
+                               "name":  "R02_NATIVE_LOOP_20261018.json",
+                               "pass":  true
+                           },
+                           {
+                               "sha256":  "dfc5fc2d71e6dbf8d5663c39622a56a444a226a3c764853fa562f400e0e39cd3",
+                               "name":  "R03_REVIEW_BATCH_B2_RESULT_20261018.json",
+                               "pass":  true
+                           },
+                           {
+                               "sha256":  "fbee6c910eba6d55079b57832aba97fab563d14aa6629eeeaf4c9a685245f6d1",
+                               "name":  "R04_EXACT_LOAD_RESULT_20261018.json",
+                               "pass":  true
+                           }
+                       ],
+    "source_foreign_wip_preserved":  {
+                                         "N124_hermes_status_rows":  4,
+                                         "owner_transfer_staged_count":  12
+                                     },
+    "installed_airworker_expected":  "0.11.8",
+    "reviewed_applied_sha256":  "74692ab86b4b540432fe3b8250ed77cfd96d077618f00f8d28fbf331553bc703",
+    "r04_procedure_used":  0,
+    "production_effect":  "NOT_PROVEN",
+    "result":  "PASS_READBACK_ONLY",
+    "observed_utc":  "2026-10-18T06:20:21.9888355Z"
+}

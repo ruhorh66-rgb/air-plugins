@@ -108,6 +108,19 @@ func TestLearningProcessHelper(t *testing.T) {
 			"pre_sha256": "",
 			"content":    n118SafePreflightProcedure,
 		})
+	case "review-native-preflight-n093":
+		// Fixture-only reviewer: tests the NEW exact source-bound native
+		// action contract. No prior production reviewer job is replayed.
+		if !strings.Contains(string(b), "run-config.json is missing") {
+			os.Stdout.Write([]byte("{}"))
+			break
+		}
+		json.NewEncoder(os.Stdout).Encode(map[string]string{
+			"kind":       "procedure",
+			"target":     "skills/learned/air-worker-cli-preflight-n093-reviewed.md",
+			"pre_sha256": "",
+			"content":    n093RealReviewedPreflight,
+		})
 	case "review-native-preflight-other-action":
 		// A valid REVIEWED Markdown candidate is not automatically a safe
 		// authorization to perform this one machine-observable native action.
