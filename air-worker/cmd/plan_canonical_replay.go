@@ -3,11 +3,51 @@ package main
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
+
+// readCanonicalReplayFixtureFile bounds native projection reads and checks
+// the opened file identity and visible path generation. This narrows the
+// mid-read race in the disposable fixture, NOT a cross-process generation
+// lock or permission to use this helper for production PLAN mutation.
+func readCanonicalReplayFixtureFile(name string) ([]byte, os.FileInfo, error) {
+	const fileLimit = 4 * 1024 * 1024
+	if err := candidateNoLinks(name); err != nil {
+		return nil, nil, err
+	}
+	before, err := os.Lstat(name)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !before.Mode().IsRegular() || before.Size() < 0 || before.Size() > fileLimit {
+		return nil, nil, errors.New("untrusted or oversized native fixture file")
+	}
+	f, err := os.Open(name)
+	if err != nil {
+		return nil, nil, err
+	}
+	opened, statErr := f.Stat()
+	if statErr != nil || !os.SameFile(before, opened) {
+		_ = f.Close()
+		return nil, nil, errors.New("native fixture changed during open")
+	}
+	raw, readErr := io.ReadAll(io.LimitReader(f, fileLimit+1))
+	openedAfter, statErr := f.Stat()
+	closeErr := f.Close()
+	after, pathErr := os.Lstat(name)
+	if readErr != nil || statErr != nil || closeErr != nil || pathErr != nil ||
+		len(raw) > fileLimit || !os.SameFile(before, openedAfter) ||
+		!os.SameFile(before, after) || before.Size() != after.Size() ||
+		!before.ModTime().Equal(after.ModTime()) ||
+		!opened.ModTime().Equal(openedAfter.ModTime()) {
+		return nil, nil, errors.New("native fixture file identity/size/time changed")
+	}
+	return raw, after, nil
+}
 
 // recoverCanonicalFixtureNew is strictly read-only. A single physical
 // publisher has an accepted child commit but the local source is still on its
@@ -72,13 +112,18 @@ func recoverCanonicalFixtureNew(
 			if err := candidateNoLinks(full); err != nil {
 				return err
 			}
-			local, e1 := os.ReadFile(full)
+			local, beforeIdentity, e1 := readCanonicalReplayFixtureFile(full)
 			base, e2 := runRaw(origin, "cat-file", "blob", old+":"+name)
+			// A concurrent writer can mutate local bytes while Git retrieves the
+			// immutable parent blob. Compare a fresh bounded file snapshot.
+			localAfter, afterIdentity, e3 := readCanonicalReplayFixtureFile(full)
 			count++
+			// The second local read rechecks identity, not the logical payload size.
 			total += len(local) + len(base)
-			if e1 != nil || e2 != nil || len(local) > 4*1024*1024 || total > 32*1024*1024 ||
-				count > 4096 || !bytes.Equal(local, base) {
-				return errors.New("local native projection differs from canonical parent blob")
+			if e1 != nil || e2 != nil || e3 != nil || total > 32*1024*1024 ||
+				count > 4096 || !os.SameFile(beforeIdentity, afterIdentity) ||
+				!bytes.Equal(local, base) || !bytes.Equal(local, localAfter) {
+				return errors.New("local native projection changed during bounded Git-blob verification")
 			}
 		}
 		if count == 0 {
@@ -115,9 +160,9 @@ func recoverCanonicalFixtureNew(
 		return conflict("accepted canonical delta is not exactly one new node")
 	}
 	// Reject stale/modified local PLAN even if the remote appears valid.
-	localPlan, err := os.ReadFile(filepath.Join(root, "PLAN.md"))
+	localPlan, _, err := readCanonicalReplayFixtureFile(filepath.Join(root, "PLAN.md"))
 	if err != nil {
-		return conflict("local original PLAN unavailable")
+		return conflict("local original PLAN unavailable or changed")
 	}
 	oldPlan, err := runRaw(origin, "cat-file", "blob", old+":PLAN.md")
 	if err != nil || !bytes.Equal(oldPlan, localPlan) {
