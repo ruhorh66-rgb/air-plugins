@@ -52,11 +52,15 @@ func cmdPlanCanonicalFixtureClose(root, origin, id, requestID, receipt, receiptS
 	if err != nil {
 		return fail(err)
 	}
-	run := func(dir string, args ...string) (string, error) {
+	// Immutable replay needs raw Git blob bytes; metadata reads may trim them.
+	runRaw := func(dir string, args ...string) ([]byte, error) {
 		cmd := exec.CommandContext(ctx, git, append([]string{"-C", dir, "-c", "core.fsmonitor=false", "-c", "core.hooksPath=" + os.DevNull}, args...)...)
 		cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_OPTIONAL_LOCKS=0", "GIT_NO_REPLACE_OBJECTS=1", "GIT_NO_LAZY_FETCH=1", "GIT_TERMINAL_PROMPT=0")
 		cmd.WaitDelay = time.Second
-		out, err := cmd.Output()
+		return cmd.Output()
+	}
+	run := func(dir string, args ...string) (string, error) {
+		out, err := runRaw(dir, args...)
 		return strings.TrimSpace(string(out)), err
 	}
 	for _, item := range []struct{ dir, metadata, bare string }{{root, filepath.Join(root, ".git"), "false"}, {origin, origin, "true"}} {
@@ -105,9 +109,31 @@ func cmdPlanCanonicalFixtureClose(root, origin, id, requestID, receipt, receiptS
 		return fail(fmt.Errorf("source HEAD unavailable"))
 	}
 	remote, err := run(origin, "rev-parse", "--verify", "refs/heads/canonical")
-	// shortcut: replay on an advanced remote fails closed; trusted recovery belongs to A3-2.
-	if err != nil || remote != old {
-		return fail(fmt.Errorf("canonical differs from source HEAD; retry requires reconciliation"))
+	if err != nil {
+		return fail(fmt.Errorf("canonical ref unavailable"))
+	}
+	if remote != old {
+		// Only an accepted direct child for this exact request and receipt
+		// may be acknowledged, without any new Git write or local mutation.
+		closed, acceptedActor, err := recoverCanonicalFixtureClose(
+			root, origin, old, remote, id, requestID, receipt, receiptSHA,
+			actorKind, actor, run, runRaw,
+		)
+		if err != nil {
+			return fail(fmt.Errorf("canonical differs from source HEAD; recovery refused: %w", err))
+		}
+		if asJSON {
+			if err := json.NewEncoder(os.Stdout).Encode(map[string]any{
+				"schema": "air-worker.plan.node.mutation/v1", "source": "git-canonical-fixture",
+				"action": "closed", "operation_id": requestID, "node": closed,
+				"remote_oid": remote, "actor": acceptedActor,
+			}); err != nil {
+				return fail(fmt.Errorf("accepted replay JSON output unavailable"))
+			}
+		} else {
+			fmt.Printf("%s %s%s", id, remote, lineEnding)
+		}
+		return 0
 	}
 	entries, err := os.ReadDir(planNodeDir(root))
 	if err != nil && !os.IsNotExist(err) {

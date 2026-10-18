@@ -104,20 +104,76 @@ func TestPlanCanonicalCloseNative(t *testing.T) {
 	if op["plan_sha256"] != learnSHA([]byte(plan)) || op["node_sha256"] != learnSHA([]byte(node)) || !strings.Contains(plan, spineNodeLine(result.Node)) {
 		t.Fatal("accepted outbox/PLAN/node mismatch")
 	}
-	for _, changed := range []bool{false, true} {
-		digest := learnSHA(receipt)
-		if changed {
-			digest = strings.Repeat("0", 64)
-		}
-		out, code := captureStdout(t, func() int {
-			return cmdPlanNodeClose([]string{n.ID, "-product", root, "-request-id", "close-119", "-receipt", "close-receipt.json", "-receipt-sha256", digest, "-json"})
-		})
-		if code == 0 || !strings.Contains(out, `"action":"conflict"`) {
-			t.Fatalf("replay accepted: %d %s", code, out)
-		}
-		if candidateGit(t, origin, "rev-parse", publishRef) != result.OID || !reflect.DeepEqual(before, candidateOriginal(t, root)) {
-			t.Fatal("replay mutated state")
-		}
+	// Exact retry after the Git ref advanced must return the SAME immutable
+	// closure and receipt; it may not create another event or mutate the source.
+	replay, code := captureStdout(t, func() int {
+		return cmdPlanNodeClose([]string{n.ID, "-product", root, "-request-id", "close-119", "-receipt", "close-receipt.json", "-receipt-sha256", learnSHA(receipt), "-json"})
+	})
+	var retried struct {
+		Action string   `json:"action"`
+		OID    string   `json:"remote_oid"`
+		Node   planNode `json:"node"`
+	}
+	if err := json.Unmarshal([]byte(replay), &retried); err != nil || code != 0 ||
+		retried.Action != "closed" || retried.OID != result.OID ||
+		retried.Node.ID != result.Node.ID || retried.Node.UpdatedAt != result.Node.UpdatedAt ||
+		!reflect.DeepEqual(retried.Node.Receipts, result.Node.Receipts) {
+		t.Fatalf("exact close replay must recover immutable accepted result: rc=%d output=%s", code, replay)
+	}
+	if candidateGit(t, origin, "rev-parse", publishRef) != result.OID || !reflect.DeepEqual(before, candidateOriginal(t, root)) {
+		t.Fatal("exact close replay mutated state")
+	}
+	// A changed receipt digest may never borrow the previously accepted result.
+	wrong, code := captureStdout(t, func() int {
+		return cmdPlanNodeClose([]string{n.ID, "-product", root, "-request-id", "close-119", "-receipt", "close-receipt.json", "-receipt-sha256", strings.Repeat("0", 64), "-json"})
+	})
+	if code == 0 || !strings.Contains(wrong, `"action":"conflict"`) {
+		t.Fatalf("changed-digest replay was accepted: rc=%d %s", code, wrong)
+	}
+	if candidateGit(t, origin, "rev-parse", publishRef) != result.OID || !reflect.DeepEqual(before, candidateOriginal(t, root)) {
+		t.Fatal("changed-digest replay mutated state")
+	}
+	// Foreign uncommitted work must remain byte-exact and cannot invalidate
+	// a read-only acknowledgement of the already accepted close.
+	if err := os.WriteFile(filepath.Join(root, "foreign.txt"), []byte("foreign WIP after close\\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	foreignBefore := candidateOriginal(t, root)
+	withWIP, code := captureStdout(t, func() int {
+		return cmdPlanNodeClose([]string{n.ID, "-product", root, "-request-id", "close-119", "-receipt", "close-receipt.json", "-receipt-sha256", learnSHA(receipt), "-json"})
+	})
+	if code != 0 || !strings.Contains(withWIP, result.OID) ||
+		!reflect.DeepEqual(foreignBefore, candidateOriginal(t, root)) {
+		t.Fatalf("exact close retry with foreign WIP must be read-only: rc=%d %s", code, withWIP)
+	}
+	wrongActor, code := captureStdout(t, func() int {
+		return cmdPlanNodeClose([]string{n.ID, "-product", root, "-request-id", "close-119", "-receipt", "close-receipt.json", "-receipt-sha256", learnSHA(receipt),
+			"-actor-kind", "gpt-window", "-actor", "different-actor", "-json"})
+	})
+	if code == 0 || !strings.Contains(wrongActor, `"action":"conflict"`) ||
+		!reflect.DeepEqual(foreignBefore, candidateOriginal(t, root)) {
+		t.Fatalf("different actor must not impersonate accepted close: rc=%d %s", code, wrongActor)
+	}
+	// An unrelated descendant retaining the same outbox is NOT the accepted
+	// direct child; never recover from historical presence alone.
+	tree := candidateGit(t, origin, "rev-parse", result.OID+"^{tree}")
+	other := n124ProbeMustGit(t, origin, "unrelated canonical operation\\n", "commit-tree", tree, "-p", result.OID)
+	candidateGit(t, origin, "update-ref", publishRef, other, result.OID)
+	diverged, code := captureStdout(t, func() int {
+		return cmdPlanNodeClose([]string{n.ID, "-product", root, "-request-id", "close-119", "-receipt", "close-receipt.json", "-receipt-sha256", learnSHA(receipt), "-json"})
+	})
+	if code == 0 || !strings.Contains(diverged, `"action":"conflict"`) ||
+		candidateGit(t, origin, "rev-parse", publishRef) != other ||
+		!reflect.DeepEqual(foreignBefore, candidateOriginal(t, root)) {
+		t.Fatalf("unrelated canonical descendant must remain a conflict: rc=%d %s", code, diverged)
+	}
+	candidateGit(t, origin, "update-ref", publishRef, result.OID, other)
+	restored, code := captureStdout(t, func() int {
+		return cmdPlanNodeClose([]string{n.ID, "-product", root, "-request-id", "close-119", "-receipt", "close-receipt.json", "-receipt-sha256", learnSHA(receipt), "-json"})
+	})
+	if code != 0 || !strings.Contains(restored, result.OID) ||
+		!reflect.DeepEqual(foreignBefore, candidateOriginal(t, root)) {
+		t.Fatalf("restored direct child must recover exact close: rc=%d %s", code, restored)
 	}
 }
 
