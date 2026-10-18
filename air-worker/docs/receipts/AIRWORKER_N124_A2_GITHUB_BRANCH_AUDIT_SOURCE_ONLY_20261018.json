@@ -1,0 +1,134 @@
+{
+  "schema": "airworker.n124.a2-github-branch-audit-source-only/v1",
+  "date_sgt": "2026-10-18",
+  "work_code": "AW-N124-A2-GITHUB-READONLY-20261018",
+  "node": "SRVLM01",
+  "status": "SOURCE_ONLY_SCOPED_PASS__N124_OPEN__PRODUCTION_AUTHORITY_HOLD",
+  "native_node": "N-124_p1-detect-cross-branch-node-id-collision-and-sta",
+  "native_node_status": "OPEN",
+  "release_ready": false,
+  "native_node_close_permitted": false,
+  "scope": {
+    "purpose": "Detect conflicting native N-IDs in two pinned immutable GitHub Git branch snapshots; read-only advisory",
+    "command": "air-worker plan authority audit",
+    "authority_granted": false,
+    "changed": false,
+    "exit_code": 2,
+    "production_mutation": false,
+    "all_branches_covered": false,
+    "one_remote_pair_only": true
+  },
+  "source": {
+    "repository": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-n124-worker-a-20261018",
+    "parent": "e1e113a402393a3048c500b32dff3b81e7582a8e",
+    "initial_source_commit": "f61860ebd9fe7861174c942f9c461627536fb8bd",
+    "first_review_fix": "56acd7a7ddf18f9de30689e1e920c5c79b8c928f",
+    "final_source_commit": "fe8ddb3bd9a63f529c60c42d4e18082ade2e4e4a",
+    "github_remote_readback": "fe8ddb3bd9a63f529c60c42d4e18082ade2e4e4a",
+    "changed_paths": [
+      "air-worker/cmd/plan_authority_audit.go",
+      "air-worker/cmd/plan_authority_audit_test.go",
+      "air-worker/cmd/planner.go",
+      "air-worker/docs/N124_GITHUB_BRANCH_AUDIT_SOURCE_ONLY.md"
+    ]
+  },
+  "positive": {
+    "canonical_branch": "dev/airworker-n124-worker-a-20261018",
+    "canonical_head": "fe8ddb3bd9a63f529c60c42d4e18082ade2e4e4a",
+    "peer_branch": "dev/airworker-n124-gpt-0119-20261018",
+    "peer_head": "7feeaa16848ede938e5d1291f1d8b793679fd125",
+    "native_nodes_canonical": 125,
+    "native_nodes_peer": 125,
+    "conflicts": 0,
+    "status": "NO_COLLISIONS_LOCAL_ONLY",
+    "exit_code": 2,
+    "authority_granted": false,
+    "changed": false,
+    "raw_receipt": "R:/-4-/air-worker/work/N124_WORKER_A_20261018/A2_N124_FINAL_GITHUB_BRANCH_AUDIT_20261018.json",
+    "raw_receipt_sha256": "94f994816f035a3322ca4bb53f53debb310a4e35034ac8c03ebadad5888e24b3"
+  },
+  "negative": {
+    "wrong_canonical_sha_status": "NOT_PROVEN",
+    "exit_code": 2,
+    "authority_granted": false,
+    "changed": false,
+    "raw_receipt": "R:/-4-/air-worker/work/N124_WORKER_A_20261018/A2_N124_FINAL_WRONG_SHA_NEGATIVE_20261018.json",
+    "raw_receipt_sha256": "7e7fc06e8978ba2b8fc820e35ae37b9175fb22536c1df0819a4f219080182df2",
+    "covered": [
+      "numeric_id_reallocated",
+      "same_id_content_diverged",
+      "corrupted_or_missing_commit",
+      "invalid_blob_oid",
+      "duplicate_id_inside_snapshot",
+      "unsafe_branch_name",
+      "unsafe_git_url_rewrite",
+      "unsafe_credential_helper",
+      "unsafe_http_proxy",
+      "native_plan_marker_absent",
+      "wrong_spine_status_or_owner",
+      "duplicate_link_with_valid_spine",
+      "stale_or_diverged_github_head",
+      "real_wrong_sha"
+    ]
+  },
+  "quality": {
+    "go_unit_tests": {
+      "main": 8,
+      "nested": 17,
+      "exit_code": 0,
+      "log": "R:/-4-/air-worker/work/N124_WORKER_A_20261018/A2_GITHUB_AUDIT_DUPLINK_GREEN.log",
+      "sha256": "7a68cf8adae6454de03424cd727a26c2e8334ed8d12eedcd6807a9224bfe8c77"
+    },
+    "native_regression": {
+      "main": 3,
+      "exit_code": 0,
+      "log_sha256": "fa97ece4da23ceff6c689d29638c132a188ae241616a1ab00e6d098909c3de9d"
+    },
+    "go_vet_exit_code": 0,
+    "go_build_exit_code": 0,
+    "isolated_executable_sha256": "5500a753d7d6cdeb1a920e675c96f3e59f24876c1c9057aa10565caf5dbca631",
+    "native_plan_lint_exit_code": 0,
+    "native_validate_exit_code": 0,
+    "reviewer": {
+      "provider": "OpenAI Codex",
+      "model": "gpt-6-sol",
+      "effort": "low",
+      "sandbox": "read-only",
+      "reviewed_sha": "fe8ddb3bd9a63f529c60c42d4e18082ade2e4e4a",
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 0,
+      "verdict_sha256": "2633d550f0b4f9657238f4ab5dacd7e3f72b6de122c27681bb0033e494df431c"
+    },
+    "tdd_red": {
+      "fake_spine_sha256": "c59d98d8ab4fdde52864751903de81ab0904eba4850a8a0f73bf189d5cb90874",
+      "duplicate_link_sha256": "88d628ee79c18ccfbbc9dab153adae9444fd9e3f4e9e6d19ba04138635b72f6f"
+    },
+    "full_repository_regression": "NOT_PROVEN",
+    "windows_junction_and_symlink_privilege_tests": "TWO_PREVIOUSLY_SKIPPED"
+  },
+  "safety": {
+    "installed_version": "0.11.8",
+    "installed_sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "native_PLAN_N_LEARN_manual_edits": false,
+    "other_worker_B_changes": false,
+    "hermes_WIP_files_preserved": 4,
+    "airlegal_dirty_worktree_preserved": true,
+    "no_git_production_refs_changed": true,
+    "source_feature_branch_pushed_only": true,
+    "no_release_tag": true,
+    "no_install": true,
+    "no_reboot_uac_service_stop": true
+  },
+  "open_gates": [
+    "Real trusted GitHub canonical publisher authority; only immutable pair comparison exists",
+    "Global reservation of numeric N-IDs across all branches/private WIP with verified CAS and two stale clients",
+    "Installed AirWorker binary capability attestation plus DEV-136 header generation CAS",
+    "Full Go regression/Windows junction tests on accepted future source SHA",
+    "Native N-124 close only after independent overall PASS; AirLegal N-111 downstream remains OPEN"
+  ],
+  "rollback": "Revert only feature branch source commits f61860e, 56acd7a and fe8ddb3 if rejected; installed 0.11.8 unchanged",
+  "next": "Implement one trusted publisher contract with immutable GitHub authority identity/expected-old CAS and crash/replay; do not use audit rc2 as permission."
+}
