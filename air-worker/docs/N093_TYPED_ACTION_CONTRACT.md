@@ -38,9 +38,14 @@ Duplicate and unknown JSON fields, extra bytes, unsafe commands, and
 unsupported versions are rejected. Whitespace differences are permitted
 without any new SHA allowlist. Reviewer output by itself is not authorization.
 
-For compatibility, the N118 audited safe procedure and exact N093 reviewed
-safe example from 18.10.2026 have bounded source-owned grammars; arbitrary
-additional Markdown text remains unsupported.
+For compatibility, the N118 audited safe procedure and two independently
+reviewed N093 safe preflight examples from 18.10.2026 have **exact content**
+source-owned grammars. The second production reviewer produced an independently
+APPLIED procedure at SHA `266805f1...28552b8`; its action is still the same
+compiled, read-only, non-validating preflight. Neither the source nor the
+runtime grants an action merely because a new digest exists. Any other model
+Markdown stays `UNSUPPORTED` until a separate compiled action/negative gate;
+the machine-only typed envelope remains the extensible interface.
 
 ## Machine use provenance
 

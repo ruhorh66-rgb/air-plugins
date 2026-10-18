@@ -59,6 +59,23 @@ const n093ReviewedSafePreflightText = "# Validate the Canonical Product Configur
 	"- Retrying validation without resolving the missing configuration precondition.\n" +
 	"- Claiming a successful repair or procedure effect without evidence.\n"
 
+// A second production Codex review on an independent signed native failure
+// produced the same audited read-only action with different safe wording.
+// This source-owned compatibility template is exact CONTENT, never a SHA
+// exception: arbitrary Markdown still cannot select an action. New native
+// operations require distinct compiled handlers and independent negative QA.
+const n093ReviewedSafePreflightSecondReal = "# Verify the canonical product configuration before retrying validation\n\n" +
+	"## When to apply\n\n" +
+	"When native AirWorker CLI validation fails because the product directory exists but its expected configuration file is missing.\n\n" +
+	"## Procedure\n\n" +
+	"1. Locate the canonical product root used by the run.\n" +
+	"2. Verify that the expected existing configuration, including `run-config.json`, is present and valid.\n" +
+	"3. Retry validation only after confirming the canonical configuration; do not invent or silently replace configuration files.\n\n" +
+	"## Pitfalls\n\n" +
+	"- Treating the first matching product directory as canonical.\n" +
+	"- Creating or replacing configuration merely to make validation proceed.\n" +
+	"- Claiming successful repair or validation without evidence.\n"
+
 // This grammar supports multiple distinct, cryptographically indexed skills
 // without pre-registering their SHA. The only allowed contents are machine
 // data for a compiled operation, not additional instructions from the model.
@@ -75,7 +92,7 @@ func resolveNativeLearnedAction(body []byte) (nativeLearnedAction, error) {
 	if learnSHA(body) == n118ApprovedPreflightDeferralSHA {
 		return audited, nil
 	}
-	if string(body) == n093ReviewedSafePreflightText {
+	if string(body) == n093ReviewedSafePreflightText || string(body) == n093ReviewedSafePreflightSecondReal {
 		return audited, nil
 	}
 	if !bytes.HasPrefix(body, []byte(nativeLearnedActionEnvelopePrefix)) ||
