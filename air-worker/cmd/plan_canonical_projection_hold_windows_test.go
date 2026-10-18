@@ -71,7 +71,9 @@ func TestN124ProjectionHoldRejectsNativeConcurrentWrites(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot pin native fixture projection: %v", err)
 	}
-	defer hold.Close()
+	// hold may be replaced after an ABA negative case. Close the currently
+	// referenced hold even on t.Fatal, not just the first captured receiver.
+	defer func() { hold.Close() }()
 	if err := hold.Verify(); err != nil {
 		t.Fatalf("native file generation could not be verified: %v", err)
 	}
