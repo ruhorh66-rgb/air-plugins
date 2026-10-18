@@ -128,3 +128,62 @@ func TestPlanCandidateAtomicClaimOneWinnerForNumericID(t *testing.T) {
 		t.Fatal("loser successfully replayed a different node with the same numeric ID")
 	}
 }
+
+func TestPlanCandidateAtomicClaimRejectsSourceHEADDrift(t *testing.T) {
+	for _, mode := range []string{"before-publish", "after-preflight", "on-replay"} {
+		t.Run(mode, func(t *testing.T) {
+			repo, origin, old, candidate := publishFixture(t)
+			beforePLAN := candidateGit(t, repo, "show", "HEAD:air-worker/PLAN.md")
+			moved := false
+			moveHEAD := func() {
+				candidateGit(t, repo, "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "source moved after candidate preparation")
+				moved = true
+			}
+			if mode == "on-replay" {
+				if err := publishPlanCandidateAtomicClaim(context.Background(), repo, origin, candidate, old, "N-121_next"); err != nil {
+					t.Fatalf("first accepted canonical publication: %v", err)
+				}
+			}
+			if mode != "after-preflight" {
+				moveHEAD()
+			}
+			var err error
+			if mode == "after-preflight" {
+				claim, claimErr := planCandidateNumericClaimRef(candidate, "N-121_next")
+				if claimErr != nil {
+					t.Fatal(claimErr)
+				}
+				err = publishPlanCandidateWithClaim(
+					context.Background(), repo, origin, publishRef, candidate, old,
+					moveHEAD, claim,
+				)
+			} else {
+				err = publishPlanCandidateAtomicClaim(context.Background(), repo, origin, candidate, old, "N-121_next")
+			}
+			if !moved {
+				t.Fatal("source generation was not advanced in test")
+			}
+			if err == nil {
+				t.Fatalf("stale source accepted on %s", mode)
+			}
+			if !strings.Contains(err.Error(), "conflict") && !strings.Contains(err.Error(), "pending") {
+				t.Fatalf("stale source missing machine denial: %v", err)
+			}
+			expectedCanonical := old
+			if mode == "on-replay" {
+				expectedCanonical = candidate.OID
+			}
+			if got := candidateGit(t, origin, "rev-parse", publishRef); got != expectedCanonical {
+				t.Fatalf("stale operation changed canonical: %s", got)
+			}
+			if afterPLAN := candidateGit(t, repo, "show", "HEAD:air-worker/PLAN.md"); afterPLAN != beforePLAN {
+				t.Fatal("source HEAD change unexpectedly altered PLAN bytes")
+			}
+			if mode != "on-replay" {
+				if got := candidateGit(t, origin, "for-each-ref", "--format=%(refname)", "refs/air-worker/claims/"); got != "" {
+					t.Fatalf("stale operation created numeric claim: %s", got)
+				}
+			}
+		})
+	}
+}

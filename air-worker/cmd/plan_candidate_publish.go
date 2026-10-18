@@ -289,6 +289,27 @@ func publishPlanCandidateWithClaim(ctx context.Context, repo, originBare, ref st
 		}
 		return parts[1], nil
 	}
+	// The candidate was prepared against the exact source HEAD. Another
+	// local commit after preparation MUST NOT permit an old candidate to
+	// publish, or masquerade as a successful exact replay. This extra check
+	// is limited to the new atomic-claim fixture path; the legacy publisher
+	// retains its existing compatibility contract.
+	verifySourceGeneration := func(parent context.Context) error {
+		if claimRef == "" {
+			return nil
+		}
+		if err := configLock.Verify(); err != nil {
+			return err
+		}
+		out, err := run(parent, repo, "rev-parse", "--verify", "HEAD")
+		if err != nil || strings.TrimSpace(string(out)) != expectedOldSHA {
+			return fmt.Errorf("source HEAD differs from accepted candidate generation")
+		}
+		return configLock.Verify()
+	}
+	if err := verifySourceGeneration(ctx); err != nil {
+		return conflict("source generation stale: " + err.Error())
+	}
 	remote, err := readback(ctx)
 	if err != nil {
 		return pending(err.Error())
@@ -302,6 +323,9 @@ func publishPlanCandidateWithClaim(ctx context.Context, repo, originBare, ref st
 		if err != nil || current != remote {
 			return pending("canonical generation moved during numeric claim readback")
 		}
+	}
+	if err := verifySourceGeneration(ctx); err != nil {
+		return conflict("source HEAD advanced during claim readback: " + err.Error())
 	}
 	if remote == candidate.OID {
 		if claimRef == "" || claimed == candidate.OID {
@@ -323,6 +347,9 @@ func publishPlanCandidateWithClaim(ctx context.Context, repo, originBare, ref st
 	}
 	if err := configLock.Verify(); err != nil {
 		return conflict("source config identity changed: " + err.Error())
+	}
+	if err := verifySourceGeneration(ctx); err != nil {
+		return conflict("source HEAD advanced before atomic push: " + err.Error())
 	}
 	args := []string{"push", "--porcelain", "--no-verify", "--no-follow-tags",
 		"--recurse-submodules=no", "--signed=false"}
@@ -356,6 +383,11 @@ func publishPlanCandidateWithClaim(ctx context.Context, repo, originBare, ref st
 		if err != nil || current != remote {
 			return pending("canonical changed during atomic claim readback")
 		}
+	}
+	if err := verifySourceGeneration(recovery); err != nil {
+		// The remote transaction may already have committed. Never claim
+		// success or blindly retry after source generation drift.
+		return pending("source HEAD changed during/after transport; readback required: " + err.Error())
 	}
 	if remote == candidate.OID && (claimRef == "" || claimed == candidate.OID) {
 		return nil
