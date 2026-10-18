@@ -121,6 +121,19 @@ func TestLearningProcessHelper(t *testing.T) {
 			"pre_sha256": "",
 			"content":    n093RealReviewedPreflight,
 		})
+	case "review-native-preflight-n093-capsule":
+		// Test-only independent process reviewer output. The real production
+		// path is cmdLearningReviewerAdapter -> published module -> native use.
+		if !strings.Contains(string(b), "run-config.json is missing") {
+			os.Stdout.Write([]byte("{}"))
+			break
+		}
+		json.NewEncoder(os.Stdout).Encode(map[string]string{
+			"kind":       "procedure",
+			"target":     "skills/learned/air-worker-cli-preflight-n093-capsule.md",
+			"pre_sha256": "",
+			"content":    n093ProductionTemplateTestContent(),
+		})
 	case "review-native-preflight-other-action":
 		// A valid REVIEWED Markdown candidate is not automatically a safe
 		// authorization to perform this one machine-observable native action.

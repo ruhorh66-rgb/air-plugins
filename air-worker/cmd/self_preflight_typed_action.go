@@ -82,6 +82,14 @@ const n093ReviewedSafePreflightSecondReal = "# Verify the canonical product conf
 const nativeLearnedActionEnvelopePrefix = "# AirWorker Native Action\n\n~~~air-worker-action\n"
 const nativeLearnedActionEnvelopeSuffix = "\n~~~\n"
 
+// The published air-modules v0.1.0 only applies procedures with Markdown
+// headings. This exact wrapper is source-owned; the payload may vary in JSON
+// formatting, but any new instruction/operation remains UNSUPPORTED.
+const nativeLearnedActionMarkdownPrefix = "# AirWorker Native Action\n\n" +
+	"## When to apply\n\nAfter an authenticated native validate failure because canonical run-config.json is missing.\n\n" +
+	"## Procedure\n\n~~~air-worker-action\n"
+const nativeLearnedActionMarkdownSuffix = "\n~~~\n\n## Pitfalls\n\n- This read-only action neither repairs files nor claims that validation passed.\n"
+
 func resolveNativeLearnedAction(body []byte) (nativeLearnedAction, error) {
 	if len(body) == 0 || len(body) > 4096 || !utf8.Valid(body) || bytes.ContainsRune(body, '\r') {
 		return nativeLearnedAction{}, errors.New("UNSUPPORTED: invalid or oversized native action")
@@ -95,11 +103,21 @@ func resolveNativeLearnedAction(body []byte) (nativeLearnedAction, error) {
 	if string(body) == n093ReviewedSafePreflightText || string(body) == n093ReviewedSafePreflightSecondReal {
 		return audited, nil
 	}
-	if !bytes.HasPrefix(body, []byte(nativeLearnedActionEnvelopePrefix)) ||
-		!bytes.HasSuffix(body, []byte(nativeLearnedActionEnvelopeSuffix)) {
+	var raw []byte
+	switch {
+	case bytes.HasPrefix(body, []byte(nativeLearnedActionEnvelopePrefix)) &&
+		bytes.HasSuffix(body, []byte(nativeLearnedActionEnvelopeSuffix)):
+		// Legacy machine-only envelope. It cannot pass the published
+		// learning module's procedure schema and is retained for older tests.
+		raw = body[len(nativeLearnedActionEnvelopePrefix) : len(body)-len(nativeLearnedActionEnvelopeSuffix)]
+	case bytes.HasPrefix(body, []byte(nativeLearnedActionMarkdownPrefix)) &&
+		bytes.HasSuffix(body, []byte(nativeLearnedActionMarkdownSuffix)):
+		// The only accepted Markdown capsule has an exact audited wrapper.
+		// Arbitrary reviewer prose cannot modify preconditions or effects.
+		raw = body[len(nativeLearnedActionMarkdownPrefix) : len(body)-len(nativeLearnedActionMarkdownSuffix)]
+	default:
 		return nativeLearnedAction{}, errors.New("UNSUPPORTED: no compiled native action grammar")
 	}
-	raw := body[len(nativeLearnedActionEnvelopePrefix) : len(body)-len(nativeLearnedActionEnvelopeSuffix)]
 	if len(raw) == 0 || bytes.Contains(raw, []byte{0}) {
 		return nativeLearnedAction{}, errors.New("UNSUPPORTED: empty native action payload")
 	}

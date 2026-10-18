@@ -23,20 +23,38 @@ The validator is NOT executed and the CLI returns code 2. The measured effect
 is avoiding a redundant retry, NOT repairing configuration or validating the
 product. New machine operations require new source-owned handlers and tests.
 
-## Generated machine-only format
+## Production reviewer-compatible typed action — N093 P1
 
-A future reviewer may generate a machine-only procedure:
+The published air-modules v0.1.0 requires Markdown headings. A machine-only
+envelope cannot be applied by that module as a new procedure, so the production
+reviewer now offers the following strictly constrained Markdown capsule ONLY
+for an observed native run_completed missing-configuration failure:
 
     # AirWorker Native Action
+
+    ## When to apply
+
+    After an authenticated native validate failure because canonical run-config.json is missing.
+
+    ## Procedure
 
     ~~~air-worker-action
     {"schema":"air-worker.native-learned-action/v1","id":"validate.canonical-config-preflight","version":1,"native_command":"validate","precondition":"validate-run-config-missing","operation":"check-missing-config-and-defer","outcome":"deferred_missing_configuration","effect":"avoided_repeat_validation_with_missing_config"}
     ~~~
 
-This must be the entire body with no extra model-authored instructions.
-Duplicate and unknown JSON fields, extra bytes, unsafe commands, and
-unsupported versions are rejected. Whitespace differences are permitted
-without any new SHA allowlist. Reviewer output by itself is not authorization.
+    ## Pitfalls
+
+    - This read-only action neither repairs files nor claims that validation passed.
+
+The wrapper is exact, source-owned and never free-form model authority.
+JSON property whitespace may vary, yielding a new reviewed target@SHA,
+but all eight fields must match the compiled registered read-only action.
+Changed surrounding text, extra bytes, duplicate/unknown JSON keys, unsafe
+commands and unsupported versions are rejected. Reviewer output alone has no
+permissions: a signed source CLI failure, APPLIED ledger, unique target SHA,
+load and native OS precondition remain mandatory before use. The old
+machine-only envelope is retained for backward compatibility, but does not
+pass the published module's procedure validator by itself.
 
 For compatibility, the N118 audited safe procedure and two independently
 reviewed N093 safe preflight examples from 18.10.2026 have **exact content**
@@ -45,7 +63,7 @@ APPLIED procedure at SHA `266805f1...28552b8`; its action is still the same
 compiled, read-only, non-validating preflight. Neither the source nor the
 runtime grants an action merely because a new digest exists. Any other model
 Markdown stays `UNSUPPORTED` until a separate compiled action/negative gate;
-the machine-only typed envelope remains the extensible interface.
+the Markdown-compatible typed capsule is the production extensibility path.
 
 ## Machine use provenance
 

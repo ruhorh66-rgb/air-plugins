@@ -130,6 +130,21 @@ func cmdLearningReviewerAdapter(argv []string) int {
 		fmt.Fprintln(os.Stderr, "learning reviewer: proposed procedure is missing required Markdown sections")
 		return 2
 	}
+	// A source-owned typed-action capsule is optional and strictly narrower
+	// than normal instructional Markdown. The reviewer cannot add an action
+	// or grant privilege just by claiming to be a native preflight event.
+	if strings.HasPrefix(answer.Content, "# AirWorker Native Action") {
+		if nativePreflightReviewerHint(packetJSON) == "" ||
+			!strings.HasPrefix(answer.Content, nativeLearnedActionMarkdownPrefix) {
+			fmt.Fprintln(os.Stderr, "learning reviewer: unsupported native action origin/format")
+			return 2
+		}
+		action, actionErr := resolveNativeLearnedAction([]byte(answer.Content))
+		if actionErr != nil || action != supportedNativePreflightAction() {
+			fmt.Fprintln(os.Stderr, "learning reviewer: unregistered or changed native action")
+			return 2
+		}
+	}
 	answer.Content, err = bindNativeFeedbackProof(class, answer.Content)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "learning reviewer:", err)
@@ -210,6 +225,43 @@ func learningProcedureTarget(prefix, class string) string {
 	return prefix + "/" + slug + "-" + hash[:8] + ".md"
 }
 
+// nativePreflightReviewerHint merely describes a precompiled safe operation.
+// It does NOT authorize use: the later native CLI checks a signed failure,
+// exact reviewer candidate, APPLIED ledger, current target@SHA and OS state.
+func nativePreflightReviewerHint(packet []byte) string {
+	var p struct {
+		Event struct {
+			Class     string `json:"class"`
+			Kind      string `json:"kind"`
+			Source    string `json:"source"`
+			Principal string `json:"principal"`
+			Observed  string `json:"observed"`
+		} `json:"event"`
+	}
+	if json.Unmarshal(packet, &p) != nil ||
+		p.Event.Class != "air-worker-cli-preflight" ||
+		p.Event.Kind != "run_completed" ||
+		p.Event.Source != "air-worker-cli" || p.Event.Principal != "air-worker" ||
+		!strings.Contains(p.Event.Observed, "exit_code=2") ||
+		!strings.Contains(p.Event.Observed, "run-config.json is missing") {
+		return ""
+	}
+	body, err := json.Marshal(supportedNativePreflightAction())
+	if err != nil {
+		return ""
+	}
+	capsule := nativeLearnedActionMarkdownPrefix + string(body) + nativeLearnedActionMarkdownSuffix
+	return "For this reported native missing-configuration event ONLY, you MAY propose " +
+		"the exact source-registered read-only action template below as the procedure content. " +
+		"It has all Markdown headings required by the published learning module. " +
+		"Copy the entire body EXACTLY, with no commentary, new instructions, permissions or changed action fields. " +
+		"An independent native verifier will require a signed original failure, reviewed/APPLIED ledger, " +
+		"same current target@SHA, and live OS preconditions before any use or effect is credited. " +
+		"Do NOT claim that validation ran or passed. If this narrow action does not describe the lesson, " +
+		"return an ordinary informational Markdown lesson or apply=false instead.\n" +
+		"Exact optional native action content:\n" + capsule + "\n"
+}
+
 func buildLearningReviewerPrompt(target string, before, packet []byte) string {
 	existing := "(new file)"
 	if before != nil {
@@ -220,6 +272,7 @@ func buildLearningReviewerPrompt(target string, before, packet []byte) string {
 		"Do not propose code changes, permissions, grants, executable blocking rules, policy changes, secrets, or case-specific facts.\n" +
 		"If there is no reusable procedural lesson, return apply=false and empty content.\n" +
 		"If apply=true, return a concise, distinct Markdown procedure. It must contain: a # title, ## When to apply, ## Procedure, and ## Pitfalls.\n" +
+		nativePreflightReviewerHint(packet) +
 		"Existing guidance is immutable: NEVER overwrite or rephrase an unrelated existing lesson. If the run teaches nothing new, apply=false. A new content-hash target is allocated after review; do not invent evidence.\n" +
 		"If a new lesson genuinely teaches reporting a defect by the native air-worker feedback add command with stable -run-id, include that as an explicit positive numbered Procedure step. The binary alone decides whether this step can have a limited machine-verified use contract. Do not assert generic use, effect, remediation, or any blocking approval.\n" +
 		"Return only JSON matching the provided schema.\n\n" +
