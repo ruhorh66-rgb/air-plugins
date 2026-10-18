@@ -123,6 +123,37 @@ func TestPlanCanonicalCloseNative(t *testing.T) {
 	if candidateGit(t, origin, "rev-parse", publishRef) != result.OID || !reflect.DeepEqual(before, candidateOriginal(t, root)) {
 		t.Fatal("exact close replay mutated state")
 	}
+	// A locally altered PLAN or node is not the same frozen source
+	// generation, even if the remote operation and receipt still exist.
+	for _, name := range []string{"PLAN.md", "plan/" + n.ID + ".md"} {
+		file := filepath.Join(root, filepath.FromSlash(name))
+		original, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		altered := []byte("# tampered PLAN\\n")
+		if name != "PLAN.md" {
+			altered = []byte(strings.Replace(string(original), `status: "open"`, `status: "closed"`, 1))
+		}
+		if err := os.WriteFile(file, altered, 0600); err != nil {
+			t.Fatal(err)
+		}
+		changedBefore := candidateOriginal(t, root)
+		out, attempt := captureStdout(t, func() int {
+			return cmdPlanNodeClose([]string{n.ID, "-product", root, "-request-id", "close-119", "-receipt", "close-receipt.json", "-receipt-sha256", learnSHA(receipt), "-json"})
+		})
+		if attempt == 0 || !strings.Contains(out, `"action":"conflict"`) ||
+			candidateGit(t, origin, "rev-parse", publishRef) != result.OID ||
+			!reflect.DeepEqual(changedBefore, candidateOriginal(t, root)) {
+			t.Fatalf("altered source %s must fail replay without mutation: %s", name, out)
+		}
+		if err := os.WriteFile(file, original, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !reflect.DeepEqual(before, candidateOriginal(t, root)) {
+		t.Fatal("source restore after negative cases changed fixture")
+	}
 	// A changed receipt digest may never borrow the previously accepted result.
 	wrong, code := captureStdout(t, func() int {
 		return cmdPlanNodeClose([]string{n.ID, "-product", root, "-request-id", "close-119", "-receipt", "close-receipt.json", "-receipt-sha256", strings.Repeat("0", 64), "-json"})
@@ -175,6 +206,41 @@ func TestPlanCanonicalCloseNative(t *testing.T) {
 		!reflect.DeepEqual(foreignBefore, candidateOriginal(t, root)) {
 		t.Fatalf("restored direct child must recover exact close: rc=%d %s", code, restored)
 	}
+	// Forge a DIFFERENT direct child that keeps the accepted PLAN/node and
+	// expected commit message but replaces the outbox blob. This probes the
+	// immutable blob verification, not merely the direct-parent check.
+	baseEventTree := candidateGit(t, origin, "rev-parse", result.OID+":plan/event-outbox")
+	baseEventBlob := candidateGit(t, origin, "rev-parse", result.OID+":plan/event-outbox/close-119.json")
+	forgedBlob := n124ProbeMustGit(t, origin, `{"schema":"forged-outbox"}`+"\n", "hash-object", "-w", "--stdin")
+	eventEntries := candidateGit(t, origin, "ls-tree", baseEventTree)
+	if !strings.Contains(eventEntries, baseEventBlob) {
+		t.Fatal("original close outbox missing from fixture tree")
+	}
+	forgedEventTree := n124ProbeMustGit(t, origin, strings.Replace(eventEntries, baseEventBlob, forgedBlob, 1)+"\n", "mktree")
+	basePlanTree := candidateGit(t, origin, "rev-parse", result.OID+":plan")
+	planEntries := candidateGit(t, origin, "ls-tree", basePlanTree)
+	if !strings.Contains(planEntries, baseEventTree) {
+		t.Fatal("original plan outbox tree missing")
+	}
+	forgedPlanTree := n124ProbeMustGit(t, origin, strings.Replace(planEntries, baseEventTree, forgedEventTree, 1)+"\n", "mktree")
+	baseRootTree := candidateGit(t, origin, "rev-parse", result.OID+"^{tree}")
+	rootEntries := candidateGit(t, origin, "ls-tree", baseRootTree)
+	if !strings.Contains(rootEntries, basePlanTree) {
+		t.Fatal("original plan tree missing")
+	}
+	forgedRootTree := n124ProbeMustGit(t, origin, strings.Replace(rootEntries, basePlanTree, forgedPlanTree, 1)+"\n", "mktree")
+	forgedCommit := n124ProbeMustGit(t, origin, "AirWorker candidate\n\nOperation-ID: close-119\n", "commit-tree", forgedRootTree, "-p", old)
+	candidateGit(t, origin, "update-ref", publishRef, forgedCommit, result.OID)
+	forgedBefore := candidateOriginal(t, root)
+	forgedOut, forgedRC := captureStdout(t, func() int {
+		return cmdPlanNodeClose([]string{n.ID, "-product", root, "-request-id", "close-119", "-receipt", "close-receipt.json", "-receipt-sha256", learnSHA(receipt), "-json"})
+	})
+	if forgedRC == 0 || !strings.Contains(forgedOut, `"action":"conflict"`) ||
+		candidateGit(t, origin, "rev-parse", publishRef) != forgedCommit ||
+		!reflect.DeepEqual(forgedBefore, candidateOriginal(t, root)) {
+		t.Fatalf("forged accepted outbox must be rejected without mutation: rc=%d %s", forgedRC, forgedOut)
+	}
+	candidateGit(t, origin, "update-ref", publishRef, result.OID, forgedCommit)
 }
 
 func TestPlanCanonicalCloseRejects(t *testing.T) {
