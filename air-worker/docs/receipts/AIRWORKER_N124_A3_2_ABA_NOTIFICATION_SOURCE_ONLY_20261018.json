@@ -1,0 +1,155 @@
+{
+  "schema": "airworker.n124.a3-2-aba-notification-source-only/v1",
+  "date_sgt": "2026-10-18",
+  "node": "SRVLM01",
+  "work_code": "AW-N124-A3-2-ABA-NOTIFY-20261018",
+  "status": "SOURCE_ONLY_SCOPED_JUDGED_PASS__N124_OPEN__PRODUCTION_GEN_AUTHORITY_HOLD",
+  "owner": "AirWorker line A",
+  "curator": "Voody",
+  "native_node": "N-124_p1-detect-cross-branch-node-id-collision-and-sta",
+  "native_status": "OPEN",
+  "trigger": "Existing Windows read-handle fixture silently accepted a new native N-node/outbox/LEARN file created then removed before Verify (ABA)",
+  "done_when": "Real three-case ABA TDD RED then native name-change notification latched in Windows fixture; cross-process ABA observed, original read guards/native CAS pass, exact QA logs, independent gpt-6-sol medium P0/P1/P2=0, source commit/GitHub readback",
+  "judge": "Native Go factual RC/log SHA and independent read-only Codex gpt-6-sol medium source SHA",
+  "receipt": "docs/receipts/AIRWORKER_N124_A3_2_ABA_NOTIFICATION_SOURCE_ONLY_20261018.json",
+  "rollback": "Revert only feature commits aa05933 and ce1ec3f; keep installed 0.11.8 untouched",
+  "source": {
+    "repository": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-n124-a3-aba-notify-20261018",
+    "baseline": "e658370b803b58f5c8173b49a5e6dea6003f1e8c",
+    "code_commit": "aa05933b914ed813d8b7f8e76aace8e530e015be",
+    "corrected_test_commit": "ce1ec3f1fe221995c7bf366e81e2795f16165b48",
+    "code_paths": [
+      "air-worker/cmd/plan_canonical_projection_hold_windows.go",
+      "air-worker/cmd/plan_canonical_projection_hold_windows_test.go",
+      "air-worker/cmd/plan_canonical_projection_notify_windows.go",
+      "air-worker/cmd/plan_canonical_projection_aba_windows_test.go"
+    ],
+    "production_native_node_routing_changed": false
+  },
+  "mechanism": {
+    "api": "FindFirstChangeNotificationW + FindCloseChangeNotification (Windows)",
+    "trigger_mask": "FILE_NOTIFY_CHANGE_FILE_NAME|FILE_NOTIFY_CHANGE_DIR_NAME, watchSubtree=true",
+    "signal_behavior": "kernel change notification remains signaled until FindNext; source never resets it",
+    "armed": "After acquiring pinned directory handle, before native subtree enumeration",
+    "verify": "before and after bounded projection readback, any change/unavailable handle fails closed",
+    "cleanup": "close notification handle and pinned file/directory handles",
+    "bounds": "existing 256 dirs, 4096 entries, 32MiB total from original fixture",
+    "limits": "disposable local NTFS/ReFS OS-temp only; not durable before watch or after Close, not GitHub production authority"
+  },
+  "tests": {
+    "ABA_RED": {
+      "rc": 1,
+      "failed_nested": 3,
+      "sha256": "ebd08af437a59f272428f74c153fdb1ef2c91cf4e35c71b0d8168ecd08cdba34"
+    },
+    "initial_false_positive_metadata_mask": {
+      "rc": 1,
+      "reason": "watch metadata signals during baseline reads",
+      "sha256": "6f169f7f4ca2141d290cc3c925e56e693ebb80a8b533a98645609dac1b1031b5"
+    },
+    "names_only_ABA_GREEN": {
+      "rc": 0,
+      "sha256": "4e34bb5260e2cac6ec983675a1f1aa6cf51fa2d581d37c26c0fcc728a104f123"
+    },
+    "full_Windows": {
+      "rc": 0,
+      "main_pass": 9,
+      "nested_pass": 9,
+      "skipped": 0,
+      "sha256": "2dd0230953f276c2192057470b9181e71455a5d798bb9f2d4ce2697fbd6b09b2"
+    },
+    "native_CAS": {
+      "rc": 0,
+      "main_pass": 8,
+      "nested_pass": 14,
+      "sha256": "f7a21ecbd9b3d43281dbff4ebcae27b3fc68934f76defb09ad2bdae61f2b36ca"
+    },
+    "ABA_three_run_stress": {
+      "rc": 0,
+      "main_pass": 6,
+      "nested_pass": 9,
+      "sha256": "cedf785db599c75a1c392979df21c7d5672dd013b18eff6ba5d6660cfe11aa5a"
+    },
+    "after_P2_test_cleanup": {
+      "rc": 0,
+      "main_pass": 9,
+      "nested_pass": 9,
+      "sha256": "8c85c9c58ae45f931b189a70989a172d9ea247697f51033f65cdf4f28add814a"
+    },
+    "go_vet": {
+      "rc": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go_build": {
+      "rc": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_only_executable_sha256": "fad9b89e86d7e294ac93e522623c9031cde64a8968664f9f520cb53ed44d2f7e"
+    },
+    "native_plan_lint_rc": 0,
+    "native_validate_rc": 0,
+    "full_Go_repo_regression": "NOT_PROVEN"
+  },
+  "independent_reviews": [
+    {
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "source_sha": "aa05933b914ed813d8b7f8e76aace8e530e015be",
+      "rc": 0,
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 1,
+      "sha256": "3cc9b4947d6fd7817ad41bc1a810ec6b153f3e63a855128ea9f6910625dbd053",
+      "finding": "Test defer originally captured first hold; replacement could leak on t.Fatal"
+    },
+    {
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "source_sha": "ce1ec3f1fe221995c7bf366e81e2795f16165b48",
+      "rc": 0,
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 0,
+      "sha256": "af585224f02b58acbef4142fc7f54b287a281c551cf8f987fcff25429f2d55c6",
+      "finding": "P2 fixed: deferred closure now closes currently referenced hold, safe for repeated Close"
+    }
+  ],
+  "evidence_dir": "R:/-4-/air-worker/work/N124_WORKER_A_20261018",
+  "installed": {
+    "version": "0.11.8",
+    "sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "changed": false
+  },
+  "safety": {
+    "no_manual_PLAN_nodes_LEARN_writes": true,
+    "no_worker_B_changes": true,
+    "no_Hermes_foreign_WIP_changes": true,
+    "no_AirLegal_dirty_writes": true,
+    "no_github_production_claim_writes": true,
+    "no_release_tag_install_reboot_UAC_service_stop": true,
+    "global_production_authority_granted": false,
+    "release_ready": false
+  },
+  "open_gates": [
+    "Windows watcher scope ends on Close and starts on arm; not durable generation authority",
+    "GitHub canonical PLAN branch, trusted publisher/signer and installed binary capability unapproved",
+    "Native production plan new/close not wired to this mechanism",
+    "Full Go repository regression and installed product regression NOT_PROVEN",
+    "N-124 native close OPEN, DEV-136 header -apply HOLD, AirLegal N-111 OPEN"
+  ],
+  "next": {
+    "stage": "N124_A3_2_PRODUCTION_DURABLE_GENERATION_CAS",
+    "status": "BLOCKED_CANONICAL_OWNER_AND_BINARY_ATTESTATION",
+    "owner": "Voody curator / LPR and AirWorker core",
+    "trigger": "Windows ABA source-only fixture judged PASS",
+    "done_when": "Approved canonical GitHub branch/ref, publisher/signer and installed binary identity; durable generation CAS with cross-process/crash/idempotent recovery and N-ID claims; full QA plus independent Sol; native node close only after verified acceptance",
+    "judge": "native factual + independent gpt-6-sol medium frozen SHA and GitHub readback",
+    "receipt": "AIRWORKER_N124_A3_PRODUCTION_AUTHORITY_PASS_TBD"
+  },
+  "vendor_docs": [
+    "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findfirstchangenotificationw",
+    "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findclosechangenotification"
+  ]
+}
