@@ -1,0 +1,110 @@
+{
+  "schema": "airworker.n124.a1-source-only-evidence/v1",
+  "status": "SOURCE_ONLY_SCOPED_PASS__N124_OPEN__PRODUCTION_GIT_AUTHORITY_HOLD",
+  "observed_sgt": "2026-10-18",
+  "node": "SRVLM01",
+  "work_code": "AW-N124-A1-20261018-GPT",
+  "owner": "AirWorker source worker A; native N-124 owner unchanged",
+  "curator": "Voody",
+  "lpr_scope": "line A first; line B independent",
+  "native_node": "N-124_p1-detect-cross-branch-node-id-collision-and-sta",
+  "native_status": "OPEN",
+  "source": {
+    "repo": "https://github.com/ruhorh66-rgb/air-plugins",
+    "branch": "dev/airworker-n124-worker-a-20261018",
+    "base_commit": "7feeaa16848ede938e5d1291f1d8b793679fd125",
+    "executable_code_commit": "64f93aec7d21d36513252dd3b82119374a93c28a",
+    "tests_commit": "b01e5491b3e063520ac9b06da3a3c3d26e3135ff",
+    "github_remote_readback": "b01e5491b3e063520ac9b06da3a3c3d26e3135ff",
+    "only_changed_source_paths": [
+      "air-worker/cmd/plan_canonical_close.go",
+      "air-worker/cmd/plan_canonical_close_replay.go",
+      "air-worker/cmd/plan_canonical_close_test.go"
+    ],
+    "no_native_PLAN_LEARN_or_releases_modified": true
+  },
+  "useful_result": {
+    "scope": "isolated git-canonical-fixture only; NOT production authority",
+    "mechanism": "one accepted direct-child Git commit for exact native close request; exact replay returns original node status/receipt/ref without new publication",
+    "negative_cases": [
+      "different receipt SHA",
+      "different actor",
+      "unrelated canonical descendant",
+      "locally altered PLAN",
+      "locally altered native node",
+      "forged direct-child outbox blob",
+      "foreign WIP preserved",
+      "malformed or duplicate receipt keys",
+      "stale and conflicting plans"
+    ],
+    "next": "N-124 global GitHub authoritative publish/generation proof, verified installed-binary identity, full QA and native close after source/judge PASS"
+  },
+  "testing": {
+    "tdd_red": {
+      "expected_failed_test": "TestPlanCanonicalCloseNative",
+      "exit_code": 1,
+      "log_sha256": "6b8d28e8dc41f783b46b34d136e3a71b5d25ff4de1403f102aab0e83533d630e"
+    },
+    "scoped_final": {
+      "selector": "^TestPlanCanonical(CloseNative|CloseRejects|RecoveryLogicalRequests|NewNative|RecoveryRejectsSecondPhysicalPublisher)$",
+      "main_tests": 5,
+      "passed_nested": 24,
+      "exit_code": 0,
+      "log_sha256": "9598c2ad6179bd4495b86d64aaf7e9ddb08e33e39dcb91e97c584b263af185a2"
+    },
+    "sol_followup_negative": {
+      "selector": "^TestPlanCanonicalCloseNative$",
+      "exit_code": 0,
+      "log_sha256": "e6ebe647f80b0c6ee1a28e31bac448a15c58cae2757e7394a0eb60f137af07b4"
+    },
+    "go_vet": {
+      "exit_code": 0,
+      "stdout_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go_build": {
+      "exit_code": 0,
+      "stdout_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "isolated_exe_sha256": "c7b74dea37412c38d7249dc9bac85e8d483abc57deaa8215a59b2dfd14a81a58"
+    },
+    "full_regression": {
+      "status": "NOT_PROVEN",
+      "reason": "combined 19-group N124 test command hit 180s timeout (RC1); no full repository acceptance claimed",
+      "log_sha256": "a45008158bde051716d6b2f58fab341afbf14090c0deaa22fe6804f5a69f52"
+    },
+    "receipts_root": "R:/-4-/air-worker/work/N124_WORKER_A_20261018"
+  },
+  "independent_semantic": {
+    "provider": "OpenAI Codex",
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "mode": "read-only",
+    "reviewed_code_commit": "64f93aec7d21d36513252dd3b82119374a93c28a",
+    "verdict": "PASS",
+    "p0": 0,
+    "p1": 0,
+    "result_sha256": "1bf72887a04deb527f2080c455b6ba1d1018e83e4341e0e9434e9d4140462ecb",
+    "reviewed_source": "executable change",
+    "test_only_followup": "b01e549 adds forged-outbox/modified PLAN+node coverage after initial Sol review; executor code bytes unchanged"
+  },
+  "safety": {
+    "installed_airworker_version": "0.11.8",
+    "installed_sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "hermes_foreign_intent_to_add_preserved": 4,
+    "neighbor_worker_B_untouched": true,
+    "airlegal_source_untouched": true,
+    "no_native_PLAN_node_LEARN_mutation": true,
+    "no_LPR_approval_inferred": true,
+    "no_tag_or_release": true,
+    "no_live_install": true,
+    "no_gateway_restart_reboot_UAC_service_stop": true,
+    "rollback": "revert source-only feature commits; installed 0.11.8 remains baseline"
+  },
+  "release_ready": false,
+  "allow_native_N124_close": false,
+  "pending": [
+    "N-124 real GitHub/production authority with generation lock and one canonical publisher",
+    "DEV-136 header sync installed attestation",
+    "AirLegal N-111 source acceptance and independent judge",
+    "full Go regression and accepted release plan rephase"
+  ]
+}
