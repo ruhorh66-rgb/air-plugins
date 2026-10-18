@@ -17,6 +17,19 @@ const (
 	planHeaderReleaseJSONDepthLimit = 64
 )
 
+// planHeaderReleaseCheckPreOpenFacts ties an informational release-sidecar
+// read to the original Lstat generation rather than merely the same inode.
+// It is still NOT a durable exclusion lock after this preflight returns.
+func planHeaderReleaseCheckPreOpenFacts(before, opened os.FileInfo) error {
+	if before == nil || opened == nil ||
+		!os.SameFile(before, opened) ||
+		before.Size() != opened.Size() ||
+		!before.ModTime().Equal(opened.ModTime()) {
+		return errors.New("machine release-slices changed between initial stat and open")
+	}
+	return nil
+}
+
 // planHeaderReadReleaseSidecarBounded reads release facts for DEV-136's
 // informational preflight. Never use an unbounded os.ReadFile after stat:
 // the file might grow between those operations. The opened file is bounded
@@ -36,10 +49,17 @@ func planHeaderReadReleaseSidecarBounded(path string) ([]byte, error) {
 		return nil, err
 	}
 	opened, err := f.Stat()
-	if err != nil || !os.SameFile(before, opened) ||
-		opened.Size() < 0 || opened.Size() > planHeaderReleaseSidecarLimit {
+	if err != nil {
 		_ = f.Close()
-		return nil, errors.New("machine release-slices changed identity or size on open")
+		return nil, errors.New("machine release-slices opened file metadata unavailable")
+	}
+	if err := planHeaderReleaseCheckPreOpenFacts(before, opened); err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	if opened.Size() < 0 || opened.Size() > planHeaderReleaseSidecarLimit {
+		_ = f.Close()
+		return nil, errors.New("machine release-slices opened file oversized")
 	}
 	if err := planHeaderVerifyReleaseHandle(f); err != nil {
 		_ = f.Close()
