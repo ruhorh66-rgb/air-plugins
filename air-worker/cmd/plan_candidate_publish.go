@@ -35,6 +35,13 @@ func publishPlanCandidateCAS(ctx context.Context, repo, originBare, ref string, 
 }
 
 func publishPlanCandidate(ctx context.Context, repo, originBare, ref string, candidate planCandidate, expectedOldSHA string, beforePush func()) error {
+	return publishPlanCandidateWithClaim(ctx, repo, originBare, ref, candidate, expectedOldSHA, beforePush, "")
+}
+
+// This additional path is available ONLY through the verified disposable
+// fixture wrapper. The normal one-ref publisher retains its exact behavior.
+// No production PLAN operation routes through this until N-124 authority PASS.
+func publishPlanCandidateWithClaim(ctx context.Context, repo, originBare, ref string, candidate planCandidate, expectedOldSHA string, beforePush func(), claimRef string) error {
 	ctx, cancelWork := context.WithTimeout(ctx, 30*time.Second)
 	defer cancelWork()
 	conflict := func(reason string) error { return &planPublishError{State: "conflict", Reason: reason} }
@@ -44,6 +51,27 @@ func publishPlanCandidate(ctx context.Context, repo, originBare, ref string, can
 		candidate.Parent != expectedOldSHA || !candidateOperationRE.MatchString(candidate.Operation) ||
 		candidate.preparedDigest != candidatePublishDigest(candidate) {
 		return conflict("candidate/ref/operation identity mismatch")
+	}
+	if claimRef != "" {
+		// Never allow an arbitrary ref name supplied to the internal helper.
+		// Bind the numeric reservation to the exact sealed native node bytes.
+		verified := false
+		for name := range candidate.Files {
+			for _, prefix := range []string{"plan/", "air-worker/plan/"} {
+				leaf := strings.TrimPrefix(name, prefix)
+				if !strings.HasPrefix(name, prefix) || strings.Contains(leaf, "/") ||
+					!strings.HasSuffix(leaf, ".md") {
+					continue
+				}
+				id := strings.TrimSuffix(leaf, ".md")
+				if refName, err := planCandidateNumericClaimRef(candidate, id); err == nil && refName == claimRef {
+					verified = true
+				}
+			}
+		}
+		if !verified {
+			return conflict("numeric claim ref differs from sealed candidate node")
+		}
 	}
 	for _, entry := range os.Environ() {
 		key, value, _ := strings.Cut(entry, "=")
@@ -227,15 +255,65 @@ func publishPlanCandidate(ctx context.Context, repo, originBare, ref string, can
 		}
 		return strings.TrimSpace(string(out)), nil
 	}
+	// Optional numeric N-ID reservation. A Git ref claim by itself is NOT
+	// exclusive authority; success requires one atomic change of BOTH refs.
+	readbackClaim := func(parent context.Context) (string, error) {
+		if claimRef == "" {
+			return "", nil
+		}
+		if err := originLock.Verify(); err != nil {
+			return "", err
+		}
+		if err := verifyOrigin(); err != nil {
+			return "", err
+		}
+		raw, err := run(parent, originBare, "for-each-ref",
+			"--format=%(refname)|%(objectname)|%(symref)", claimRef)
+		if err != nil {
+			return "", err
+		}
+		line := strings.TrimSpace(string(raw))
+		if line == "" {
+			return "", nil
+		}
+		parts := strings.Split(line, "|")
+		if len(parts) != 3 || parts[0] != claimRef ||
+			!candidateOIDRE.MatchString(parts[1]) || parts[2] != "" {
+			return "", fmt.Errorf("numeric reservation ref is ambiguous or symbolic")
+		}
+		if err := originLock.Verify(); err != nil {
+			return "", err
+		}
+		if err := configLock.Verify(); err != nil {
+			return "", err
+		}
+		return parts[1], nil
+	}
 	remote, err := readback(ctx)
 	if err != nil {
 		return pending(err.Error())
 	}
+	claimed, err := readbackClaim(ctx)
+	if err != nil {
+		return pending("claim readback unverified: " + err.Error())
+	}
+	if claimRef != "" {
+		current, err := readback(ctx)
+		if err != nil || current != remote {
+			return pending("canonical generation moved during numeric claim readback")
+		}
+	}
 	if remote == candidate.OID {
-		return nil
+		if claimRef == "" || claimed == candidate.OID {
+			return nil
+		}
+		return conflict("canonical commit lacks its exact numeric reservation")
 	}
 	if remote != expectedOldSHA {
 		return conflict("canonical advanced to " + remote)
+	}
+	if claimRef != "" && claimed != "" {
+		return conflict("numeric N-ID reservation is already occupied: " + claimRef)
 	}
 	if err := verifyOrigin(); err != nil {
 		return pending(err.Error())
@@ -246,20 +324,47 @@ func publishPlanCandidate(ctx context.Context, repo, originBare, ref string, can
 	if err := configLock.Verify(); err != nil {
 		return conflict("source config identity changed: " + err.Error())
 	}
-	_, pushErr := run(ctx, repo, "push", "--porcelain", "--no-verify", "--no-follow-tags", "--recurse-submodules=no", "--signed=false",
-		"--force-with-lease="+ref+":"+expectedOldSHA, "--", originBare, candidate.OID+":"+ref)
-	// Never replay an unknown transport result: re-read this exact physical origin first.
+	args := []string{"push", "--porcelain", "--no-verify", "--no-follow-tags",
+		"--recurse-submodules=no", "--signed=false"}
+	if claimRef != "" {
+		args = append(args, "--atomic")
+	}
+	args = append(args, "--force-with-lease="+ref+":"+expectedOldSHA)
+	if claimRef != "" {
+		// Empty lease means the claim ref must not exist at publication time.
+		// A different numeric slug must not reserve the same N-ID.
+		args = append(args, "--force-with-lease="+claimRef+":")
+	}
+	args = append(args, "--", originBare, candidate.OID+":"+ref)
+	if claimRef != "" {
+		args = append(args, candidate.OID+":"+claimRef)
+	}
+	_, pushErr := run(ctx, repo, args...)
+	// Never replay an unknown transport result: re-read both exact refs.
 	recovery, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
 	remote, err = readback(recovery)
 	if err != nil {
 		return pending(fmt.Sprintf("readback unavailable: %v; push: %v", err, pushErr))
 	}
-	if remote == candidate.OID {
+	claimed, err = readbackClaim(recovery)
+	if err != nil {
+		return pending(fmt.Sprintf("claim readback unavailable: %v; push: %v", err, pushErr))
+	}
+	if claimRef != "" {
+		current, err := readback(recovery)
+		if err != nil || current != remote {
+			return pending("canonical changed during atomic claim readback")
+		}
+	}
+	if remote == candidate.OID && (claimRef == "" || claimed == candidate.OID) {
 		return nil
 	}
-	if remote != expectedOldSHA {
-		return conflict("canonical advanced to " + remote)
+	if remote == candidate.OID {
+		return pending("canonical candidate present without verified matching claim")
+	}
+	if remote != expectedOldSHA || (claimRef != "" && claimed != "") {
+		return conflict("canonical or numeric claim advanced to another operation")
 	}
 	return pending(fmt.Sprintf("candidate not observed; push: %v", pushErr))
 }
