@@ -67,6 +67,56 @@ func TestPlanCanonicalRecoveryLogicalRequests(t *testing.T) {
 	}
 	write("foreign.txt", []byte("foreign uncommitted work\n"))
 	before = candidateOriginal(t, root)
+	// Accepted replay is only read-only when the local native projection is
+	// still its original source generation. Foreign WIP outside PLAN/LEARN
+	// may coexist, but a tampered native node or LEARN must never be ignored.
+	for _, name := range []string{"plan/N-119_base.md", "learn/events.jsonl"} {
+		original, err := os.ReadFile(filepath.Join(root, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		write(name, []byte("tampered native projection\n"))
+		tamperedBefore, canonicalBefore := candidateOriginal(t, root), candidateGit(t, origin, "rev-parse", publishRef)
+		out, tamperedRC := request("logical-120")
+		var denied struct {
+			Action string `json:"action"`
+		}
+		if tamperedRC == 0 || json.Unmarshal([]byte(out), &denied) != nil || denied.Action != "conflict" ||
+			candidateGit(t, origin, "rev-parse", publishRef) != canonicalBefore ||
+			!reflect.DeepEqual(tamperedBefore, candidateOriginal(t, root)) {
+			t.Fatalf("tampered %s must deny exact replay without any mutation: rc=%d %s", name, tamperedRC, out)
+		}
+		write(name, original)
+		if !reflect.DeepEqual(before, candidateOriginal(t, root)) {
+			t.Fatalf("failed to restore native %s fixture bytes", name)
+		}
+	}
+	// Index flags can hide a modified tracked file from git status.
+	// The immutable parent blob comparison must still deny exact replay.
+	for _, scenario := range []struct{ file, set, clear string }{
+		{"plan/N-119_base.md", "--skip-worktree", "--no-skip-worktree"},
+		{"learn/events.jsonl", "--assume-unchanged", "--no-assume-unchanged"},
+	} {
+		original, err := os.ReadFile(filepath.Join(root, scenario.file))
+		if err != nil {
+			t.Fatal(err)
+		}
+		candidateGit(t, root, "update-index", scenario.set, scenario.file)
+		write(scenario.file, []byte("modified behind index flag\n"))
+		hiddenBefore, remoteBefore := candidateOriginal(t, root), candidateGit(t, origin, "rev-parse", publishRef)
+		out, hiddenRC := request("logical-120")
+		var response struct {
+			Action string `json:"action"`
+		}
+		if hiddenRC == 0 || json.Unmarshal([]byte(out), &response) != nil || response.Action != "conflict" ||
+			candidateGit(t, origin, "rev-parse", publishRef) != remoteBefore ||
+			!reflect.DeepEqual(hiddenBefore, candidateOriginal(t, root)) {
+			t.Fatalf("hidden native modification %s accepted replay: rc=%d %s", scenario.file, hiddenRC, out)
+		}
+		write(scenario.file, original)
+		candidateGit(t, root, "update-index", scenario.clear, scenario.file)
+		before = candidateOriginal(t, root)
+	}
 	loser, code := request("logical-loser")
 	var conflict struct {
 		Action string `json:"action"`

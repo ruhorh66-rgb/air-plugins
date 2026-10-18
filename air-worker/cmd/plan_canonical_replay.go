@@ -37,6 +37,58 @@ func recoverCanonicalFixtureNew(
 	if actor != req.Owner {
 		return conflict("actor override replay requires a sealed actor identity")
 	}
+	// An immutable remote outbox must NOT justify returning "created" if
+	// local native PLAN/nodes/LEARN have changed since the original parent.
+	// Foreign WIP outside these native roots is preserved, not a blocker.
+	// Verify actual bytes against immutable parent Git blobs, not just
+	// git status (skip-worktree/assume-unchanged can hide dirty content).
+	projectionUnchanged := func() error {
+		for _, rel := range []string{"PLAN.md", "plan", "learn"} {
+			if err := candidateNoLinks(filepath.Join(root, rel)); err != nil {
+				return err
+			}
+		}
+		status, err := run(root, "status", "--porcelain=v1", "--untracked-files=all", "--ignored", "--", "PLAN.md", "plan", "learn")
+		if err != nil || status != "" {
+			return errors.New("local native PLAN/node/LEARN projection is dirty")
+		}
+		paths, err := runRaw(origin, "ls-tree", "-r", "-z", "--name-only", old, "--", "PLAN.md", "plan", "learn")
+		if err != nil || len(paths) == 0 || len(paths) > 1024*1024 {
+			return errors.New("original native tree not bounded/readable")
+		}
+		count, total := 0, 0
+		for _, entry := range bytes.Split(paths, []byte{0}) {
+			if len(entry) == 0 {
+				continue
+			}
+			name := string(entry)
+			if name != "PLAN.md" && !strings.HasPrefix(name, "plan/") && !strings.HasPrefix(name, "learn/") {
+				return errors.New("untrusted native projection tree path")
+			}
+			if strings.ContainsAny(name, "\\\r\n\t:") || filepath.ToSlash(filepath.Clean(filepath.FromSlash(name))) != name {
+				return errors.New("unsafe native projection tree path")
+			}
+			full := filepath.Join(root, filepath.FromSlash(name))
+			if err := candidateNoLinks(full); err != nil {
+				return err
+			}
+			local, e1 := os.ReadFile(full)
+			base, e2 := runRaw(origin, "cat-file", "blob", old+":"+name)
+			count++
+			total += len(local) + len(base)
+			if e1 != nil || e2 != nil || len(local) > 4*1024*1024 || total > 32*1024*1024 ||
+				count > 4096 || !bytes.Equal(local, base) {
+				return errors.New("local native projection differs from canonical parent blob")
+			}
+		}
+		if count == 0 {
+			return errors.New("empty original native projection")
+		}
+		return nil
+	}
+	if err := projectionUnchanged(); err != nil {
+		return conflict("local native projection changed before replay: " + err.Error())
+	}
 	typ, err := run(origin, "cat-file", "-t", remote)
 	if err != nil || typ != "commit" {
 		return conflict("accepted Git commit type unverified")
@@ -129,6 +181,12 @@ func recoverCanonicalFixtureNew(
 	// verifying the canonical ref; mismatch fails closed, never repairs refs.
 	if confirmed, err := run(origin, "for-each-ref", "--format=%(refname)|%(objectname)|%(symref)", claimRef); err != nil || confirmed != claimed {
 		return conflict("numeric N-ID claim changed while verifying recovery")
+	}
+	// Recheck the complete local native projection after remote verification.
+	// A concurrent local writer invalidates the accepted retry; this does
+	// not grant stable-handle production authority.
+	if err := projectionUnchanged(); err != nil {
+		return conflict("local native projection changed during replay: " + err.Error())
 	}
 	return node, nil
 }
