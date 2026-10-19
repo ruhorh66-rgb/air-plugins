@@ -1,0 +1,131 @@
+{
+  "schema": "airworker.dev136.bounded-cache-source-acceptance/v1",
+  "date_sgt": "2026-10-19",
+  "node": "SRVLM01",
+  "work_code": "AW-DEV136-BOUNDED-CACHE-A-20261019",
+  "status": "SOURCE_ONLY_QA_AND_INDEPENDENT_SOL_PASS__N124_OPEN__DEV136_APPLY_BLOCKED",
+  "owner": "AirWorker line A",
+  "curator": "Voody",
+  "trigger": "Independent Sol identified unbounded payloadSnapshot file-count and byte scan in DEV136 installed-plugin read-only preflight.",
+  "done_when": "Replace only DEV136 caller with bounded streaming cache scan; six genuine negative RED tests and bounded GREEN, deterministic native SHA parity on installed Claude+Codex caches, Windows junction/hardlink negative tests, scoped header QA, vet/build and native lint/validate RC0, frozen source independent gpt-6-sol medium P0/P1=0; publish own branch and receipt without PLAN/N/LEARN/install mutation.",
+  "judge": "Host Go test/vet/build exit/log hashes and independent read-only Codex gpt-6-sol medium on exact source SHA",
+  "receipt": "docs/receipts/AIRWORKER_DEV136_BOUNDED_CACHE_SOURCE_ACCEPTANCE_20261019.json",
+  "rollback": "Revert source-only feature changes in dev/airworker-dev136-bounded-payload-a-20261019; installed 0.11.8, native PLAN and line B are untouched.",
+  "source": {
+    "repo": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-dev136-bounded-payload-a-20261019",
+    "baseline_sha": "814523334b493557f7c4930e841d50b54c620644",
+    "reviewed_code_sha": "066d1e5bbdc3afd7607ba510268cfe250cacf5bc",
+    "changed_paths": [
+      "air-worker/cmd/plan_header_installed_static_report.go",
+      "air-worker/cmd/plan_header_payload_bounded.go",
+      "air-worker/cmd/plan_header_payload_bounded_test.go",
+      "air-worker/cmd/plan_header_payload_bounded_windows_test.go"
+    ],
+    "native_distribution_identity_payloadSnapshot_unchanged": true,
+    "installed_product_changed": false
+  },
+  "limits": {
+    "maximum_directory_entries": 8192,
+    "maximum_files": 4096,
+    "maximum_total_bytes": 268435456,
+    "maximum_single_file_bytes": 134217728,
+    "maximum_depth": 32,
+    "maximum_relative_path_bytes": 2048,
+    "directory_batch_entries": 128
+  },
+  "test": {
+    "TDD_RED": {
+      "exit_code": 1,
+      "nested_failed": 6,
+      "nested_passed": 1,
+      "sha256": "5b65d93bf4fa1c8deb1c8382eefe21e21138b88aa54a7e0130f104927f392831"
+    },
+    "TDD_GREEN": {
+      "exit_code": 0,
+      "nested_passed": 7,
+      "sha256": "9be2698ca7bdf420b23e6633001c300865b6a71decd76f77f5e032094def233e"
+    },
+    "installed_claude_cache": {
+      "files": 489,
+      "total_bytes": 77078727,
+      "largest_file_bytes": 60718508,
+      "sha256_native_and_bounded": "462441dc54438e5f322b700adace27cfd8061bb157932f44296ff6c2be0a18ed",
+      "exit_code": 0,
+      "log_sha256": "a22869cd420d38f671b3d68390f6f18f580b862e6986eca3ef5028dc426a1d95"
+    },
+    "installed_codex_cache": {
+      "files": 489,
+      "total_bytes": 77078727,
+      "largest_file_bytes": 60718508,
+      "sha256_native_and_bounded": "462441dc54438e5f322b700adace27cfd8061bb157932f44296ff6c2be0a18ed",
+      "exit_code": 0,
+      "log_sha256": "86e7b27702e2c8aba797ba3b533fa394e43e954460f29a834a6cd199eb4bf263"
+    },
+    "scoped_go_header": {
+      "selector": "^TestPlanHeader",
+      "exit_code": 0,
+      "main_pass": 37,
+      "nested_pass": 91,
+      "main_skip": 3,
+      "main_fail": 0,
+      "sha256": "bcbc48c6a94744c43bdfa7b208bd58d016f5005f5a872927d9d94e0ab1a4bb69"
+    },
+    "go_vet": {
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go_build": {
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_only_binary_sha256": "c6458405c3867f716704e91168ea43f54098f72b560c62e864a1c8335d007555"
+    },
+    "native_plan_lint_exit": 0,
+    "native_validate_exit": 0,
+    "full_go_repository_test": "NOT_PROVEN"
+  },
+  "independent_review": {
+    "model": "gpt-6-sol",
+    "effort": "medium",
+    "sandbox": "read-only",
+    "source_sha": "066d1e5bbdc3afd7607ba510268cfe250cacf5bc",
+    "verdict": "PASS",
+    "p0": 0,
+    "p1": 0,
+    "p2": 2,
+    "verdict_sha256": "0d796f08476a506c9cf0c1e2e70db1f648787d37273c1653513261fbb41514f2",
+    "events_sha256": "eb9a2e01263e9d55e323b6d7d3e5ebae685b41df394c60dd862ccf26c3f4d1a3",
+    "limitations": [
+      "Arbitrary custom maxInt64 limits may overflow size+1; production default <=128MiB cannot",
+      "No deterministic mid-read growth or sparse-oversize dedicated test; current guard checks pre/open/after and size+1",
+      "In-place modifications restoring mtime may evade metadata freshness",
+      "Host test logs inspected, not independently rerun"
+    ]
+  },
+  "integration": {
+    "installed_version": "0.11.8",
+    "installed_sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "N124": "OPEN",
+    "DEV136_apply": "BLOCKED",
+    "AirLegal_N111": "OPEN",
+    "production_authority": false,
+    "B_N093": "CLOSED_ONLY_IN_SEPARATE_A_INTEGRATION_BRANCH",
+    "B_native_working_plan": "OPEN_UNTIL_ONE_WRITER_ADOPTION",
+    "B_integration_commit": "be680c80823f02e7e59b3cb0184080f7ea38f1a6",
+    "B_R03_foreign_WIP_untouched": true,
+    "no_manual_PLAN_N_LEARN_changes": true,
+    "release_0_11_9": "CANDIDATE_NOT_INSTALLED"
+  },
+  "next": {
+    "stage": "DEV136_PAYLOAD_HARDENING_P2_TESTS_AND_RELEASE_AUTHORITY",
+    "owner": "AirWorker line A",
+    "trigger": "Bounded cache read judged source-only PASS with two P2",
+    "done_when": "Add deterministic sparse growth guard test and avoid artificial maxInt overflow; continue inactive profile and signed release provenance under native core; no production PLAN modification without separate gates",
+    "judge": "native Go QA and independent source review",
+    "receipt": "DEV136_PAYLOAD_NEXT_P2_TBD"
+  },
+  "vendor_docs": [
+    "https://pkg.go.dev/os#File.ReadDir",
+    "https://pkg.go.dev/io#LimitReader"
+  ]
+}
