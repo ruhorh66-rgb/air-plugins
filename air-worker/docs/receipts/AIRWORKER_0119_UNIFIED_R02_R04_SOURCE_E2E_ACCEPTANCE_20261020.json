@@ -1,0 +1,130 @@
+{
+  "schema": "airworker.0119.unified-r02-r04-source-e2e-acceptance/v1",
+  "date_sgt": "2026-10-20",
+  "node": "SRVLM01",
+  "owner": "AirWorker unified worker (LPR consolidated former A+B)",
+  "trigger": "LPR: continue one line, verify B R04 handoff 796a2b0, integrate A Stop, complete release 0.11.9 with minimal QA",
+  "status": "SOURCE_FULL_GO_VET_BUILD_SOL_AND_ONE_ISOLATED_R02_R03_R04_PASS__NATIVE_PRIMARY_RELEASE_SLICES_NOT_ADVANCED",
+  "done_when": "One clean source 0.11.9 SHA, only one independent post-fix Sol medium, full Go test/vet/build RC0 once, signed exact byte-bound real R02 capture and R03 reviewer+APPLIED, one later R04 true module-owned skill_loaded/procedure_used and signed terminal result on same candidate SHA, no duplicate reviewers; source and GitHub byte identity verified, installed 0.11.8 unchanged.",
+  "judge": "Native AirWorker Windows machine Go exit/log SHA + read-only gpt-6-sol medium (P0/P1=0) + separate one-shot actual isolated native R02->R03->R04 result SHA",
+  "receipt": "docs/receipts/AIRWORKER_0119_UNIFIED_R02_R04_SOURCE_E2E_ACCEPTANCE_20261020.json",
+  "source": {
+    "git_repo": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-0119-n093-worker-b-20261018",
+    "B_handoff_code": "796a2b08848307393cf055d5e33ddd84fdb88965",
+    "A_B_Stop_integration": "0ae11894efafe0518a01635456a4d15895e805ab",
+    "R04_Windows_race_fix": "56c2e200a6e21b5e69cec5b66a6e6ae9d20a0429",
+    "exact_tested_code_commit": "12eae0104b07b496951f40353cd44f190ba29f6b",
+    "source_clean_during_QA": true,
+    "source_remote_sha_identical": true,
+    "module_go_pin": "github.com/ruhorh66-rgb/air-modules v0.1.0",
+    "module_release_commit": "74ec2becf4b327a879ed047c6cd0f8b3f0de6e5c",
+    "source_binary_sha256": "3f79e2705911248e45c10ef65fd2dcf2ca97e1a2d992929275bf7b605bbb9019",
+    "source_binary_version": "air-worker 0.11.9",
+    "candidate_built_but_not_installed": true
+  },
+  "qa": {
+    "full_go": {
+      "rc": 0,
+      "command": "go test -count=1 -timeout 15m ./...",
+      "duration_main_package_seconds": 283.48,
+      "log_sha256": "76286fa528534a706741d7c7160e2c788f8a24f122f2bec567115a2a179de57f"
+    },
+    "go_vet": {
+      "rc": 0,
+      "command": "go vet ./...",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go_build": {
+      "rc": 0,
+      "command": "go build -o air-worker-0119-R04-candidate.exe .",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "sol_medium": {
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 1,
+      "source_sha": "12eae0104b07b496951f40353cd44f190ba29f6b",
+      "verdict_sha256": "46475cb40e749ba16fda64889a9ad82f1e8de2c7eb4641e3835bf34d9b37404c",
+      "p2_scope": "Original unit test exercised helper not finalizer; actual full-stack R04 E2E in new isolated owner-with-config and separate signed scratch confirmed finalizer."
+    },
+    "QA_terminal_sha256": "52c2b3dc7fc92ad9c535078e3d6e71f4360cb87600bc31f2dcbd2862e0d83e11",
+    "sol_terminal_sha256": "2b4b57f331514bea754c3e8e15a049f8a3c32dfa54a98668f488c201c58ca8f5"
+  },
+  "e2e": {
+    "job_id": "AW119-R04-FINAL-SGT20261020-02",
+    "fixture_root": "R:/-4-/air-worker/work/R04_UNIFIED_FINAL_20261020/NATIVE_R02_R03_R04_FINAL_20261020",
+    "one_shot_terminal_sha256": "55fdd12ea01494914cde1a82050a5f0437546e4e350733964ec16cc41cc0a3f1",
+    "stages": [
+      {
+        "id": "prepare",
+        "rc": 0,
+        "receipt_sha256": "d6f1eb3d4f932258be5d27c245e125762efb59710a6401c171d38c744e2f99e0"
+      },
+      {
+        "id": "R02",
+        "rc": 0,
+        "receipt_sha256": "c7722cee499babed041c029a9bf6be5362c9d8becfc678a8291d0f651a48a64a"
+      },
+      {
+        "id": "R03",
+        "rc": 0,
+        "receipt_sha256": "23001175e8c426d8944b3aaa508f2af34244e963d6ef4e7204a03dc3f17ce525"
+      },
+      {
+        "id": "R04",
+        "rc": 0,
+        "receipt_sha256": "5b890bb89dcf3c7d37a2fd2742c204f9e5b36ec11ab052c487b53aeb849c10e2"
+      }
+    ],
+    "R03": {
+      "applied_count": 1,
+      "reviewer_count": 1,
+      "target_sha_matches": true
+    },
+    "R04": {
+      "procedure_used_count": 1,
+      "skill_loaded_minimum_count": 1,
+      "intent_count": 1,
+      "signed_final_result_count": 1,
+      "outcome": "deferred_missing_configuration",
+      "effect": "avoided_repeat_validation_with_missing_config",
+      "full_validation_executed": false
+    },
+    "isolated_release_statuses": {
+      "R0.11.9-01": "closed",
+      "R0.11.9-02": "closed",
+      "R0.11.9-03": "closed",
+      "R0.11.9-04": "closed",
+      "R0.11.9-05": "open"
+    },
+    "prior_failed_12e_predecessor_sha": "56c2e200a6e21b5e69cec5b66a6e6ae9d20a0429",
+    "prior_failed_fixture_preserved": true,
+    "rerun_of_failed_one_shot": false
+  },
+  "primary_product_state": {
+    "native_N093": "CLOSED",
+    "native_N070": "OPEN_PUBLISH_MODULE_RECEIPT_READY",
+    "native_N071": "OPEN_RELEASE_UNPUBLISHED",
+    "native_N124": "OPEN_DEFERRED_NOT_RELEASE_0119_BLOCKER",
+    "B_release_slices_R02": "OPEN_IN_PRIMARY_REPO",
+    "B_release_slices_R03": "PLANNED_IN_PRIMARY_REPO",
+    "B_release_slices_R04": "PLANNED_IN_PRIMARY_REPO",
+    "primary_PLAN_LEARN_not_modified_by_e2e": true,
+    "installed_AirWorker_version": "0.11.8",
+    "installed_AirWorker_sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "publication_LPR_yes": false,
+    "install_LPR_yes": false
+  },
+  "rollback": "Source-only revert its own scoped commits; no change in installed 0.11.8 or foreign wiki/module/Hermes. Native PLAN/release-slices remains unchanged by this QA; production source release and installation require different exact LPR yes.",
+  "next": {
+    "id": "U04-NATIVE-RELEASE",
+    "owner": "AirWorker single core writer",
+    "trigger": "U03 isolated E2E PASS exact SHA",
+    "done_when": "Close native N070 with verified public module tag+asset SHA and consumer pin; reconcile primary R02-R04 release slices only through supported AirWorker native core with factual receipts and no duplicate reviewer; prepare N071 release source freeze; never invent PASS for primary source PLAN if still OPEN",
+    "judge": "native core -receipt, node status/spine/plan-lint/validate, exact GitHub commit",
+    "receipt": "AIRWORKER_0119_R02_R04_PRIMARY_NATIVE_ACCEPTANCE_TBD.json",
+    "status": "OPEN"
+  }
+}
