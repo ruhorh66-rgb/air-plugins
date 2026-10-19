@@ -10,11 +10,58 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // review-batch is an internal, bounded, ONE-PROCESS detached dispatcher.
 // Only the module-owned review operation can create proposals; no approval,
 // apply override, arbitrary executable, or journal mutation exists here.
+type sharedDeferredReviewResult struct {
+	Product   string `json:"product"`
+	RunID     string `json:"run_id"`
+	Status    string `json:"status"`
+	ReceiptID string `json:"receipt_id,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
+// A stalled reviewer must not prevent the other learning owner from completing.
+// Never run two reviews of the SAME product concurrently: its journal and
+// proposal state remain serialized. The CLI bounds jobs before this function,
+// so the number of goroutines cannot exceed the allowed job count.
+// Results remain in input order for exact per-run machine receipts.
+func runSharedDeferredReviewBatch(jobs []sharedDeferredReviewJob, run func(sharedDeferredReviewJob) sharedDeferredReviewResult) []sharedDeferredReviewResult {
+	results := make([]sharedDeferredReviewResult, len(jobs))
+	byOwner := make(map[string][]int)
+	var owners []string
+	for i, job := range jobs {
+		key := strings.ToLower(filepath.Clean(job.Product))
+		if _, exists := byOwner[key]; !exists {
+			owners = append(owners, key)
+		}
+		byOwner[key] = append(byOwner[key], i)
+	}
+	// A host hook has at most two independent learning owners (AirWorker
+	// self and the current product). An internal CLI packet can contain more
+	// products, but must never fan out unbounded paid reviewer processes.
+	const maxConcurrentReviewOwners = 2
+	slots := make(chan struct{}, maxConcurrentReviewOwners)
+	var wg sync.WaitGroup
+	for _, owner := range owners {
+		indexes := byOwner[owner]
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			slots <- struct{}{}
+			defer func() { <-slots }()
+			for _, i := range indexes {
+				results[i] = run(jobs[i])
+			}
+		}()
+	}
+	wg.Wait()
+	return results
+}
+
 func cmdSharedLearningReviewBatch(argv []string) int {
 	fs := flag.NewFlagSet("learn review-batch", flag.ContinueOnError)
 	jobsJSON := fs.String("jobs-json", "", "JSON array of previously persisted product/run identities")
@@ -54,17 +101,8 @@ func cmdSharedLearningReviewBatch(argv []string) int {
 		}
 		seen[k] = true
 	}
-	type result struct {
-		Product   string `json:"product"`
-		RunID     string `json:"run_id"`
-		Status    string `json:"status"`
-		ReceiptID string `json:"receipt_id,omitempty"`
-		Error     string `json:"error,omitempty"`
-	}
-	var results []result
-	failed := false
-	for _, job := range jobs {
-		row := result{Product: job.Product, RunID: job.RunID}
+	results := runSharedDeferredReviewBatch(jobs, func(job sharedDeferredReviewJob) sharedDeferredReviewResult {
+		row := sharedDeferredReviewResult{Product: job.Product, RunID: job.RunID}
 		s, on, err := readSharedLearningSettings(job.Product)
 		if err == nil && !on {
 			err = errors.New("shared learning disabled")
@@ -78,9 +116,14 @@ func cmdSharedLearningReviewBatch(argv []string) int {
 		}
 		if err != nil {
 			row.Status, row.Error = "error", err.Error()
+		}
+		return row
+	})
+	failed := false
+	for _, row := range results {
+		if row.Error != "" {
 			failed = true
 		}
-		results = append(results, row)
 	}
 	_ = json.NewEncoder(os.Stdout).Encode(map[string]any{
 		"schema":   "air-worker.deferred-review-batch/v1",

@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -302,8 +303,34 @@ func handleStopLearningWithReviewStarter(in hookInput, start func(string, string
 }
 
 // A Stop hook must record BOTH independent owners before any slow reviewer is
-// dispatched. The batch launcher only starts a detached process: it never
-// waits for review and never applies proposals or changes grants.
+// dispatched. Different owners have distinct product/runtime journals and may
+// persist concurrently; joining here prevents dispatch before either completes.
+// Only the two explicitly resolved owners are accepted, never an unbounded queue.
+type sharedStopCompletion struct {
+	handled bool
+	err     error
+}
+
+func completeSharedStopOwners(roots []string, in hookInput, stop func(string, hookInput) (bool, hookResult, error)) []sharedStopCompletion {
+	results := make([]sharedStopCompletion, len(roots))
+	if len(roots) == 1 {
+		results[0].handled, _, results[0].err = stop(roots[0], in)
+		return results
+	}
+	var wg sync.WaitGroup
+	for i, root := range roots {
+		wg.Add(1)
+		go func(index int, product string) {
+			defer wg.Done()
+			results[index].handled, _, results[index].err = stop(product, in)
+		}(i, root)
+	}
+	wg.Wait()
+	return results
+}
+
+// The batch launcher only starts a detached process: it never waits for
+// review and never applies proposals or changes grants.
 func handleStopLearningWithReviewBatchStarter(in hookInput, start func([]sharedDeferredReviewJob) error) (hookResult, error) {
 	if in.StopHookActive {
 		return hookResult{}, nil
@@ -324,24 +351,40 @@ func handleStopLearningWithReviewBatchStarter(in hookInput, start func([]sharedD
 	selfRoot := ""
 	if selfOn {
 		selfRoot = selfOwner.Selector.ProductRoot
-		handled, _, stopErr := sharedLearningStop(selfRoot, in)
-		if stopErr != nil {
-			failures = append(failures, stopErr)
-		} else if !handled {
+	}
+	product, hasProduct := productForLearningHookInput(in)
+	isDistinctTarget := hasProduct && !(selfOn && sameLearningPath(selfRoot, product))
+	var roots []string
+	if selfOn {
+		roots = append(roots, selfRoot)
+	}
+	if isDistinctTarget {
+		roots = append(roots, product)
+	}
+	// Resolve both owners before starting any review. Independent journals can
+	// commit concurrently, while the joined result is checked in stable
+	// self-then-target order. No event is written to the other owner's runtime.
+	stops := completeSharedStopOwners(roots, in, sharedLearningStop)
+	idx := 0
+	if selfOn {
+		result := stops[idx]
+		idx++
+		if result.err != nil {
+			failures = append(failures, result.err)
+		} else if !result.handled {
 			failures = append(failures, sharedHookFailure("self-completion", runID,
 				errors.New("enabled self owner did not persist run_completed")))
 		} else {
 			completed = append(completed, sharedDeferredReviewJob{Product: selfRoot, RunID: runID})
 		}
 	}
-	product, hasProduct := productForLearningHookInput(in)
 	targetIsShared := false
-	if hasProduct && !(selfOn && sameLearningPath(selfRoot, product)) {
-		handled, _, stopErr := sharedLearningStop(product, in)
-		targetIsShared = handled
-		if stopErr != nil {
-			failures = append(failures, stopErr)
-		} else if handled {
+	if isDistinctTarget {
+		result := stops[idx]
+		targetIsShared = result.handled
+		if result.err != nil {
+			failures = append(failures, result.err)
+		} else if result.handled {
 			completed = append(completed, sharedDeferredReviewJob{Product: product, RunID: runID})
 		}
 	}
