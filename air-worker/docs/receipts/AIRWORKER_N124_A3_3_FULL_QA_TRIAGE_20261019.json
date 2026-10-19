@@ -1,0 +1,119 @@
+{
+  "schema": "airworker.n124.a3-3-source-qa-triage/v1",
+  "date_sgt": "2026-10-19",
+  "node": "SRVLM01",
+  "task": "N-124 production durable generation CAS pre-acceptance",
+  "owner": "AirWorker A",
+  "curator": "Voody",
+  "status": "N124_TARGETED_GO_PASS__FULL_GO_FAIL_REPRO_SELF_REVIEW__PROD_CAS_HOLD",
+  "trigger": "LPR agreed to updated production plan and continuation of source-only N124; full Go QA required for N124 gate",
+  "done_when": "Exactly prove N124 targeted Go suite, go vet/build and installed unchanged; reproduce and isolate full-suite Stop/reviewer instability, preserve machine logs, report blocker to curator; do not close native N124 or claim full PASS",
+  "judge": "SRVLM01 native exit codes, frozen Git diff, full/targeted Go logs with SHA-256, installer identity and native plan-lint/validate; independent prior gpt-6-sol medium PASS limited to unchanged cmd code",
+  "receipt": "docs/receipts/AIRWORKER_N124_A3_3_FULL_QA_TRIAGE_20261019.json",
+  "rollback": "Source-only receipt commit revertible; installed AirWorker 0.11.8 exact SHA and foreign trees untouched",
+  "source": {
+    "repository": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-n124-a3-aba-notify-20261018",
+    "pre_receipt_head": "580a238d2ef977d9ae4c61659d98aceb0d196fa4",
+    "independently_reviewed_code_sha": "ce1ec3f1fe221995c7bf366e81e2795f16165b48",
+    "code_diff_since_review": "NONE_IN_air-worker/cmd",
+    "code_files_changed_this_session": 0,
+    "source_binary_sha256": "fad9b89e86d7e294ac93e522623c9031cde64a8968664f9f520cb53ed44d2f7e"
+  },
+  "test_environment": {
+    "observed_original_TEMP": "R:\\-4-\\air-commander-test\\tmp",
+    "original_TEMP_ancestor": "R:\\-4-\\air-commander-test is a junction to R:\\-4-\\air-commander",
+    "corrected_process_only_TEMP": "C:\\Users\\admin_loc\\AppData\\Local\\Temp",
+    "corrected_TEMP_reparse_flag": false,
+    "GOTMPDIR": "unset in Go QA process",
+    "no_machine_wide_env_or_settings_change": true
+  },
+  "tests": {
+    "full_go_original": {
+      "cmd": "go test -count=1 -timeout 6m ./...",
+      "rc": 1,
+      "classification": "UNTRUSTED_TEMP_REPARSE_FAILURES_PLUS_PACKAGE_TIMEOUT_6M",
+      "log": "R:/-4-/air-worker/work/N124_WORKER_A_20261019/N124_A_FULL_GO_REGRESSION_20261019.log",
+      "log_sha256": "8a453d2f08e9c8ca6cdede982f1bd1edc2501b8e4a4b5c856ea60fceacf73024"
+    },
+    "corrected_environment_selected_six": {
+      "rc": 0,
+      "package_test_output": "ok airos/air-worker 15.965s",
+      "log": "R:/-4-/air-worker/work/N124_WORKER_A_20261019/N124_GO_ENV_CORRECTED_TARGETED_20261019.log",
+      "log_sha256": "bb2a8418256cb3cf9d702e99337e481642a1ec8b85b469d612c954abe7d5b269"
+    },
+    "corrected_environment_full_go": {
+      "cmd": "go test -count=1 -timeout 12m ./...",
+      "rc": 1,
+      "duration_pkg_seconds": 519.852,
+      "failed_top_level_tests": [
+        "TestAirWorkerStopDetachedReviewIsRealProcessAndFinishesBothOwners"
+      ],
+      "observed": "Stop 1.6218579s within 5s; target review complete=true, self review complete=false after bounded wait",
+      "log": "R:/-4-/air-worker/work/N124_WORKER_A_20261019/N124_A_FULL_GO_REGRESSION_CORRECTED_TEMP_20261019.log",
+      "log_sha256": "3fd7ebfb6a1c661ab1ccee9e4314db97bafec5d8414dfc21b35b94e4bd597619"
+    },
+    "corrected_environment_deferred_review_repeat3": {
+      "cmd": "go test -count=3 -timeout 4m -run ^TestAirWorkerStopDetachedReviewIsRealProcessAndFinishesBothOwners$ -v ./...",
+      "rc": 1,
+      "passes": 2,
+      "failures": 1,
+      "failed_sample": "isolated Stop duration 9.4005307s > 5s hard limit",
+      "passing_samples": [
+        "1.7966279s",
+        "1.5034197s"
+      ],
+      "log": "R:/-4-/air-worker/work/N124_WORKER_A_20261019/N124_A_DEFERRED_REVIEW_TARGETED_REPEAT3_20261019.log",
+      "log_sha256": "c59b519a8a9ffe16f85081ec3f24083b3df1490242b7b6b4e7618f9851998027"
+    },
+    "native_N124_targeted": {
+      "cmd": "go test -count=1 -timeout 5m -run '^(TestPlanCanonical|TestN124Projection|TestPlanNodeN124)' ./...",
+      "rc": 0,
+      "duration_pkg_seconds": 131.203,
+      "log": "R:/-4-/air-worker/work/N124_WORKER_A_20261019/N124_A_NATIVE_CAS_TARGETED_20261019.log",
+      "log_sha256": "dda248e571f2a765a717ce54265e6a1b200c0b9feb97fbe41c84555f186eae0a"
+    },
+    "go_vet": {
+      "rc": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go_build": {
+      "rc": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_only_exe_sha256": "fad9b89e86d7e294ac93e522623c9031cde64a8968664f9f520cb53ed44d2f7e"
+    },
+    "native_plan_spine_rc": 0,
+    "native_plan_node_list_rc": 0,
+    "native_plan_lint_rc": 0,
+    "native_validate_rc": 0,
+    "all_repo_regression_PASS": false
+  },
+  "interpretation": {
+    "known": "Full suite RC1 is attributable in corrected TEMP run to the self-learning detached Stop/review test, not a proven N124 CAS failure; N124 targeted RC0 does not replace full regression.",
+    "unresolved": "Why detached reviewers intermittently exceed the 5s Stop window or fail to complete both owner reviews within test wait is NOT_PROVEN. Repro 1 of 3 targeted runs failed. No timing limit relaxation accepted.",
+    "independent_judge": "Prior Sol medium on unchanged cmd source ce1ec3 PASS P0/P1/P2=0; new full QA failure not covered by that independent review"
+  },
+  "open_gates": [
+    "N-124 production trusted publisher/GitHub generation CAS and global N-ID authority not accepted",
+    "Full Go regression RC1 due to reproducible intermittent detached Stop/self-review issue",
+    "DEV-136 -apply remains blocked",
+    "AirLegal N-111 OPEN Hermes",
+    "0.11.9 tag/release/install remain separate LPR gates"
+  ],
+  "next": {
+    "owner": "Voody to coordinate AirWorker learning-core owner; A continues N124 source-only while QA blocker gets isolated",
+    "trigger": "Stop/reviewer suite fails 1 of 3 with corrected real Temp",
+    "done_when": "Root-cause and fix without weakening 5s Stop or 18s bounded review; targeted repeated and full Go suites RC0, independent source-frozen judge, exact GitHub receipt; afterward resume N124 generation production gate",
+    "judge": "Go full and repeated targeted RC0 + independent Sol",
+    "receipt": "AIRWORKER_N124_A3_3_SELF_REVIEW_STABILITY_FIX_TBD.json",
+    "status": "OPEN"
+  },
+  "safety": {
+    "no_core_PLAN_nodes_LEARN_manual_edits": true,
+    "no_cherry_pick_native_plan": true,
+    "no_Github_mutable_claim_probe": true,
+    "no_release_tag_install_UAC_reboot_foreign_service_stop": true,
+    "installed_0_11_8_unchanged": true,
+    "foreign_worker_B_Hermes_AirLegal_wip_untouched": true
+  }
+}
