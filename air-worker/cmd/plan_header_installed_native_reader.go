@@ -13,61 +13,71 @@ import (
 
 const planHeaderInstalledExeLimit = 64 * 1024 * 1024
 
-// planHeaderReadBoundedExeSHA hashes an already installed or cache copy
-// without running it. A successful hash is only a freshness/identity
-// predicate; it is not a signature or permission for PLAN mutation.
-func planHeaderReadBoundedExeSHA(path string) (string, error) {
+// planHeaderReadBoundedExeSnapshot pins one opened file handle and returns
+// at most 64 MiB of its content. SHA and Go build-info MUST be derived from
+// these exact bytes; never reopen a pathname for independent metadata reads.
+// This is a local read-only preflight, not a signed release attestation.
+func planHeaderReadBoundedExeSnapshot(path string) ([]byte, error) {
 	if !filepath.IsAbs(path) {
-		return "", errors.New("installed executable path not absolute")
+		return nil, errors.New("installed executable path not absolute")
 	}
 	if err := planHeaderValidateAncestors(filepath.Dir(path)); err != nil {
-		return "", err
+		return nil, err
 	}
 	if err := planHeaderRejectOSReparse(path); err != nil {
-		return "", err
+		return nil, err
 	}
 	before, err := os.Lstat(path)
 	if err != nil || !before.Mode().IsRegular() || before.Size() < 1 ||
 		before.Size() > planHeaderInstalledExeLimit {
-		return "", errors.New("installed executable not a bounded regular file")
+		return nil, errors.New("installed executable not a bounded regular file")
 	}
 	f, err := os.Open(path)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	opened, err := f.Stat()
 	if err != nil || !os.SameFile(before, opened) ||
 		opened.Size() != before.Size() ||
 		!opened.ModTime().Equal(before.ModTime()) {
 		_ = f.Close()
-		return "", errors.New("installed executable changed while opening")
+		return nil, errors.New("installed executable changed while opening")
 	}
-	// Reuse the Windows OS-handle physical link/reparse check already
-	// exercised by DEV136. Other platforms remain source-only.
+	// Reuse the Windows physical link/reparse handle check from DEV136.
 	if err := planHeaderVerifyReleaseHandle(f); err != nil {
 		_ = f.Close()
-		return "", err
+		return nil, err
 	}
-	h := sha256.New()
-	size, readErr := io.Copy(h, io.LimitReader(f, planHeaderInstalledExeLimit+1))
+	raw, readErr := io.ReadAll(io.LimitReader(f, planHeaderInstalledExeLimit+1))
 	after, statErr := f.Stat()
 	handleErr := planHeaderVerifyReleaseHandle(f)
 	closeErr := f.Close()
 	if readErr != nil || statErr != nil || handleErr != nil || closeErr != nil ||
-		size != before.Size() || size > planHeaderInstalledExeLimit ||
+		int64(len(raw)) != before.Size() || len(raw) > planHeaderInstalledExeLimit ||
 		!os.SameFile(opened, after) || opened.Size() != after.Size() ||
 		!opened.ModTime().Equal(after.ModTime()) {
-		return "", errors.New("installed executable changed during bounded read")
+		return nil, errors.New("installed executable changed during bounded read")
 	}
 	if err := planHeaderRejectOSReparse(path); err != nil {
-		return "", err
+		return nil, err
 	}
 	latest, err := os.Lstat(path)
 	if err != nil || !os.SameFile(before, latest) || latest.Size() != after.Size() ||
 		!latest.ModTime().Equal(after.ModTime()) {
-		return "", errors.New("installed executable path changed during read")
+		return nil, errors.New("installed executable path changed during read")
 	}
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return raw, nil
+}
+
+// planHeaderReadBoundedExeSHA hashes the same bounded byte snapshot used by
+// static Go build-info parsing. No cache executable is launched.
+func planHeaderReadBoundedExeSHA(path string) (string, error) {
+	raw, err := planHeaderReadBoundedExeSnapshot(path)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func planHeaderCheckRegisteredCache(configRoot string, rec installedRec, liveSHA string) error {

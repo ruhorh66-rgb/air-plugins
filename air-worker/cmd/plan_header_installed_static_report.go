@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"debug/buildinfo"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -14,12 +17,22 @@ import (
 // version; a source-only header preview must not create a new execution path
 // for mutable registry/cache entries. Read Go VCS buildinfo + SHA only.
 func planHeaderStaticBinaryIdentity(path, version string) (distributionBinaryIdentity, error) {
-	id := distributionBinaryIdentity{Path: filepath.Clean(path)}
-	sum, err := planHeaderReadBoundedExeSHA(path)
+	raw, err := planHeaderReadBoundedExeSnapshot(path)
 	if err != nil {
-		return id, err
+		return distributionBinaryIdentity{Path: filepath.Clean(path)}, err
 	}
-	info, err := buildinfo.ReadFile(path)
+	// Parse and hash the SAME validated snapshot, not two path generations.
+	return planHeaderStaticIdentityFromSnapshot(path, version, raw)
+}
+
+// From this boundary forward, only immutable bytes—not a pathname or OS
+// executable—provide both the SHA and VCS metadata. A path replacement
+// after snapshot acquisition cannot mix two different binary generations.
+func planHeaderStaticIdentityFromSnapshot(path, version string, raw []byte) (distributionBinaryIdentity, error) {
+	id := distributionBinaryIdentity{Path: filepath.Clean(path)}
+	sumBytes := sha256.Sum256(raw)
+	sum := hex.EncodeToString(sumBytes[:])
+	info, err := buildinfo.Read(bytes.NewReader(raw))
 	if err != nil {
 		return id, fmt.Errorf("static installed build info unavailable: %w", err)
 	}
