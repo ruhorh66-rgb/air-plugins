@@ -270,6 +270,9 @@ type r02ReplayResponse struct {
 
 type r02PendingAttempt struct {
 	Schema                string            `json:"schema"`
+	ProductID             string            `json:"product_id"`
+	ProductRoot           string            `json:"product_root"`
+	PendingHMAC           string            `json:"pending_hmac_sha256,omitempty"`
 	SliceID               string            `json:"slice_id"`
 	CandidateVersion      string            `json:"candidate_version"`
 	CandidateBinarySHA256 string            `json:"candidate_binary_sha256"`
@@ -295,8 +298,13 @@ func readR02Pending(path string) (r02PendingAttempt, bool, error) {
 	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
 		return attempt, true, errors.New("R02 pending marker is not an ordinary file")
 	}
-	raw, err := readLearningBounded(path, 256*1024)
+	// The pending marker is security evidence, not a hint: reject
+	// outside-runtime links/hardlinks and path-swap before parsing.
+	raw, err := n093ReadRuntimeEvidence(filepath.Dir(path), filepath.Base(path), 256*1024)
 	if err != nil {
+		return attempt, true, err
+	}
+	if err := rejectDuplicateJSONKeys(raw); err != nil {
 		return attempt, true, err
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
@@ -311,7 +319,7 @@ func readR02Pending(path string) (r02PendingAttempt, bool, error) {
 		}
 		return attempt, true, err
 	}
-	if attempt.Schema != "air-worker.release-slice.r02-pending/v1" || attempt.SliceID != nativeReleaseSliceR02 ||
+	if attempt.Schema != r02PendingSchema || attempt.SliceID != nativeReleaseSliceR02 ||
 		attempt.CandidateVersion != version || len(attempt.CandidateBinarySHA256) != 64 || len(attempt.PlanBeforeSHA256) != 64 ||
 		len(attempt.BaselineReceipts) > 4096 || !releaseCaptureTargetUnderScratch(attempt.TargetRoot) {
 		return attempt, true, errors.New("R02 pending marker identity or target is invalid")
@@ -329,6 +337,9 @@ func loadOrCreateR02Pending(owner selfLearningOwner, planSHA, binarySHA string, 
 		return attempt, found, err
 	}
 	if found {
+		if err := verifyR02PendingAttempt(owner, attempt); err != nil {
+			return attempt, true, fmt.Errorf("R02: recovered pending attempt is not authenticated: %w", err)
+		}
 		if attempt.PlanBeforeSHA256 != planSHA || attempt.CandidateBinarySHA256 != binarySHA {
 			return attempt, true, errors.New("R02 pending attempt belongs to a different plan or binary; refusing replay")
 		}
@@ -343,9 +354,13 @@ func loadOrCreateR02Pending(owner selfLearningOwner, planSHA, binarySHA string, 
 		return attempt, false, err
 	}
 	attempt = r02PendingAttempt{
-		Schema: "air-worker.release-slice.r02-pending/v1", SliceID: nativeReleaseSliceR02,
+		Schema: r02PendingSchema, SliceID: nativeReleaseSliceR02,
 		CandidateVersion: version, CandidateBinarySHA256: binarySHA, PlanBeforeSHA256: planSHA,
 		TargetRoot: target, StartedAtUTC: time.Now().UTC().Format(time.RFC3339Nano), BaselineReceipts: baseline,
+	}
+	if err := sealR02PendingAttempt(owner, &attempt); err != nil {
+		_ = os.RemoveAll(target)
+		return r02PendingAttempt{}, false, fmt.Errorf("R02: cannot authenticate new pending attempt: %w", err)
 	}
 	raw, err := json.MarshalIndent(attempt, "", "  ")
 	if err == nil {
@@ -359,6 +374,9 @@ func loadOrCreateR02Pending(owner selfLearningOwner, planSHA, binarySHA string, 
 }
 
 func r02PendingNewReceipt(owner selfLearningOwner, attempt r02PendingAttempt) (string, []byte, bool, error) {
+	if err := verifyR02PendingAttempt(owner, attempt); err != nil {
+		return "", nil, false, err
+	}
 	after, err := snapshotR02CLIReceipts(owner.Settings.RuntimeRoot)
 	if err != nil {
 		return "", nil, false, err
@@ -439,6 +457,9 @@ func r02TargetEmpty(path string) (bool, error) {
 }
 
 func cleanupR02Pending(owner selfLearningOwner, attempt r02PendingAttempt) error {
+	if err := verifyR02PendingAttempt(owner, attempt); err != nil {
+		return fmt.Errorf("R02: unsafe pending cleanup refused: %w", err)
+	}
 	if err := os.RemoveAll(attempt.TargetRoot); err != nil {
 		return err
 	}
@@ -451,7 +472,7 @@ func cleanupR02Pending(owner selfLearningOwner, attempt r02PendingAttempt) error
 
 func cleanupR02PendingBestEffort(owner selfLearningOwner) {
 	attempt, found, err := readR02Pending(r02PendingPath(owner.Settings.RuntimeRoot))
-	if err == nil && found {
+	if err == nil && found && verifyR02PendingAttempt(owner, attempt) == nil {
 		_ = cleanupR02Pending(owner, attempt)
 	}
 }
@@ -613,11 +634,18 @@ func runNativeReleaseSliceR02(productRoot string, state releaseSlicesSummary) in
 		return 2
 	}
 	evidence := releaseSliceCaptureReceipt{
-		Schema: "air-worker.release-slice.capture/v1", SliceID: nativeReleaseSliceR02,
+		Schema: releaseSliceCaptureSchema, SliceID: nativeReleaseSliceR02,
 		CandidateVersion: version, CandidateBinarySHA256: binarySHA, PlanBeforeSHA256: learnSHA(planRaw),
 		RunID: runID, CaptureReceiptSHA256: captureSHA, ReplayReceiptSHA256: learnSHA(replayedRaw),
 		ValidateExitCode: 2, ReplayExitCode: 0, CauseCode: "validate-run-config-missing",
 		EventCount: 1, ReplayEventCount: 1, CreatedAtUTC: time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	// Seal the OUTER release envelope as well as the original CLI failure.
+	// A signed inner failure alone cannot authorize a different product,
+	// binary or release-plan preimage.
+	if err := sealR02ReleaseCaptureReceipt(owner, root, &evidence); err != nil {
+		line("ОТКАЗ: native R02 release receipt cannot be authenticated: " + err.Error())
+		return 2
 	}
 	releaseRaw, err := json.MarshalIndent(evidence, "", "  ")
 	if err != nil {

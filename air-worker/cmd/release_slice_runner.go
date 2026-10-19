@@ -7,7 +7,10 @@ import (
 	"strings"
 )
 
-const nativeReleaseSliceR02 = "R0.11.9-02"
+const (
+	nativeReleaseSliceR02 = "R0.11.9-02"
+	nativeReleaseSliceR03 = "R0.11.9-03"
+)
 
 func releaseSlicesExpected(productRoot string) bool {
 	for _, modPath := range []string{filepath.Join(productRoot, "go.mod"), filepath.Join(productRoot, "cmd", "go.mod")} {
@@ -33,11 +36,15 @@ func releaseSliceLoopSupported(state releaseSlicesSummary, candidateVersion stri
 	if len(state.Problems) != 0 {
 		return fmt.Errorf("release-slices.json has %d validation problem(s)", len(state.Problems))
 	}
-	if !state.HasActiveStep || state.NextStep != nativeReleaseSliceR02 || state.ActiveStep.ID != nativeReleaseSliceR02 {
-		return fmt.Errorf("native loop currently supports only active %s; found %q", nativeReleaseSliceR02, state.NextStep)
+	if !state.HasActiveStep || state.ActiveStep.ID != state.NextStep {
+		return fmt.Errorf("native release step identity differs from active plan: %q", state.NextStep)
+	}
+	if state.ActiveStep.ID != nativeReleaseSliceR02 && state.ActiveStep.ID != nativeReleaseSliceR03 {
+		return fmt.Errorf("native loop currently supports only active %s or %s; found %q",
+			nativeReleaseSliceR02, nativeReleaseSliceR03, state.NextStep)
 	}
 	if state.ActiveVersion != "0.11.9" || candidateVersion != "0.11.9" || state.ActiveStep.Status != "open" || state.ActiveStep.Kind != "source" {
-		return fmt.Errorf("%s requires an open source slice and an exact 0.11.9 candidate (plan=%q binary=%q status=%q kind=%q)", nativeReleaseSliceR02, state.ActiveVersion, candidateVersion, state.ActiveStep.Status, state.ActiveStep.Kind)
+		return fmt.Errorf("%s requires an open source slice and an exact 0.11.9 candidate (plan=%q binary=%q status=%q kind=%q)", state.ActiveStep.ID, state.ActiveVersion, candidateVersion, state.ActiveStep.Status, state.ActiveStep.Kind)
 	}
 	return nil
 }
@@ -47,7 +54,15 @@ func cmdReleaseSliceLoop(root string, cfg runConfig, state releaseSlicesSummary)
 		line("ОТКАЗ: " + err.Error())
 		return 2
 	}
-	return runReleaseSliceR02(root, cfg, state)
+	switch state.ActiveStep.ID {
+	case nativeReleaseSliceR02:
+		return runReleaseSliceR02(root, cfg, state)
+	case nativeReleaseSliceR03:
+		return runNativeReleaseSliceR03(root, state)
+	default:
+		line("ОТКАЗ: unsupported native release slice " + state.ActiveStep.ID)
+		return 2
+	}
 }
 
 func runReleaseSliceR02(root string, _ runConfig, state releaseSlicesSummary) int {

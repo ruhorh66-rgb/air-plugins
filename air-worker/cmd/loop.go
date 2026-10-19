@@ -252,6 +252,14 @@ func cmdLoopWithReleaseSliceRunner(argv []string, releaseRunner func(string, run
 			line("ОТКАЗ: " + err.Error() + "; numeric PLAN fallback запрещён.")
 			return 2
 		}
+		// A release-slice runner can invoke a real production reviewer or
+		// atomically promote the plan. Neither operation is a dry run.
+		// Until an explicit read-only release-preview handler exists, reject
+		// both flags BEFORE calling the runner. Never fall back to numeric PLAN.
+		if *whatIf || *planOnly {
+			line("ОТКАЗ: native release-slice -whatif/-plan-only has no safe read-only preview; execution not started.")
+			return 2
+		}
 		return releaseRunner(root, cfg, releaseState)
 	}
 	if len(releaseState.Problems) != 0 {

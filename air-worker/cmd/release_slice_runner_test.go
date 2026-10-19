@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -92,7 +94,8 @@ func TestCmdLoopFailsClosedForUnsupportedReleaseSlice(t *testing.T) {
 	releases := doc["releases"].([]any)
 	steps := releases[0].(map[string]any)["steps"].([]any)
 	steps[1].(map[string]any)["status"] = "closed"
-	steps[2].(map[string]any)["status"] = "open"
+	steps[2].(map[string]any)["status"] = "closed"
+	steps[3].(map[string]any)["status"] = "open"
 	updated, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
 		t.Fatal(err)
@@ -187,12 +190,17 @@ func writeReleaseSliceCaptureFixture(t *testing.T, product string, planRaw []byt
 		t.Fatal(err)
 	}
 	evidence := releaseSliceCaptureReceipt{
-		Schema: "air-worker.release-slice.capture/v1", SliceID: nativeReleaseSliceR02,
+		Schema: releaseSliceCaptureSchema, SliceID: nativeReleaseSliceR02,
 		CandidateVersion: version, CandidateBinarySHA256: learnSHA(exeRaw),
 		PlanBeforeSHA256: learnSHA(planRaw), RunID: runID,
 		CaptureReceiptSHA256: learnSHA(captureRaw), ReplayReceiptSHA256: learnSHA(captureRaw),
 		ValidateExitCode: 2, ReplayExitCode: 0, CauseCode: "validate-run-config-missing",
 		EventCount: 1, ReplayEventCount: 1, CreatedAtUTC: time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	// Test the SAME native outer-envelope signer as production. Never forge
+	// a bare old-format release receipt to make a positive transition pass.
+	if err := sealR02ReleaseCaptureReceipt(owner, product, &evidence); err != nil {
+		t.Fatalf("signed R02 fixture envelope: %v", err)
 	}
 	receiptRaw, err := json.MarshalIndent(evidence, "", "  ")
 	if err != nil {
@@ -398,4 +406,133 @@ func replaceTestEnv(env []string, key, value string) []string {
 		out = append(out, entry)
 	}
 	return append(out, key+"="+value)
+}
+
+func TestR02SignedOuterEnvelopeRejectsIndependentFieldTamper(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mutate func(*releaseSliceCaptureReceipt)
+	}{
+		{"missing-HMAC", func(r *releaseSliceCaptureReceipt) { r.ReleaseHMAC = "" }},
+		{"different-source-product", func(r *releaseSliceCaptureReceipt) { r.ProductRoot += "-foreign" }},
+		{"different-signed-run", func(r *releaseSliceCaptureReceipt) { r.RunID = "AW-CLI-WRONG-RUN" }},
+		{"different-plan-SHA", func(r *releaseSliceCaptureReceipt) { r.PlanBeforeSHA256 = strings.Repeat("0", 64) }},
+		{"different-binary-SHA", func(r *releaseSliceCaptureReceipt) { r.CandidateBinarySHA256 = strings.Repeat("1", 64) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			product, original, planPath := releaseSliceTransitionFixture(t)
+			receiptPath := writeReleaseSliceCaptureFixture(t, product, original, "AW-CLI-R02-HMAC-OUTER-"+tc.name)
+			contents, err := os.ReadFile(receiptPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var receipt releaseSliceCaptureReceipt
+			if err := json.Unmarshal(contents, &receipt); err != nil {
+				t.Fatal(err)
+			}
+			if receipt.ReleaseHMAC == "" {
+				t.Fatal("test setup did not seal a native R02 envelope")
+			}
+			tc.mutate(&receipt)
+			tampered, err := json.MarshalIndent(receipt, "", "  ")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(receiptPath, append(tampered, '\n'), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := transitionR02ToR03(product); err == nil {
+				t.Fatal("an altered signed R02 release envelope advanced the native release plan")
+			}
+			after, err := os.ReadFile(planPath)
+			if err != nil || !bytes.Equal(original, after) {
+				t.Fatal("rejected R02 envelope mutated release plan")
+			}
+		})
+	}
+}
+
+func TestR02ReleaseEnvelopeAndEventRejectExternalNTHardlinks(t *testing.T) {
+	for _, kind := range []string{"signed-R02-envelope", "module-event-journal"} {
+		t.Run(kind, func(t *testing.T) {
+			product, original, planPath := releaseSliceTransitionFixture(t)
+			releasePath := writeReleaseSliceCaptureFixture(t, product, original, "AW-CLI-R02-HARDLINK-"+kind)
+			linkSource := releasePath
+			if kind == "module-event-journal" {
+				owner, on, err := activeAirWorkerSelfLearningOwner()
+				if err != nil || !on {
+					t.Fatalf("self-learning owner missing: %v", err)
+				}
+				linkSource = filepath.Join(owner.Settings.RuntimeRoot, "events.jsonl")
+			}
+			outside := filepath.Join(t.TempDir(), "external-source-hardlink")
+			if err := os.Link(linkSource, outside); err != nil {
+				t.Skipf("safe hardlink test unavailable on this filesystem: %v", err)
+			}
+			if err := transitionR02ToR03(product); err == nil {
+				t.Fatal("external-linked native module proof authorized R02 release transition")
+			}
+			after, err := os.ReadFile(planPath)
+			if err != nil || !bytes.Equal(after, original) {
+				t.Fatal("rejected external proof modified release plan")
+			}
+		})
+	}
+}
+
+func TestNativeReleaseSliceDryRunFlagsNeverDispatchMutatingRunner(t *testing.T) {
+	for _, step := range []string{"R02", "R03"} {
+		for _, flag := range []string{"-whatif", "-plan-only"} {
+			t.Run(step+"/"+flag, func(t *testing.T) {
+				root := releaseSliceLoopFixture(t)
+				releasePath := filepath.Join(root, "plan", "release-slices.json")
+				raw, err := os.ReadFile(releasePath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if step == "R03" {
+					raw = expectedReleaseSliceR02ToR03(raw)
+					if raw == nil {
+						t.Fatal("unable to form valid R03-open fixture")
+					}
+					if err := os.WriteFile(releasePath, raw, 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				planBefore, err := os.ReadFile(filepath.Join(root, "PLAN.md"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				releaseBefore, err := os.ReadFile(releasePath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				calls := 0
+				rc := cmdLoopWithReleaseSliceRunner([]string{"-product", root, flag},
+					func(string, runConfig, releaseSlicesSummary) int {
+						calls++
+						return 0
+					})
+				if rc != 2 || calls != 0 {
+					t.Fatalf("%s %s invoked mutating native runner: exit=%d count=%d", step, flag, rc, calls)
+				}
+				releaseAfter, err := os.ReadFile(releasePath)
+				if err != nil || !bytes.Equal(releaseBefore, releaseAfter) {
+					t.Fatal("dry-run changed release-slices.json")
+				}
+				planAfter, err := os.ReadFile(filepath.Join(root, "PLAN.md"))
+				if err != nil || !bytes.Equal(planBefore, planAfter) {
+					t.Fatal("dry-run changed legacy PLAN.md")
+				}
+				for _, name := range []string{"RELEASE_0_11_9_02.json", "RELEASE_0_11_9_03.json"} {
+					if _, err := os.Lstat(filepath.Join(root, "docs", "receipts", name)); !errors.Is(err, os.ErrNotExist) {
+						t.Fatalf("dry-run created native release receipt %s: %v", name, err)
+					}
+				}
+				if _, err := os.Lstat(filepath.Join(root, "learn", "events.jsonl")); !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("dry-run created module event journal: %v", err)
+				}
+			})
+		}
+	}
 }
