@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,7 +28,7 @@ func findAppliedPreflightRule(owner selfLearningOwner, prior ownCLIFailureReceip
 	}
 	rt := owner.Settings.RuntimeRoot
 	priorPath := filepath.Join(rt, "cli-failures", prior.RunID+".json")
-	priorRaw, err := readLearningBounded(priorPath, 32*1024)
+	priorRaw, err := n093ReadRuntimeEvidence(rt, "cli-failures/"+prior.RunID+".json", 32*1024)
 	if err != nil {
 		return none, "", false, err
 	}
@@ -45,7 +46,7 @@ func findAppliedPreflightRule(owner selfLearningOwner, prior ownCLIFailureReceip
 	}
 	var source originEvent
 	found := 0
-	err = scanLearnJSONL(filepath.Join(rt, "events.jsonl"), func(b []byte) error {
+	err = n093ScanRuntimeEvidenceJSONL(rt, "events.jsonl", func(b []byte) error {
 		var ev originEvent
 		if err := json.Unmarshal(b, &ev); err != nil {
 			return err
@@ -69,14 +70,29 @@ func findAppliedPreflightRule(owner selfLearningOwner, prior ownCLIFailureReceip
 	if found != 1 {
 		return none, "", false, errors.New("ambiguous native preflight event history")
 	}
+	// The event-index is a pointer, NOT independently authenticated reviewer
+	// output. Require exact canonical RV bytes, source run/event binding, and
+	// the module-owned candidate digest before any learned action is eligible.
+	indexRaw, err := n093ReadRuntimeEvidence(rt, "reviews/"+source.EventID+".json", 256*1024)
+	if errors.Is(err, os.ErrNotExist) {
+		return none, "", false, nil
+	}
+	if err != nil {
+		return none, "", false, err
+	}
+	if err := rejectDuplicateJSONKeys(indexRaw); err != nil {
+		return none, "", false, err
+	}
 	var review struct {
-		Schema     string `json:"schema"`
-		EventID    string `json:"event_id"`
-		ReviewID   string `json:"review_id"`
-		Phase      string `json:"phase"`
-		Outcome    string `json:"outcome"`
-		ProposalID string `json:"proposal_id"`
-		Candidate  struct {
+		Schema          string `json:"schema"`
+		EventID         string `json:"event_id"`
+		RunID           string `json:"run_id"`
+		ReviewID        string `json:"review_id"`
+		Phase           string `json:"phase"`
+		Outcome         string `json:"outcome"`
+		ProposalID      string `json:"proposal_id"`
+		CandidateSHA256 string `json:"candidate_sha256"`
+		Candidate       struct {
 			Kind       string `json:"kind"`
 			Target     string `json:"target"`
 			Content    string `json:"content"`
@@ -84,17 +100,36 @@ func findAppliedPreflightRule(owner selfLearningOwner, prior ownCLIFailureReceip
 			ReviewID   string `json:"review_id"`
 		} `json:"candidate"`
 	}
-	if err := readJSON(filepath.Join(rt, "reviews", source.EventID+".json"), &review); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return none, "", false, nil
-		}
+	if err := json.Unmarshal(indexRaw, &review); err != nil {
 		return none, "", false, err
 	}
+	if !strings.HasPrefix(review.ReviewID, "RV-") ||
+		!n093SafeEventID(review.ReviewID) {
+		return none, "", false, errors.New("N093: invalid canonical reviewer identity")
+	}
+	canonicalRaw, err := n093ReadRuntimeEvidence(rt, "reviews/"+review.ReviewID+".json", 256*1024)
+	if err != nil || !bytes.Equal(indexRaw, canonicalRaw) {
+		return none, "", false, errors.New("N093: review event index does not equal canonical RV record")
+	}
 	if review.Schema != "air.learning.review/v1" || review.EventID != source.EventID ||
-		review.ReviewID == "" || review.Phase != "complete" || review.Outcome != "candidate" ||
-		review.ProposalID == "" || review.Candidate.ProposalID != review.ProposalID ||
+		review.RunID != prior.RunID || review.Phase != "complete" || review.Outcome != "candidate" ||
+		review.ProposalID != "LP-"+source.EventID ||
+		review.Candidate.ProposalID != review.ProposalID ||
 		review.Candidate.ReviewID != review.ReviewID || review.Candidate.Kind != "procedure" {
-		return none, "", false, nil
+		return none, "", false, errors.New("N093: reviewer is not bound to the signed source run/event")
+	}
+	var reviewEnvelope map[string]json.RawMessage
+	if err := json.Unmarshal(indexRaw, &reviewEnvelope); err != nil {
+		return none, "", false, err
+	}
+	var candidate map[string]any
+	if err := json.Unmarshal(reviewEnvelope["candidate"], &candidate); err != nil {
+		return none, "", false, err
+	}
+	canonicalCandidate, err := json.Marshal(candidate)
+	if err != nil || len(review.CandidateSHA256) != 64 ||
+		!strings.EqualFold(learnSHA(canonicalCandidate), review.CandidateSHA256) {
+		return none, "", false, errors.New("N093: reviewer candidate digest not bound to module-owned proposal")
 	}
 	target := review.Candidate.Target
 	if !strings.HasPrefix(target, "skills/learned/air-worker-cli-preflight-") || !strings.HasSuffix(target, ".md") {
@@ -133,7 +168,7 @@ func findAppliedPreflightRule(owner selfLearningOwner, prior ownCLIFailureReceip
 		PostSHA256 string `json:"post_sha256"`
 	}
 	count := 0
-	err = scanLearnJSONL(filepath.Join(rt, "ledger.jsonl"), func(b []byte) error {
+	err = n093ScanRuntimeEvidenceJSONL(rt, "ledger.jsonl", func(b []byte) error {
 		var x ledgerLine
 		if err := json.Unmarshal(b, &x); err != nil {
 			return err
@@ -174,6 +209,14 @@ func findAppliedPreflightRule(owner selfLearningOwner, prior ownCLIFailureReceip
 	}
 	if unique != 1 {
 		return none, "", false, errors.New("reviewed preflight procedure not uniquely active in module index")
+	}
+	// A canonical RV and correct ledger alone can be forged by editing
+	// runtime files. New learned N093 actions also require the immutable
+	// reviewer-adapter model-response HMAC and the signed post-apply RV
+	// completion that binds review/proposal IDs and the candidate digest.
+	if err := n093VerifyCompletedNativeReview(owner, prior, source.EventID,
+		review.ReviewID, review.ProposalID, target, review.CandidateSHA256, rule.SHA256); err != nil {
+		return none, "", false, fmt.Errorf("N093: unauthenticated native reviewer completion: %w", err)
 	}
 	return rule, source.EventID, true, nil
 }

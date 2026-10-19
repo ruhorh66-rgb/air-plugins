@@ -123,7 +123,10 @@ func prepareNativeFeedbackUse(spec, source, runID string, productSettings shared
 
 func nativeSelfSkillLoaded(root, runID string, rule selfLearningLoadedRule) (bool, error) {
 	found := false
-	err := scanLearnJSONL(filepath.Join(root, "events.jsonl"), func(b []byte) error {
+	// All native load-credit paths (feedback, typed preflight and terminal
+	// confirmation) must read the same bounded OS-handle-verified journal.
+	// A valid-looking skill_loaded row in a linked external file is NOT proof.
+	err := n093ScanRuntimeEvidenceJSONL(root, "events.jsonl", func(b []byte) error {
 		var row struct {
 			Schema  string `json:"schema"`
 			RunID   string `json:"run_id"`

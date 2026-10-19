@@ -87,7 +87,7 @@ func findPriorSignedPreflightFailure(owner selfLearningOwner, argv []string) (ow
 		if _, err := os.Readlink(path); err == nil {
 			return empty, false, errors.New("own CLI failure receipt is a link or reparse file")
 		}
-		raw, err := readLearningBounded(path, 32*1024)
+		raw, err := n093ReadRuntimeEvidence(root, "cli-failures/"+entry.Name(), 32*1024)
 		if err != nil {
 			return empty, false, err
 		}

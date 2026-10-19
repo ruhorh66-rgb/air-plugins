@@ -103,7 +103,7 @@ func finalizeN093TypedPreflightResult(owner selfLearningOwner, prior ownCLIFailu
 	expectedRef := filepath.ToSlash(expectedIntentPath) + "#sha256=" + learnSHA(intentRaw)
 	expectedObserved := "Native AirWorker preflight selected the exact SHA-managed reviewer procedure, verified that run-config.json is still absent, and deferred redundant validate before executing its validator. The learned protective action succeeded; full validation did NOT run."
 	confirmedID := ""
-	err = scanLearnJSONL(filepath.Join(rt, "events.jsonl"), func(raw []byte) error {
+	err = n093ScanRuntimeEvidenceJSONL(rt, "events.jsonl", func(raw []byte) error {
 		var event struct {
 			Schema     string `json:"schema"`
 			EventID    string `json:"event_id"`

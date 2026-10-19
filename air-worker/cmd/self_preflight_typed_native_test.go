@@ -41,6 +41,9 @@ func n093NativeTypedFixture(t *testing.T) (string, sharedLearningSettings, []str
 	if err != nil || res.Status != "candidate" {
 		t.Fatalf("isolated native reviewer did not apply procedure: %+v %v", res, err)
 	}
+	// Unit fixtures bypass the production Codex adapter and review-batch;
+	// explicitly simulate only their two native signed callback boundaries.
+	n093AttestFixtureReviewedProcedure(t, product, run, res.ID)
 	owner, on, err := activeAirWorkerSelfLearningOwner()
 	if err != nil || !on {
 		t.Fatalf("owner: %v", err)

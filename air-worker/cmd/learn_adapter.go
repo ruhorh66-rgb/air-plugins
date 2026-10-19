@@ -170,6 +170,15 @@ func cmdLearningReviewerAdapter(argv []string) int {
 		fmt.Fprintln(os.Stderr, "learning reviewer: cannot inspect generated target:", readErr)
 		return 2
 	}
+	// Only the native reviewer adapter can attest the exact content of an
+	// actual terminal Codex model response. This does not apply the skill or
+	// grant permissions; the module and native later verify independent
+	// reviewer, APPLIED ledger, current SHA, owner and OS evidence.
+	if err := n093SealProductionReviewerAnswer(root, packetJSON, target, answer.Content,
+		learnSHA([]byte(raw)), strings.TrimSpace(*model), strings.TrimSpace(*effort)); err != nil {
+		fmt.Fprintln(os.Stderr, "learning reviewer: authenticated native response unavailable:", err)
+		return 2
+	}
 	out := map[string]string{
 		"kind":       "procedure",
 		"target":     target,

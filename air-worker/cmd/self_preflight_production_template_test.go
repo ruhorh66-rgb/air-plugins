@@ -158,6 +158,7 @@ func TestN093ModuleReviewedCapsuleActuallyRunsNativeDeferredUse(t *testing.T) {
 	if err != nil || review.Status != "candidate" {
 		t.Fatalf("independent helper reviewer: %+v %v", review, err)
 	}
+	n093AttestFixtureReviewedProcedure(t, product, rid, review.ID)
 	owner, on, err := activeAirWorkerSelfLearningOwner()
 	if err != nil || !on {
 		t.Fatalf("owner: %v", err)

@@ -72,6 +72,13 @@ func cmdSharedLearningReviewBatch(argv []string) int {
 		if err == nil {
 			res, reviewErr := executeSharedLearning(job.Product, s, "review", map[string]string{"run_id": job.RunID})
 			row.Status, row.ReceiptID, err = res.Status, res.ID, reviewErr
+			if err == nil && res.Status == "candidate" {
+				// This is the trusted native completion boundary after the real
+				// reviewer and the shared module have BOTH returned. A signed
+				// model-response proof must preexist the canonical RV result.
+				// No signature can be derived from forged event-index JSON alone.
+				err = n093SealCompletedNativeReview(job.Product, job.RunID, res.ID)
+			}
 			if err == nil && (res.Status == "error" || res.Status == "running" || res.Status == "prepared") {
 				err = fmt.Errorf("non-terminal reviewer result %s", res.Status)
 			}

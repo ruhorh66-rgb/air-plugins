@@ -181,8 +181,7 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 			return out, errors.New("module did not preserve exact native skill_loaded identity")
 		}
 	}
-	failurePath := filepath.Join(owner.Settings.RuntimeRoot, "cli-failures", prior.RunID+".json")
-	failureRaw, err := readLearningBounded(failurePath, 32*1024)
+	failureRaw, err := n093ReadRuntimeEvidence(owner.Settings.RuntimeRoot, "cli-failures/"+prior.RunID+".json", 32*1024)
 	if err != nil {
 		return out, err
 	}
@@ -301,7 +300,7 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 	effectRef := filepath.ToSlash(path) + "#sha256=" + learnSHA(previous)
 	expectedObserved := "Native AirWorker preflight selected the exact SHA-managed reviewer procedure, verified that run-config.json is still absent, and deferred redundant validate before executing its validator. The learned protective action succeeded; full validation did NOT run."
 	var usageFound bool
-	err = scanLearnJSONL(filepath.Join(owner.Settings.RuntimeRoot, "events.jsonl"), func(raw []byte) error {
+	err = n093ScanRuntimeEvidenceJSONL(owner.Settings.RuntimeRoot, "events.jsonl", func(raw []byte) error {
 		var e struct {
 			Schema     string `json:"schema"`
 			RunID      string `json:"run_id"`
