@@ -10,6 +10,7 @@ import (
 const (
 	nativeReleaseSliceR02 = "R0.11.9-02"
 	nativeReleaseSliceR03 = "R0.11.9-03"
+	nativeReleaseSliceR04 = "R0.11.9-04"
 )
 
 func releaseSlicesExpected(productRoot string) bool {
@@ -39,11 +40,12 @@ func releaseSliceLoopSupported(state releaseSlicesSummary, candidateVersion stri
 	if !state.HasActiveStep || state.ActiveStep.ID != state.NextStep {
 		return fmt.Errorf("native release step identity differs from active plan: %q", state.NextStep)
 	}
-	if state.ActiveStep.ID != nativeReleaseSliceR02 && state.ActiveStep.ID != nativeReleaseSliceR03 {
-		return fmt.Errorf("native loop currently supports only active %s or %s; found %q",
-			nativeReleaseSliceR02, nativeReleaseSliceR03, state.NextStep)
+	if state.ActiveStep.ID != nativeReleaseSliceR02 && state.ActiveStep.ID != nativeReleaseSliceR03 && state.ActiveStep.ID != nativeReleaseSliceR04 {
+		return fmt.Errorf("native loop currently supports only active %s, %s or %s; found %q",
+			nativeReleaseSliceR02, nativeReleaseSliceR03, nativeReleaseSliceR04, state.NextStep)
 	}
-	if state.ActiveVersion != "0.11.9" || candidateVersion != "0.11.9" || state.ActiveStep.Status != "open" || state.ActiveStep.Kind != "source" {
+	if state.ActiveVersion != "0.11.9" || candidateVersion != "0.11.9" || state.ActiveStep.Status != "open" ||
+		(state.ActiveStep.Kind != "source" && !(state.ActiveStep.ID == nativeReleaseSliceR04 && state.ActiveStep.Kind == "test")) {
 		return fmt.Errorf("%s requires an open source slice and an exact 0.11.9 candidate (plan=%q binary=%q status=%q kind=%q)", state.ActiveStep.ID, state.ActiveVersion, candidateVersion, state.ActiveStep.Status, state.ActiveStep.Kind)
 	}
 	return nil
@@ -59,6 +61,8 @@ func cmdReleaseSliceLoop(root string, cfg runConfig, state releaseSlicesSummary)
 		return runReleaseSliceR02(root, cfg, state)
 	case nativeReleaseSliceR03:
 		return runNativeReleaseSliceR03(root, state)
+	case nativeReleaseSliceR04:
+		return runNativeReleaseSliceR04(root, state)
 	default:
 		line("ОТКАЗ: unsupported native release slice " + state.ActiveStep.ID)
 		return 2

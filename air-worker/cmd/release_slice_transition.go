@@ -18,6 +18,7 @@ type releaseSliceCaptureReceipt struct {
 	SliceID               string `json:"slice_id"`
 	ProductID             string `json:"product_id"`
 	ProductRoot           string `json:"product_root"`
+	TargetRoot            string `json:"target_root,omitempty"`
 	ReleaseHMAC           string `json:"release_hmac_sha256,omitempty"`
 	CandidateVersion      string `json:"candidate_version"`
 	CandidateBinarySHA256 string `json:"candidate_binary_sha256"`

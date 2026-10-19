@@ -95,7 +95,8 @@ func TestCmdLoopFailsClosedForUnsupportedReleaseSlice(t *testing.T) {
 	steps := releases[0].(map[string]any)["steps"].([]any)
 	steps[1].(map[string]any)["status"] = "closed"
 	steps[2].(map[string]any)["status"] = "closed"
-	steps[3].(map[string]any)["status"] = "open"
+	steps[3].(map[string]any)["status"] = "closed"
+	steps[4].(map[string]any)["status"] = "open"
 	updated, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
 		t.Fatal(err)

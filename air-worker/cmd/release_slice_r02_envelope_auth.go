@@ -59,6 +59,13 @@ func r02ReleaseCaptureShape(owner selfLearningOwner, root string, receipt releas
 			return errors.New("R02: release envelope digest is malformed")
 		}
 	}
+	if receipt.TargetRoot != "" {
+		if !filepath.IsAbs(receipt.TargetRoot) || filepath.Clean(receipt.TargetRoot) != receipt.TargetRoot ||
+			!strings.HasPrefix(filepath.Base(receipt.TargetRoot), "air-worker-r02-capture-") ||
+			filepath.Dir(receipt.TargetRoot) == receipt.TargetRoot {
+			return errors.New("R02: signed scratch target has an invalid identity")
+		}
+	}
 	if _, err := time.Parse(time.RFC3339Nano, receipt.CreatedAtUTC); err != nil {
 		return errors.New("R02: release envelope timestamp invalid")
 	}

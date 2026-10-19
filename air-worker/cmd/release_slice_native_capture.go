@@ -636,7 +636,7 @@ func runNativeReleaseSliceR02(productRoot string, state releaseSlicesSummary) in
 	evidence := releaseSliceCaptureReceipt{
 		Schema: releaseSliceCaptureSchema, SliceID: nativeReleaseSliceR02,
 		CandidateVersion: version, CandidateBinarySHA256: binarySHA, PlanBeforeSHA256: learnSHA(planRaw),
-		RunID: runID, CaptureReceiptSHA256: captureSHA, ReplayReceiptSHA256: learnSHA(replayedRaw),
+		RunID: runID, TargetRoot: targetRoot, CaptureReceiptSHA256: captureSHA, ReplayReceiptSHA256: learnSHA(replayedRaw),
 		ValidateExitCode: 2, ReplayExitCode: 0, CauseCode: "validate-run-config-missing",
 		EventCount: 1, ReplayEventCount: 1, CreatedAtUTC: time.Now().UTC().Format(time.RFC3339Nano),
 	}

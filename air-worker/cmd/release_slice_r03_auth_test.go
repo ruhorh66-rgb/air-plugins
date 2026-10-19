@@ -140,8 +140,8 @@ func TestR03AuthenticatedHistoricalReviewAdvancesOnlyReleaseCheckpoint(t *testin
 	if rc := runNativeReleaseSliceR03(f.Product, state); rc == 0 {
 		t.Fatal("replayed R03 was allowed to rerun reviewer after R04 became active")
 	}
-	if err := releaseSliceLoopSupported(state, version); err == nil {
-		t.Fatal("R04 use must remain fail-closed without its own fresh SHA/effect gate")
+	if rc := runNativeReleaseSliceR04(f.Product, state); rc == 0 {
+		t.Fatal("R04 credited R03 review without a signed later actual operation")
 	}
 	planBytes, err := os.ReadFile(filepath.Join(f.Product, "plan", "release-slices.json"))
 	if err != nil || !bytes.Equal(planBytes, expectedReleaseSliceR03ToR04(f.Before)) {
@@ -718,8 +718,8 @@ func TestR03NativeRunnerReusesAuthenticatedReviewedCheckpointExactlyOnce(t *test
 	if got := n104Events(t, f.Settings.RuntimeRoot, "procedure_used"); got != 0 {
 		t.Fatalf("historical reviewer applied event forged %d native uses", got)
 	}
-	if err := releaseSliceLoopSupported(after, version); err == nil {
-		t.Fatal("R04 was implicitly granted use by the historical R03 status")
+	if rc := runNativeReleaseSliceR04(f.Product, after); rc == 0 {
+		t.Fatal("R04 credited historical R03 status without a real later operation")
 	}
 }
 
@@ -760,8 +760,8 @@ func TestR03ModuleRollbackAfterHistoricalCheckpointCannotCreditR04Use(t *testing
 	if _, err := releaseR03TrustedReviewedAction(owner, source, f.Before); err == nil {
 		t.Fatal("R03 historical receipt was mistaken for current APPLIED after module rollback")
 	}
-	if err := releaseSliceLoopSupported(after, version); err == nil {
-		t.Fatal("R04 must reauthenticate current applied SHA and use before becoming executable")
+	if rc := runNativeReleaseSliceR04(f.Product, after); rc == 0 {
+		t.Fatal("R04 accepted a rolled-back learned procedure as a current measured use")
 	}
 	if code := runNativeReleaseSliceR03(f.Product, after); code == 0 {
 		t.Fatal("rolled-back R03 history allowed replaying an already completed release slice")
