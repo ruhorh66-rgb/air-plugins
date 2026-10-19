@@ -47,10 +47,17 @@ func planHeaderBoundedPayloadSnapshot(root string) (string, int, error) {
 // unusually deep/long paths. It enumerates directories in 128-entry batches,
 // rather than allocating an unbounded os.ReadDir list for one directory.
 func planHeaderBoundedPayloadSnapshotWithLimits(root string, lim planHeaderPayloadLimits) (string, int, error) {
-	if lim.maxEntries < 1 || lim.maxFiles < 1 ||
-		lim.maxTotalBytes < 1 || lim.maxFileBytes < 1 ||
-		lim.maxDepth < 1 || lim.maxRelativePath < 1 {
-		return "", 0, errors.New("invalid bounded marketplace payload limits")
+	// A caller may tighten limits for isolated tests but must never widen
+	// the fixed production cap. Besides preventing bypasses through custom
+	// settings, it keeps the expectedSize+1 read bound below int64 overflow.
+	baseline := planHeaderDefaultPayloadLimits
+	if lim.maxEntries < 1 || lim.maxEntries > baseline.maxEntries ||
+		lim.maxFiles < 1 || lim.maxFiles > baseline.maxFiles ||
+		lim.maxTotalBytes < 1 || lim.maxTotalBytes > baseline.maxTotalBytes ||
+		lim.maxFileBytes < 1 || lim.maxFileBytes > baseline.maxFileBytes ||
+		lim.maxDepth < 1 || lim.maxDepth > baseline.maxDepth ||
+		lim.maxRelativePath < 1 || lim.maxRelativePath > baseline.maxRelativePath {
+		return "", 0, errors.New("marketplace payload limits must not exceed immutable production bounds")
 	}
 	if !filepath.IsAbs(root) {
 		return "", 0, errors.New("marketplace cache root must be absolute")
@@ -197,7 +204,9 @@ func planHeaderBoundedPayloadFileHash(item planHeaderPayloadItem) (string, error
 		return "", err
 	}
 	h := sha256.New()
-	n, readErr := io.Copy(h, io.LimitReader(f, item.size+1))
+	// This exact-length reader handles growth during hashing itself, before
+	// the independent opened-handle/size/mtime readback below.
+	n, readErr := planHeaderHashPayloadExactly(h, f, item.size)
 	after, statErr := f.Stat()
 	handleErr := planHeaderVerifyReleaseHandle(f)
 	closeErr := f.Close()
@@ -216,4 +225,23 @@ func planHeaderBoundedPayloadFileHash(item planHeaderPayloadItem) (string, error
 		return "", errors.New("marketplace cache payload changed after bounded hashing")
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// planHeaderHashPayloadExactly rejects a read stream that shrinks or grows
+// while hashing, even when the caller's opened-file metadata is unchanged.
+// expected+1 never overflows: the immutable production cap is 128 MiB.
+// An io.Reader seam makes mid-read growth deterministic in the unit test,
+// without a callback or mutable global in the production file-hash path.
+func planHeaderHashPayloadExactly(dst io.Writer, reader io.Reader, expected int64) (int64, error) {
+	if expected < 0 || expected > planHeaderDefaultPayloadLimits.maxFileBytes {
+		return 0, errors.New("marketplace payload expected bytes outside immutable read bound")
+	}
+	n, err := io.Copy(dst, io.LimitReader(reader, expected+1))
+	if err != nil {
+		return n, err
+	}
+	if n != expected {
+		return n, fmt.Errorf("marketplace payload grew or shrank during bounded read: expected %d got %d", expected, n)
+	}
+	return n, nil
 }
