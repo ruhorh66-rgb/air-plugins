@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -120,7 +121,7 @@ func TestN093FinalizationRejectsMissingUseEvent(t *testing.T) {
 		}
 	}()
 	intentPath := filepath.Join(settings.RuntimeRoot, "native-preflight-uses", filepath.Base(resultPath))
-	path, valid, err := finalizeN093TypedPreflightResult(owner, prior, rule, sourceEvent, intentPath, key)
+	path, valid, err := finalizeN093TypedPreflightResult(owner, prior, rule, sourceEvent, intentPath, key, args)
 	if err != nil || valid || path != "" {
 		t.Fatalf("missing module event confirmed native use: path=%s valid=%v err=%v", path, valid, err)
 	}
@@ -160,7 +161,7 @@ func TestN093FinalizationRejectsConfigChangedAfterUse(t *testing.T) {
 		}
 	}()
 	intent := filepath.Join(settings.RuntimeRoot, "native-preflight-uses", filepath.Base(result.ReceiptPath))
-	_, valid, err := finalizeN093TypedPreflightResult(owner, prior, rule, eventID, intent, key)
+	_, valid, err := finalizeN093TypedPreflightResult(owner, prior, rule, eventID, intent, key, args)
 	if err == nil || valid {
 		t.Fatalf("stale OS precondition revalidated a prior result: valid=%v err=%v", valid, err)
 	}
@@ -220,8 +221,57 @@ func TestN093FinalizationRejectsPLANChangedAfterSignedIntent(t *testing.T) {
 		}
 	}()
 	intent := filepath.Join(settings.RuntimeRoot, "native-preflight-uses", filepath.Base(result.ReceiptPath))
-	_, valid, err := finalizeN093TypedPreflightResult(owner, prior, rule, sourceEvent, intent, key)
+	_, valid, err := finalizeN093TypedPreflightResult(owner, prior, rule, sourceEvent, intent, key, args)
 	if err == nil || valid {
 		t.Fatalf("changed PLAN accepted by pending signed intent: valid=%v err=%v", valid, err)
+	}
+}
+
+func TestN093FinalizationChecksHMACSignedTargetNotLearningOwnerConfig(t *testing.T) {
+	// Production R04 keeps a valid owner run-config.json, while the one-shot
+	// HMAC-bound disposable validation target correctly lacks that file.
+	owner := t.TempDir()
+	if err := os.WriteFile(filepath.Join(owner, "run-config.json"), []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(t.TempDir(), "isolated-native-validation")
+	if err := os.Mkdir(target, 0700); err != nil {
+		t.Fatal(err)
+	}
+	key := bytes.Repeat([]byte{0x42}, ownCLIKeyLength)
+	defer func() {
+		for i := range key {
+			key[i] = 0
+		}
+	}()
+	argv := []string{"validate", "-product", target, "-json"}
+	prior := ownCLIFailureReceipt{
+		Schema: ownCLIFailureSchema, Action: "validate", ExitCode: 2,
+		CauseCode:     "validate-run-config-missing",
+		InvocationMAC: ownCLIInvocationMAC(key, argv),
+	}
+	if err := n093RecheckSignedDeferredTarget(key, prior, argv); err != nil {
+		t.Fatalf("valid signed scratch target was rejected because owner has config: %v", err)
+	}
+	// A different empty scratch must NOT inherit the signed original cause.
+	other := t.TempDir()
+	wrong := []string{"validate", "-product", other, "-json"}
+	if err := n093RecheckSignedDeferredTarget(key, prior, wrong); err == nil {
+		t.Fatal("different missing-config scratch bypassed original argv HMAC")
+	}
+	// The original scratch now has a config, so its original cause is stale.
+	if err := os.WriteFile(filepath.Join(target, "run-config.json"), []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := n093RecheckSignedDeferredTarget(key, prior, argv); err == nil {
+		t.Fatal("stale missing-config precondition allowed a terminal use claim")
+	}
+	if err := os.Remove(filepath.Join(target, "run-config.json")); err != nil {
+		t.Fatal(err)
+	}
+	forged := prior
+	forged.InvocationMAC = strings.Repeat("0", len(prior.InvocationMAC))
+	if err := n093RecheckSignedDeferredTarget(key, forged, argv); err == nil {
+		t.Fatal("forged CLI invocation MAC accepted as original native operation")
 	}
 }

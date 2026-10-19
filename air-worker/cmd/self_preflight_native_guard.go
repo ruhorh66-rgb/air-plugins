@@ -354,7 +354,7 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 		}
 	}
 	if isTyped {
-		confirmedPath, confirmed, err := finalizeN093TypedPreflightResult(owner, prior, rule, sourceEvent, path, key)
+		confirmedPath, confirmed, err := finalizeN093TypedPreflightResult(owner, prior, rule, sourceEvent, path, key, argv)
 		if err != nil {
 			return out, err
 		}

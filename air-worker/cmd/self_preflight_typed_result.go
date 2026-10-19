@@ -10,12 +10,31 @@ import (
 	"time"
 )
 
+// Recheck the exact original HMAC-signed CLI argument vector, not the
+// AirWorker learning-owner root. R04 runs validate against a separate signed,
+// disposable scratch target; the owning AirWorker product correctly HAS a
+// run-config.json. Checking that unrelated owner file would reject a genuine
+// procedure_used after its signed intent and module event were already durable.
+func n093RecheckSignedDeferredTarget(key []byte, prior ownCLIFailureReceipt, argv []string) error {
+	if len(key) != ownCLIKeyLength || prior.Schema != ownCLIFailureSchema ||
+		prior.Action != "validate" || prior.ExitCode != 2 ||
+		prior.CauseCode != "validate-run-config-missing" ||
+		prior.InvocationMAC == "" ||
+		!hmac.Equal([]byte(prior.InvocationMAC), []byte(ownCLIInvocationMAC(key, argv))) {
+		return errors.New("N093: final native preflight invocation is not the original signed operation")
+	}
+	if ownCLITrustedFailureCause(argv, 2) != prior.CauseCode {
+		return errors.New("N093: original signed validation target no longer has the missing-config precondition")
+	}
+	return nil
+}
+
 // finalizeN093TypedPreflightResult never treats a pending native intent as
 // successful use. It requires exactly one matching event read back from the
 // module-owned journal and then publishes a distinct immutable signed result.
 // It is called under the native-preflight-use lock by the real CLI path.
 func finalizeN093TypedPreflightResult(owner selfLearningOwner, prior ownCLIFailureReceipt,
-	rule selfLearningLoadedRule, sourceEvent, intentPath string, key []byte) (string, bool, error) {
+	rule selfLearningLoadedRule, sourceEvent, intentPath string, key []byte, argv []string) (string, bool, error) {
 	action := supportedNativePreflightAction()
 	rt := owner.Settings.RuntimeRoot
 	ruleID := rule.Target + "@" + rule.SHA256
@@ -88,12 +107,13 @@ func finalizeN093TypedPreflightResult(owner selfLearningOwner, prior ownCLIFailu
 	if err != nil || !loaded {
 		return "", false, errors.New("N093: no exact module-owned skill_loaded readback")
 	}
-	// This is a read-only native OS precondition, not a model/tool-output claim.
-	// Any reparse point, permission failure or newly created configuration
-	// disqualifies a pending missing-config outcome.
-	configPath := filepath.Join(owner.Selector.ProductRoot, "run-config.json")
-	if _, err := os.Lstat(configPath); !errors.Is(err, os.ErrNotExist) {
-		return "", false, errors.New("N093: missing-configuration precondition no longer proven")
+	// This is a read-only native OS precondition, not a model/tool-output
+	// claim. Only the exact original argv is HMAC-bound to the prior native
+	// failure, so an unrelated/moved target or a newly created run-config.json
+	// cannot gain terminal use credit. The learning-owner root may legitimately
+	// have its own run-config.json.
+	if err := n093RecheckSignedDeferredTarget(key, prior, argv); err != nil {
+		return "", false, err
 	}
 	currentPlan, err := n093NativePlanFingerprint(owner.Selector.ProductRoot)
 	if err != nil || currentPlan != intent.PlanFingerprint {
