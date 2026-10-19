@@ -1,0 +1,158 @@
+{
+  "schema": "airworker.dev136.static-installed-snapshot-source-acceptance/v1",
+  "date_sgt": "2026-10-19",
+  "node": "SRVLM01",
+  "work_code": "AW-DEV136-STATIC-SNAPSHOT-A-20261019",
+  "status": "SOURCE_ONLY_P1_CLOSED_SCOPED_SOL_PASS__N124_OPEN__APPLY_BLOCKED",
+  "owner": "AirWorker line A",
+  "curator": "Voody",
+  "trigger": "Independent Codex gpt-6-sol medium rejected source da6685f and later 8065b68 because DEV136 installed metadata could execute cached EXEs or accept SHA(A)+Go buildinfo(B) from two path generations.",
+  "done_when": "Replace independent path opens with one bounded OS-file byte snapshot for SHA+Go buildinfo; real two-commit Git fixture must prove no path replacement can combine A hash and B revision; cached executable sentinel remains absent; TestPlanHeader QA, vet, build, native plan-lint and validate RC0; independent frozen-source Sol medium P0/P1=0; scoped own feature commit and remote SHA readback.",
+  "judge": "Host bounded Go test logs with SHA and exact process exit, independent read-only Codex gpt-6-sol medium on immutable source SHA; no installed or production mutations.",
+  "receipt": "docs/receipts/AIRWORKER_DEV136_NATIVE_STATIC_SNAPSHOT_SOURCE_ACCEPTANCE_20261019.json",
+  "rollback": "Only source feature commits da6685f/8065b68/6a11beb on isolated branch can be reverted; installed AirWorker 0.11.8 remains unchanged.",
+  "source": {
+    "repo": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-dev136-installed-identity-20261019",
+    "baseline_sha": "be5f2abf3030026221db5a1636becc5a266e62ea",
+    "first_static_identity_code_sha": "da6685f759b9769fa4955b4d8eda00c045f929bc",
+    "first_noexe_repair_sha": "8065b68edc3eaa9fbadaf8a62a4e9df490e07d74",
+    "final_p1_remedy_sha": "6a11beb9a8fc1b3265c255167bf9b704d5c4441a",
+    "changed_in_final_commit": [
+      "air-worker/cmd/plan_header_installed_native_reader.go",
+      "air-worker/cmd/plan_header_installed_static_report.go",
+      "air-worker/cmd/plan_header_snapshot_generation_test.go"
+    ],
+    "installed_product_mutation": false,
+    "native_plan_mutation": false
+  },
+  "mechanism": {
+    "max_executable_bytes": 67108864,
+    "read_byte_limit": 67108865,
+    "one_os_handle": true,
+    "one_immutable_byte_snapshot_for_SHA_and_Go_buildinfo": true,
+    "source_effect": "debug/buildinfo.Read(bytes.NewReader(snapshot)) + sha256.Sum256(snapshot); never debug/buildinfo.ReadFile(path) in DEV136 static identity path; cache executables are never run",
+    "pre_and_post_file_guard": "initial Lstat, opened handle file ID/size/mtime, Windows reparse and link count, bounded read, after-open handle check, final path Lstat",
+    "release_provenance_signed": false,
+    "authorization": "read-only status only, no native PLAN writer or N124 generation authority"
+  },
+  "host_tests": {
+    "prior_cache_exe_sentinel": {
+      "rc": 0,
+      "sha256": "0bcd66badadb18efdbba392a16f36bd0db066cf04cb8b30a5a3982bff8e8d983"
+    },
+    "first_snapshot_test_environment_error": {
+      "rc": 1,
+      "reason": "temporary nested Git module inherited workspace GOWORK, corrected fixture with GOWORK=off",
+      "sha256": "7d685416e4f0a3f714e280822ce663fb6d721dde8b7d8f0f1b08016a7bcec061"
+    },
+    "two_actual_Git_generations": {
+      "rc": 0,
+      "main_pass": 1,
+      "sha256": "0555b0020daef86b5e71406cea6023712a6aa4813f4ee329bb68a683b9833256"
+    },
+    "full_scoped_header": {
+      "selector": "^TestPlanHeader",
+      "rc": 0,
+      "main_pass": 34,
+      "nested_pass": 84,
+      "skipped": 2,
+      "sha256": "6a17d467371db480bf4222e528aa3b28ab4c91ae5e812fb3d90221bde57cafc5"
+    },
+    "go_vet": {
+      "rc": 0,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go_build": {
+      "rc": 0,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_only_executable_sha256": "a0d262b0fd92573780f537691e16d1199a338157a02998ced74aad532b9b1dd3"
+    },
+    "native_plan_lint_rc": 0,
+    "native_validate_rc": 0,
+    "full_repository_go_suite": "NOT_PROVEN"
+  },
+  "independent_judges": [
+    {
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "source_sha": "da6685f759b9769fa4955b4d8eda00c045f929bc",
+      "verdict": "FAIL",
+      "p1": 1,
+      "reason": "binaryVersionPortable may exec attacker-swapped cache executable"
+    },
+    {
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "source_sha": "8065b68edc3eaa9fbadaf8a62a4e9df490e07d74",
+      "verdict": "FAIL",
+      "p1": 1,
+      "reason": "two different path opens for hash(A) vs buildinfo(B)",
+      "receipt_sha256": "a0f1bcb0884df33376a6409e69678ab3f39d7d46e6cca7d643a55376a9867bf1"
+    },
+    {
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "sandbox": "read-only",
+      "source_sha": "6a11beb9a8fc1b3265c255167bf9b704d5c4441a",
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 5,
+      "verdict_sha256": "daab3e54f355c178cf0888da7cbb531be6e7a7ac44bcee6a877859c57f8f6b3d",
+      "events_sha256": "5f5eddd56c896a84c092c90c1b6d1591150556e1bf0352f2084351d327257e72",
+      "scope": "exact source-only DEV136 read-only static executable evidence; reviewer did not rerun host tests"
+    }
+  ],
+  "remaining_p2": [
+    "in-place writes that restore size/mtime may evade metadata stability checks; snapshot SHA and VCS still bound to same bytes",
+    "LOCALAPPDATA and host config roots selected from process environment, not independently OS anchored",
+    "canonical GitHub status from mutable local marketplace metadata, not signed release proof",
+    "inactive marketplace registrations not completely inventoried",
+    "existing payloadSnapshot scans plugin files without file-count/byte limit and may cause unbounded preflight"
+  ],
+  "current_native_preview": {
+    "tested_source": "8065b68edc3eaa9fbadaf8a62a4e9df490e07d74",
+    "target_source_sha": "580a238d2ef977d9ae4c61659d98aceb0d196fa4",
+    "exit_code": 2,
+    "status": "BLOCKED",
+    "changed": false,
+    "blockers": [
+      "active_release_not_proven",
+      "N124_global_git_generation_not_accepted"
+    ],
+    "installed_version": "0.11.8",
+    "installed_sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "installed_git_revision": "cbfa266eefe8d5d1ea67db078bc416f4a928147a",
+    "native_PLAN_N124_LEARN_unchanged": true,
+    "readback_json_sha256": "98821d4dbec3324e2dad7f92ca21cdcd16240148f662ad5503105e5348ddad15",
+    "latest_p1_fix_preview_reexecuted": false,
+    "next_generation_snapshot_only_source_reviewed": true
+  },
+  "safety": {
+    "installed_airworker_version": "0.11.8",
+    "installed_binary_sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "installed_binary_unchanged": true,
+    "no_manual_PLAN_node_LEARN_edits": true,
+    "no_git_main_or_production_claim_write": true,
+    "worker_B_untouched": true,
+    "Hermes_owner_staged_files_untouched": true,
+    "AirLegal_dirty_plan_untouched": true,
+    "no_release_tag_install_UAC_reboot_service_stop": true,
+    "global_production_generation_CAS_not_accepted": true,
+    "source_only_production_release_ready": false
+  },
+  "next": {
+    "stage": "DEV136_BOUNDED_PAYLOAD_AND_SIGNED_RELEASE_PROVENANCE",
+    "status": "SOURCE_ONLY_P2_OPEN__N124_OPEN__PRODUCTION_APPLY_HOLD",
+    "owner": "AirWorker line A, curator Voody",
+    "trigger": "independent gpt-6-sol medium PASS P0/P1=0 with five bounded P2 notes",
+    "done_when": "Bound payload file count/bytes in DEV136 read-only preview, audit inactive registrations and OS-trusted live path, prove active release and artifact provenance from existing native core; full Go test + judge before integration, no new canonical GitHub branch",
+    "judge": "native source+host SHA, independent Sol medium and existing core",
+    "receipt": "AIRWORKER_DEV136_BOUNDED_PAYLOAD_PROVENANCE_TBD"
+  },
+  "vendor_docs": [
+    "https://pkg.go.dev/debug/buildinfo#Read",
+    "https://pkg.go.dev/io#LimitReader"
+  ]
+}
