@@ -1,0 +1,166 @@
+{
+  "schema": "airworker.dev136.release-sidecar-source-acceptance/v1",
+  "date_sgt": "2026-10-19",
+  "node": "SRVLM01",
+  "work_code": "AW-DEV136-RELEASE-JSON-A-20261019",
+  "priority": "A2_DEV136_SOURCE_ONLY__N124_OPEN__AIRLEGAL_N111_BLOCKED",
+  "owner": "AirWorker line A",
+  "curator": "Voody",
+  "status": "READ_ONLY_PREVIEW_SOURCE_JUDGED_PASS__PRODUCT_APPLY_HOLD",
+  "trigger": "Earlier DEV136 read-only release machine-sidecar consumed plan/release-slices.json using unbounded ReadFile after Lstat and accepted duplicate effective JSON keys; independent gpt-6-sol medium found Unicode SimpleFold P1 and hardlink P2, later pre-open size/mtime P2.",
+  "done_when": "Reject ambiguous release JSON including recursive duplicate keys, Unicode SimpleFold aliases and invalid nested/trailing data; limit actual sidecar read to 1MiB+1, check initial/opened/after path file facts and Windows link count, preserve valid unique unknown fields; host TestPlanHeader QA and vet/build/lint/validate RC0; final frozen SHA independent Sol medium P0/P1/P2=0; own source and receipt commit with remote SHA readback.",
+  "judge": "Host Go test/vet/build logs and SHA+readback, independent read-only OpenAI Codex gpt-6-sol medium on frozen source SHA",
+  "receipt": "docs/receipts/AIRWORKER_DEV136_RELEASE_JSON_READONLY_SOURCE_ACCEPTANCE_20261019.json",
+  "rollback": "Revert feature source commits 63c63b9, ecc8b02, b6aefa2; installed AirWorker 0.11.8 unchanged",
+  "source": {
+    "repo": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-dev136-release-json-gate-20261019",
+    "baseline_sha": "d71c5d7589a2ad913b6f453a33d298a511addc56",
+    "first_code_sha": "63c63b9645f4b5f2f30b2433a650319b6c71c944",
+    "independent_p1p2_fix_sha": "ecc8b02875e6276504724aaec7c70b65fc6a8c7d",
+    "final_judged_code_sha": "b6aefa2fe8cf372f47058fe4fd5097a8688c35e5",
+    "changed_paths": [
+      "air-worker/cmd/plan_header_cli.go",
+      "air-worker/cmd/plan_header_release_json_strict.go",
+      "air-worker/cmd/plan_header_release_json_gate_test.go",
+      "air-worker/cmd/plan_header_release_handle_windows.go",
+      "air-worker/cmd/plan_header_release_handle_other.go",
+      "air-worker/cmd/plan_header_release_hardlink_windows_test.go",
+      "air-worker/cmd/plan_header_release_generation_test.go"
+    ],
+    "source_tree_clean_pre_receipt": true,
+    "production_main_branch_untouched": true,
+    "installed_candidate_not_changed": true
+  },
+  "mechanism": {
+    "operation": "READ_ONLY_PLAN_HEADER_PREVIEW_ONLY",
+    "release_sidecar": "plan/release-slices.json",
+    "max_file_bytes": 1048576,
+    "read_limit_bytes": 1048577,
+    "duplicate_detection": "Recursive JSON Token scan with normalized keys matching Go encoding/json Unicode SimpleFold semantics; case/escaped/unknown-nested aliases reject",
+    "opened_handle": "Initial Lstat vs opened handle same identity, size, mtime; bounded read, after-open, final path checks; Windows NumberOfLinks==1, FILE_ATTRIBUTE_REPARSE_POINT/DIRECTORY denied",
+    "valid_extra_fields": "Preserved when object keys unique",
+    "plan_header_apply": "ALWAYS_BLOCKED_RC2",
+    "immutable_generation_after_function": "NOT_PROVEN",
+    "installed_version_binary_attestation": "NOT_IMPLEMENTED"
+  },
+  "tdd": {
+    "original_duplicate_json_red": {
+      "rc": 1,
+      "nested_failure": 4,
+      "sha256": "c886c14c560d57a69cdb7a12f45ff14badb1a9c080fdcb0331083d6413495d4f",
+      "file": "R:/-4-/air-worker/work/N124_WORKER_A_20261018/DEV136_RELEASE_JSON_TDD_RED_20261019.log"
+    },
+    "unicode_alias_red": {
+      "rc": 1,
+      "nested_failure": 2,
+      "sha256": "3e6e8eaa79cc67eb03ce7a24eae7413e57bc8b81c6b8fa0b179f2c26021b5504"
+    },
+    "foreign_hardlink_red": {
+      "rc": 1,
+      "sha256": "c85842862d4aa636aa1fc6a842f28f267618fd70b3825da21a8b1f27b0db14de"
+    },
+    "unicode_compatibility": {
+      "rc": 0,
+      "nested_pass": 11,
+      "sha256": "e3e95167d5858fafdcb5fcee57f003d25aaa3575653288766a79608aa9da09b5"
+    },
+    "preopen_facts_real_temp": {
+      "rc": 0,
+      "nested_pass": 3,
+      "sha256": "5d68911d9368b1add749fb76d9430eecce9a8f8b32562c3661b1f0359d8b70b6"
+    },
+    "final_header_suite": {
+      "selector": "^TestPlanHeader",
+      "rc": 0,
+      "main_pass": 30,
+      "nested_pass": 57,
+      "skipped": 1,
+      "skip_reason": "Windows symlink privilege missing",
+      "sha256": "65306ea7801769689d1c69d8a5af148ed9abed16e71e5342adf2f741b357cfdd"
+    },
+    "go_vet": {
+      "rc": 0,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go_build": {
+      "rc": 0,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_only_binary_sha256": "ebd1508a31a36c5a202dcc4d8a29f75acb23deae94944046e6c962cb0dd710e7"
+    },
+    "native_plan_lint_rc": 0,
+    "native_validate_rc": 0,
+    "full_go_repository_suite": "NOT_PROVEN"
+  },
+  "independent_review": {
+    "initial": {
+      "source_sha": "63c63b9645f4b5f2f30b2433a650319b6c71c944",
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "verdict": "FAIL",
+      "p0": 0,
+      "p1": 1,
+      "p2": 2,
+      "sha256": "aa376a8b7865cc20328c47cf530feb4ff1d26556204123680a600ba1e9567dd3"
+    },
+    "unicode_hardlink_remedy": {
+      "source_sha": "ecc8b02875e6276504724aaec7c70b65fc6a8c7d",
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 1,
+      "sha256": "e3e2a10ceb422804eaa6e756a48a2c8499a2423b31ef98cd4fa667904c90bf49"
+    },
+    "final": {
+      "source_sha": "b6aefa2fe8cf372f47058fe4fd5097a8688c35e5",
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "sandbox": "read-only",
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 0,
+      "source_review_sha256": "ac7343667bca2f6f2b51da57a9778d14605c39a8b355efeae745993e51be1eb8",
+      "event_log_sha256": "422ad40688af84fe0133f481a8d6275a81909c859f261ab08e317e28664aedbf",
+      "limitations": [
+        "read-only source inspection; reviewer did not rerun tests",
+        "size+mtime checks are not a durable generation/lock; same-size edits with restored mtime may evade metadata comparisons"
+      ]
+    }
+  },
+  "integration": {
+    "dev136_source_branch_plan_node_count": 68,
+    "n124_more_recent_source_branch_plan_node_count": 125,
+    "dev136_source_branch_contains_native_N124": false,
+    "release_slices_json_present_in_dev136_source_branch": false,
+    "implication": "Do not integrate old PLAN.md or plan/N-* directly into current product. Sidecar positive tests are disposable OS-temp fixtures; missing canonical release-slices must fail closed. Reconcile source code with current native plan only through supported core, one sequential writer.",
+    "product_header_sync_apply_status": "BLOCKED_RC2",
+    "product_installed_version": "0.11.8",
+    "product_installed_sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "N124_current_product_node": "OPEN in separate newer source branch, not in DEV136 old branch",
+    "AirLegal_N111": "OPEN last checked, no writes performed",
+    "worker_B": "Independent, source dirty 14 paths on readback; untouched",
+    "foreign_Hermes_WIP": "4 staged files unchanged",
+    "AirLegal_worktree": "dirty 46 paths on readback; untouched"
+  },
+  "safety": {
+    "no_manual_PLAN_or_N_or_LEARN_writes": true,
+    "no_production_header_apply": true,
+    "no_GitHub_main_or_release_ref_changes": true,
+    "no_release_tag_install_uac_reboot_service_stop": true,
+    "no_foreign_wip_change": true,
+    "release_ready": false,
+    "production_authority_granted": false
+  },
+  "next": {
+    "stage": "DEV136_INTEGRATION_PRECHECK_WITH_CURRENT_NATIVE_PLAN",
+    "status": "SOURCE_ONLY_PRECHECK_CAN_CONTINUE_PRODUCTION_APPLY_HOLD",
+    "owner": "AirWorker line A and curator Voody",
+    "trigger": "DEV136 read-only strict release source judged PASS",
+    "done_when": "Candidate code reconciles against current native plan/ref without replacing PLAN or N-nodes; required active release and trusted installed binary attested; full Go suite and independent source-bound acceptance; only then eligible for native PLAN header mutation gate.",
+    "judge": "native supported core + independent source frozen judge + GitHub SHA + rollback",
+    "receipt": "AIRWORKER_DEV136_NATIVE_INTEGRATION_PASS_TBD"
+  }
+}
