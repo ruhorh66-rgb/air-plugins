@@ -1,0 +1,86 @@
+{
+  "schema": "airworker.n093.b4-native-core-close-integration/v1",
+  "date_sgt": "2026-10-19",
+  "node": "SRVLM01",
+  "owner": "AirWorker line A single native PLAN writer",
+  "curator": "Voody",
+  "status": "PASS_ISOLATED_NATIVE_CLOSE__B_WORKING_BRANCH_STILL_OPEN",
+  "trigger": "Worker B source B4 independent Astra high PASS and disposable native close PASS; requested A to perform one sequential native plan node close.",
+  "done_when": "Signed B4 receipts and exact native hashes checked; one native core close; closed node/one LEARN event; lint/validate PASS; commit and readback; no B R03 modifications.",
+  "judge": "B4 Codex gpt-6-astra high PASS P0/P1=0 plus installed AirWorker plan node close/node list/spine/lint/validate all RC0",
+  "receipt": "docs/receipts/N093_B4_NATIVE_INTEGRATION_A_20261019.json",
+  "rollback": "Do not merge isolated native files into B without native-core review and B coordination; original B branch and installed 0.11.8 remain intact.",
+  "source": {
+    "repository": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "base_B_branch": "dev/airworker-0119-n093-worker-b-20261018",
+    "base_sha": "8bbe3e7d22d6253822b73969b84288bc03d73ea9",
+    "integration_branch": "dev/airworker-n093-b4-native-close-a-20261019",
+    "B_branch_mutated": false,
+    "B_R03_WIP_unmodified": true
+  },
+  "B4": {
+    "receipt_ref": "docs/receipts/N093_B4_SINGLE_WRITER_ACCEPTANCE_20261019.json",
+    "receipt_sha256": "e18fa530c3a6affed06816cbc8f0712125712fdbb59e0c2a04e3d0acb5fecdbf",
+    "astra_high_sha256": "8ea84f7f5da21862a0ad544668f4f2efbf74179c3fbfca26a910b79e8fa1514a",
+    "astra_high_reviewed_source": "752a24955251d9c86f20373acb4167b7a6caa46f",
+    "astra_verdict": "PASS",
+    "p0": 0,
+    "p1": 0,
+    "disposable_close_receipt_sha256": "6466c79c757b8257159a7d414882b109264ddb05b665028cff9dc92d2f89a1"
+  },
+  "native": {
+    "node_id": "N-093_p0-self-use-verifiable-outcome-for-newly-learned",
+    "status": "closed",
+    "return_to": "N-076_p0-self-owner-persistent-airworker-selector-dual",
+    "close_rc": 0,
+    "stdout_sha256": "3e37c7f45bbc09d93fbcca783c7d4d032fc6e06a2331681cf0d054dee259c2ad",
+    "open_nodes_before": 40,
+    "open_nodes_after": 39,
+    "new_learn_events": 1,
+    "learn_event_id": "LE-1a2e27d4d6bd5570b26d",
+    "changed_by_core_only": [
+      "air-worker/PLAN.md",
+      "air-worker/plan/N-093_p0-self-use-verifiable-outcome-for-newly-learned.md",
+      "air-worker/learn/events.jsonl"
+    ]
+  },
+  "sha": {
+    "plan_before": "a5da99d0e45e796b7e4c5645af9fc4b3ade2d95632e4ee3aaf1a9226410709f0",
+    "plan_after": "8358f1aac23a42d0fffec3cfa7dfbb80138027822873c6e67000d498649b71f2",
+    "node_before": "054714bc46a77f94fc3fc47ea41bf9aae2be31e096838014b7e640ae7f2dee10",
+    "node_after": "e11f06cfeeb30fee2bc4cd164c6fc63deed3341c1c8506084ed6aec2adbff161",
+    "learn_before": "a496e3c17e29f1176faa266a85379e7d37126188f34f3240167635ae1e5f25b4",
+    "learn_after": "f3d8a39a6f52484a1694c71b1e5d51b70a436cc4254b6a0824675207d885b58b",
+    "release_slices_unchanged": "c734e37aaebd241abd31ddbe53a4cac13ab6936565a27544461199d55f41be1f"
+  },
+  "qa": {
+    "machine_receipt_sha256": "f3756d95046be68a30b23167f9d9aca207d8e8bc742800e84f7f11ffec5c0949",
+    "node_list_rc": 0,
+    "node_list_sha256": "defa3235e92d80a8765f1294435e37e83cd2362d05e288a3f777fe933e3b5579",
+    "spine_rc": 0,
+    "spine_sha256": "3a94d576481833a7e65d7c8f0b5d46d7f5af50062ffe829ad161a707fdcffb2d",
+    "lint_rc": 0,
+    "lint_sha256": "21e8394ed95134a604237feca0eea43375e9edc4e79c8f013e89c3d6f9d95466",
+    "validate_rc": 0,
+    "validate_sha256": "3c76296e5171dfb930fa7766c727195c766a7e292ed88070068082e6ee6500f2"
+  },
+  "open_gates": [
+    "N093 remains OPEN in B's current working branch pending sequential native-core adoption",
+    "B R03 has 9 foreign uncommitted files, not touched",
+    "0.11.9 remains source candidate, not installed",
+    "N124 and DEV136 generation/release gates remain open"
+  ],
+  "safety": {
+    "no_manual_PLAN_N_LEARN_edits": true,
+    "no_B_branch_writes": true,
+    "no_release_install_UAC_reboot_service_stop": true,
+    "installed_version": "0.11.8"
+  },
+  "next": {
+    "owner": "AirWorker A with B/Voody coordination",
+    "trigger": "isolated native-close integration judged PASS",
+    "done_when": "Choose safe B integration window after R03 checkpoint; perform actual one-writer close through native core in selected branch with exact B4 receipt and new Git SHA, no manual cherry-pick of native PLAN/N/LEARN; commit/readback",
+    "judge": "native core + exact Git+SHA+signed B4",
+    "receipt": "N093_B4_AUTHORITATIVE_NATIVE_ADOPTION_TBD"
+  }
+}
