@@ -24,10 +24,25 @@ type planHeaderPayloadLimits struct {
 	maxRelativePath int
 }
 
+// Compile-time hard ceilings. The mutable struct below is a convenient
+// default for callers and tests, but cannot elevate the security boundary.
+// Production preview rejects any override larger than these constants.
+const (
+	planHeaderPayloadHardMaxEntries      = 8192
+	planHeaderPayloadHardMaxFiles        = 4096
+	planHeaderPayloadHardMaxTotalBytes   = 256 << 20
+	planHeaderPayloadHardMaxFileBytes    = 128 << 20
+	planHeaderPayloadHardMaxDepth        = 32
+	planHeaderPayloadHardMaxRelativePath = 2048
+)
+
 var planHeaderDefaultPayloadLimits = planHeaderPayloadLimits{
-	maxEntries: 8192, maxFiles: 4096,
-	maxTotalBytes: 256 << 20, maxFileBytes: 128 << 20,
-	maxDepth: 32, maxRelativePath: 2048,
+	maxEntries:      planHeaderPayloadHardMaxEntries,
+	maxFiles:        planHeaderPayloadHardMaxFiles,
+	maxTotalBytes:   planHeaderPayloadHardMaxTotalBytes,
+	maxFileBytes:    planHeaderPayloadHardMaxFileBytes,
+	maxDepth:        planHeaderPayloadHardMaxDepth,
+	maxRelativePath: planHeaderPayloadHardMaxRelativePath,
 }
 
 type planHeaderPayloadItem struct {
@@ -50,13 +65,12 @@ func planHeaderBoundedPayloadSnapshotWithLimits(root string, lim planHeaderPaylo
 	// A caller may tighten limits for isolated tests but must never widen
 	// the fixed production cap. Besides preventing bypasses through custom
 	// settings, it keeps the expectedSize+1 read bound below int64 overflow.
-	baseline := planHeaderDefaultPayloadLimits
-	if lim.maxEntries < 1 || lim.maxEntries > baseline.maxEntries ||
-		lim.maxFiles < 1 || lim.maxFiles > baseline.maxFiles ||
-		lim.maxTotalBytes < 1 || lim.maxTotalBytes > baseline.maxTotalBytes ||
-		lim.maxFileBytes < 1 || lim.maxFileBytes > baseline.maxFileBytes ||
-		lim.maxDepth < 1 || lim.maxDepth > baseline.maxDepth ||
-		lim.maxRelativePath < 1 || lim.maxRelativePath > baseline.maxRelativePath {
+	if lim.maxEntries < 1 || lim.maxEntries > planHeaderPayloadHardMaxEntries ||
+		lim.maxFiles < 1 || lim.maxFiles > planHeaderPayloadHardMaxFiles ||
+		lim.maxTotalBytes < 1 || lim.maxTotalBytes > planHeaderPayloadHardMaxTotalBytes ||
+		lim.maxFileBytes < 1 || lim.maxFileBytes > planHeaderPayloadHardMaxFileBytes ||
+		lim.maxDepth < 1 || lim.maxDepth > planHeaderPayloadHardMaxDepth ||
+		lim.maxRelativePath < 1 || lim.maxRelativePath > planHeaderPayloadHardMaxRelativePath {
 		return "", 0, errors.New("marketplace payload limits must not exceed immutable production bounds")
 	}
 	if !filepath.IsAbs(root) {
@@ -233,7 +247,7 @@ func planHeaderBoundedPayloadFileHash(item planHeaderPayloadItem) (string, error
 // An io.Reader seam makes mid-read growth deterministic in the unit test,
 // without a callback or mutable global in the production file-hash path.
 func planHeaderHashPayloadExactly(dst io.Writer, reader io.Reader, expected int64) (int64, error) {
-	if expected < 0 || expected > planHeaderDefaultPayloadLimits.maxFileBytes {
+	if expected < 0 || expected > planHeaderPayloadHardMaxFileBytes {
 		return 0, errors.New("marketplace payload expected bytes outside immutable read bound")
 	}
 	n, err := io.Copy(dst, io.LimitReader(reader, expected+1))

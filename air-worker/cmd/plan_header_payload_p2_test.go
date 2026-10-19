@@ -57,8 +57,8 @@ func TestPlanHeaderBoundedPayloadRejectsOversizedSparseFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, _, err = planHeaderBoundedPayloadSnapshot(root)
-	if err == nil {
-		t.Fatal("sparse cache file above per-file bound was accepted")
+	if err == nil || !strings.Contains(err.Error(), "per-file byte limit") {
+		t.Fatalf("sparse cache must fail the per-file bound before reading, not an unrelated check: %v", err)
 	}
 }
 
@@ -154,5 +154,22 @@ func TestPlanHeaderBoundedPayloadRejectsShrunkStreamMidRead(t *testing.T) {
 	n, err := planHeaderHashPayloadExactly(io.Discard, strings.NewReader(strings.Repeat("C", 512)), originalSize)
 	if err == nil || n != 512 {
 		t.Fatalf("truncated payload stream accepted: n=%d err=%v", n, err)
+	}
+}
+
+// Verify package-local mutation of the convenient default struct cannot
+// elevate compile-time hard ceilings. Changes are restored synchronously
+// before any later non-parallel tests execute.
+func TestPlanHeaderBoundedPayloadMutableDefaultsCannotRaiseHardCaps(t *testing.T) {
+	root := t.TempDir()
+	planHeaderPayloadWrite(t, root, "small.txt", "valid")
+	previous := planHeaderDefaultPayloadLimits
+	t.Cleanup(func() { planHeaderDefaultPayloadLimits = previous })
+	planHeaderDefaultPayloadLimits.maxTotalBytes = math.MaxInt64
+	planHeaderDefaultPayloadLimits.maxFileBytes = math.MaxInt64
+	planHeaderDefaultPayloadLimits.maxEntries = math.MaxInt
+	if _, _, err := planHeaderBoundedPayloadSnapshot(root); err == nil ||
+		!strings.Contains(err.Error(), "immutable production bounds") {
+		t.Fatalf("internal defaults illegally elevated compile-time payload bounds: %v", err)
 	}
 }
