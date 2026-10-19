@@ -83,7 +83,10 @@ func planHeaderStaticInstalledReport(livePath, claudeActive, codexActive string)
 		if err != nil {
 			return err
 		}
-		payload, _, err := payloadSnapshot(rec.InstallPath)
+		// DEV136 preview cannot use the general unbounded product helper:
+		// the local marketplace is only read-only evidence, not authority
+		// to enumerate or hash arbitrarily many untrusted cache files.
+		payload, _, err := planHeaderBoundedPayloadSnapshot(rec.InstallPath)
 		if err != nil {
 			return fmt.Errorf("native marketplace payload not readable: %w", err)
 		}
