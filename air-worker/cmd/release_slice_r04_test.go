@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -281,5 +283,67 @@ func TestR04SignedScratchHandlesBlockAncestorRenameWhileChildWouldRun(t *testing
 	}
 	if _, err := os.Stat(target); err != nil {
 		t.Fatalf("R04 target disappeared despite directory handles: %v", err)
+	}
+}
+
+func TestR04HeldScratchRecheckRejectsSwappedDirectoryBeforeChild(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows physical path replacement regression")
+	}
+	scratch := filepath.Join(t.TempDir(), "scratch")
+	target := filepath.Join(scratch, "air-worker-r02-capture-verified")
+	if err := os.MkdirAll(target, 0700); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate the old first os.Root check returning while no handles were
+	// retained. An attacker can now rename that checked child and replace
+	// its signed textual path before the native validator starts.
+	pinned, err := releaseR04OpenPinnedScratch(scratch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked, err := pinned.Open(filepath.Base(target))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := checked.ReadDir(1); err != nil && !errors.Is(err, io.EOF) {
+		t.Fatal(err)
+	}
+	_ = checked.Close()
+	_ = pinned.Close()
+	if err := os.Rename(target, target+"-previous"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(target, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(target, "run-config.json"), []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	release, err := releaseR04HoldSignedScratchUntilChild(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	if err := releaseR04RecheckHeldScratchTarget(target); err == nil {
+		t.Fatal("swapped nonempty signed scratch was trusted after acquiring handles")
+	}
+}
+
+func TestR04HeldScratchRecheckAcceptsOnlyEmptyPinnedDirectory(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows physical path verification")
+	}
+	target := filepath.Join(t.TempDir(), "air-worker-r02-capture-empty")
+	if err := os.Mkdir(target, 0700); err != nil {
+		t.Fatal(err)
+	}
+	release, err := releaseR04HoldSignedScratchUntilChild(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	if err := releaseR04RecheckHeldScratchTarget(target); err != nil {
+		t.Fatalf("verified empty held scratch unexpectedly rejected: %v", err)
 	}
 }

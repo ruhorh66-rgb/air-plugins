@@ -140,6 +140,13 @@ func releaseR04CallNativeUse(root string, owner selfLearningOwner, src releaseR0
 		return err
 	}
 	defer releasePhysical()
+	// The first os.Root validation closes its handle before the non-delete
+	// holds are acquired. Never run the child based only on that earlier
+	// check: re-open and verify the SAME empty physical target while every
+	// replaceable directory remains pinned until the child has exited.
+	if err := releaseR04RecheckHeldScratchTarget(target); err != nil {
+		return fmt.Errorf("R04: signed scratch changed between check and child: %w", err)
+	}
 	exe, err := os.Executable()
 	if err != nil {
 		return err
