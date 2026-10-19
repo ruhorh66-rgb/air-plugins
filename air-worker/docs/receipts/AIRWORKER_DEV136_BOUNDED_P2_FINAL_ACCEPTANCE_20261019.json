@@ -1,0 +1,147 @@
+{
+  "schema": "airworker.dev136.bounded-cache-p2-final-source-acceptance/v1",
+  "date_sgt": "2026-10-19",
+  "node": "SRVLM01",
+  "priority": "AirWorker line A / DEV-136 P2",
+  "status": "SOURCE_ONLY_INDEPENDENT_PASS_P0_P1_P2_ZERO__N124_OPEN__PRODUCTION_APPLY_HOLD",
+  "owner": "AirWorker line A",
+  "curator": "Voody",
+  "trigger": "Prior independent gpt-6-sol medium accepted bounded DEV136 cache scanner but left two P2 findings: mutable default ceilings and nonspecific oversized sparse-file test. Another P2 required reproducible mid-read growth testing.",
+  "done_when": "Prove max six cache limits enforced by compile-time constants even after mutable defaults change, reject MaxInt64 custom caps, actual sparse NTFS >128MiB fails specifically on per-file limit, real file appended while reading rejects with exact n=expected+1, preserve installed Claude+Codex canonical payload digest, TestPlanHeader, go vet/build/native lint/validate RC0; independent source-frozen Sol medium P0/P1/P2=0, source/receipt GitHub exact SHA readback.",
+  "judge": "Go test host exit/log hashes and independent read-only Codex gpt-6-sol medium on frozen final source SHA",
+  "receipt": "docs/receipts/AIRWORKER_DEV136_BOUNDED_P2_FINAL_ACCEPTANCE_20261019.json",
+  "rollback": "Revert only isolated source commits af2f706 and acc7d697 on feature branch; installed 0.11.8 and native PLAN/N/LEARN untouched. No runtime release rollback needed.",
+  "source": {
+    "repo": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "branch": "dev/airworker-dev136-bounded-p2-a-20261019",
+    "baseline_sha": "c8f1857ad5bd2f27278c6ea54c02cfac627c70e2",
+    "first_p2_code_sha": "af2f7063edef99e00856068a6ac191efdc9ebab8",
+    "final_reviewed_code_sha": "acc7d697e9a980f54941918cb4fbd887ac5ba23f",
+    "changed_code_paths": [
+      "air-worker/cmd/plan_header_payload_bounded.go",
+      "air-worker/cmd/plan_header_payload_p2_test.go"
+    ],
+    "native_distribution_identity_unchanged": true,
+    "installed_binary_unchanged": true
+  },
+  "limits": {
+    "max_directory_entries": 8192,
+    "max_files": 4096,
+    "max_total_bytes": 268435456,
+    "max_file_bytes": 134217728,
+    "max_depth": 32,
+    "max_relative_path_bytes": 2048,
+    "compile_time_hard_ceilings": true,
+    "mutable_default_overrides_cannot_elevate_ceilings": true
+  },
+  "host": {
+    "tdd_red": {
+      "exit_code": 1,
+      "failed_nested_limit_tests": 6,
+      "log_sha256": "69b8fe98b99aeccd30beeea992b5eb429bce599a098b402447cb76db9af4ef43"
+    },
+    "p2_green": {
+      "exit_code": 0,
+      "main_pass": 6,
+      "nested_pass": 13,
+      "log_sha256": "c1de34c0eaa1afd27c0d084880343fd1d15dd76e1be016757191ddeac1032cc4"
+    },
+    "constant_ceilings_green": {
+      "exit_code": 0,
+      "main_pass": 7,
+      "nested_pass": 13,
+      "log_sha256": "4f9db486030f983b23bb36218b86042dd1780f514fc101e3c088d82a76d464b2"
+    },
+    "scoped_header_suite": {
+      "selector": "^TestPlanHeader",
+      "exit_code": 0,
+      "main_pass": 43,
+      "nested_pass": 97,
+      "skipped": 3,
+      "log_sha256": "c52a43f94111e2e1cc3adf2929d32f34da77d70b268b36171da475e144946e9d"
+    },
+    "go_vet": {
+      "exit_code": 0,
+      "source": "direct SRVLM01 Go vet invocation; no separate log"
+    },
+    "go_build": {
+      "exit_code": 0,
+      "source_only_binary_sha256": "efcbdf06476b2c1fa2820b76cac55145d0497c735fe646736bb58aee80bc8eb3",
+      "source": "direct SRVLM01 Go build invocation; no installation"
+    },
+    "native_plan_lint_exit_code": 0,
+    "native_validate_exit_code": 0,
+    "claude_cache": {
+      "files": 489,
+      "native_and_bounded_digest_sha256": "462441dc54438e5f322b700adace27cfd8061bb157932f44296ff6c2be0a18ed",
+      "exit_code": 0,
+      "log_sha256": "f3abb659dc4c79b26bcac548c588a821f1100d7b6280f8e03fcf5fe1e1d467f5"
+    },
+    "codex_cache": {
+      "files": 489,
+      "native_and_bounded_digest_sha256": "462441dc54438e5f322b700adace27cfd8061bb157932f44296ff6c2be0a18ed",
+      "exit_code": 0,
+      "log_sha256": "d49760cd149b4e4d746e03e5fff5902a320d59716433fcdb966628a8c1b3ac47"
+    },
+    "full_Go_repository_regression": "NOT_PROVEN"
+  },
+  "independent": {
+    "prior": {
+      "source_sha": "af2f7063edef99e00856068a6ac191efdc9ebab8",
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 2,
+      "sha256": "08911fdc163a4bf4900b464230dcc83e71c920488bb08e9eaf4646121fbeba4e"
+    },
+    "final": {
+      "source_sha": "acc7d697e9a980f54941918cb4fbd887ac5ba23f",
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "sandbox": "read-only",
+      "verdict": "PASS",
+      "p0": 0,
+      "p1": 0,
+      "p2": 0,
+      "verdict_sha256": "9f45e748957321411db311e031329f022a98da8045553572f58f87903d589f65",
+      "events_sha256": "8c5ad1d811685b7cdb38a4ecd2fe72d489a25f32dad320f5890c6ea90880ee77",
+      "limitations": [
+        "Reviewed source and supplied host logs, did not independently rerun tests",
+        "Full Go repo suite not run",
+        "Global durable N124 CAS and signed upstream release provenance out of scope"
+      ]
+    }
+  },
+  "current_product": {
+    "installed_airworker_version": "0.11.8",
+    "installed_sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "N124_status": "OPEN",
+    "DEV136_apply": "BLOCKED",
+    "AirLegal_N111": "OPEN",
+    "line_B_source_sha": "8bbe3e7d22d6253822b73969b84288bc03d73ea9",
+    "line_B_uncommitted_R03_files": 9,
+    "line_B_N093": "OPEN",
+    "line_A_isolated_N093_closed_sha": "be680c80823f02e7e59b3cb0184080f7ea38f1a6",
+    "release_0_11_9": "CANDIDATE_NOT_INSTALLED",
+    "plan_node_093_authoritative_adoption": "WAIT_B_R03_CHECKPOINT"
+  },
+  "safety": {
+    "manual_PLAN_N_LEARN_edits": false,
+    "foreign_B_WIP_modified": false,
+    "installed_binary_modified": false,
+    "release_tag_install_reboot_UAC_foreign_service_stop": false,
+    "new_canonical_Github_branch_required": false,
+    "production_write_authorized": false
+  },
+  "next": {
+    "stage": "DEV136_NATIVE_RELEASE_FACTS_AND_N124_GENERATION",
+    "owner": "AirWorker line A / curator Voody",
+    "status": "SOURCE_ONLY_CONTINUE__PRODUCTION_HOLD",
+    "trigger": "Final DEV136 bounded payload source QA and independent Sol PASS P0/P1/P2=0",
+    "done_when": "Verify active release provenance and installed artifact using existing AirWorker core, production generation lock for N124 and entire current native plan, full product regression and independent acceptance, before enabling DEV136 -apply",
+    "judge": "native factual receipts/Go regression and independent Sol medium",
+    "receipt": "DEV136_NATIVE_PRODUCTION_GATE_TBD"
+  }
+}
