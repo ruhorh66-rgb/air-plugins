@@ -16,11 +16,11 @@ type planHeaderInstalledFacts struct {
 	Revision string
 }
 
-// planHeaderAttestInstalledSelfcheck validates the existing native core
-// selfcheck/v1 distribution snapshot, not a PLAN heading or caller-provided
-// version string. The caller must obtain a FRESH report from the accepted
-// native selfcheck logic for its pinned installed path; an arbitrary JSON
-// document cannot grant mutation. This function is a read-only preflight and
+// planHeaderAttestInstalledSelfcheck validates existing native core
+// selfcheck/v1 distribution facts without executing any cache executable.
+// The caller obtains a fresh static report from canonical marketplace
+// registrations plus Go build-info for the pinned installed binary; an
+// arbitrary JSON document must never grant mutation. This function is a read-only preflight and
 // never authorizes writes to PLAN/N/LEARN.
 func planHeaderAttestInstalledSelfcheck(report selfcheckReport, expectedLivePath string) (planHeaderInstalledFacts, error) {
 	var facts planHeaderInstalledFacts

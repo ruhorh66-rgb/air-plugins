@@ -91,12 +91,10 @@ func planHeaderCheckRegisteredCache(configRoot string, rec installedRec, liveSHA
 	return nil
 }
 
-// Before calling native selfcheck, verify every registration that it could
-// execute for 'version'. The already-installed and cache binaries must be
-// byte-identical and live in canonical GitHub marketplace cache locations.
-// This prevents a forged installed_plugins.json from using DEV136 preview
-// as an arbitrary executable launcher. Existing selfcheck remains the
-// authoritative native distribution identity engine for factual readback.
+// Validate every candidate registration before reading its metadata.
+// The already-installed and cache binaries must be byte-identical and live
+// in canonical GitHub marketplace cache locations. This does not execute
+// binaries; DEV136 uses only native registries and static Go build-info.
 func planHeaderPreflightSelfcheckExecutables(livePath, claudeRoot, codexRoot string) error {
 	liveSHA, err := planHeaderReadBoundedExeSHA(livePath)
 	if err != nil {
@@ -152,19 +150,25 @@ func planHeaderReadNativeInstalledIdentity() (planHeaderInstalledFacts, error) {
 	if err := planHeaderPreflightSelfcheckExecutables(expected, claudeRoot, codexRoot); err != nil {
 		return empty, err
 	}
-	report := buildSelfcheckReport(expected, claudeRoot, codexRoot)
+	// Unlike native full selfcheck, this bounded header path MUST NOT run
+	// "version" on cached executables. Static Go build-info avoids an
+	// attacker-swapped binary executing during a supposedly read-only preview.
+	report, err := planHeaderStaticInstalledReport(expected, claudeRoot, codexRoot)
+	if err != nil {
+		return empty, err
+	}
 	facts, err := planHeaderAttestInstalledSelfcheck(report, expected)
 	if err != nil {
 		return empty, err
 	}
-	// Selfcheck runs subprocess version checks. Re-read every binary after
-	// the report: any in-flight cache or installed replacement is a conflict.
+	// Re-read every binary after the static report: an in-flight cache or
+	// installed-file replacement remains a conflict. Nothing is executed.
 	if err := planHeaderPreflightSelfcheckExecutables(expected, claudeRoot, codexRoot); err != nil {
 		return empty, err
 	}
 	if got, err := planHeaderReadBoundedExeSHA(expected); err != nil ||
 		!strings.EqualFold(got, facts.SHA256) {
-		return empty, errors.New("installed binary changed after native selfcheck")
+		return empty, errors.New("installed binary changed after static identity check")
 	}
 	return facts, nil
 }

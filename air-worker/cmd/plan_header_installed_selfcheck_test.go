@@ -4,7 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -162,4 +164,30 @@ func TestPlanHeaderInstalledSourceLiveOptIn(t *testing.T) {
 	}
 	t.Logf("native installed AirWorker validated: version=%s sha=%s revision=%s",
 		facts.Version, facts.SHA256, facts.Revision)
+}
+
+// A cache executable is not safe to run merely because its pathname and
+// SHA matched an earlier observation. This fixture writes a sentinel if
+// executed; DEV136 must inspect Go build-info without starting the binary.
+// Only the trusted Go compiler runs to create this disposable fixture.
+func TestPlanHeaderStaticBinaryIdentityDoesNotExecuteCacheEXE(t *testing.T) {
+	root := t.TempDir()
+	sentinel := filepath.Join(root, "SHOULD_NOT_EXIST.txt")
+	program := filepath.Join(root, "fake_cache_binary.go")
+	executable := filepath.Join(root, executableName())
+	source := "package main\nimport \"os\"\nfunc main(){ _ = os.WriteFile(" +
+		strconv.Quote(sentinel) + ", []byte(\"MALICIOUS_CACHE_EXECUTED\"), 0600) }\n"
+	if err := os.WriteFile(program, []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("go", "build", "-o", executable, program)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("cannot compile disposable fake executable: %v %s", err, output)
+	}
+	// A Go EXE can have static build info and still contain a malicious main.
+	// No native header reader may call the cache binary as a process.
+	_, _ = planHeaderStaticBinaryIdentity(executable, "0.11.8")
+	if _, err := os.Lstat(sentinel); !os.IsNotExist(err) {
+		t.Fatalf("source-only build-info reader EXECUTED cache binary: %v", err)
+	}
 }
