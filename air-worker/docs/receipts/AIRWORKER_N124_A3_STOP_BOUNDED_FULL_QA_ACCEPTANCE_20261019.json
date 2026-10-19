@@ -1,0 +1,152 @@
+{
+  "schema": "airworker.n124.a3-4-selflearning-stop-bounded-source-qa/v1",
+  "date_sgt": "2026-10-19",
+  "node": "SRVLM01",
+  "product": "AirWorker",
+  "branch": "dev/airworker-n124-a3-aba-notify-20261018",
+  "status": "SOURCE_ONLY_FULL_GO_PASS_INDEPENDENT_SOL_MEDIUM_PASS__N124_PROD_HOLD",
+  "owner": "AirWorker line A",
+  "trigger": "ЛПР 19.10.2026: исправить Stop/reviewer без ожидания куратора; продолжать N-124 по плану. 19.10 QA обнаружил FULL GO RC1 Stop/reviewer flaky while N124 targeted PASS.",
+  "done_when": "Принять самостоятельное исправление bounded dual-owner Stop/review при неизменной 5s границе; TDD RED/GREEN, bounded concurrency=2, same-owner sequencing, exact JSON output and error semantics; реальный Windows 5/5; полный Go RC0, vet/build RC0, независимый Sol medium P0/P1/P2=0 на frozen SHA; GitHub commit/push/readback and source-only receipt; production N124 still open.",
+  "judge": "Host Go RC+SHA and source-bound read-only Codex gpt-6-sol medium; native AirWorker spine/node list/plan-lint/validate RC0",
+  "receipt": "docs/receipts/AIRWORKER_N124_A3_STOP_BOUNDED_FULL_QA_ACCEPTANCE_20261019.json",
+  "rollback": "Revert scoped Go source feature commit ddb09dd942a873d6b51052dc7f60a773091bc22e; installed 0.11.8 unchanged; no native PLAN/N/LEARN, B/Hermes/AirLegal WIP touched",
+  "source": {
+    "repo": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "baseline_commit": "8d595b1c1b8fe897600724d6509b78278c450f19",
+    "code_commit": "ddb09dd942a873d6b51052dc7f60a773091bc22e",
+    "code_commit_pushed_remote_sha": "ddb09dd942a873d6b51052dc7f60a773091bc22e",
+    "source_tree_clean_after_push": true,
+    "paths": [
+      "air-worker/cmd/learn_review.go",
+      "air-worker/cmd/learn_shared_deferred_batch.go",
+      "air-worker/cmd/learn_shared_deferred_batch_test.go",
+      "air-worker/cmd/learn_shared_stop_parallel_test.go"
+    ],
+    "binary_source_only_sha256": "a59a4cafbde5c9473cc0b9c88ba4990063e4accf2ab8f9a3b2d49630ea3c0f92"
+  },
+  "implementation": {
+    "dual_owner_stop": "Persist independent self/product run_completed concurrently, join before any reviewer dispatch; preserve stable self-then-target errors and distinct root handling",
+    "deferred_batch": "One Windows detached child per Stop, process reviewers concurrently across independent owner roots, serially for runs within the same owner, preserve input-order machine receipts",
+    "concurrent_owner_ceiling": 2,
+    "maximum_review_jobs_per_valid_batch": 24,
+    "no_inline_model_work_in_Stop": true,
+    "timeout_5_seconds_unchanged": true,
+    "external_grants_permissions_modified": false
+  },
+  "tests": {
+    "unit_first_parallel_batch": {
+      "first_red_rc": 1,
+      "red_reason": "undefined runSharedDeferredReviewBatch before implementation",
+      "red_log_sha256": "86aa816111eda9d8606055106f9f518363e4c8c980572267ef2289299932416a",
+      "green_count": 8,
+      "green_rc": 0,
+      "green_log_sha256": "78d0237779812d3d773988086ce83414d7fa16b3f6149014bccd8c7ab0d2957d"
+    },
+    "dual_stop_and_batch_unit_count10": {
+      "count": 10,
+      "rc": 0,
+      "log_sha256": "9c9c6572fcfeb3e97799269639309a2f2397ec51cb9ae8be8691edc2777018dc"
+    },
+    "live_windows_detached_stop_repeat5": {
+      "count": 5,
+      "rc": 0,
+      "durations_seconds": [
+        1.7764193,
+        1.5231568,
+        1.7963406,
+        1.4069458,
+        2.0236559
+      ],
+      "duration_limit_seconds": 5,
+      "log_sha256": "93f5771d294511c1f3f9070dd36b1d49cb10022aba317c48c5d7f58d3fa41cb4"
+    },
+    "first_full_go_after_parallel_change": {
+      "rc": 0,
+      "main_package_seconds": 530.468,
+      "tray_rc": 0,
+      "log_sha256": "677d7d502ac206b33b8e7a76880f321fd9769e9ad840a4eee44e0a2fcd0ef2af"
+    },
+    "reviewer_ceiling_tdd": {
+      "red_rc": 1,
+      "red_reason": "third independent reviewer started concurrently",
+      "red_log_sha256": "84af0a6e70e372a9b74b71ecb5bc4d9e4a4bc70186396f7482b9a655de839c50",
+      "green_count": 20,
+      "green_rc": 0,
+      "green_log_sha256": "d6a27b7197eb001dd8f54c1082eaabb2f87f8fe844220d48ce4671a59e160059"
+    },
+    "final_full_go": {
+      "cmd": "go test -count=1 -timeout 15m ./...",
+      "rc": 0,
+      "main_package_seconds": 462.655,
+      "tray_package_seconds": 0.716,
+      "log_sha256": "fe2bf893b4e8fb744aa44bd796dc05feae78ebffb530264ecb7b769f3e957124",
+      "failed_top_level_tests": 0,
+      "environment_TEMP": "C:/Users/admin_loc/AppData/Local/Temp",
+      "GOTMPDIR": "unset for command"
+    },
+    "go_vet": {
+      "rc": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go_build": {
+      "rc": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native_plan_spine_rc": 0,
+    "native_node_list_rc": 0,
+    "native_plan_lint_rc": 0,
+    "native_validate_rc": 0,
+    "git_diff_check_rc": 0
+  },
+  "independent_semantic_judge": {
+    "tool": "Codex CLI 0.158.0 gpt-6-sol medium; --sandbox read-only --ephemeral; exact pinned source SHA",
+    "verdict": "PASS",
+    "exit_code": 0,
+    "p0": 0,
+    "p1": 0,
+    "p2": 0,
+    "source_sha": "ddb09dd942a873d6b51052dc7f60a773091bc22e",
+    "verdict_sha256": "b0da18b5e404f178c1b756d08e949c43d5ec5897aca0f5fac029f4714008e16e",
+    "events_sha256": "787b847bce0f552d73c0f0913cbd615bd703b9ecfc5e049a7331a8adb164f00d",
+    "limitations": [
+      "Judge independently inspected code/diff but did not rerun host tests",
+      "Separate air-modules learning module and production N124 CAS not independently certified"
+    ]
+  },
+  "learned_lesson_candidate": {
+    "class": "cross-product deferred reviewer serialization and Windows Stop deadline",
+    "observation": "A single detached worker serialized two independent owner reviews, making a stalled self reviewer hide progress of target. Stop also persisted owner completions serially and could exceed 5 s under load.",
+    "adopted_procedure": "Independent owner storage completion may overlap but join before dispatch; reviewer executions serial per physical owner and bounded to two owner slots; exact status/rc and separate recovery per owner",
+    "native_LEARN_recorded": false,
+    "why_not_native_LEARN": "N124 production GitHub generation authority remains OPEN; do not create conflicting machine PLAN/N/LEARN events in independent branches without native CAS",
+    "followup": "Record source-bound lesson via AirWorker core after N124 authority is accepted"
+  },
+  "production": {
+    "N124_native_status": "OPEN",
+    "N124_production_generation_cas": "NOT_PROVEN",
+    "Github_authoritative_plan_branch_publisher": "NOT_APPROVED",
+    "DEV136_apply": "BLOCKED",
+    "AirLegal_N111": "OPEN_HERMES_OWNER",
+    "release_0_11_9": "CANDIDATE_NOT_TAGGED_NOT_INSTALLED",
+    "installed_AirWorker_version": "0.11.8",
+    "installed_binary_sha256": "1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94",
+    "installation_changed": false
+  },
+  "safety": {
+    "no_native_plan_node_LEARN_manual_edit": true,
+    "no_Github_production_claim_ref_write": true,
+    "no_worker_B_or_Hermes_or_AirLegal_foreign_wip_edit": true,
+    "no_release_install_reboot_UAC_foreign_service_stop": true,
+    "no_live_service_mutation": true
+  },
+  "next": {
+    "priority": "P0 N-124 durable production GitHub generation CAS",
+    "owner": "AirWorker line A",
+    "trigger": "QA blocker source-only fixed, source-frozen independent PASS",
+    "done_when": "Trusted existing GitHub branch/ref+signer and installed binary authority proven, canonical generation CAS/unique numeric N-ID, stale/read-write/ABA/crash/replay negative tests; full Go/independent judge and native receipt, then native N124 close only after production PASS",
+    "judge": "AirWorker native factual + independent Sol source-bound + GitHub exact SHA",
+    "receipt": "AIRWORKER_N124_PRODUCTION_GENERATION_ACCEPTANCE_TBD.json",
+    "status": "OPEN_AUTHORITY_GATE"
+  }
+}
