@@ -14,22 +14,24 @@ import (
 const planHeaderSyncPreviewSchema = "air-worker.plan-header-sync-preview/v1"
 
 type planHeaderSyncPreview struct {
-	Schema           string   `json:"schema"`
-	Action           string   `json:"action"`
-	Status           string   `json:"status"`
-	ExitCode         int      `json:"exit_code"`
-	DryRun           bool     `json:"dry_run"`
-	Product          string   `json:"product"`
-	PlanSHA256       string   `json:"plan_sha256,omitempty"`
-	GitBranch        string   `json:"git_branch,omitempty"`
-	GitHead          string   `json:"git_head,omitempty"`
-	GitRemote        string   `json:"git_remote,omitempty"`
-	RemoteHead       string   `json:"remote_head,omitempty"`
-	ActiveRelease    string   `json:"active_release,omitempty"`
-	NextOpenNode     string   `json:"next_open_node,omitempty"`
-	InstalledVersion string   `json:"installed_version,omitempty"`
-	Changed          bool     `json:"changed"`
-	Blockers         []string `json:"blockers"`
+	Schema                string   `json:"schema"`
+	Action                string   `json:"action"`
+	Status                string   `json:"status"`
+	ExitCode              int      `json:"exit_code"`
+	DryRun                bool     `json:"dry_run"`
+	Product               string   `json:"product"`
+	PlanSHA256            string   `json:"plan_sha256,omitempty"`
+	GitBranch             string   `json:"git_branch,omitempty"`
+	GitHead               string   `json:"git_head,omitempty"`
+	GitRemote             string   `json:"git_remote,omitempty"`
+	RemoteHead            string   `json:"remote_head,omitempty"`
+	ActiveRelease         string   `json:"active_release,omitempty"`
+	NextOpenNode          string   `json:"next_open_node,omitempty"`
+	InstalledVersion      string   `json:"installed_version,omitempty"`
+	InstalledBinarySHA256 string   `json:"installed_binary_sha256,omitempty"`
+	InstalledRevision     string   `json:"installed_revision,omitempty"`
+	Changed               bool     `json:"changed"`
+	Blockers              []string `json:"blockers"`
 }
 
 func cmdPlanHeader(argv []string) int {
@@ -144,11 +146,25 @@ func cmdPlanHeaderSync(argv []string) int {
 			}
 		}
 	}
-	// A local product manifest, stale prose or a separately supplied string is
-	// not attestation of the *installed* product binary/version. N111 may only
-	// become writable after integration with the native trusted product registry
-	// and exact versioned artifact readback.
-	block("installed_version_binary_attestation_not_implemented")
+	// Use existing native selfcheck distribution provenance, never a PLAN
+	// heading, product.json or caller-supplied installed version. This work is
+	// read-only and only attempted after an exact pinned Git remote readback:
+	// no new authority is granted by a selfcheck PASS. A missing/forged cache
+	// or unreadable live binary keeps the installation NOT_PROVEN.
+	if *dryRun && report.GitHead != "" && report.GitHead == report.RemoteHead &&
+		report.GitRemote != "" {
+		if facts, e := planHeaderReadNativeInstalledIdentity(); e != nil {
+			block("installed_version_binary_attestation_not_proven")
+		} else {
+			report.InstalledVersion = facts.Version
+			report.InstalledBinarySHA256 = facts.SHA256
+			report.InstalledRevision = facts.Revision
+		}
+	} else {
+		block("installed_version_binary_attestation_not_proven")
+	}
+	// This preflight still cannot acquire a durable native PLAN generation.
+	// It MUST NEVER report write capability until N124 is separately accepted.
 	block("N124_global_git_generation_not_accepted")
 	if *asJSON {
 		enc := json.NewEncoder(os.Stdout)
