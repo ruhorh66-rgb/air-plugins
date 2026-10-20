@@ -99,7 +99,7 @@
                                        },
                                        {
                                            "id":  "R0.11.9-02",
-                                           "status":  "open",
+                                           "status":  "closed",
                                            "title":  "Реальное автоматическое принятие первой ошибки",
                                            "owner":  "AirWorker native executor ladder / SRVLM01",
                                            "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
@@ -114,7 +114,7 @@
                                        },
                                        {
                                            "id":  "R0.11.9-03",
-                                           "status":  "planned",
+                                           "status":  "open",
                                            "title":  "Автоматический review и только safe Markdown apply",
                                            "owner":  "AirWorker native executor ladder / SRVLM01",
                                            "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",

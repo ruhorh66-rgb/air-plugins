@@ -1,0 +1,20 @@
+{
+  "schema": "air-worker.release-slice.capture/v2",
+  "slice_id": "R0.11.9-02",
+  "product_id": "air-worker",
+  "product_root": "R:\\-4-\\air-worker\\worktrees\\airworker-0119-n093-worker-b-20261018\\air-worker",
+  "target_root": "R:\\-4-\\air-worker\\work\\AIRWORKER_0119_R02_PRIMARY_20261020\\scratch\\air-worker-r02-capture-2173408758",
+  "release_hmac_sha256": "376c8b4a3c9270890cb73722fad7e94b404f238e922c90d44dceaa591a7cd5e5",
+  "candidate_version": "0.11.9",
+  "candidate_binary_sha256": "98cc0e365a53200efc4ee06530f2a5966d51ff0d65f0cd7e229ee3534e89cf54",
+  "plan_before_sha256": "c734e37aaebd241abd31ddbe53a4cac13ab6936565a27544461199d55f41be1f",
+  "run_id": "AW-CLI-b215a031552a8e29901a0f4f",
+  "capture_receipt_sha256": "e8af16e46bd5f9f607cbd8086a81f29429946ca78bb364172054001e49fc412a",
+  "replay_receipt_sha256": "e8af16e46bd5f9f607cbd8086a81f29429946ca78bb364172054001e49fc412a",
+  "validate_exit_code": 2,
+  "replay_exit_code": 0,
+  "cause_code": "validate-run-config-missing",
+  "event_count": 1,
+  "replay_event_count": 1,
+  "created_at_utc": "2026-10-20T00:43:18.978276Z"
+}
