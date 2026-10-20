@@ -42,9 +42,9 @@ func ownCLIFailureAction(argv []string) (string, bool) {
 	}
 	switch argv[0] {
 	case "plan":
-		if planHelpOrUnsupportedSyntax(argv[1:]) {
-			// A local help/unsupported request is not a product failure.
-			// Capturing it would itself dispatch a paid learning reviewer.
+		if planSyntaxOnly.Load() {
+			// Only a parser-confirmed usage error is non-executable. Raw argv
+			// may contain "-help" as a legitimate supported flag value.
 			return "", false
 		}
 		if len(argv) < 2 {

@@ -53,7 +53,7 @@ func plannedReparentText(oldPlan []byte, before, after planNode) ([]byte, error)
 func cmdPlanNodeReparent(argv []string) int {
 	if len(argv) == 0 || strings.HasPrefix(argv[0], "-") {
 		fmt.Fprintln(os.Stderr, "usage: air-worker plan node reparent <id> -product <root> -from <expected-parent> -to <existing-parent> -receipt <evidence> -request-id <key>")
-		return 2
+		return rejectPlanSyntax()
 	}
 	id := argv[0]
 	fs := flag.NewFlagSet("plan node reparent", flag.ContinueOnError)
@@ -66,7 +66,7 @@ func cmdPlanNodeReparent(argv []string) int {
 	actor := fs.String("actor", "", "named actor/session")
 	asJSON := fs.Bool("json", false, "machine-readable JSON")
 	if err := fs.Parse(argv[1:]); err != nil {
-		return 2
+		return rejectPlanSyntax()
 	}
 	if fs.NArg() != 0 || strings.TrimSpace(*from) == "" || strings.TrimSpace(*to) == "" ||
 		strings.TrimSpace(*receipt) == "" || len(strings.TrimSpace(*req)) < 8 ||

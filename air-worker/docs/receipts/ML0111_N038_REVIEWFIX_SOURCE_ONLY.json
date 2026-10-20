@@ -1,0 +1,73 @@
+{
+    "schema":  "air-worker.ml0111.n038.parser-causal-fix/v2",
+    "status":  "SOURCE_ONLY_TEST_VET_BUILD_SMOKE_PASS__INDEPENDENT_REJUDGE_REQUIRED",
+    "node":  "SRVLM01",
+    "owner":  "AirWorker Module Learning N038 worker",
+    "base_sha":  "207765540641e3f11d5ef59659c6f107660da989",
+    "branch":  "dev/airworker-ml0111-n038-cli-safe-help-20261020",
+    "trigger":  "N038 independent judge at base source FAIL P1=1 P2=2; correct actual Go flag parser classification and false use before N039",
+    "prior_independent_judge":  {
+                                    "source_sha":  "207765540641e3f11d5ef59659c6f107660da989",
+                                    "verdict":  "FAIL",
+                                    "p0":  0,
+                                    "p1":  1,
+                                    "p2":  2,
+                                    "run_id":  "ML0111-N038-SOL-MEDIUM-20261020-SHA2077655",
+                                    "log_sha256":  "8b6ac4424f39b9aa232602016c644f7ca6436a5429fcd3960371c3483ef052ac"
+                                },
+    "new_source_files":  [
+                             {
+                                 "sha256":  "7dbb6c1e7fe17ac9b0f4c4fe4bacc09fee306df82f5698d23ea8e6e07cbb2a5b",
+                                 "relative_path":  "air-worker/cmd/main.go"
+                             },
+                             {
+                                 "sha256":  "6a7000c67d6f80222a12234d27949fcf15966eaa51b6ec85afdce8a461cd0f5f",
+                                 "relative_path":  "air-worker/cmd/plan_nodes.go"
+                             },
+                             {
+                                 "sha256":  "40ea1c76d90babed1dd5cb7f08be317e5be1e34c919bb46c562a6a9eb0515ba6",
+                                 "relative_path":  "air-worker/cmd/plan_nodes_reparent.go"
+                             },
+                             {
+                                 "sha256":  "d9b9374cd4f5ff680e4b5bf4a46bd480d4e6bfac8c1f5ea89bf0b1ad02c289a3",
+                                 "relative_path":  "air-worker/cmd/planner.go"
+                             },
+                             {
+                                 "sha256":  "5459dbfe5a52742d071035f1394dd5cb51a121f3a6382e08e2f1c38b2217b552",
+                                 "relative_path":  "air-worker/cmd/planner_safe_help_n038_test.go"
+                             },
+                             {
+                                 "sha256":  "e17be672a007e349c3c52fe01414c1fabd9efbfbec81c942d178b4bc00e5feeb",
+                                 "relative_path":  "air-worker/cmd/self_cli_failure.go"
+                             }
+                         ],
+    "fixes":  [
+                  "use parser-set planSyntaxOnly instead of substring search",
+                  "Go parser errors in plan/node/list/close/reparent/migrate suppress paid reviewer",
+                  "literal -help value in valid -receipt remains a genuine supported failure",
+                  "plan help release now refuses with exit 2",
+                  "valid product fixture and deterministic runner spy assert zero model"
+              ],
+    "programmatic":  {
+                         "scoped_regression_rc":  0,
+                         "test_log_sha256":  "6aa1f83a0f6b0670af4636c13dd84f5fe0ab5a0112caa1bf97b5c4c699d0bebf",
+                         "go_vet_rc":  0,
+                         "go_build_rc":  0,
+                         "portable_binary_sha256":  "4a4b19eb2e89ba860006c1de94685f181c3ba02f2ae19b5a63a23e4ec67ca1ea",
+                         "compiled_smoke_rc":  0,
+                         "compiled_smoke_count":  10,
+                         "compiled_smoke_sha256":  "cc880170e4c7d46cb0224b2266583c060339c9173a221eeedba7af3e72bb7d9c",
+                         "runtime_capture_count_before":  24,
+                         "runtime_capture_count_after":  24,
+                         "planner_product_files_unchanged":  true,
+                         "planner_workspace_created":  false
+                     },
+    "next_independent_judge":  "NOT_RUN on post-fix immutable commit, must be exact SHA and read-only Sol Medium. N038 remains OPEN until PASS.",
+    "installed_version":  "0.11.9 UNCHANGED",
+    "installed_cli_sha256":  "df02c7f2a1b55e03ba7fbe5f5307962b3fe5534903a12b0e1911a94436d790fe",
+    "learning_new_effect":  "NOT_PROVEN N034 OPEN",
+    "product_plan":  "Module Learning native N038 under N034 OPEN; AirWorker N124 Git authority OPEN",
+    "release_gate":  "NO_GITHUB_RELEASE, NO INSTALL, NO REBOOT, UAC OR FOREIGN SERVICES",
+    "rollback":  "git revert source-only new commit on isolated feature branch; installed binary unchanged",
+    "observed_at_utc":  "2026-10-20T15:42:49.0389045Z"
+}

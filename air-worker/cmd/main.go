@@ -247,6 +247,9 @@ func main() {
 // возврата: так его можно проверить и вызовом функции, и прогоном процесса, не убивая
 // тестовый процесс через os.Exit.
 func run(argv []string) int {
+	// The exact parser owns syntax classification. Do not retain state
+	// between in-process test calls to run.
+	planSyntaxOnly.Store(false)
 	if len(argv) < 1 {
 		usage()
 		return 2

@@ -372,7 +372,7 @@ func updateNodeInSpine(planPath string, n planNode) error {
 func cmdPlanNode(argv []string) int {
 	if len(argv) == 0 {
 		fmt.Fprintln(os.Stderr, "usage: air-worker plan node <new|reparent|close|list>")
-		return 2
+		return rejectPlanSyntax()
 	}
 	switch argv[0] {
 	case "new":
@@ -385,7 +385,7 @@ func cmdPlanNode(argv []string) int {
 		return cmdPlanNodeList(argv[1:])
 	default:
 		fmt.Fprintln(os.Stderr, "unknown plan node command:", argv[0])
-		return 2
+		return rejectPlanSyntax()
 	}
 }
 
@@ -403,7 +403,7 @@ func cmdPlanNodeNew(argv []string) int {
 	actorKind := fs.String("actor-kind", "", "gpt-window or claude-session")
 	asJSON := fs.Bool("json", false, "machine-readable JSON")
 	if err := fs.Parse(argv); err != nil {
-		return 2
+		return rejectPlanSyntax()
 	}
 	root, err := normalizePlanNodeProduct(*product)
 	if err != nil {
@@ -513,7 +513,7 @@ func cmdPlanNodeNew(argv []string) int {
 func cmdPlanNodeClose(argv []string) int {
 	if len(argv) == 0 || strings.HasPrefix(argv[0], "-") {
 		fmt.Fprintln(os.Stderr, "usage: air-worker plan node close <id> -receipt <path/ref> [-product <root>]")
-		return 2
+		return rejectPlanSyntax()
 	}
 	id := argv[0]
 	fs := flag.NewFlagSet("plan node close", flag.ContinueOnError)
@@ -523,7 +523,7 @@ func cmdPlanNodeClose(argv []string) int {
 	actorKind := fs.String("actor-kind", "", "gpt-window or claude-session")
 	asJSON := fs.Bool("json", false, "machine-readable JSON")
 	if err := fs.Parse(argv[1:]); err != nil {
-		return 2
+		return rejectPlanSyntax()
 	}
 	if strings.TrimSpace(*receipt) == "" {
 		fmt.Fprintln(os.Stderr, "-receipt is required")
@@ -635,7 +635,7 @@ func cmdPlanNodeList(argv []string) int {
 	stale := fs.Duration("stale", 0, "only open nodes without movement for duration, e.g. 24h")
 	asJSON := fs.Bool("json", false, "machine-readable JSON")
 	if err := fs.Parse(argv); err != nil {
-		return 2
+		return rejectPlanSyntax()
 	}
 	root, err := normalizePlanNodeProduct(*product)
 	if err != nil {
@@ -685,7 +685,7 @@ func cmdPlanSpine(argv []string) int {
 	product := fs.String("product", ".", "product root")
 	asJSON := fs.Bool("json", false, "machine-readable JSON")
 	if err := fs.Parse(argv); err != nil {
-		return 2
+		return rejectPlanSyntax()
 	}
 	root, err := normalizePlanNodeProduct(*product)
 	if err != nil {
@@ -737,7 +737,7 @@ func cmdPlanMigrate(argv []string) int {
 	actorKind := fs.String("actor-kind", "", "gpt-window or claude-session")
 	asJSON := fs.Bool("json", false, "machine-readable JSON")
 	if err := fs.Parse(argv); err != nil {
-		return 2
+		return rejectPlanSyntax()
 	}
 	root, err := normalizePlanNodeProduct(*product)
 	if err != nil {

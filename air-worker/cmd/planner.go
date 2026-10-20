@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -33,56 +34,21 @@ type goalFile struct {
 	Objective string `json:"objective"`
 }
 
-// Help probes and unsupported plan syntax cannot produce a genuine planner
-// result. In particular, they must not generate a costly self-learning review
-// after cmdPlan returns a nonzero usage code.
-func planHelpOrUnsupportedSyntax(argv []string) bool {
-	if len(argv) == 0 {
-		return false
-	}
-	for _, token := range argv {
-		if token == "-h" || token == "-help" || token == "--help" {
-			return true
-		}
-	}
-	switch argv[0] {
-	case "node":
-		if len(argv) < 2 {
-			return true
-		}
-		switch argv[1] {
-		case "new", "close", "reparent", "list":
-			return false
-		default:
-			return true
-		}
-	case "spine", "migrate":
-		return false
-	case "help":
-		return true
-	}
-	for i := 0; i < len(argv); i++ {
-		token := argv[i]
-		if !strings.HasPrefix(token, "-") {
-			return true
-		}
-		name, _, assigned := strings.Cut(strings.TrimLeft(token, "-"), "=")
-		switch name {
-		case "apply", "dry-run":
-		case "product", "model", "use-answer":
-			if !assigned {
-				i++
-				if i >= len(argv) {
-					return true
-				}
-			}
-		default:
-			return true
-		}
-	}
-	return false
-}
+// planSyntaxOnly is recorded by the actual native parser, not inferred from
+// raw argv. A value equal to -help is data when consumed by a supported flag.
+// main reads this mark only after run returns, never while parsing flags.
+// Every CLI process executes one run; run resets it for in-process tests.
+var planSyntaxOnly atomic.Bool
 
+// A test may replace this boundary with a failing spy, proving that an
+// unsupported syntax probe cannot reach the expensive runner. Production
+// always uses the original approved planner implementation.
+var dispatchPlannerModel = callPlannerRunner
+
+func rejectPlanSyntax() int {
+	planSyntaxOnly.Store(true)
+	return 2
+}
 func cmdPlan(argv []string) int {
 	if len(argv) > 0 {
 		switch argv[0] {
@@ -93,12 +59,16 @@ func cmdPlan(argv []string) int {
 		case "migrate":
 			return cmdPlanMigrate(argv[1:])
 		case "help":
+			if len(argv) != 1 {
+				fmt.Fprintln(os.Stderr, "plan help: additional topics are unsupported")
+				return rejectPlanSyntax()
+			}
 			fmt.Fprintln(os.Stdout, "Usage: air-worker plan [-product <root>] [-dry-run] [-model <tier>] [-use-answer <file>] | node | spine | migrate")
 			return 0
 		default:
 			if !strings.HasPrefix(argv[0], "-") {
 				fmt.Fprintf(os.Stderr, "plan: unsupported subcommand %q; use air-worker plan -help or documented plan node/spine/migrate commands\n", argv[0])
-				return 2
+				return rejectPlanSyntax()
 			}
 		}
 	}
@@ -112,11 +82,11 @@ func cmdPlan(argv []string) int {
 		if err == flag.ErrHelp {
 			return 0
 		}
-		return 2
+		return rejectPlanSyntax()
 	}
 	if fs.NArg() != 0 {
 		fmt.Fprintf(os.Stderr, "plan: unsupported positional subcommand %q; use documented flags or plan node/spine/migrate\n", fs.Arg(0))
-		return 2
+		return rejectPlanSyntax()
 	}
 	root, err := filepath.Abs(*product)
 	if err != nil {
@@ -217,7 +187,7 @@ func cmdPlan(argv []string) int {
 			line("ОТКАЗ: " + err.Error())
 			return 2
 		}
-		if code := callPlannerRunner(root, prompt, planner, answerPath, legacyScope(root)); code != 0 {
+		if code := dispatchPlannerModel(root, prompt, planner, answerPath, legacyScope(root)); code != 0 {
 			return code
 		}
 	}
