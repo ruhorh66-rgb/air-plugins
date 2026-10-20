@@ -1,0 +1,51 @@
+{
+    "schema":  "air-worker.ml0111.n038.independent-judge-receipt/v1",
+    "status":  "PASS_SOURCE_ONLY__NO_RELEASE_NO_INSTALL",
+    "task":  "Module Learning 0.1.1 / N-038",
+    "code_source_sha":  "5402b80b4c763df2ceeac613f7c51108dd595ef7",
+    "source_branch":  "dev/airworker-ml0111-n038-cli-safe-help-20261020",
+    "judge_model":  "gpt-6-sol",
+    "judge_effort":  "medium",
+    "judge_sandbox":  "read-only",
+    "judge_job_id":  "ML0111-N038-SOL-MEDIUM-20261020-SHA5402b80",
+    "judge_job_exit_code":  0,
+    "judge_log_sha256":  "060654e5da02999dc5bfeb222fdd07d0ef7d4f22f6d08bb9f27687090fea80b8",
+    "judge_job_file_sha256":  "f745b776d92d3d896543fecb7ea5ec14410a8acaf55e4341c3f680028e3731ab",
+    "judge_terminal_events":  1,
+    "judge_verdict":  "PASS",
+    "p0":  0,
+    "p1":  0,
+    "p2":  0,
+    "findings":  [
+
+                 ],
+    "tests_reviewed":  [
+                           "Source inspection of the exact diff against 207765540641e3f11d5ef59659c6f107660da989 and its connected command and capture paths.",
+                           "Prior P1 cases: invalid -dry-run=bad and plan node list -bogus are parser-marked syntax failures; -receipt -help is consumed as a string value and remains capture-eligible on a supported-command failure.",
+                           "Prior P2 cases: plan help release now returns 2; the valid fixture and dispatchPlannerModel spy prevent a provider call if a syntax case reaches planner dispatch.",
+                           "The supplied receipt reports scoped Go regression, vet, build, and 10 compiled smoke cases at RC0; these results were reviewed as claims, not independently executed."
+                       ],
+    "limitations":  [
+                        "Read-only review: no tests, binary, provider, or capture flow was run.",
+                        "The published GitHub commit page could not be fetched; the local worktree was verified at the exact requested SHA.",
+                        "The atomic classification is process-global, but the production main path calls run once and reads it after return; concurrent in-process run calls are outside that path.",
+                        "Independent acceptance does not install or release this source. N034 remains open pending signed fresh procedure_used/outcome/effect."
+                    ],
+    "prior_failed_review":  {
+                                "source_sha":  "207765540641e3f11d5ef59659c6f107660da989",
+                                "verdict":  "FAIL",
+                                "p0":  0,
+                                "p1":  1,
+                                "p2":  2,
+                                "corrected_in":  "5402b80b4c763df2ceeac613f7c51108dd595ef7"
+                            },
+    "programmatic_receipt":  "air-worker/docs/receipts/ML0111_N038_REVIEWFIX_SOURCE_ONLY.json",
+    "next":  "Commit this evidence, GitHub readback, then issue native AirWorker plan node close for Module Learning N-038 with matching receipt. Do not advance N-034 without real typed fresh use.",
+    "installed_air_worker":  "0.11.9",
+    "installed_sha256":  "df02c7f2a1b55e03ba7fbe5f5307962b3fe5534903a12b0e1911a94436d790fe",
+    "module_baseline":  "air-modules v0.1.0",
+    "module_next":  "0.1.1 SOURCE_ONLY",
+    "release_gate":  "Publication/install require separate exact LPR approval with rollback",
+    "rollback":  "Revert isolated feature-branch commits only; installed AirWorker unchanged",
+    "observed_at_sgt":  "2026-10-21T00:35:22"
+}
