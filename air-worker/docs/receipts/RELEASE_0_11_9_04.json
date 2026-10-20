@@ -1,0 +1,22 @@
+{
+  "schema": "air-worker.release-slice.verified-use/v1",
+  "slice_id": "R0.11.9-04",
+  "product_id": "air-worker",
+  "candidate_binary_sha256": "98cc0e365a53200efc4ee06530f2a5966d51ff0d65f0cd7e229ee3534e89cf54",
+  "plan_before_sha256": "2807d28c944ec21c0ca802626d93bf0ed64bc5d32a7fa3126f516446f9bc6c8e",
+  "r02_receipt_sha256": "3eea6219db34697aa25f2a8418d7475ae240995edd116d8c976267563bb832df",
+  "r03_receipt_sha256": "1ba4b3ceeefc2879fbb876af8a51995d4e17c3f2fb684faed39969f48f380cf6",
+  "original_run_id": "AW-CLI-b215a031552a8e29901a0f4f",
+  "original_event_id": "EV-809c8b2bc7cd3fe5bdc2e8ac",
+  "target": "skills/learned/air-worker-cli-preflight-efe9e81b-89771d09c9a38791.md",
+  "target_sha256": "89771d09c9a3879136fd2286a9c921fbe486cbaae73ccbf21e95db525e4d47eb",
+  "load_run_id": "N118-LOADED-6988c3edc1af034667bd48aa",
+  "used_run_id": "N118-USED-6988c3edc1af034667bd48aa",
+  "confirmed_event_id": "EV-80e343c6503677cbd495e2e1",
+  "signed_intent_sha256": "850055b7310d02d6d53e203ac00e6e62ede7dda30ca624a6ef57b4832d2f70bf",
+  "signed_result_sha256": "4e4a04548b8fab43e4144b0413a7c732a0904ef178dfc804b6a7d6bc97cd9682",
+  "outcome": "deferred_missing_configuration",
+  "effect": "avoided_repeat_validation_with_missing_config",
+  "native_validation_executed": false,
+  "created_at_utc": "2026-10-20T03:46:00.5055331Z"
+}
