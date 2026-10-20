@@ -1,5 +1,13 @@
 # air-worker
 
+## 0.11.9 candidate — machine-verifiable shared learning (source accepted; release gated)
+
+The AirWorker executable and dual-host Claude/Codex plugin consume the published `air-modules/learning v0.1.0`, without duplicating its writer. The native CLI records a signed failure (`run_id` and source), applies only an independently reviewed safe Markdown procedure, then credits it **only after** exact-SHA `skill_loaded`, a real later `procedure_used` and independently verified outcome/effect. In the accepted example, missing `run-config.json` causes **deferred validation** and prevents one redundant retry; this **is not a validation PASS**. A proposal, loaded file or signed intent without a final result is not successful use.
+
+Operational commands are `air-worker version`, `selfcheck -json`, `plan spine -product <root> -json`, `plan node list -product <root> -open -json`, `plan-lint -product <root> -json`, `validate -product <root> -json` and (only for a configured self-learning owner) `learn self status -json`, `learn status`, `learn load` and `loop -product <root>`. `loop` R02–R04 is gated by the exact 0.11.9 candidate, configured self-learning owner and signed native runtime receipts. Do not treat an isolated E2E as a change of the main product's release-slice status.
+
+Current status as of 20.10.2026: source QA and isolated R02–R04 PASS on code commit `12eae0104b07b496951f40353cd44f190ba29f6b`; installed runtime remains 0.11.8. Release 0.11.9 is **NOT tagged, published or installed**. `N-070` and `N-093` are CLOSED, `N-071` and primary release-slices R02 are still OPEN. N124 Git CAS and DEV136 production header are deferred from 0.11.9. Release assets may be unsigned under an explicit limited LPR waiver, but must match GitHub SHA-256, candidate version and clean-source binary metadata. Publication and installation require separate exact LPR permissions; rollback target is installed 0.11.8.
+
 > **Start here (0.10.x).** The product is the `air-worker` binary: judge, goal-drift engine,
 > loop, planner, report, feedback, install/tray. Hooks only deliver host events to it; skills
 > are optional help. A new session starts from the product instruction

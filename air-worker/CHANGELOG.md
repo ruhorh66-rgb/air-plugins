@@ -1,5 +1,17 @@
 # CHANGELOG — air-worker
 
+## 0.11.9 — release candidate 20.10.2026 · NOT PUBLISHED / NOT INSTALLED
+
+### Shared learning module v0.1.0 + demonstrable procedure use
+
+- Uses the published `github.com/ruhorh66-rgb/air-modules v0.1.0` with the exact GitHub tag `74ec2becf4b327a879ed047c6cd0f8b3f0de6e5c`; the module release has a Windows sidecar, ZIP and manifest, with all 3/3 downloaded SHA-256 verified. The LPR waived Authenticode signing **for this release only**; hashes, provenance and safety controls still apply.
+- Native 0.11.9 R02 captures a real failed `validate` with a signed `run_id` and source SHA; R03 performs one historical authenticated reviewer/APPLIED safe Markdown procedure; R04 verifies a *later* exact-SHA load and one actual `procedure_used` with signed intent, signed result, `outcome` and bounded effect. `deferred_missing_configuration` prevents one redundant validation, **not** a successful full validation. Duplicate reviewer or forged/replayed receipts fail closed.
+- Independent self/product Stop completion events are joined before a single detached child dispatches no more than two simultaneous owner reviewers. Runs for one owner stay serial. Windows R04 rechecks the pinned physical scratch path while non-delete-sharing handles are retained until child exit. N093 terminal verification checks the actual original HMAC-bound CLI target rather than unrelated owner configuration.
+- Frozen Go source `12eae0104b07b496951f40353cd44f190ba29f6b` passed full Go (`go test -count=1 ./...`, RC0), `go vet`, Go build and independent Sol medium PASS (P0/P1=0). One real isolated R02→R03→R04 on that source/binary passed with exactly one reviewer and one signed use/outcome. `N-093` and `N-070` were closed by the native AirWorker core; `N-071` remains OPEN.
+- Release preparation must build portable CLI and tray from the **same clean source revision** and pass plugin/package health; binaries carried by old source trees are not accepted without matching revision SHA. Rollback is the installed 0.11.8 CLI SHA `1b4008af05110214934d46c0ab8c5236341cd1c699f54efb895c2f9f64a94a94` and aligned Claude/Codex plugin caches.
+
+**Release restriction:** this is source-only acceptance. Main B `plan/release-slices.json` still has R02 OPEN and R03/R04 PLANNED because the accepted E2E ran in an isolated copy; primary B self-learning owner is unconfigured. Do not manually advance release-slices/PLAN/N/LEARN or repeat a signed reviewer. Publication/tag and installation each require a **different explicit LPR approval**; no reboot/UAC/foreign-service stop or Windows security bypass is approved.
+
 ## 0.11.8 — hotfix candidate 07.10.2026
 
 ### LF-stable marketplace AirCurator payloads
