@@ -1,0 +1,21 @@
+{
+  "schema": "air-worker.release-slice.review/v1",
+  "slice_id": "R0.11.9-03",
+  "candidate_version": "0.11.9",
+  "candidate_binary_sha256": "98cc0e365a53200efc4ee06530f2a5966d51ff0d65f0cd7e229ee3534e89cf54",
+  "plan_before_sha256": "13c9a5c195342428d8c32f383d4eb9a0490600ea3f96c677d15a0cdc593a0f84",
+  "r02_receipt_sha256": "3eea6219db34697aa25f2a8418d7475ae240995edd116d8c976267563bb832df",
+  "capture_receipt_sha256": "e8af16e46bd5f9f607cbd8086a81f29429946ca78bb364172054001e49fc412a",
+  "source_run_id": "AW-CLI-b215a031552a8e29901a0f4f",
+  "source_event_id": "EV-809c8b2bc7cd3fe5bdc2e8ac",
+  "review_id": "RV-6434c3eee25d491a35b7b495",
+  "proposal_id": "LP-EV-809c8b2bc7cd3fe5bdc2e8ac",
+  "candidate_sha256": "f2db6ad2f103e28a5f95177435633771766408e5429d3bce881bba87eb2b8a80",
+  "target": "skills/learned/air-worker-cli-preflight-efe9e81b-89771d09c9a38791.md",
+  "target_sha256": "89771d09c9a3879136fd2286a9c921fbe486cbaae73ccbf21e95db525e4d47eb",
+  "reviewer_response_sha256": "9f9a5ab3283bf02ac93cc902b1a7676b260cd824da4b3a289c8d51c21cd83090",
+  "reviewer_completion_sha256": "14a6ac053f0da15583527970299fdb0da082b519e5b6f09d4cef71c2e34238bf",
+  "applied_ledger_count": 1,
+  "outcome": "reviewed_safe_procedure_applied",
+  "created_at_utc": "2026-10-20T03:41:36.7043898Z"
+}
