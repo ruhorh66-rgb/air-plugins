@@ -42,6 +42,11 @@ func ownCLIFailureAction(argv []string) (string, bool) {
 	}
 	switch argv[0] {
 	case "plan":
+		if planHelpOrUnsupportedSyntax(argv[1:]) {
+			// A local help/unsupported request is not a product failure.
+			// Capturing it would itself dispatch a paid learning reviewer.
+			return "", false
+		}
 		if len(argv) < 2 {
 			return "plan", true
 		}

@@ -33,6 +33,56 @@ type goalFile struct {
 	Objective string `json:"objective"`
 }
 
+// Help probes and unsupported plan syntax cannot produce a genuine planner
+// result. In particular, they must not generate a costly self-learning review
+// after cmdPlan returns a nonzero usage code.
+func planHelpOrUnsupportedSyntax(argv []string) bool {
+	if len(argv) == 0 {
+		return false
+	}
+	for _, token := range argv {
+		if token == "-h" || token == "-help" || token == "--help" {
+			return true
+		}
+	}
+	switch argv[0] {
+	case "node":
+		if len(argv) < 2 {
+			return true
+		}
+		switch argv[1] {
+		case "new", "close", "reparent", "list":
+			return false
+		default:
+			return true
+		}
+	case "spine", "migrate":
+		return false
+	case "help":
+		return true
+	}
+	for i := 0; i < len(argv); i++ {
+		token := argv[i]
+		if !strings.HasPrefix(token, "-") {
+			return true
+		}
+		name, _, assigned := strings.Cut(strings.TrimLeft(token, "-"), "=")
+		switch name {
+		case "apply", "dry-run":
+		case "product", "model", "use-answer":
+			if !assigned {
+				i++
+				if i >= len(argv) {
+					return true
+				}
+			}
+		default:
+			return true
+		}
+	}
+	return false
+}
+
 func cmdPlan(argv []string) int {
 	if len(argv) > 0 {
 		switch argv[0] {
@@ -42,6 +92,14 @@ func cmdPlan(argv []string) int {
 			return cmdPlanSpine(argv[1:])
 		case "migrate":
 			return cmdPlanMigrate(argv[1:])
+		case "help":
+			fmt.Fprintln(os.Stdout, "Usage: air-worker plan [-product <root>] [-dry-run] [-model <tier>] [-use-answer <file>] | node | spine | migrate")
+			return 0
+		default:
+			if !strings.HasPrefix(argv[0], "-") {
+				fmt.Fprintf(os.Stderr, "plan: unsupported subcommand %q; use air-worker plan -help or documented plan node/spine/migrate commands\n", argv[0])
+				return 2
+			}
 		}
 	}
 	fs := flag.NewFlagSet("plan", flag.ContinueOnError)
@@ -51,6 +109,13 @@ func cmdPlan(argv []string) int {
 	dryRun := fs.Bool("dry-run", false, "собрать задание и показать, модель не звать")
 	useAnswer := fs.String("use-answer", "", "разобрать уже полученный ответ, не платя снова")
 	if err := fs.Parse(argv); err != nil {
+		if err == flag.ErrHelp {
+			return 0
+		}
+		return 2
+	}
+	if fs.NArg() != 0 {
+		fmt.Fprintf(os.Stderr, "plan: unsupported positional subcommand %q; use documented flags or plan node/spine/migrate\n", fs.Arg(0))
 		return 2
 	}
 	root, err := filepath.Abs(*product)

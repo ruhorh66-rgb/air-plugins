@@ -1,0 +1,54 @@
+{
+    "schema":  "air-worker.ml0111.n038.safe-help-source-acceptance/v1",
+    "status":  "SOURCE_ONLY_FACTUAL_PASS__INDEPENDENT_SEMANTIC_NOT_RUN__NO_RELEASE",
+    "node":  "SRVLM01",
+    "product":  "AirWorker",
+    "task_source":  "Module Learning N-038 under N-034",
+    "source_base_sha":  "b6721f26262960c2d6cc12107cf7aeac9296bcad",
+    "source_branch":  "dev/airworker-ml0111-n038-cli-safe-help-20261020",
+    "source_root":  "R:/-4-/air-worker/worktrees/airworker-ml0111-n038-cli-safe-help-20261020",
+    "changed_files":  [
+                          "air-worker/cmd/planner.go",
+                          "air-worker/cmd/self_cli_failure.go",
+                          "air-worker/cmd/planner_safe_help_n038_test.go"
+                      ],
+    "source_files_sha256":  {
+                                "planner":  "f45b16ea326c84687c4851754ae002f9fe1c6a22311ef1cefa5cfc4cc1fe13cc",
+                                "native_failure_capture":  "aa06bb418f6ada35a128597c9ef5382af6fe26d79768404b719b2cc1c67299dd",
+                                "negative_tests":  "b9a7ac2c0484e82dd5c59164df40877f5dc28d94ee1d5a970cfe33b1bce12d08"
+                            },
+    "factual_judge":  {
+                          "go_test_exit":  0,
+                          "go_targeted_log_sha256":  "bd4f5adc4c2cb6b09e84b60687dbf65febb228e0d87e3cc78d49a693b788efdd",
+                          "go_vet_exit":  0,
+                          "go_build_exit":  0,
+                          "source_only_binary_sha256":  "97a3db665ee4d40d035ff328674b3936430fdad101b3a9cf60cf03682500e388",
+                          "compiled_cli_scenario_count":  7,
+                          "compiled_cli_scenario_codes":  [
+                                                              2,
+                                                              2,
+                                                              2,
+                                                              2,
+                                                              2,
+                                                              0,
+                                                              0
+                                                          ],
+                          "native_self_learning_captures_added":  0,
+                          "planner_workspace_created":  false,
+                          "disposable_product_sha_changed":  false
+                      },
+    "runtime_proof":  {
+                          "test_log":  "R:/-4-/air-worker/work/ML0111_N038_HELP_SAFE_20261020/N038_GO_FINAL.txt",
+                          "compiled_smoke":  "R:/-4-/air-worker/work/ML0111_N038_HELP_SAFE_20261020/N038_SMOKE_FINAL.json",
+                          "compiled_smoke_sha256":  "a313d2545659d2eba4eb611a927628efd1bd6b9df5980714c7d0d88e5ffb0c4f",
+                          "no_live_AirWorker_binary_change":  true,
+                          "self_learning_owner_unchanged":  true
+                      },
+    "independent_semantic_judge":  "NOT_RUN - required before N038 close/release",
+    "installed_baseline":  "AirWorker 0.11.9 (SHA256 df02c7f2a1b55e03ba7fbe5f5307962b3fe5534903a12b0e1911a94436d790fe)",
+    "release_gate":  "WAIT_SEPARATE_EXACT_LPR_YES; no tag/install/UAC/reboot/foreign service stop",
+    "plan_implementation":  "Module Learning PLAN/N-038 canonical source-only task; AirWorker canonical N124 global authority OPEN, core PLAN unmodified",
+    "rollback":  "Abandon feature branch or revert source-only commit; installed baseline 0.11.9 unaffected",
+    "next":  "Commit and push source-only feature branch, independent Sol read-only review on exact SHA; native N038 closes only after PASS/receipt; then N039.",
+    "observed_at_utc":  "2026-10-20T15:22:49.0328684Z"
+}
