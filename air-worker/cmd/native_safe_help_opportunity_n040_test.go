@@ -44,6 +44,11 @@ func TestN040UnsafeHelpRequiresExactRootAndNeverCallsPlanner(t *testing.T) {
 
 func TestN040HMACBindsNativeActorProductAndNoUseClaim(t *testing.T) {
 	key := []byte("0123456789abcdef0123456789abcdef")
+	actorSID, actorErr := n040CurrentActorSID()
+	processInstance, instanceErr := n040CurrentProcessInstance()
+	if actorErr != nil || instanceErr != nil {
+		t.Fatal("native process identity unavailable")
+	}
 	fields := map[string]string{
 		"schema": n040OpportunitySchema,
 		"id":     "N040-HELP-0123456789abcdef0123456789abcdef",
@@ -51,6 +56,8 @@ func TestN040HMACBindsNativeActorProductAndNoUseClaim(t *testing.T) {
 		"kind":   "native_unsupported_cli_help_attempt",
 		"state":  "PARSER_REJECTED_NO_MODEL", "parser_rc": "2",
 		"principal":           "air-worker-cli",
+		"current_actor_sid":   actorSID,
+		"process_instance_id": processInstance,
 		"product_id":          "air-worker",
 		"product_root":        "R:/factual/product",
 		"runtime_root":        "R:/factual/runtime",
@@ -70,6 +77,8 @@ func TestN040HMACBindsNativeActorProductAndNoUseClaim(t *testing.T) {
 		{"action", "air-worker.fake/v1"},
 		{"state", "SUCCESS"},
 		{"principal", "model-prose"},
+		{"current_actor_sid", "forged"},
+		{"process_instance_id", strings.Repeat("0", 32)},
 		{"product_root", "R:/foreign/product"},
 		{"runtime_root", "R:/foreign/runtime"},
 		{"owner_config_sha256", strings.Repeat("c", 64)},

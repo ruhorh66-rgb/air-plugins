@@ -253,9 +253,18 @@ func n039Attest(ctx context.Context, owner selfLearningOwner, receipt map[string
 		prior, priorSHA, verifyErr := n040ReadOpportunityForUse(ownerNow, opportunityID)
 		if verifyErr != nil || priorSHA != stored["opportunity_sha256"] ||
 			prior["binary_sha256"] != stored["binary_sha256"] ||
-			prior["process_id"] == stored["process_id"] ||
+			prior["process_instance_id"] == stored["current_process_instance_id"] ||
+			prior["current_actor_sid"] != stored["current_actor_sid"] ||
+			stored["original_feedback_principal"] != p.Principal ||
 			stored["observed"] != n040ObservedUse(opportunityID, priorSHA) {
-			return nil, errors.New("N040 signed opportunity does not bind a different genuine native process")
+			return nil, errors.New("N040 signed opportunity differs in native actor or process generation")
+		}
+		currentSID, actorErr := n040CurrentActorSID()
+		currentInstance, instanceErr := n040CurrentProcessInstance()
+		if actorErr != nil || instanceErr != nil ||
+			stored["current_actor_sid"] != currentSID ||
+			stored["current_process_instance_id"] != currentInstance {
+			return nil, errors.New("N040 purported current actor/process differs from this running compiled verifier")
 		}
 		attemptAt, timeErr := time.Parse(time.RFC3339Nano, prior["observed_at_utc"])
 		resultAt, resultErr := time.Parse(time.RFC3339Nano, stored["completed_at"])
@@ -295,6 +304,8 @@ func nativeN039SafeHelpWithOpportunity(owner selfLearningOwner, runID, opportuni
 	}
 	observed := n039Observed
 	opportunitySHA := ""
+	currentActorSID := ""
+	currentProcessInstance := ""
 	if opportunityID != "" {
 		if !n040IDValid(opportunityID) {
 			return nil, errors.New("N040 untrusted opportunity identifier")
@@ -304,10 +315,18 @@ func nativeN039SafeHelpWithOpportunity(owner selfLearningOwner, runID, opportuni
 			return nil, errors.New("N040 another worker owns the original help opportunity")
 		}
 		defer gate.release()
-		var evidenceErr error
-		_, opportunitySHA, evidenceErr = n040ReadOpportunityForUse(owner, opportunityID)
+		prior, verifiedSHA, evidenceErr := n040ReadOpportunityForUse(owner, opportunityID)
 		if evidenceErr != nil {
 			return nil, fmt.Errorf("N040 genuine native help opportunity not verified: %w", evidenceErr)
+		}
+		opportunitySHA = verifiedSHA
+		currentActorSID, evidenceErr = n040CurrentActorSID()
+		if evidenceErr != nil || prior["current_actor_sid"] != currentActorSID {
+			return nil, errors.New("N040 current native OS actor differs from original request")
+		}
+		currentProcessInstance, evidenceErr = n040CurrentProcessInstance()
+		if evidenceErr != nil || prior["process_instance_id"] == currentProcessInstance {
+			return nil, errors.New("N040 use must execute in a different native process instance")
 		}
 		if err := n040PreviouslyUsedOrPending(owner, opportunityID); err != nil {
 			return nil, err
@@ -371,6 +390,12 @@ func nativeN039SafeHelpWithOpportunity(owner selfLearningOwner, runID, opportuni
 	if opportunityID != "" {
 		signed["opportunity_id"] = opportunityID
 		signed["opportunity_sha256"] = opportunitySHA
+		// The shared Module Learning v0.1.0 principal field binds the
+		// original feedback author; the separate OS SID is the actual
+		// current native invocation actor. Neither is caller-supplied.
+		signed["original_feedback_principal"] = principal
+		signed["current_actor_sid"] = currentActorSID
+		signed["current_process_instance_id"] = currentProcessInstance
 	}
 	key, err := ownCLIPrivateKey(owner.Settings.RuntimeRoot)
 	if err != nil {

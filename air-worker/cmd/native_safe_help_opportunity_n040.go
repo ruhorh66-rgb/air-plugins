@@ -110,6 +110,14 @@ func n040RuntimeOpportunity(owner selfLearningOwner, argv []string, parserRC int
 			key[i] = 0
 		}
 	}()
+	actorSID, err := n040CurrentActorSID()
+	if err != nil {
+		return nil, "", err
+	}
+	instanceID, err := n040CurrentProcessInstance()
+	if err != nil {
+		return nil, "", err
+	}
 	receipt := map[string]string{
 		"schema":                 n040OpportunitySchema,
 		"id":                     id,
@@ -118,6 +126,8 @@ func n040RuntimeOpportunity(owner selfLearningOwner, argv []string, parserRC int
 		"state":                  "PARSER_REJECTED_NO_MODEL",
 		"parser_rc":              "2",
 		"principal":              "air-worker-cli",
+		"current_actor_sid":      actorSID,
+		"process_instance_id":    instanceID,
 		"product_id":             owner.Settings.ProductID,
 		"product_root":           owner.Selector.ProductRoot,
 		"runtime_root":           owner.Settings.RuntimeRoot,
@@ -168,13 +178,15 @@ func n040VerifyOpportunity(owner selfLearningOwner, id string, expectedSHA strin
 	if err := json.Unmarshal(b, &fields); err != nil {
 		return nil, err
 	}
-	if len(fields) != 18 ||
+	if len(fields) != 20 ||
 		fields["schema"] != n040OpportunitySchema ||
 		fields["id"] != id || fields["action"] != n040HelpAction ||
 		fields["kind"] != "native_unsupported_cli_help_attempt" ||
 		fields["state"] != "PARSER_REJECTED_NO_MODEL" ||
 		fields["parser_rc"] != "2" ||
 		fields["principal"] != "air-worker-cli" ||
+		fields["current_actor_sid"] == "" ||
+		len(fields["process_instance_id"]) != 32 ||
 		fields["product_id"] != "air-worker" ||
 		fields["product_root"] != owner.Selector.ProductRoot ||
 		fields["runtime_root"] != owner.Settings.RuntimeRoot ||
@@ -190,6 +202,13 @@ func n040VerifyOpportunity(owner selfLearningOwner, id string, expectedSHA strin
 	}
 	if len(fields["binary_sha256"]) != 64 || fields["process_id"] == "" {
 		return nil, errors.New("N040 missing native process/binary attribution")
+	}
+	if _, err := hex.DecodeString(fields["process_instance_id"]); err != nil {
+		return nil, errors.New("N040 process generation must have a secure nonce")
+	}
+	currentSID, err := n040CurrentActorSID()
+	if err != nil || fields["current_actor_sid"] != currentSID {
+		return nil, errors.New("N040 signed source belongs to a different OS principal")
 	}
 	key, err := ownCLIPrivateKey(owner.Settings.RuntimeRoot)
 	if err != nil {
