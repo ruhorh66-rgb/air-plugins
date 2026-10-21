@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.11.9",
-  "description": "AirWorker 0.11.9: verified shared-learning capture, review, exact-SHA use and measured outcome.",
+  "version": "0.11.10",
+  "description": "AirWorker 0.11.10 candidate: Module Learning v0.1.1 dependency pin; preserves verified shared-learning safety.",
   "author": {
     "name": "AIR OS"
   },
