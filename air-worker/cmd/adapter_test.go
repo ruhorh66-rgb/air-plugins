@@ -317,7 +317,7 @@ func TestAdapterStatusGateCompleteAndErrors(t *testing.T) {
 
 func writeAdapterReleaseSlices(t *testing.T, root string) {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "plan", "release-slices.json"))
+	raw, err := n042HistoricalR02SourceBytes()
 	if err != nil {
 		t.Fatal(err)
 	}
