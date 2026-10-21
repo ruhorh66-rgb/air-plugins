@@ -53,6 +53,17 @@ func n040OpportunityPath(owner selfLearningOwner, id string) (string, error) {
 	return filepath.Join(owner.Settings.RuntimeRoot, "n040-help-opportunities", id+".json"), nil
 }
 
+// Reuse the core's verified open-handle evidence reader: bounded bytes,
+// no reparse/junction ancestors, no hardlinked receipt, stable OS file object.
+// A pathname-only Lstat followed by a second Open is not sufficient.
+func n040ReadOpportunityBytes(owner selfLearningOwner, id string) ([]byte, error) {
+	if !n040IDValid(id) {
+		return nil, errors.New("invalid N040 opportunity id")
+	}
+	rel := filepath.ToSlash(filepath.Join("n040-help-opportunities", id+".json"))
+	return n093ReadRuntimeEvidence(owner.Settings.RuntimeRoot, rel, 8*1024)
+}
+
 func n040OpportunityMAC(key []byte, fields map[string]string) string {
 	clean := make(map[string]string, len(fields))
 	for name, value := range fields {
@@ -155,23 +166,11 @@ func n040RuntimeOpportunity(owner selfLearningOwner, argv []string, parserRC int
 // product owner and process identity, single regular file, exact bounded
 // content, and an unexpired signed attempt. The readback itself is read-only.
 func n040VerifyOpportunity(owner selfLearningOwner, id string, expectedSHA string) (map[string]string, error) {
-	path, err := n040OpportunityPath(owner, id)
+	b, err := n040ReadOpportunityBytes(owner, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("N040 secure receipt read failed: %w", err)
 	}
-	st, err := os.Lstat(path)
-	if err != nil {
-		return nil, err
-	}
-	if !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 ||
-		st.Size() < 1 || st.Size() > 8*1024 {
-		return nil, errors.New("N040 receipt must be a bounded ordinary file")
-	}
-	if _, err := os.Readlink(path); err == nil {
-		return nil, errors.New("N040 opportunity receipt cannot be a link")
-	}
-	b, err := readLearningBounded(path, 8*1024)
-	if err != nil || learnSHA(b) != expectedSHA {
+	if len(b) == 0 || learnSHA(b) != expectedSHA {
 		return nil, errors.New("N040 receipt exact bytes are not independently matched")
 	}
 	var fields map[string]string
@@ -258,11 +257,7 @@ func n040ObservedUse(id, sha string) string {
 }
 
 func n040ReadOpportunityForUse(owner selfLearningOwner, id string) (map[string]string, string, error) {
-	path, err := n040OpportunityPath(owner, id)
-	if err != nil {
-		return nil, "", err
-	}
-	b, err := readLearningBounded(path, 8*1024)
+	b, err := n040ReadOpportunityBytes(owner, id)
 	if err != nil {
 		return nil, "", err
 	}

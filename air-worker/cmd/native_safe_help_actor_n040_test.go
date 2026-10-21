@@ -92,3 +92,35 @@ func TestN040SameNativeProcessCannotConsumeItsOwnOpportunity(t *testing.T) {
 		t.Fatalf("rejected same-process opportunity wrote learning use: %v", err)
 	}
 }
+
+func TestN040HardlinkedSignedOpportunityCannotBeReused(t *testing.T) {
+	owner := n040IsolatedOwner(t)
+	record, _, err := n040RuntimeOpportunity(owner, n040HelpArgs(owner.Selector.ProductRoot), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, err := n040OpportunityPath(owner, record["id"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(t.TempDir(), "external-alias.json")
+	if err := os.Link(path, outside); err != nil {
+		t.Skipf("filesystem does not permit NTFS hardlink fixture: %v", err)
+	}
+	if _, err := n040VerifyOpportunity(owner, record["id"], learnSHA(data)); err == nil {
+		t.Fatal("external NTFS hardlink was accepted as a signed native opportunity")
+	}
+	if _, _, err := n040ReadOpportunityForUse(owner, record["id"]); err == nil {
+		t.Fatal("hardlinked proof was trusted for later learned use")
+	}
+	if err := os.Remove(outside); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := n040VerifyOpportunity(owner, record["id"], learnSHA(data)); err != nil {
+		t.Fatalf("restored ordinary signed receipt rejected: %v", err)
+	}
+}
