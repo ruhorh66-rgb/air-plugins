@@ -29,7 +29,7 @@ func r03PreparedReviewedFixture(t *testing.T) r03TestFixture {
 	if err != nil || !found {
 		t.Fatalf("signed native failure missing %v", err)
 	}
-	original, err := os.ReadFile("../plan/release-slices.json")
+	original, err := n042HistoricalR02SourceBytes()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,7 @@ func TestR03NativeRefusesTamperedImmutableReviewerReceipt(t *testing.T) {
 
 func TestR03StatusGuardRefusesReviewBeforeCoreR02Completion(t *testing.T) {
 	f := r03PreparedReviewedFixture(t)
-	initial, err := os.ReadFile("../plan/release-slices.json")
+	initial, err := n042HistoricalR02SourceBytes()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,7 +330,7 @@ func TestR03UnattestedTestReviewerCannotPromoteOrRetry(t *testing.T) {
 	if err := autoCaptureOwnCLIExitWithRunID(args, 2, runID, nil); err != nil {
 		t.Fatal(err)
 	}
-	original, err := os.ReadFile("../plan/release-slices.json")
+	original, err := n042HistoricalR02SourceBytes()
 	if err != nil {
 		t.Fatal(err)
 	}
