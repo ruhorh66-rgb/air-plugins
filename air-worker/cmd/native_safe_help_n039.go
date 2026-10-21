@@ -204,7 +204,7 @@ func n039Attest(ctx context.Context, owner selfLearningOwner, receipt map[string
 		p.RuleID != n039Target+"@"+n039SHA || p.RequiredOutcome != "pass" ||
 		p.Source != "native-plan-help" || p.Class != "native-plan-help-use" ||
 		p.Principal != receipt["principal"] || p.Session != n039OriginRun ||
-		p.ObservedSHA256 != learnSHA([]byte(n039Observed)) {
+		p.ObservedSHA256 != learnSHA([]byte(receipt["observed"])) {
 		return nil, errors.New("N039 module attestation requested for a different event")
 	}
 	ownerNow, on, err := activeAirWorkerSelfLearningOwner()
@@ -249,6 +249,22 @@ func n039Attest(ctx context.Context, owner selfLearningOwner, receipt map[string
 		stored["argv"] != "plan help" || stored["action"] != n039Action {
 		return nil, errors.New("N039 invalid typed action")
 	}
+	if opportunityID := stored["opportunity_id"]; opportunityID != "" {
+		prior, priorSHA, verifyErr := n040ReadOpportunityForUse(ownerNow, opportunityID)
+		if verifyErr != nil || priorSHA != stored["opportunity_sha256"] ||
+			prior["binary_sha256"] != stored["binary_sha256"] ||
+			prior["process_id"] == stored["process_id"] ||
+			stored["observed"] != n040ObservedUse(opportunityID, priorSHA) {
+			return nil, errors.New("N040 signed opportunity does not bind a different genuine native process")
+		}
+		attemptAt, timeErr := time.Parse(time.RFC3339Nano, prior["observed_at_utc"])
+		resultAt, resultErr := time.Parse(time.RFC3339Nano, stored["completed_at"])
+		if timeErr != nil || resultErr != nil || !resultAt.After(attemptAt) {
+			return nil, errors.New("N040 later help result does not follow the signed earlier syntax attempt")
+		}
+	} else if stored["observed"] != n039Observed {
+		return nil, errors.New("N039 ordinary source-only help changed its measured observation")
+	}
 	// A new actual compiled execution, not a witness file, independently
 	// rechecks what the native CLI does under the module mutation lock.
 	output, err := n039HelpRunner(ctx)
@@ -268,8 +284,35 @@ func n039Attest(ctx context.Context, owner selfLearningOwner, receipt map[string
 }
 
 func nativeN039SafeHelp(owner selfLearningOwner, runID string) (map[string]any, error) {
+	return nativeN039SafeHelpWithOpportunity(owner, runID, "")
+}
+
+// N040 requires an additional different-process HMAC-signed native syntax
+// attempt before using the already reviewed exact N039 safe-help procedure.
+func nativeN039SafeHelpWithOpportunity(owner selfLearningOwner, runID, opportunityID string) (map[string]any, error) {
 	if !n039ID.MatchString(runID) {
 		return nil, errors.New("N039 requires a safe unique run-id")
+	}
+	observed := n039Observed
+	opportunitySHA := ""
+	if opportunityID != "" {
+		if !n040IDValid(opportunityID) {
+			return nil, errors.New("N040 untrusted opportunity identifier")
+		}
+		gate, locked := acquireLock(lockName("n040-help-opportunity", filepath.Join(owner.Settings.RuntimeRoot, opportunityID)))
+		if !locked {
+			return nil, errors.New("N040 another worker owns the original help opportunity")
+		}
+		defer gate.release()
+		var evidenceErr error
+		_, opportunitySHA, evidenceErr = n040ReadOpportunityForUse(owner, opportunityID)
+		if evidenceErr != nil {
+			return nil, fmt.Errorf("N040 genuine native help opportunity not verified: %w", evidenceErr)
+		}
+		if err := n040PreviouslyUsedOrPending(owner, opportunityID); err != nil {
+			return nil, err
+		}
+		observed = n040ObservedUse(opportunityID, opportunitySHA)
 	}
 	rule, principal, err := n039RuleIdentity(owner)
 	if err != nil {
@@ -322,8 +365,12 @@ func nativeN039SafeHelp(owner selfLearningOwner, runID string) (map[string]any, 
 		"process_id":    fmt.Sprint(os.Getpid()),
 		"stdout_sha256": learnSHA(output),
 		"exit_code":     "0",
-		"observed":      n039Observed,
+		"observed":      observed,
 		"completed_at":  time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	if opportunityID != "" {
+		signed["opportunity_id"] = opportunityID
+		signed["opportunity_sha256"] = opportunitySHA
 	}
 	key, err := ownCLIPrivateKey(owner.Settings.RuntimeRoot)
 	if err != nil {
@@ -349,7 +396,7 @@ func nativeN039SafeHelp(owner selfLearningOwner, runID string) (map[string]any, 
 		"rule_id": rule.Target + "@" + rule.SHA256,
 		"source":  "native-plan-help", "class": "native-plan-help-use",
 		"principal": principal, "session": n039OriginRun,
-		"outcome": "pass", "outcome_ref": ref, "observed": n039Observed,
+		"outcome": "pass", "outcome_ref": ref, "observed": observed,
 	}
 	data, err := json.Marshal(request)
 	if err != nil {
@@ -365,12 +412,16 @@ func nativeN039SafeHelp(owner selfLearningOwner, runID string) (map[string]any, 
 	if err != nil || event.Status != "recorded" || event.ID == "" {
 		return nil, fmt.Errorf("N039 native help ran but signed learning use NOT PROVEN: %v (%s)", err, event.Status)
 	}
+	effect := "safe_read_only_plan_help_delivered; paid-call-prevention-counterfactual_not_claimed"
+	if opportunityID != "" {
+		effect = "signed_native_unsupported_help_attempt_followed_by_safe_documented_help; paid-call-savings_NOT_PROVEN"
+	}
 	return map[string]any{
 		"schema": "air-worker.n039.evidence/v1",
 		"status": "PASS_NATIVE_ACTION_AND_MODULE_USE",
 		"run_id": runID, "module_event_id": event.ID, "module_version": learning.Version,
 		"rule_id": rule.Target + "@" + rule.SHA256, "receipt": ref,
-		"effect": "safe_read_only_plan_help_delivered; paid-call-prevention-counterfactual_not_claimed",
+		"effect": effect, "opportunity_id": opportunityID, "opportunity_sha256": opportunitySHA,
 	}, nil
 }
 
@@ -378,6 +429,7 @@ func cmdNativeN039SafeHelp(argv []string) int {
 	fs := flag.NewFlagSet("learn safe-help", flag.ContinueOnError)
 	product := fs.String("product", "", "exact self-learning owner root")
 	runID := fs.String("run-id", "", "new unique observed run")
+	opportunityID := fs.String("opportunity-id", "", "exact signed native unsupported-help attempt; optional")
 	fs.Bool("json", true, "machine JSON")
 	if err := fs.Parse(argv); err != nil {
 		return 2
@@ -395,7 +447,7 @@ func cmdNativeN039SafeHelp(argv []string) int {
 		fmt.Fprintln(os.Stderr, "N039 wrong product root")
 		return 2
 	}
-	result, err := nativeN039SafeHelp(owner, *runID)
+	result, err := nativeN039SafeHelpWithOpportunity(owner, *runID, *opportunityID)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "N039:", err)
 		return 1
