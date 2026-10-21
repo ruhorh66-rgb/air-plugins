@@ -9,14 +9,16 @@ import (
 )
 
 func TestN040UnsafeHelpRequiresExactRootAndNeverCallsPlanner(t *testing.T) {
-	if !n040RequestedUnsafeHelp([]string{"release", "-help"}) {
+	if !n040RequestedUnsafeHelp(n040HelpArgs("R:/fixture"), "R:/fixture") {
 		t.Fatal("exact narrow unsupported help was not recognized")
 	}
 	for _, input := range [][]string{
 		{"release", "-help", "extra"}, {"release"}, {"node", "release"},
 		{"release", "-dry-run"}, {"release", "--help"}, {"migrate", "-help"},
+		{"plan", "-product", "R:/fixture", "-dry-run", "release", "-help"},
+		{"plan", "-product", "R:/other", "release", "-help"},
 	} {
-		if n040RequestedUnsafeHelp(input) {
+		if n040RequestedUnsafeHelp(input, "R:/fixture") {
 			t.Fatalf("unsafe broad origin matcher accepted %#v", input)
 		}
 	}
@@ -47,7 +49,7 @@ func TestN040HMACBindsNativeActorProductAndNoUseClaim(t *testing.T) {
 		"id":     "N040-HELP-0123456789abcdef0123456789abcdef",
 		"action": n040HelpAction,
 		"kind":   "native_unsupported_cli_help_attempt",
-		"state":  "REJECTED_NO_PLANNER", "exit_code": "2",
+		"state":  "PARSER_REJECTED_NO_MODEL", "parser_rc": "2",
 		"principal":           "air-worker-cli",
 		"product_id":          "air-worker",
 		"product_root":        "R:/factual/product",
@@ -102,7 +104,16 @@ func TestN040IsolatedNativeOpportunityReceiptAndTamper(t *testing.T) {
 		},
 		Settings: sharedLearningSettings{ProductID: "air-worker", RuntimeRoot: runtimeRoot},
 	}
-	proof, ref, err := n040RuntimeOpportunity(owner)
+	// The signed parser result is not a declaration supplied by the caller.
+	// Neither an extra flag nor a non-rejected invocation may mint it.
+	badArgs := append(n040HelpArgs(root), "-dry-run")
+	if _, _, badErr := n040RuntimeOpportunity(owner, badArgs, 2); badErr == nil {
+		t.Fatal("extra actual argv was falsely signed as the canonical help attempt")
+	}
+	if _, _, badErr := n040RuntimeOpportunity(owner, n040HelpArgs(root), 0); badErr == nil {
+		t.Fatal("successful parser result was falsely signed as rejected")
+	}
+	proof, ref, err := n040RuntimeOpportunity(owner, n040HelpArgs(root), 2)
 	if err != nil {
 		t.Fatalf("native isolated signed receipt: %v", err)
 	}
@@ -111,7 +122,7 @@ func TestN040IsolatedNativeOpportunityReceiptAndTamper(t *testing.T) {
 	if err != nil || !strings.HasPrefix(ref, filepath.ToSlash(path)+"#sha256=") {
 		t.Fatalf("opportunity URI identity invalid: %s %v", ref, err)
 	}
-	if proof["state"] != "REJECTED_NO_PLANNER" || proof["learning_use"] != "NOT_PROVEN" {
+	if proof["state"] != "PARSER_REJECTED_NO_MODEL" || proof["learning_use"] != "NOT_PROVEN" {
 		t.Fatal("opportunity source claimed positive learning effect")
 	}
 	raw, err := os.ReadFile(path)

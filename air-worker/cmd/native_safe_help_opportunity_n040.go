@@ -23,8 +23,19 @@ const (
 	n040HelpAction        = "air-worker.plan.unsupported-help/v1"
 )
 
-func n040RequestedUnsafeHelp(tokens []string) bool {
-	return len(tokens) == 2 && tokens[0] == "release" && tokens[1] == "-help"
+func n040RequestedUnsafeHelp(argv []string, root string) bool {
+	// Exact full argv is mandatory. Parse-derived flags are not a valid
+	// substitute: -dry-run/-model/etc. must never be signed as an absent flag.
+	expected := n040HelpArgs(root)
+	if len(argv) != len(expected) {
+		return false
+	}
+	for i := range expected {
+		if argv[i] != expected[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func n040IDValid(id string) bool {
@@ -61,7 +72,10 @@ func n040HelpArgs(root string) []string {
 	return []string{"plan", "-product", root, "release", "-help"}
 }
 
-func n040RuntimeOpportunity(owner selfLearningOwner) (map[string]string, string, error) {
+func n040RuntimeOpportunity(owner selfLearningOwner, argv []string, parserRC int) (map[string]string, string, error) {
+	if parserRC != 2 || !n040RequestedUnsafeHelp(argv, owner.Selector.ProductRoot) {
+		return nil, "", errors.New("N040 native completion did not confirm exact rejected parser request")
+	}
 	if strings.TrimSpace(owner.Selector.ProductRoot) == "" ||
 		strings.TrimSpace(owner.Settings.RuntimeRoot) == "" ||
 		owner.Settings.ProductID != "air-worker" {
@@ -101,14 +115,14 @@ func n040RuntimeOpportunity(owner selfLearningOwner) (map[string]string, string,
 		"id":                     id,
 		"action":                 n040HelpAction,
 		"kind":                   "native_unsupported_cli_help_attempt",
-		"state":                  "REJECTED_NO_PLANNER",
-		"exit_code":              "2",
+		"state":                  "PARSER_REJECTED_NO_MODEL",
+		"parser_rc":              "2",
 		"principal":              "air-worker-cli",
 		"product_id":             owner.Settings.ProductID,
 		"product_root":           owner.Selector.ProductRoot,
 		"runtime_root":           owner.Settings.RuntimeRoot,
 		"owner_config_sha256":    owner.Selector.ConfigSHA256,
-		"argv_hmac":              ownCLIInvocationMAC(key, n040HelpArgs(owner.Selector.ProductRoot)),
+		"argv_hmac":              ownCLIInvocationMAC(key, argv),
 		"binary_sha256":          learnSHA(exeBytes),
 		"process_id":             fmt.Sprint(os.Getpid()),
 		"observed_at_utc":        time.Now().UTC().Format(time.RFC3339Nano),
@@ -158,8 +172,8 @@ func n040VerifyOpportunity(owner selfLearningOwner, id string, expectedSHA strin
 		fields["schema"] != n040OpportunitySchema ||
 		fields["id"] != id || fields["action"] != n040HelpAction ||
 		fields["kind"] != "native_unsupported_cli_help_attempt" ||
-		fields["state"] != "REJECTED_NO_PLANNER" ||
-		fields["exit_code"] != "2" ||
+		fields["state"] != "PARSER_REJECTED_NO_MODEL" ||
+		fields["parser_rc"] != "2" ||
 		fields["principal"] != "air-worker-cli" ||
 		fields["product_id"] != "air-worker" ||
 		fields["product_root"] != owner.Selector.ProductRoot ||
@@ -195,24 +209,24 @@ func n040VerifyOpportunity(owner selfLearningOwner, id string, expectedSHA strin
 // No global search, no model work, no synthetic proof: only the actual native
 // parser may create the opportunity. It is not a substitute for N-034 effect.
 // Use only with an explicit -product root equal to the ACTIVE AirWorker owner.
-func n040MaybeCaptureUnsupportedHelp(product string, args []string) {
-	if !n040RequestedUnsafeHelp(args) {
+func n040MaybeCaptureUnsupportedHelp(argv []string, parserRC int) {
+	// This callback is reached only after the native parser returned.
+	// Require the exact five tokens; no flag alias or extra parameter.
+	if parserRC != 2 || len(argv) != 5 || argv[0] != "plan" ||
+		argv[1] != "-product" || argv[3] != "release" ||
+		argv[4] != "-help" {
 		return
 	}
 	owner, active, err := activeAirWorkerSelfLearningOwner()
-	if err != nil || !active {
+	if err != nil || !active || !n040RequestedUnsafeHelp(argv, owner.Selector.ProductRoot) {
 		return
 	}
-	root, err := filepath.Abs(product)
-	if err != nil || !sameLearningPath(root, owner.Selector.ProductRoot) {
-		return
-	}
-	receipt, ref, err := n040RuntimeOpportunity(owner)
+	receipt, ref, err := n040RuntimeOpportunity(owner, argv, parserRC)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "N040 read-only opportunity capture incomplete:", err)
+		fmt.Fprintln(os.Stderr, "N040 parser opportunity capture incomplete:", err)
 		return
 	}
-	fmt.Fprintf(os.Stderr, "N040 native unsafe-help opportunity recorded: %s receipt=%s; parser still rejects unsupported syntax, NO learned use claimed.\n", receipt["id"], ref)
+	fmt.Fprintf(os.Stderr, "N040 parser-observed unsupported help: %s receipt=%s; parser RC2, no terminal OS exit or learning use claimed.\n", receipt["id"], ref)
 }
 
 // A signed opportunity is useful only if a second, genuinely separate native

@@ -85,10 +85,6 @@ func cmdPlan(argv []string) int {
 		return rejectPlanSyntax()
 	}
 	if fs.NArg() != 0 {
-		// N040: a real explicit-root unsafe help attempt may leave a signed
-		// opportunity witness, but it remains a syntax failure (RC2). This
-		// NEVER launches the planner or credits a learned procedure.
-		n040MaybeCaptureUnsupportedHelp(*product, fs.Args())
 		fmt.Fprintf(os.Stderr, "plan: unsupported positional subcommand %q; use documented flags or plan node/spine/migrate\n", fs.Arg(0))
 		return rejectPlanSyntax()
 	}

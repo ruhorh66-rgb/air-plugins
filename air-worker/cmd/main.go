@@ -270,7 +270,13 @@ func run(argv []string) int {
 	case "plan-review":
 		return cmdPlanReview(argv[1:])
 	case "plan":
-		return cmdPlan(argv[1:])
+		// Post-parser completion boundary: sign ONLY the actual parser RC2
+		// and its exact invocation, never a predicted terminal OS exit.
+		rc := cmdPlan(argv[1:])
+		if rc == 2 && planSyntaxOnly.Load() {
+			n040MaybeCaptureUnsupportedHelp(argv, rc)
+		}
+		return rc
 	case "plan-lint":
 		return cmdPlanLint(argv[1:])
 	case "adapter":
