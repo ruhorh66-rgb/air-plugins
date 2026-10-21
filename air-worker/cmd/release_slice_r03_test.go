@@ -13,7 +13,7 @@ import (
 // Release status transitions are always core-owned, byte-exact and restricted
 // to the next contiguous step. These are disposable plan copies only.
 func TestR03PlanTransitionByteExactAndOneOpenStep(t *testing.T) {
-	raw, err := os.ReadFile("../plan/release-slices.json")
+	raw, err := n042HistoricalR02SourceBytes()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestR03PlanTransitionByteExactAndOneOpenStep(t *testing.T) {
 }
 
 func TestR03PlanTransitionFailClosedOnWrongStatusAndAmbiguousIDs(t *testing.T) {
-	raw, err := os.ReadFile("../plan/release-slices.json")
+	raw, err := n042HistoricalR02SourceBytes()
 	if err != nil {
 		t.Fatal(err)
 	}

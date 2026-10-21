@@ -43,7 +43,7 @@ func r04PreparedReviewerFixture(t *testing.T) (r03TestFixture, selfLearningOwner
 }
 
 func TestR04PlanTransitionPreservesAllNonstatusBytes(t *testing.T) {
-	original, err := os.ReadFile("../plan/release-slices.json")
+	original, err := n042HistoricalR02SourceBytes()
 	if err != nil {
 		t.Fatal(err)
 	}
