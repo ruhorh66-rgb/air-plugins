@@ -55,7 +55,7 @@ func n102Answer(content string) string {
 	return string(b)
 }
 func TestN102LearningAutoReviewerNeverOverwritesPriorSkill(t *testing.T) {
-	product, config := sharedProductFixture(t, false)
+	product, config, _ := selfLearningFixture(t)
 	oldTarget := learningProcedureTarget(config.ManagedSkillPrefix, "feedback-error")
 	old, err := executeSharedLearning(product, config, "propose", map[string]string{
 		"proposal_id": "LP-n102-legacy", "kind": "procedure", "target": oldTarget,
@@ -112,8 +112,10 @@ func TestN102LearningAutoReviewerNeverOverwritesPriorSkill(t *testing.T) {
 	if err := json.Unmarshal(skills.Data, &catalog); err != nil {
 		t.Fatal(err)
 	}
-	if len(catalog.Skills) != 3 {
-		t.Fatalf("expected prior and 2 distinct skills, got %d", len(catalog.Skills))
+	// selfLearningFixture installs one independent owner safety lesson;
+	// this test then adds exactly one historical and two distinct new skills.
+	if len(catalog.Skills) != 4 {
+		t.Fatalf("expected self-owner safety lesson, prior and 2 distinct skills, got %d", len(catalog.Skills))
 	}
 }
 func TestN102NoCandidateLeavesPriorKnowledgeUnchanged(t *testing.T) {

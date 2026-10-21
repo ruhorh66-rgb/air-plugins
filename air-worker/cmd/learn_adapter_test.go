@@ -9,7 +9,7 @@ import (
 )
 
 func TestLearningReviewerAdapterProducesManagedProcedure(t *testing.T) {
-	product, _ := sharedProductFixture(t, false)
+	product, _, _ := selfLearningFixture(t)
 	original := learningReviewerInvoke
 	defer func() { learningReviewerInvoke = original }()
 	learningReviewerInvoke = func(root, prompt, model, effort string) (string, error) {
