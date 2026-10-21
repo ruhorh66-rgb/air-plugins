@@ -56,7 +56,14 @@ func n102Answer(content string) string {
 }
 func TestN102LearningAutoReviewerNeverOverwritesPriorSkill(t *testing.T) {
 	product, config, _ := selfLearningFixture(t)
+	seedTarget := "skills/learned/execution-unknown-no-blind-retry-6b72186f.md"
+	seedPath := filepath.Join(product, filepath.FromSlash(seedTarget))
+	seedBefore, err := os.ReadFile(seedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	oldTarget := learningProcedureTarget(config.ManagedSkillPrefix, "feedback-error")
+	wantTargets := map[string]bool{seedTarget: true, oldTarget: true}
 	old, err := executeSharedLearning(product, config, "propose", map[string]string{
 		"proposal_id": "LP-n102-legacy", "kind": "procedure", "target": oldTarget,
 		"pre_sha256": "", "content": n102PriorCLI,
@@ -91,6 +98,10 @@ func TestN102LearningAutoReviewerNeverOverwritesPriorSkill(t *testing.T) {
 		if err != nil || result.Status != "applied" {
 			t.Fatalf("new distinct procedure failed: %#v %v", result, err)
 		}
+		if wantTargets[got["target"]] {
+			t.Fatalf("candidate target reuses known skill: %q", got["target"])
+		}
+		wantTargets[got["target"]] = true
 		retained, err := os.ReadFile(oldPath)
 		if err != nil || string(retained) != string(originalBytes) {
 			t.Fatalf("prior guidance erased in review #%d", i)
@@ -99,6 +110,10 @@ func TestN102LearningAutoReviewerNeverOverwritesPriorSkill(t *testing.T) {
 		if repeatCode != 0 || strings.TrimSpace(repeatText) != "{}" {
 			t.Fatalf("duplicate proposal not suppressed: %d %s", repeatCode, repeatText)
 		}
+	}
+	seedAfter, err := os.ReadFile(seedPath)
+	if err != nil || string(seedBefore) != string(seedAfter) {
+		t.Fatalf("self-owner safety lesson overwritten: %v", err)
 	}
 	skills, err := executeSharedLearning(product, config, "index", nil)
 	if err != nil {
@@ -116,6 +131,15 @@ func TestN102LearningAutoReviewerNeverOverwritesPriorSkill(t *testing.T) {
 	// this test then adds exactly one historical and two distinct new skills.
 	if len(catalog.Skills) != 4 {
 		t.Fatalf("expected self-owner safety lesson, prior and 2 distinct skills, got %d", len(catalog.Skills))
+	}
+	for _, skill := range catalog.Skills {
+		if !wantTargets[skill.Target] {
+			t.Fatalf("unexpected or duplicate learned target: %q", skill.Target)
+		}
+		delete(wantTargets, skill.Target)
+	}
+	if len(wantTargets) != 0 {
+		t.Fatalf("previous or new learned targets missing from index: %v", wantTargets)
 	}
 }
 func TestN102NoCandidateLeavesPriorKnowledgeUnchanged(t *testing.T) {
