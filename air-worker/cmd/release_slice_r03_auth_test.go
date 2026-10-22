@@ -91,6 +91,9 @@ func r03PreparedReviewedFixture(t *testing.T) r03TestFixture {
 }
 
 func TestR03AuthenticatedHistoricalReviewAdvancesOnlyReleaseCheckpoint(t *testing.T) {
+	if !n044HistoricalR03R04PositiveOnly(t) {
+		return
+	}
 	f := r03PreparedReviewedFixture(t)
 	priorEvent, err := os.ReadFile(filepath.Join(f.Settings.RuntimeRoot, "events.jsonl"))
 	if err != nil {
@@ -309,6 +312,9 @@ func TestR03StatusGuardRefusesReviewBeforeCoreR02Completion(t *testing.T) {
 // it is NOT the production Codex adapter. The native R03 loop must refuse to
 // publish/advance without the actual model-response signer receipt.
 func TestR03UnattestedTestReviewerCannotPromoteOrRetry(t *testing.T) {
+	if !n044HistoricalR03R04PositiveOnly(t) {
+		return
+	}
 	product, settings, _ := selfLearningFixture(t)
 	settings.Reviewer = learningAdapterFixture(t, "review-native-preflight-n093")
 	if err := writeSharedLearningSettings(product, settings); err != nil {
@@ -680,6 +686,9 @@ func TestR03RejectsDuplicateOriginalEventIDFromAnotherRun(t *testing.T) {
 }
 
 func TestR03NativeRunnerReusesAuthenticatedReviewedCheckpointExactlyOnce(t *testing.T) {
+	if !n044HistoricalR03R04PositiveOnly(t) {
+		return
+	}
 	f := r03PreparedReviewedFixture(t)
 	originalEvents, err := os.ReadFile(filepath.Join(f.Settings.RuntimeRoot, "events.jsonl"))
 	if err != nil {
@@ -724,6 +733,9 @@ func TestR03NativeRunnerReusesAuthenticatedReviewedCheckpointExactlyOnce(t *test
 }
 
 func TestR03ModuleRollbackAfterHistoricalCheckpointCannotCreditR04Use(t *testing.T) {
+	if !n044HistoricalR03R04PositiveOnly(t) {
+		return
+	}
 	f := r03PreparedReviewedFixture(t)
 	owner, enabled, err := activeAirWorkerSelfLearningOwner()
 	if err != nil || !enabled {

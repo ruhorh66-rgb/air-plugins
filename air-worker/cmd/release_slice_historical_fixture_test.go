@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/ruhorh66-rgb/air-modules/learning"
 	"os"
 	"regexp"
 	"testing"
@@ -88,4 +89,35 @@ func TestN042HistoricalR02FixtureIsPureAndOnlyRewindsTestState(t *testing.T) {
 	if changed != 1 {
 		t.Fatalf("historical R02 fixture has %d open release slices, want 1", changed)
 	}
+}
+
+// n044HistoricalR03R04PositiveOnly makes the version-dependent test contract
+// explicit: the original R03/R04 signed positive path belongs to 0.11.9/v0.1.0,
+// which is validated on a separate frozen source/QA lane. New consumers prove
+// an exact fail-closed refusal here; they never impersonate the old binary.
+func n044HistoricalR03R04PositiveOnly(t *testing.T) bool {
+	t.Helper()
+	if version == "0.11.9" && learning.Version == "0.1.0" {
+		return true
+	}
+	if version != "0.11.10" || learning.Version != "0.1.1" {
+		t.Fatalf("historical R03/R04 test has unknown version pair: air-worker=%s learning=%s", version, learning.Version)
+	}
+	for _, step := range []struct {
+		id   string
+		kind string
+	}{
+		{id: nativeReleaseSliceR03, kind: "source"},
+		{id: nativeReleaseSliceR04, kind: "test"},
+	} {
+		state := releaseSlicesSummary{
+			Found: true, ActiveVersion: "0.11.9", HasActiveStep: true,
+			NextStep: step.id, ActiveStep: releaseStep{ID: step.id, Status: "open", Kind: step.kind},
+		}
+		if err := releaseSliceLoopSupported(state, version); err == nil {
+			t.Fatalf("0.11.10 executed historical %s despite wrong binary identity", step.id)
+		}
+	}
+	t.Log("N044 exact-version gate PASS; historical signed positive suite must separately PASS on 0.11.9/v0.1.0")
+	return false
 }

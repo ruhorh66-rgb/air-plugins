@@ -141,8 +141,14 @@ func TestCmdLoopRoutesR03OnlyAfterNativeR02StatusTransition(t *testing.T) {
 			}
 			return 19
 		})
-	if gotRC != 19 || calls != 1 {
-		t.Fatalf("R03 was skipped or dispatched twice: rc=%d calls=%d", gotRC, calls)
+	// The 0.11.9 release runner belongs only to its original compiled binary.
+	// New consumers must reject the historical R03 before dispatching a model.
+	if version == "0.11.9" {
+		if gotRC != 19 || calls != 1 {
+			t.Fatalf("0.11.9 R03 source runner dispatch rc=%d calls=%d; want 19 and one call", gotRC, calls)
+		}
+	} else if gotRC != 2 || calls != 0 {
+		t.Fatalf("newer consumer dispatched stale 0.11.9 R03 instead of failing closed: rc=%d calls=%d", gotRC, calls)
 	}
 	observed, err := os.ReadFile(path)
 	if err != nil || !bytes.Equal(observed, next) {
