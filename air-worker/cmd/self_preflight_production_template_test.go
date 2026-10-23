@@ -78,21 +78,27 @@ func TestN093ProductionReviewerPromptOffersTypedSafeActionOnlyForPreflight(t *te
 	}
 }
 
-func TestN093ProductionAdapterCanApplyDistinctMachineCapsule(t *testing.T) {
-	product, settings := sharedProductFixture(t, false)
+func TestN093ProductionAdapterRejectsUnsignedSyntheticMachineCapsule(t *testing.T) {
+	// A reviewer answer about a synthetic event has no immutable signed
+	// failure origin and MUST NOT be accepted as a native procedure.
+	// The positive authenticated path is exercised separately by
+	// TestN093ModuleReviewedCapsuleActuallyRunsNativeDeferredUse.
+	product, settings, _ := selfLearningFixture(t)
 	candidate := strings.Replace(n093ProductionTemplateTestContent(),
 		"\"schema\":", "\"schema\" :", 1)
 	prior := learningReviewerInvoke
 	defer func() { learningReviewerInvoke = prior }()
+	calls := 0
 	learningReviewerInvoke = func(root, prompt, model, effort string) (string, error) {
 		if root != product || !strings.Contains(prompt, "~~~air-worker-action") {
 			t.Fatal("production reviewer prompt not bound to source owner/action")
 		}
+		calls++
 		b, _ := json.Marshal(learningReviewerAnswer{Apply: true, Content: candidate})
 		return string(b), nil
 	}
 	f := filepath.Join(t.TempDir(), "input.json")
-	data := []byte(`{"event":{"class":"air-worker-cli-preflight","kind":"run_completed","source":"air-worker-cli","principal":"air-worker","observed":"Native validate ended with exit_code=2; run-config.json is missing"}}`)
+	data := []byte("{\"event\":{\"class\":\"air-worker-cli-preflight\",\"kind\":\"run_completed\",\"source\":\"air-worker-cli\",\"principal\":\"air-worker\",\"observed\":\"Native validate ended with exit_code=2; run-config.json is missing\"}}")
 	if err := os.WriteFile(f, data, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -107,31 +113,26 @@ func TestN093ProductionAdapterCanApplyDistinctMachineCapsule(t *testing.T) {
 	rc, output := captureLoopOutput(t, func() int {
 		return cmdLearningReviewerAdapter([]string{"-product", product, "-model", "gpt-5.6-luna", "-effort", "medium"})
 	})
-	if rc != 0 {
-		t.Fatalf("production review adapter rejected capsule: rc=%d body=%s", rc, output)
+	if rc != 2 || output != "" || calls != 1 {
+		t.Fatalf("unsigned reviewer request was not denied before proposal: rc=%d calls=%d output=%q", rc, calls, output)
 	}
-	var proposed map[string]string
-	if err := json.Unmarshal([]byte(output), &proposed); err != nil {
+	index, err := executeSharedLearning(product, settings, "index", nil)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if proposed["kind"] != "procedure" || proposed["content"] != candidate ||
-		!strings.HasPrefix(proposed["target"], "skills/learned/") ||
-		!strings.Contains(proposed["target"], learnSHA([]byte(candidate))[:16]) {
-		t.Fatalf("bad machine-reviewed candidate: %+v", proposed)
+	var catalog map[string]any
+	if err := json.Unmarshal(index.Data, &catalog); err != nil {
+		t.Fatal(err)
 	}
-	applied, err := executeSharedLearning(product, settings, "propose", map[string]string{
-		"proposal_id": "LP-N093-REVIEWED-NATIVE-CAPSULE", "kind": "procedure",
-		"target": proposed["target"], "pre_sha256": "", "content": proposed["content"],
-	})
-	if err != nil || applied.Status != "applied" {
-		t.Fatalf("published module did not apply novel capsule: %+v %v", applied, err)
+	skills, ok := catalog["skills"].([]any)
+	if !ok || len(skills) != 1 {
+		t.Fatalf("unsigned capsule altered managed skill count: %+v", catalog)
 	}
-	b, err := readSharedContextSkill(product, proposed["target"], 64*1024)
-	if err != nil || string(b) != candidate {
-		t.Fatalf("module-managed capsule differs from exact reviewed bytes: %v", err)
+	skill, ok := skills[0].(map[string]any)
+	if !ok || skill["target"] != "skills/learned/execution-unknown-no-blind-retry-6b72186f.md" {
+		t.Fatalf("unsigned capsule changed seeded owner skill: %+v", skills)
 	}
 }
-
 func TestN093ModuleReviewedCapsuleActuallyRunsNativeDeferredUse(t *testing.T) {
 	product, settings, _ := selfLearningFixture(t)
 	settings.Reviewer = learningAdapterFixture(t, "review-native-preflight-n093-capsule")

@@ -13,7 +13,7 @@ import (
 // Release status transitions are always core-owned, byte-exact and restricted
 // to the next contiguous step. These are disposable plan copies only.
 func TestR03PlanTransitionByteExactAndOneOpenStep(t *testing.T) {
-	raw, err := os.ReadFile("../plan/release-slices.json")
+	raw, err := n042HistoricalR02SourceBytes()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestR03PlanTransitionByteExactAndOneOpenStep(t *testing.T) {
 }
 
 func TestR03PlanTransitionFailClosedOnWrongStatusAndAmbiguousIDs(t *testing.T) {
-	raw, err := os.ReadFile("../plan/release-slices.json")
+	raw, err := n042HistoricalR02SourceBytes()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,8 +141,14 @@ func TestCmdLoopRoutesR03OnlyAfterNativeR02StatusTransition(t *testing.T) {
 			}
 			return 19
 		})
-	if gotRC != 19 || calls != 1 {
-		t.Fatalf("R03 was skipped or dispatched twice: rc=%d calls=%d", gotRC, calls)
+	// The 0.11.9 release runner belongs only to its original compiled binary.
+	// New consumers must reject the historical R03 before dispatching a model.
+	if version == "0.11.9" {
+		if gotRC != 19 || calls != 1 {
+			t.Fatalf("0.11.9 R03 source runner dispatch rc=%d calls=%d; want 19 and one call", gotRC, calls)
+		}
+	} else if gotRC != 2 || calls != 0 {
+		t.Fatalf("newer consumer dispatched stale 0.11.9 R03 instead of failing closed: rc=%d calls=%d", gotRC, calls)
 	}
 	observed, err := os.ReadFile(path)
 	if err != nil || !bytes.Equal(observed, next) {

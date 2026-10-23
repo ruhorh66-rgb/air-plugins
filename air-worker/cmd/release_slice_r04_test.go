@@ -43,7 +43,7 @@ func r04PreparedReviewerFixture(t *testing.T) (r03TestFixture, selfLearningOwner
 }
 
 func TestR04PlanTransitionPreservesAllNonstatusBytes(t *testing.T) {
-	original, err := os.ReadFile("../plan/release-slices.json")
+	original, err := n042HistoricalR02SourceBytes()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,6 +83,9 @@ func TestR04PlanTransitionPreservesAllNonstatusBytes(t *testing.T) {
 }
 
 func TestR04NativeMeasuredEffectExactOneAndReplayNoNewReviewer(t *testing.T) {
+	if !n044HistoricalR03R04PositiveOnly(t) {
+		return
+	}
 	f, owner := r04PreparedReviewerFixture(t)
 	planPath := filepath.Join(f.Product, "plan", "release-slices.json")
 	before, err := os.ReadFile(planPath)
@@ -149,6 +152,9 @@ func TestR04NativeMeasuredEffectExactOneAndReplayNoNewReviewer(t *testing.T) {
 }
 
 func TestR04RefusesUnmeasuredUseAndModuleRollback(t *testing.T) {
+	if !n044HistoricalR03R04PositiveOnly(t) {
+		return
+	}
 	f, owner := r04PreparedReviewerFixture(t)
 	planPath := filepath.Join(f.Product, "plan", "release-slices.json")
 	before, err := os.ReadFile(planPath)
@@ -197,6 +203,9 @@ func TestR04RefusesUnmeasuredUseAndModuleRollback(t *testing.T) {
 }
 
 func TestR04RejectsRealUseRecordedBeforeSignedReleaseOpen(t *testing.T) {
+	if !n044HistoricalR03R04PositiveOnly(t) {
+		return
+	}
 	f, owner := r04PreparedReviewerFixture(t)
 	planPath := filepath.Join(f.Product, "plan", "release-slices.json")
 	plan, err := os.ReadFile(planPath)

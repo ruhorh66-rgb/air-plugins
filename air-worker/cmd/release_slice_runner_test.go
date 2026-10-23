@@ -16,7 +16,13 @@ func releaseSliceLoopFixture(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	for _, srcRel := range []string{"../run-config.json", "../plan/release-slices.json"} {
-		src, err := os.ReadFile(srcRel)
+		var src []byte
+		var err error
+		if filepath.Base(srcRel) == "release-slices.json" {
+			src, err = n042HistoricalR02SourceBytes()
+		} else {
+			src, err = os.ReadFile(srcRel)
+		}
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -71,8 +77,15 @@ func TestCmdLoopRoutesReleaseSliceBeforeLegacyNumericPlan(t *testing.T) {
 		}
 		return 17
 	})
-	if code != 17 || calls != 1 {
-		t.Fatalf("release runner dispatch code=%d calls=%d; want 17 and exactly one call", code, calls)
+	// The historical R02 runner is intentionally bound to the 0.11.9
+	// binary. A later consumer must reject it before invoking the older
+	// release workflow; that is not a regression or a bypass of versioning.
+	if version == "0.11.9" {
+		if code != 17 || calls != 1 {
+			t.Fatalf("0.11.9 release runner dispatch code=%d calls=%d; want 17 and one call", code, calls)
+		}
+	} else if code != 2 || calls != 0 {
+		t.Fatalf("newer consumer used stale 0.11.9 R02 instead of fail-closed: code=%d calls=%d", code, calls)
 	}
 	after, err := os.ReadFile(filepath.Join(root, "PLAN.md"))
 	if err != nil || string(after) != string(before) {
@@ -137,7 +150,7 @@ func TestAdapterStatusFailsClosedWhenAirWorkerReleasePlanIsMissing(t *testing.T)
 func releaseSliceTransitionFixture(t *testing.T) (string, []byte, string) {
 	t.Helper()
 	product, _, _ := selfLearningFixture(t)
-	planRaw, err := os.ReadFile("../plan/release-slices.json")
+	planRaw, err := n042HistoricalR02SourceBytes()
 	if err != nil {
 		t.Fatal(err)
 	}

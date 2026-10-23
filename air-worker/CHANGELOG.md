@@ -1,5 +1,17 @@
 # CHANGELOG — air-worker
 
+## 0.11.10 — Module Learning v0.1.1 consumer candidate · 21.10.2026 SGT · SOURCE-ONLY / NOT RELEASED OR INSTALLED
+
+23.10.2026 SGT N047 S-B-R candidate: source S 8ca190f; binary B 11c576b, both CLI/tray with embedded vcs.revision=S, vcs.modified=false and Module v0.1.1. Source-only, active 0.11.9 unchanged; separate release/install and signing decision required.
+
+
+- Based on exact released AirWorker 0.11.9 Git source `b6721f26262960c2d6cc12107cf7aeac9296bcad`; only this isolated consumer worktree is edited. No change to live AirWorker 0.11.9/Module v0.1.0 or active self-learning runtime.
+- Go dependency pinned to released GitHub Module Learning `v0.1.1` (tag/source `015345a9a58f87ad4fe28fdb921a6cd99159458c`), resolved using process-only `GOPRIVATE/GONOSUMDB`; no global credential changes. Module protocol is `0.1.1` with strict request version mismatch rejection.
+- Existing independently installed versioned `air-learn.exe 0.1.1` is smoke-verified; that standalone sidecar alone is NOT the compiled AirWorker consumer upgrade.
+- This work is a **new AirWorker binary and dual-host plugin candidate**, not a same-version `0.11.9` hotfix. Full Go regression, independent source judge, release artifact provenance, rollback to installed 0.11.9/module v0.1.0 and product-specific QA are mandatory before any live replacement.
+- Source-only learning N040/N041 features are NOT included. F7 natural prevented repeat/model cost remains NOT_PROVEN. Main AirWorker release-slice R05–R07 gate is not advanced.
+- Any new AirWorker release publication, installation, UAC/reboot/service stoppage is separately governed by AirWorker native release gates; the LPR's approval to install Module Learning v0.1.1 does not silently authorize a new untested AirWorker release.
+
 ## 0.11.9 — release candidate 20.10.2026 · NOT PUBLISHED / NOT INSTALLED
 
 ### Shared learning module v0.1.0 + demonstrable procedure use
