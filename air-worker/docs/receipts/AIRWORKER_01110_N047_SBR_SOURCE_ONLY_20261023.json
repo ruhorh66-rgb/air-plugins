@@ -1,0 +1,70 @@
+{
+    "schema":  "air-worker.release.sbr-source-only/v1",
+    "recorded_at_sgt":  "2026-10-23T08:18:01+08:00",
+    "phase":  "R: SOURCE_ONLY_NOT_PUBLISHED",
+    "owner":  "AirWorker/Module Learning",
+    "github":  "https://github.com/ruhorh66-rgb/air-plugins",
+    "branch":  "dev/airworker-01110-n047-sbr-release-preflight-20261023",
+    "version":  "0.11.10",
+    "release_tag_intended":  "air-worker--v0.11.10",
+    "source_commit_S":  "8ca190f32fa4ed42fe3f05398c66b72de7dc71ea",
+    "binary_commit_B":  "11c576b3ccbe2377006cd54179d20fb2d0d13705",
+    "release_commit_R":  "Git commit containing this receipt (external readback)",
+    "source_frozen_clean":  true,
+    "runtime_go_module":  "github.com/ruhorh66-rgb/air-modules@v0.1.1",
+    "build_parameters":  {
+                             "environment":  "Windows/amd64; CGO_ENABLED=0; go1.26.8",
+                             "cli":  "go -C air-worker/cmd build -buildvcs=true -trimpath -ldflags=\"-s -w\" -o OUT/air-worker.exe .",
+                             "tray":  "go -C air-worker/cmd build -buildvcs=true -trimpath -ldflags=\"-s -w -H=windowsgui\" -o OUT/air-worker-tray.exe ./tray",
+                             "clean_git_checkout_of_S":  true
+                         },
+    "binaries":  [
+                     {
+                         "name":  "air-worker.exe",
+                         "size":  10506240,
+                         "sha256":  "339c02469519752a53a4c2e43c4b033a8193e33189c339ffb9e601b087e881ab",
+                         "vcs_revision":  "8ca190f32fa4ed42fe3f05398c66b72de7dc71ea",
+                         "vcs_modified":  false,
+                         "pe_subsystem":  3,
+                         "authenticode":  "NotSigned"
+                     },
+                     {
+                         "name":  "air-worker-tray.exe",
+                         "size":  2527744,
+                         "sha256":  "b16a19771bee85eaafd18fc21c1651c58cd0827bf74d3935d5ede420f0fc42f8",
+                         "vcs_revision":  "8ca190f32fa4ed42fe3f05398c66b72de7dc71ea",
+                         "vcs_modified":  false,
+                         "pe_subsystem":  2,
+                         "authenticode":  "NotSigned"
+                     }
+                 ],
+    "acceptance":  {
+                       "full_go_test":  "RC0; 0 FAIL from source S, both Go packages",
+                       "full_go_log_sha256":  "995d11d508a4efaecd7ddd9261750e9b2157f2bc8607d74c97038a017bcb9ee8",
+                       "go_vet":  "RC0 from S",
+                       "version_matrix":  "0.11.9/v0.1.0 8 PASS; 0.11.10/v0.1.1 12 PASS",
+                       "independent_sol_medium":  "source-only PASS; P0=0; P1=0; P2=0",
+                       "receipt_repo":  "https://github.com/ruhorh66-rgb/air-modules",
+                       "receipt_commit":  "117799f89d981b71dccfe19f6d7b88a8a20cdb1e"
+                   },
+    "rollback":  {
+                     "target_version":  "0.11.9",
+                     "rollback_source":  "b6721f26262960c2d6cc12107cf7aeac9296bcad",
+                     "live_cli_sha256":  "df02c7f2a1b55e03ba7fbe5f5307962b3fe5534903a12b0e1911a94436d790fe",
+                     "live_tray_sha256":  "aa4944ee29b2a482e8797cae3a7102ff21a86856d78d9ef327bc9a0eb3eebf0c",
+                     "reinstallation":  "Official GitHub Marketplace path after exact LPR approval"
+                 },
+    "required_approvals":  [
+                               "LPR approval to publish exact release/tag/assets",
+                               "LPR separate approval to install or restart any AirWorker component",
+                               "LPR decision on unsigned Authenticode for 0.11.10"
+                           ],
+    "forbidden_without_approval":  [
+                                       "tag or GH Release",
+                                       "marketplace/update feed promotion",
+                                       "install/update active AirWorker",
+                                       "UAC, reboot, stop foreign services"
+                                   ],
+    "production_installed_version":  "0.11.9",
+    "production_changed":  false
+}

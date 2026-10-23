@@ -1,5 +1,15 @@
 # air-worker
 
+## 0.11.10 source-only S-B-R pre-release candidate, 23.10.2026 SGT
+
+AirWorker 0.11.10 consumes Module Learning v0.1.1. Source S 8ca190f passed full Go tests/vet and independent Sol Medium P0/P1=0. Both Windows binaries were rebuilt from a clean checkout of S with embedded vcs.revision=S and vcs.modified=false, and checked into binary commit B 11c576b. This release candidate receipt is committed in R.
+
+Not released or installed: AirWorker 0.11.9 with Module v0.1.0 remains active. The 0.11.10 core refuses the historic 0.11.9 R03/R04 release runner. Independent real-world F7 learning effectiveness remains NOT_PROVEN.
+
+Prior historical version notes follow. GitHub release/tag, marketplace promotion and installation require separate exact LPR approvals. The 0.11.10 binaries have no Authenticode signatures; the earlier waiver for 0.11.9 does not apply.
+
+Source, binary SHA-256 and rollback details: docs/receipts/AIRWORKER_01110_N047_SBR_SOURCE_ONLY_20261023.json.
+
 ## 0.11.9 candidate — machine-verifiable shared learning (source accepted; release gated)
 
 The AirWorker executable and dual-host Claude/Codex plugin consume the published `air-modules/learning v0.1.0`, without duplicating its writer. The native CLI records a signed failure (`run_id` and source), applies only an independently reviewed safe Markdown procedure, then credits it **only after** exact-SHA `skill_loaded`, a real later `procedure_used` and independently verified outcome/effect. In the accepted example, missing `run-config.json` causes **deferred validation** and prevents one redundant retry; this **is not a validation PASS**. A proposal, loaded file or signed intent without a final result is not successful use.

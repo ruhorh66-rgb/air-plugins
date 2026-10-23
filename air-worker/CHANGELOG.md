@@ -2,6 +2,9 @@
 
 ## 0.11.10 — Module Learning v0.1.1 consumer candidate · 21.10.2026 SGT · SOURCE-ONLY / NOT RELEASED OR INSTALLED
 
+23.10.2026 SGT N047 S-B-R candidate: source S 8ca190f; binary B 11c576b, both CLI/tray with embedded vcs.revision=S, vcs.modified=false and Module v0.1.1. Source-only, active 0.11.9 unchanged; separate release/install and signing decision required.
+
+
 - Based on exact released AirWorker 0.11.9 Git source `b6721f26262960c2d6cc12107cf7aeac9296bcad`; only this isolated consumer worktree is edited. No change to live AirWorker 0.11.9/Module v0.1.0 or active self-learning runtime.
 - Go dependency pinned to released GitHub Module Learning `v0.1.1` (tag/source `015345a9a58f87ad4fe28fdb921a6cd99159458c`), resolved using process-only `GOPRIVATE/GONOSUMDB`; no global credential changes. Module protocol is `0.1.1` with strict request version mismatch rejection.
 - Existing independently installed versioned `air-learn.exe 0.1.1` is smoke-verified; that standalone sidecar alone is NOT the compiled AirWorker consumer upgrade.
