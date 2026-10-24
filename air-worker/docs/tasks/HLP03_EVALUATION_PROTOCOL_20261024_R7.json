@@ -1,0 +1,84 @@
+{
+  "schema": "air-worker.hlp03-r7-evaluation-protocol/v1",
+  "status": "FIXED_BEFORE_R7_LEARNING_REVIEWER_OUTPUTS",
+  "source_base_sha": "68f9725c433df319ccb71624f9dce0d5f0d07b9e",
+  "model": "gpt-5.6-luna",
+  "effort": "medium",
+  "candidate_frozen_for_all_series": true,
+  "reason": "Deliberately scoped after R6 and the user's new continuation: require the complete supported causal correction before coverage/placement, and recognize a distinct corrective operation repairing an unmet precondition even before the existing operation completes. R6 captured evidence is complete; no transport fix is justified. One generic text replacement only, no schema/lifecycle/wrapper/harness change.",
+  "series": [
+    {
+      "id": "HLP03_R7_DEVELOPMENT_20261024",
+      "kind": "known_development_regression",
+      "cases": 24,
+      "corpus": "cmd/testdata/hlp03_reviewer_corpus_20261024_r4_development.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R4_DEVELOPMENT.json",
+      "rule": "Exact unchanged known24 corpus and gold reused. R1–R7 outcomes and files remain immutable."
+    },
+    {
+      "id": "HLP03_R7_HOLDOUT_20261024",
+      "kind": "fresh_topic_holdout",
+      "cases": 6,
+      "corpus": "cmd/testdata/hlp03_reviewer_corpus_20261024_r5_holdout.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R5_HOLDOUT.json",
+      "advance_gate": "Require all24 known cases to have real completed canonical responses, expected class/exact identity, verified cleanup, unchanged protected/frozen identities, Goexit0 and wrapperexit0. Coordinator full-text screening must also find no clear violation of the frozen content requirements before spending fresh calls; independent content acceptance remains separate. On failure leave fresh cases NOT_RUN_BLOCKED and unexposed.",
+      "rule": "Reuse the exact six prospective R5 date/CSV inputs and gold; both R5 and R6 stopped before these calls. No new corpus, candidate/input/gold changes or retries."
+    },
+    {
+      "id": "HLP03_R7_FOLLOWUP_20261024",
+      "kind": "old_case_after_update",
+      "cases": 2,
+      "design": "docs/tasks/HLP03_FOLLOWUP_DESIGN_20261024_R5.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R5_FOLLOWUP.json",
+      "advance_gate": "Require the actual exact eligible designated holdout updates and successful module lifecycle. Missing or wrong update fails the prerequisite and stays in the denominator.",
+      "rule": "Reuse the unchanged R5 prospective old-failure/correction design and gold. Copy the actual designated R7 applied update bodies verbatim into fresh seed fixtures, then freeze the derived corpus before calls. No manual correction of model output."
+    }
+  ],
+  "attempts_per_case": 1,
+  "total_designated_attempts": 32,
+  "no_model_fallback": true,
+  "no_posthoc_label_changes": true,
+  "no_selective_reruns": true,
+  "no_automatic_next_candidate": true,
+  "stop_rule": "Only one R7 candidate and one first attempt per designated case. A failed known technical/class/identity gate or clear frozen-content violation stops later series. Blocked cases remain in the32-case plan denominator with no inferred model outcome. All collected evidence receives independent review. No automatic R8, prompt/model sweep or selective retry.",
+  "metrics": {
+    "class_identity": "Report designated, executed, correct and blocked counts separately for each series; exact module identity and canonical no_candidate required.",
+    "content": "Coordinator screening may stop later calls on a clear frozen-content violation; it does not grant formal semantic acceptance. Independent full-text native review judges all actual outputs against original frozen invariants, with precise qualifications and semantic equivalence.",
+    "followup": "Old failure/correction events must be covered by exact actual updated bodies; this measures reviewer retention decisions, not execution of the learned algorithm.",
+    "usage": "Learning-reviewer usage only; authoring/independent review separated; unknown values null.",
+    "comparison": "Known regression and fresh topics remain separate; different candidate corpora do not support a statistical improvement estimate."
+  },
+  "acceptance": {
+    "source": "One generic prompt replacement; targeted existing Go reviewer tests, vet/build, exact candidate hashes and independent native source review. Reuse prior R6 PowerShell5.1 diagnostics/owned-child results only after exact runner/test/log/receipt SHA verification; do not represent these as new R7 PowerShell execution. Schema, validator, module lifecycle, Go harness and wrapper remain unchanged.",
+    "model": "Every designated case in every series must meet required class/exact identity/content, with no false merge, unsafe scope loss, missing required behavior or observed contamination. Incomplete/blocked series do not pass.",
+    "production_effect": "NOT_PROVEN by these synthetic corpora. Installed delivery, native authority and natural useful effect remain separate."
+  },
+  "resources": {
+    "standard": "DEV-137 v1.1.0",
+    "working_estimate_bytes": 2147483648,
+    "hard_os_quota": false,
+    "max_concurrent_runs": 1,
+    "max_run_seconds": 1800,
+    "max_case_timeout_ms": 240000,
+    "sample_seconds": 15,
+    "full_DEV137_acceptance": "NOT_CLAIMED"
+  },
+  "constraints": {
+    "node": "SRVLM01",
+    "existing_checkout_only": true,
+    "installed_runtime_unchanged": true,
+    "native_PLAN_N_LEARN_unchanged": true,
+    "foreign_WIP_preserved": true,
+    "AIR_ENV_002_used": false
+  },
+  "prior_failures_preserved": {
+    "R1": "class11/12 complete8/12 original cleanup instrumentation exit1",
+    "R2": "complete24/28 four false merges",
+    "R3": "complete19/20 C02 invalid preSHA and development wrapper error/missing child OS exit",
+    "R4": "class31/32 conservative complete29/32 C21 missedcreate C11 feasibility C15 new-procedure consistency",
+    "R5": "Known24 class/identity22 and complete21; false splits C02/C17, C15 contradiction. Goexit0/wrapperexit1Win32,24completed/cleanup,8designatedblocked. No cause established and no terminal reconstruction.",
+    "R6": "Known24 class/identity/full23; C18 false merge and missing producer correction despite complete captured evidence. Goexit0/wrapperexit0;24completed/cleanup;8designatedblocked. No production acceptance and no R5-cause fix established."
+  },
+  "development_authoring": "Reasoned bounded specification by coordinator with host advisory analysis; exact text replacement and source QA by script. Host advisory is not native acceptance. Native AirWorker executor gpt-6-sol/medium performs independent source/full-text review. Learning reviewer stays gpt-5.6-luna/medium.",
+  "new_iteration_authority": "User explicitly asked to continue after the completed R6 checkpoint. Existing source/model-evaluation authorization applies. This is one separately scoped, prospectively frozen R7, not an automatic retry. R6 evidence/stop remain immutable."
+}

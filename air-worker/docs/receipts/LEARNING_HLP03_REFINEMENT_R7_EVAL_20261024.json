@@ -1,0 +1,433 @@
+{
+  "schema": "air-worker.hlp03-r7-evaluation/v1",
+  "date_sgt": "2026-10-24",
+  "node": "SRVLM01",
+  "status": "SOURCE_ACCEPTED_PARTIAL_MODEL_OBSERVATIONS_MEASUREMENT_INCOMPLETE_RELEASE_NOT_READY",
+  "source": {
+    "root": "R:\\-4-\\air-worker\\worktrees\\airworker-learning-loop-20261024\\air-worker",
+    "branch": "dev/airworker-learning-loop-20261024",
+    "source_base_sha": "68f9725c433df319ccb71624f9dce0d5f0d07b9e",
+    "candidate": "R7",
+    "commit_binding": "The containing source commit binds measured file hashes and this evidence; the QA binary was built before that commit, without a release artifact or embedded containing revision claim.",
+    "diff": {
+      "production_file": "cmd/learn_adapter.go",
+      "tracked_files": 1,
+      "insertions": 1,
+      "deletions": 1,
+      "change": "Replace the generic coverage-before-placement sentence with a complete-supported-correction requirement and distinct unmet-precondition corrective-operation rule. No case/domain exception; harness/wrapper/lifecycle/schema unchanged."
+    },
+    "candidate_hashes": {
+      "adapter_sha256": "397eb04179e06a08cebcd5ad64f20ca6fcc84b8b42aacb8ffc1366907be523b9",
+      "harness_sha256": "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+      "runner_sha256": "d3175bf9961250bb4d8eacb3023832b705e633873c5f73f8a507312af54563fb",
+      "runner_tests_sha256": "1105fb1044820daf557c57e4bdea7b9d0aff7d59a7c110dac4fd25e4e665063e",
+      "binary_sha256": "d60624ec384f91b5ae16f78b1a7977e1c655091d15b74aa233a37e2ac829b06c"
+    },
+    "snapshot_manifest_sha256": "5cc2f961c55d26d4bd58d6915af77841a4d97708a764ce91fc5df2769077c908",
+    "binary_is_release_artifact": false,
+    "candidate_version": "UNASSIGNED_NATIVE_REPHASE_PENDING",
+    "promoted_to_installed": false
+  },
+  "optimization": {
+    "contract": "Reuse existing AirWorker/Hermes reviewer, exact identity and module lifecycle; bounded intermediate release quality plus existing P2 authority.",
+    "priority": "Repair the observed resource-measurement boundary before spending another prospective semantic evaluation.",
+    "preparation_receipt": "docs/receipts/AIRWORKER_INTERMEDIATE_RELEASE_PREPARATION_20261024.json",
+    "package_preparation": "COMPLETED_INSPECTION_ONLY_REUSED",
+    "quality_gates_weakened": false,
+    "automatic_R8_started": false
+  },
+  "protocol": {
+    "path": "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R7.json",
+    "sha256": "8b94ffd4134c89eb92534c851e621254d3ec1f563f5fb4a759ff26657c1a0cf0",
+    "development_freeze_sha256": "e6be9fb817cbbdd9acc0c46dad3f8dc5beb94753d3ff8c6dd80b872db81f3e89",
+    "fresh_holdout_freeze_sha256": "81bc84e214fa8acf1678a7b4f092a496fd068e52d7a0850e1d4a123f016f1d1e",
+    "development_corpus_sha256": "6c9560614e20e7a43777cbcd8df13078655d3ae59ceae4a9ab84c5aadd0e060f",
+    "development_gold_sha256": "d16c7c59cdf4b0f18bf942ec606bb5304c882bf8db041a0badc432cf4be58de6",
+    "model": "gpt-5.6-luna",
+    "effort": "medium",
+    "first_attempts_only": true,
+    "selective_reruns": 0,
+    "posthoc_label_changes": 0,
+    "model_fallbacks": 0,
+    "fresh_inputs_exposed_to_learning_reviewer": false,
+    "advance_gate": "docs/receipts/LEARNING_HLP03_R7_ADVANCE_GATE_20261024.json",
+    "advance_gate_snapshot": "Original coordinator stop retained; independent verdict and final job provenance are recorded separately here."
+  },
+  "acceptance": {
+    "source": "ACCEPTED_BOUNDED_SOURCE_CANDIDATE",
+    "model": "INCOMPLETE_NOT_ACCEPTED_C18_UNMEASURED",
+    "model_accepted": false,
+    "measurement": "INCOMPLETE_REJECTED_AS_FULL_SERIES",
+    "completed_observations": "14/14_INDEPENDENTLY_ACCEPTABLE",
+    "whole_HLP03_accepted": false,
+    "canonical_reconciliation": "BLOCKED_N124",
+    "P3": "NOT_READY",
+    "installed_GPT_delivery": "NOT_PROVEN",
+    "production_effect": "NOT_PROVEN"
+  },
+  "results": {
+    "designated": 32,
+    "known_designated": 24,
+    "case_preparations_started": 15,
+    "confirmed_native_calls": 14,
+    "completed": 14,
+    "interrupted_preparation": 1,
+    "unstarted_known": 9,
+    "blocked_fresh": 6,
+    "blocked_followups": 2,
+    "not_completed": 18,
+    "development": {
+      "designated": 24,
+      "completed": 14,
+      "interrupted_preparation": 1,
+      "unstarted": 9,
+      "class_identity_correct": 14,
+      "content_acceptable": 14,
+      "complete_acceptance": 14,
+      "expected_distribution_completed": {
+        "no_candidate": 5,
+        "update": 5,
+        "create": 4
+      },
+      "actual_distribution_completed": {
+        "no_candidate": 5,
+        "update": 5,
+        "create": 4
+      },
+      "completed_semantic_failed_cases": [],
+      "C18": "UNMEASURED",
+      "rows": [
+        {
+          "id": "C01",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C02",
+          "expected": "update",
+          "actual": "update",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C03",
+          "expected": "create",
+          "actual": "create",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C04",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C05",
+          "expected": "update",
+          "actual": "update",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C06",
+          "expected": "create",
+          "actual": "create",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C07",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C08",
+          "expected": "update",
+          "actual": "update",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C09",
+          "expected": "create",
+          "actual": "create",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C10",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C11",
+          "expected": "update",
+          "actual": "update",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C12",
+          "expected": "create",
+          "actual": "create",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C13",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C14",
+          "expected": "update",
+          "actual": "update",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        }
+      ]
+    },
+    "fresh_holdout": {
+      "designated": 6,
+      "completed": 0,
+      "status": "NOT_RUN_BLOCKED_UNEXPOSED"
+    },
+    "old_case_followup": {
+      "designated": 2,
+      "completed": 0,
+      "status": "NOT_RUN_PREREQUISITES_BLOCKED",
+      "derived_R7_corpus_created": false
+    },
+    "denominator_note": "32 designated =14 completed +1 interrupted preparation +9 unstarted known +6 blocked fresh +2 blocked followups. Missing cases are neither no_candidate nor observed semantic failures."
+  },
+  "source_verification": {
+    "qa_path": ".air-worker/learning-loop-20261024/hlp03-r7-source-qa.json",
+    "qa_sha256": "2920964747faf31ca304ba2958d5e409ac2d870e27341fd16d0226668a57e352",
+    "test_command": "go test . -run ^(TestLearningReviewer|TestHLP03) -count=1 -timeout 180s -json",
+    "passed_records": 74,
+    "failed_records": 0,
+    "skipped_records": 2,
+    "skip_reasons": [
+      "Live opt-in test is separate from offline QA.",
+      "Windows unsafe symlink privilege unavailable."
+    ],
+    "vet_exit_code": 0,
+    "build_exit_code": 0,
+    "diff_check_exit_code": 0,
+    "powershell_test_exit_code": null,
+    "powershell_tests_executed_in_R7": false,
+    "powershell_reuse": {
+      "status": "REUSED_R6_RECEIPT_HASH_VERIFIED",
+      "executed_in_R7": false,
+      "prior_qa_path": "R:\\-4-\\air-worker\\worktrees\\airworker-learning-loop-20261024\\air-worker\\.air-worker\\learning-loop-20261024\\hlp03-r6-source-qa.json",
+      "prior_qa_sha256": "85d30de584f14045a94711a5a76f61fd625b190d199f862d6255aa2c58f16a85",
+      "prior_test_log_sha256": "1ea0b150cd97a8cd6d6ab95d92440dbe33c54beb2604a1debd0c048a72df739b",
+      "prior_exit_code": 0,
+      "runner_sha256": "d3175bf9961250bb4d8eacb3023832b705e633873c5f73f8a507312af54563fb",
+      "tests_sha256": "1105fb1044820daf557c57e4bdea7b9d0aff7d59a7c110dac4fd25e4e665063e"
+    },
+    "native_author_jobs": 0,
+    "authoring": "Reasoned coordinator specification and host advisory; mechanical replacement and QA scripts. Host advisory is not native acceptance."
+  },
+  "independent_review": {
+    "path": "docs/receipts/LEARNING_HLP03_R7_INDEPENDENT_REVIEW_20261024.json",
+    "sha256": "6def9d3b3f7ffdd80bb87a9a59d14e560451751d7ba351897141188805289932",
+    "model": "gpt-6-sol",
+    "effort": "medium",
+    "route": "native AirWorker executor",
+    "job_id": "gpt__hlp03-semantic-20261024__1792852149241517500__bb9d53cc",
+    "status": "DONE",
+    "launcher_exit_code": 0,
+    "job_receipt_sha256": "0715344b53662fc6d8349124744fc8b93c3351ff7e921d5b30471fbed4bc7bd3",
+    "job_output_sha256": "9a9d38c1e7e630d3d2cda572ea52f4de293f1fc0c43b30f01512d7e5073eb205",
+    "raw_review_unchanged": true
+  },
+  "measurement": {
+    "run_id": "HLP03_R7_DEVELOPMENT_20261024",
+    "original_terminal_path": ".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/terminal.json",
+    "original_terminal_sha256": "2eba8db1d704bd4b4b603624becad82d54c5ad90f4f3e85613b075977791d8d3",
+    "partial_summary_sha256": "7842742f08fca0ae78d473c8d6f35a5acd488c1b621932f691831e24e14abbfd",
+    "launch_sha256": "85b59c9c878fd3d941af25217ab1a4b7a824799e87aa646e3764a8546d3e1896",
+    "resource_log_sha256": "3e94d40fe2a6b60fee341666cc6b83a37d19648003479164f7a7a7b9d10c69d8",
+    "wrapper_exit_code": 1,
+    "go_exit_code": 1,
+    "status": "WRAPPER_FAILURE",
+    "go_exit_interpretation": "Wrapper terminated its owned Go tree during resource sampling; not a completed test assertion verdict.",
+    "failure_phase": "during",
+    "failure_operation": "temp_enumeration",
+    "command": "Get-ChildItem",
+    "runner_line": 24,
+    "exception_type": "System.ComponentModel.Win32Exception",
+    "native_error_code": 2,
+    "ultimate_cause": "UNKNOWN",
+    "native_turns_completed": 14,
+    "observed_tool_calls": 0,
+    "observed_contaminated": 0,
+    "completed_fixture_cleanup_verified": 14,
+    "interrupted_fixture_cleanup": "NOT_COMPLETED_PRESERVED_AS_EVIDENCE",
+    "original_after_resource_sample_present": false,
+    "original_terminal_rewritten": false,
+    "postrun": {
+      "path": ".air-worker/learning-loop-20261024/hlp03-r7-postrun-readback.json",
+      "sha256": "bc2ea895da3dbc783cdd6c49202fa9e91bea5e848e1b85f34b2d245f7d1623c1",
+      "guards_unchanged": 46,
+      "frozen_bindings_unchanged": 11,
+      "completed_fixture_roots_absent": 14,
+      "interrupted_fixture_files": 15,
+      "qa_temp_files": 18,
+      "later_inventory_not_a_success_terminal": true
+    },
+    "owned_progress_helper": "Separate read-only progress helper PID18228 was stopped after ownership verification; unrelated to model/wrapper termination and recorded in the evidence bundle."
+  },
+  "resources": {
+    "standard": "DEV-137 v1.1.0",
+    "working_estimate_bytes": 2147483648,
+    "hard_os_quota": false,
+    "samples": 13,
+    "complete_samples": 13,
+    "after_samples": 0,
+    "maximum_sampled_cache_temp_bytes": 870618188,
+    "minimum_sampled_volume_free_bytes": 17698918400,
+    "all_observed_reserves_passed": true,
+    "estimate_exceeded": false,
+    "continuous_peak_proven": false,
+    "full_DEV137_acceptance": "NOT_CLAIMED",
+    "max_concurrent_native_model_runs": 1,
+    "shared_cache_cleanup": false
+  },
+  "usage": {
+    "learning_reviewer": {
+      "confirmed_native_calls": 14,
+      "input_tokens": 248221,
+      "cached_input_tokens": 14848,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 3080,
+      "reasoning_output_tokens": 1107,
+      "cost": null
+    },
+    "native_source_authoring": {
+      "jobs": 0
+    },
+    "independent_native_review": {
+      "jobs": 1,
+      "input_tokens": 1229473,
+      "cached_input_tokens": 1143168,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 10918,
+      "reasoning_output_tokens": 1285,
+      "cost": null
+    },
+    "interpretation": "Native learning calls and independent review usage are separate. Cached input is included in input; reasoning output is included in output. C15 native invocation/completion is not inferred from test stdout."
+  },
+  "evidence_bundle": {
+    "schema": "air-worker.hlp03-r7-evidence-bundle/v1",
+    "archive": "docs/receipts/evidence/HLP03_REFINEMENT_R7_20261024.zip",
+    "sha256": "7e5ec0340bdc72ca52550ce635658075ac190966238d0a92d253c84a4f7a29d4",
+    "bytes": 411705,
+    "entries": 203,
+    "manifest_files": 202,
+    "every_entry_reopened_and_sha_verified": true,
+    "original_files_unchanged_after_archive": true,
+    "native_job_id": "gpt__hlp03-semantic-20261024__1792852149241517500__bb9d53cc",
+    "native_job_status": "DONE",
+    "native_job_receipt_sha256": "0715344b53662fc6d8349124744fc8b93c3351ff7e921d5b30471fbed4bc7bd3",
+    "independent_review_sha256": "6def9d3b3f7ffdd80bb87a9a59d14e560451751d7ba351897141188805289932",
+    "source_base_sha": "68f9725c433df319ccb71624f9dce0d5f0d07b9e",
+    "measured_binary_sha256": "d60624ec384f91b5ae16f78b1a7977e1c655091d15b74aa233a37e2ac829b06c",
+    "measured_adapter_sha256": "397eb04179e06a08cebcd5ad64f20ca6fcc84b8b42aacb8ffc1366907be523b9",
+    "native_author_jobs": 0,
+    "powershell_evidence_reused": "R6 exact unchanged runner/tests/QA/log; no new R7 PowerShell test-suite execution",
+    "production_effect": "NOT_PROVEN"
+  },
+  "result_analysis": {
+    "path": "docs/receipts/LEARNING_HLP03_R7_RESULT_ANALYSIS_20261024.json",
+    "sha256": "9baf4acbf3f4efa321bfe8d149c32d332e23bf2e2dca9c4f5931dd970435cbbf",
+    "additional_learning_calls": 0
+  },
+  "preserved": {
+    "installed_runtime_version": "0.11.10",
+    "installed_plugin_version": "0.11.10",
+    "installed_runtime_sha256": "339c02469519752a53a4c2e43c4b033a8193e33189c339ffb9e601b087e881ab",
+    "module_pin": "v0.1.1",
+    "services_not_operated": true,
+    "native_PLAN_N_LEARN_not_modified": true,
+    "foreign_WIP_not_in_scoped_commit": true,
+    "new_checkouts": 0,
+    "new_native_nodes": 0,
+    "AIR_ENV_002_contacted": false,
+    "prior_R1_R6_evidence": "UNCHANGED"
+  },
+  "next_work": [
+    {
+      "order": 1,
+      "result": "Fix the observed terminating resource-enumeration boundary in the existing runner with explicit incomplete-sample behavior and deterministic offline/owned-child checks.",
+      "receipt": "docs/receipts/LEARNING_HLP03_R7_RESULT_ANALYSIS_20261024.json",
+      "status": "TECHNICAL_FAILURE_LOCALIZED_RELIABILITY_CHANGE_NOT_IMPLEMENTED"
+    },
+    {
+      "order": 2,
+      "result": "After a separately accepted reliability change, scope and freeze a prospective measurement. Preserve R7 first attempts and frozen gold; no automatic R8 or selective retry. C18 is not measured in R7.",
+      "status": "SEMANTIC_MEASUREMENT_WAIT_RELIABILITY_ACCEPTANCE"
+    },
+    {
+      "order": 3,
+      "result": "Continue the existing N124/P2 authority path when owner/signer/ref/claim and separately authorized disposable atomic-pair prerequisites are established; preserve native plan.",
+      "status": "BLOCKED_EXISTING_P2"
+    },
+    {
+      "order": 4,
+      "result": "Reuse completed package preparation. Select exact release source/version only after quality and P2, then complete required package/provenance/smoke/rollback and separate publication/install decisions.",
+      "status": "P3_NOT_READY"
+    }
+  ],
+  "limits": [
+    "Fourteen acceptable known synthetic observations do not establish a complete32-case pass, statistical improvement or natural useful effect.",
+    "C18/C17/C20 were not measured in R7. R6 C18 remains an earlier failed observation; R7 neither fixes nor reproduces it.",
+    "Observed Win32 operation is localized; disappearing temp entry/race is not proved. Historical R5 cause remains UNKNOWN. Only R6 completed cleanly among R5-R7.",
+    "No runner correction or new PowerShell test-suite run was performed in the frozen R7; reused receipts do not prove reliability of every live resource sample.",
+    "Source acceptance, model content, measurement reliability, P2/P3 and release/tag/install/production effect remain distinct."
+  ],
+  "publication": {
+    "target_url": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "target_branch": "dev/airworker-learning-loop-20261024",
+    "binding": "Companion Wiki checkpoint records explicit GitHub commit readback; this file does not embed its containing commit."
+  }
+}

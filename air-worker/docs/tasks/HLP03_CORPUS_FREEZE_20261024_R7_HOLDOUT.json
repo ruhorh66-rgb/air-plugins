@@ -1,0 +1,56 @@
+{
+    "schema":  "air-worker.hlp03-corpus-freeze/v1",
+    "series":  "HLP03_R7_HOLDOUT_20261024",
+    "frozen_at_utc":  "2026-10-24T14:17:18.9321097Z",
+    "source_base_sha":  "68f9725c433df319ccb71624f9dce0d5f0d07b9e",
+    "candidate_source_hashes":  {
+                                    "adapter_sha256":  "397eb04179e06a08cebcd5ad64f20ca6fcc84b8b42aacb8ffc1366907be523b9",
+                                    "harness_sha256":  "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+                                    "runner_sha256":  "d3175bf9961250bb4d8eacb3023832b705e633873c5f73f8a507312af54563fb",
+                                    "runner_tests_sha256":  "1105fb1044820daf557c57e4bdea7b9d0aff7d59a7c110dac4fd25e4e665063e",
+                                    "binary_sha256":  "d60624ec384f91b5ae16f78b1a7977e1c655091d15b74aa233a37e2ac829b06c"
+                                },
+    "corpus_path":  "cmd/testdata/hlp03_reviewer_corpus_20261024_r5_holdout.json",
+    "corpus_sha256":  "c222c4675faddda60bfac41d890974baf70aaf2c1ea7cc8db79a39124654cf32",
+    "gold_path":  "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R5_HOLDOUT.json",
+    "gold_sha256":  "9c1a1ff01a3d7fe2a5f35a7e8d5ed31d3c4e0b9c4bec3dbff1b2b6eae4f383de",
+    "protocol_path":  "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R7.json",
+    "protocol_sha256":  "8b94ffd4134c89eb92534c851e621254d3ec1f563f5fb4a759ff26657c1a0cf0",
+    "case_count":  6,
+    "case_ids":  [
+                     "C51",
+                     "C52",
+                     "C53",
+                     "C54",
+                     "C55",
+                     "C56"
+                 ],
+    "classes":  {
+                    "no_candidate":  2,
+                    "update":  2,
+                    "create":  2
+                },
+    "seed_identities":  [
+                            {
+                                "target":  "skills/learned/parse-declared-csv-records.md",
+                                "sha256":  "d7394896ad998e4c83df0f64b478df6ab197ba4608289cb9c05427b5055386b8"
+                            },
+                            {
+                                "target":  "skills/learned/parse-explicit-calendar-dates.md",
+                                "sha256":  "271a2e9abdbcf2a9463062e248061c252b038dd2e194ca59e560d8523f7850d2"
+                            }
+                        ],
+    "model":  "gpt-5.6-luna",
+    "effort":  "medium",
+    "labels_excluded_from_input":  true,
+    "posthoc_relabeling_allowed":  false,
+    "retry_policy":  "ONE_ATTEMPT_PER_CASE_PER_FROZEN_CANDIDATE",
+    "followup_design":  "docs/tasks/HLP03_FOLLOWUP_DESIGN_20261024_R5.json",
+    "followup_design_sha256":  "075f48b51ebdd4ba9a1742af3759517aec57dc71ea43bd197e88e3a0fe909b32",
+    "followup_gold_sha256":  "8b3ea16460495236f9d161891889d882b04be42c1b2dc0be3594e94bf2c9a934",
+    "source_qa_sha256":  "2920964747faf31ca304ba2958d5e409ac2d870e27341fd16d0226668a57e352",
+    "production_effect":  "NOT_PROVEN",
+    "known_data_note":  "Fresh date-format and structural CSV topics, predeclared labels.",
+    "r7_learning_reviewer_calls_before_freeze":  0,
+    "reuse_note":  "Known24 exact original inputs; fresh6 and old2 design reused from prospective R5 inputs never executed in R5 or R6 by the learning reviewer. Labels and input bytes unchanged."
+}

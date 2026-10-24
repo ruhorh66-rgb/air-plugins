@@ -1,0 +1,119 @@
+{
+  "schema": "air-worker.hlp03-r7-result-analysis/v1",
+  "analyzed_at_utc": "2026-10-24T14:30:42Z",
+  "status": "TECHNICAL_INTERRUPTION_CANDIDATE_HYPOTHESIS_UNRESOLVED",
+  "frozen_candidate": {
+    "adapter_sha256": "397eb04179e06a08cebcd5ad64f20ca6fcc84b8b42aacb8ffc1366907be523b9",
+    "harness_sha256": "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+    "runner_sha256": "d3175bf9961250bb4d8eacb3023832b705e633873c5f73f8a507312af54563fb",
+    "runner_tests_sha256": "1105fb1044820daf557c57e4bdea7b9d0aff7d59a7c110dac4fd25e4e665063e",
+    "binary_sha256": "d60624ec384f91b5ae16f78b1a7977e1c655091d15b74aa233a37e2ac829b06c"
+  },
+  "protocol_sha256": "8b94ffd4134c89eb92534c851e621254d3ec1f563f5fb4a759ff26657c1a0cf0",
+  "counts": {
+    "designated": 32,
+    "known_designated": 24,
+    "case_preparations_started": 15,
+    "confirmed_native_calls": 14,
+    "completed": 14,
+    "interrupted_preparation": 1,
+    "unstarted_known": 9,
+    "blocked_fresh": 6,
+    "blocked_followups": 2,
+    "not_completed": 18
+  },
+  "observed_facts": [
+    {
+      "fact": "Original wrapper failed during resource sampling",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/terminal.json",
+      "sha256": "2eba8db1d704bd4b4b603624becad82d54c5ad90f4f3e85613b075977791d8d3",
+      "phase": "during",
+      "operation": "temp_enumeration",
+      "invocation": "Get-ChildItem",
+      "line": 24,
+      "native_error_code": 2,
+      "exception_type": "System.ComponentModel.Win32Exception"
+    },
+    {
+      "fact": "Wrapper caught the ErrorRecord and terminated its owned Go process tree",
+      "go_pid": 12908,
+      "go_child_pid": 7248,
+      "go_exit_code": 1,
+      "wrapper_exit_code": 1
+    },
+    {
+      "fact": "Original incremental summary contains14 completed cases, although case_count declares24",
+      "evidence": "evidence/summary.json",
+      "sha256": "7842742f08fca0ae78d473c8d6f35a5acd488c1b621932f691831e24e14abbfd",
+      "completed_ids": "C01-C14",
+      "native_terminal": "turn.completed",
+      "tools": 0,
+      "contaminated": 0,
+      "verified_cleanup": 14
+    },
+    {
+      "fact": "C15 preparation started but has no recorded model input or result",
+      "evidence": "go-test.stdout.txt and retained qa-temp/TestHLP03RealReviewerCorpusC1510420697",
+      "completed_seed_procedures": 2,
+      "supplied_seed_procedures": 4,
+      "retained_fixture_files": 15
+    },
+    {
+      "fact": "Resource stream has13 complete samples and no after sample",
+      "sampled_max_cache_temp_bytes": 870618188,
+      "minimum_sampled_volume_free_bytes": 17698918400,
+      "sampled_disk_red": false,
+      "sampled_estimate_exceeded": false
+    },
+    {
+      "fact": "Later preservation readback matches46 protected/historical files and11 frozen candidate/input bindings",
+      "postrun_sha256": "bc2ea895da3dbc783cdd6c49202fa9e91bea5e848e1b85f34b2d245f7d1623c1",
+      "completed_fixture_roots_absent": 14,
+      "retained_interrupted_fixture_files": 15,
+      "retained_task_temp_files": 18
+    }
+  ],
+  "coordinator_semantic_screen": {
+    "completed_class_identity_correct": 14,
+    "full_text_acceptable": 14,
+    "formal_independent_acceptance": "See separate immutable independent review receipt after native completion",
+    "C18_measured": false,
+    "conclusion": "No conclusion about R7 fixing the R6 C18 failure; no statistical improvement estimate."
+  },
+  "inferences": [
+    {
+      "claim": "The interruption occurred while preparing C15 seed state, before its reviewer invocation.",
+      "basis": "Harness applies all seeds before persisting prompt and adapter-config and invoking runLearningProcess; retained fixture has only two of four seeds and evidence/C15 is empty.",
+      "classification": "INFERENCE_FROM_CONTROL_FLOW_AND_RETAINED_STATE"
+    }
+  ],
+  "unknowns": [
+    "Exact disappearing filesystem object and ultimate trigger of Win32 error2 are not captured by this ErrorRecord.",
+    "Concurrent removal/race is plausible but not proved; no causal claim about R5 from similarity of exception text.",
+    "No model decision exists for C15-C24 or the blocked later eight cases.",
+    "No full run resource continuity or successful final resource sample is established."
+  ],
+  "plan_optimization": {
+    "priority1": "Address the measured resource-enumeration reliability gap before spending a new semantic evaluation. Use the existing runner and native executor; no new framework.",
+    "correction_scope_to_review": "Contain provider terminating errors at the footprint measurement boundary, preserve their diagnostics and represent incomplete byte/file counts as null rather than0. Define explicit incomplete-sample and before/after policies; never silently turn a failed original run into success.",
+    "offline_acceptance_to_design": "Deterministic Windows PowerShell5.1 tests through actual Get-AwFootprint/Save-AwSample for terminating enumeration faults and normal samples; a small owned-child wrapper test for the chosen incomplete-sample policy. Retain disk/deadline protection and exact child ownership.",
+    "next_semantic_work": "Only a separately scoped prospective measurement after the reliability change is accepted; preserve R7 stop, original first attempts, gold, no automatic R8/fallback/selective retry.",
+    "reuse": "Reuse source candidate and prior valid receipts where unchanged; completed package preparation stays accepted for inspection only. Existing N124/P2 is an independent blocker.",
+    "not_done": "No runner/harness fix or remeasurement has been performed within the frozen R7."
+  },
+  "separate_acceptance": {
+    "source": "Independent review plus actual R7 Go QA; source acceptance does not pass model or measurement",
+    "model": "INCOMPLETE_NOT_ACCEPTED",
+    "measurement": "REJECTED_AS_COMPLETE_RUN_PARTIAL_ARTIFACTS_PRESERVED",
+    "P2": "BLOCKED_EXISTING_N124",
+    "P3": "NOT_READY",
+    "production_effect": "NOT_PROVEN"
+  },
+  "preservation": {
+    "installed_runtime": "0.11.10",
+    "module": "v0.1.1",
+    "native_plan_services_foreign_wip": "UNCHANGED",
+    "AIR_ENV_002_contacted": false
+  },
+  "original_evidence_not_rewritten": true
+}

@@ -1,0 +1,20 @@
+{
+    "schema":  "air-worker.hlp03-r7-evidence-bundle/v1",
+    "archive":  "docs/receipts/evidence/HLP03_REFINEMENT_R7_20261024.zip",
+    "sha256":  "7e5ec0340bdc72ca52550ce635658075ac190966238d0a92d253c84a4f7a29d4",
+    "bytes":  411705,
+    "entries":  203,
+    "manifest_files":  202,
+    "every_entry_reopened_and_sha_verified":  true,
+    "original_files_unchanged_after_archive":  true,
+    "native_job_id":  "gpt__hlp03-semantic-20261024__1792852149241517500__bb9d53cc",
+    "native_job_status":  "DONE",
+    "native_job_receipt_sha256":  "0715344b53662fc6d8349124744fc8b93c3351ff7e921d5b30471fbed4bc7bd3",
+    "independent_review_sha256":  "6def9d3b3f7ffdd80bb87a9a59d14e560451751d7ba351897141188805289932",
+    "source_base_sha":  "68f9725c433df319ccb71624f9dce0d5f0d07b9e",
+    "measured_binary_sha256":  "d60624ec384f91b5ae16f78b1a7977e1c655091d15b74aa233a37e2ac829b06c",
+    "measured_adapter_sha256":  "397eb04179e06a08cebcd5ad64f20ca6fcc84b8b42aacb8ffc1366907be523b9",
+    "native_author_jobs":  0,
+    "powershell_evidence_reused":  "R6 exact unchanged runner/tests/QA/log; no new R7 PowerShell test-suite execution",
+    "production_effect":  "NOT_PROVEN"
+}

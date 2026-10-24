@@ -1,0 +1,79 @@
+{
+  "schema": "air-worker.hlp03-r7-independent-review/v1",
+  "reviewed_at_utc": "2026-10-24T14:31:03Z",
+  "reviewer": {"model": "gpt-6-sol", "effort": "medium", "route": "native executor", "job_provenance": "COORDINATOR_BINDING_PENDING"},
+  "source_base_sha": "68f9725c433df319ccb71624f9dce0d5f0d07b9e",
+  "exact_hashes_checked": {
+    "source_base_adapter": {"sha256": "bc630efcec6f50471b647722d56b18d7922f82ba3cd1db79f452095069314647", "verified_by": "git show base blob"},
+    "cmd/learn_adapter.go": "397eb04179e06a08cebcd5ad64f20ca6fcc84b8b42aacb8ffc1366907be523b9",
+    "cmd/learn_adapter_live_eval_test.go": "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+    "docs/tasks/run-hlp03-real-reviewer-20261024.ps1": "d3175bf9961250bb4d8eacb3023832b705e633873c5f73f8a507312af54563fb",
+    "docs/tasks/test-run-hlp03-real-reviewer-20261024.ps1": "1105fb1044820daf557c57e4bdea7b9d0aff7d59a7c110dac4fd25e4e665063e",
+    "r7_binary": "d60624ec384f91b5ae16f78b1a7977e1c655091d15b74aa233a37e2ac829b06c",
+    "r7_source_qa": "2920964747faf31ca304ba2958d5e409ac2d870e27341fd16d0226668a57e352",
+    "r6_source_qa": "85d30de584f14045a94711a5a76f61fd625b190d199f862d6255aa2c58f16a85",
+    "r6_powershell_log": "1ea0b150cd97a8cd6d6ab95d92440dbe33c54beb2604a1debd0c048a72df739b",
+    "protocol": "8b94ffd4134c89eb92534c851e621254d3ec1f563f5fb4a759ff26657c1a0cf0",
+    "development_corpus": "6c9560614e20e7a43777cbcd8df13078655d3ae59ceae4a9ab84c5aadd0e060f",
+    "development_gold": "d16c7c59cdf4b0f18bf942ec606bb5304c882bf8db041a0badc432cf4be58de6",
+    "development_freeze": "e6be9fb817cbbdd9acc0c46dad3f8dc5beb94753d3ff8c6dd80b872db81f3e89",
+    "holdout_corpus": "c222c4675faddda60bfac41d890974baf70aaf2c1ea7cc8db79a39124654cf32",
+    "holdout_gold": "9c1a1ff01a3d7fe2a5f35a7e8d5ed31d3c4e0b9c4bec3dbff1b2b6eae4f383de",
+    "holdout_freeze": "81bc84e214fa8acf1678a7b4f092a496fd068e52d7a0850e1d4a123f016f1d1e",
+    "followup_design": "075f48b51ebdd4ba9a1742af3759517aec57dc71ea43bd197e88e3a0fe909b32",
+    "followup_gold": "8b3ea16460495236f9d161891889d882b04be42c1b2dc0be3594e94bf2c9a934",
+    "candidate_manifest": "5cc2f961c55d26d4bd58d6915af77841a4d97708a764ce91fc5df2769077c908",
+    "development_terminal": "2eba8db1d704bd4b4b603624becad82d54c5ad90f4f3e85613b075977791d8d3",
+    "development_partial_summary": "7842742f08fca0ae78d473c8d6f35a5acd488c1b621932f691831e24e14abbfd",
+    "postrun_readback": "bc2ea895da3dbc783cdd6c49202fa9e91bea5e848e1b85f34b2d245f7d1623c1"
+  },
+  "source_acceptance": {
+    "status": "ACCEPTED_BOUNDED_SOURCE_CANDIDATE",
+    "basis": "HEAD is the specified base. Its adapter blob and current adapter match the source-change receipt; the exact diff replaces only the designated generic prompt sentence. Candidate binary, harness, runner, test, input and protocol hashes match snapshot, freezes and original development launch. R7 targeted Go reviewer tests passed 74, failed 0, skipped 2; vet and build exited 0. R7 did not rerun PowerShell: only the unchanged runner/test and exact R6 QA/log hashes support reuse, not a new R7 PowerShell or failure-E2E result. No native author model job was used; host advisory is not native acceptance.",
+    "evidence": ["cmd/learn_adapter.go", "docs/receipts/LEARNING_HLP03_R7_SOURCE_CHANGE_20261024.json", ".air-worker/learning-loop-20261024/hlp03-r7-source-qa.json", ".air-worker/learning-loop-20261024/hlp03-r7-candidate-snapshot/manifest.json", ".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/launch.json"]
+  },
+  "measurement_acceptance": {
+    "status": "INCOMPLETE_REJECTED_AS_FULL_SERIES",
+    "basis": "Fourteen original result records have native turn.completed, canonical responses, zero observed tool calls or contamination and verified per-case cleanup. The original wrapper and owned Go process exited 1; wrapper failed during temp enumeration at Get-ChildItem line 24 with Win32 NativeErrorCode 2, terminated the owned Go tree and did not record an after sample. Thirteen before/during resource records are complete and below the working estimate, but do not prove a continuous peak or full DEV-137 compliance. Postrun readback reports 46/46 protected guards and 11/11 frozen bindings unchanged. C15 has two applied seed fixtures only and no persisted prompt/config/native completion; C16-C24 never started. The known24 and nonzero-exit advance gate failed, so fresh6 and followup2 were correctly blocked.",
+    "evidence": [".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/terminal.json", ".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/resources.jsonl", ".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/summary.json", ".air-worker/learning-loop-20261024/hlp03-r7-postrun-readback.json", "docs/receipts/LEARNING_HLP03_R7_ADVANCE_GATE_20261024.json"]
+  },
+  "model_quality": {"status": "PARTIAL_14_ACCEPTABLE_C18_UNMEASURED", "completed_class_correct": 14, "completed_identity_correct": 14, "completed_content_acceptable": 14, "completed_complete_acceptance": 14, "designated_complete_acceptance": 14, "designated": 32, "judgment": "All observed C01-C14 bodies satisfy their frozen lessons, including retained old UPDATE branches and supported new actions. This is no acceptance of known24, fresh6, followup2, or the C18 hypothesis."},
+  "production_effect": "NOT_PROVEN",
+  "series_results": [
+    {"series": "HLP03_R7_DEVELOPMENT_20261024", "kind": "known_development_regression", "designated": 24, "executed": 14, "blocked": 10, "interrupted_preparation": 1, "unstarted": 9, "class_correct": 14, "identity_correct": 14, "content_acceptable": 14, "complete_acceptance": 14, "status": "PARTIAL_WRAPPER_FAILURE_NO_ADVANCE"},
+    {"series": "HLP03_R7_HOLDOUT_20261024", "kind": "fresh_topic_holdout", "designated": 6, "executed": 0, "blocked": 6, "status": "NOT_RUN_BLOCKED_UNEXPOSED"},
+    {"series": "HLP03_R7_FOLLOWUP_20261024", "kind": "old_case_after_update", "designated": 2, "executed": 0, "blocked": 2, "status": "NOT_RUN_PREREQUISITES_BLOCKED_NO_R7_APPLIED_BODIES_OR_DERIVED_FREEZE"}
+  ],
+  "case_results": [
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C01","expected":"no_candidate","actual":"no_candidate","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Exact main-file project-root repair is already in the seed; raw response is the canonical empty object.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C01/result.json"},
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C02","expected":"update","actual":"update","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Exact project-path target/preSHA; full body retains main project-root resolution and schema check, and adds embedded references relative to their containing file.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C02/result.json"},
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C03","expected":"create","actual":"create","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Distinct schema repair after correct path opening; generated managed target with empty preSHA, identifies and restores the required field then validates before continuing.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C03/result.json"},
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C04","expected":"no_candidate","actual":"no_candidate","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Seed already teaches sending the issued cursor and collecting until the declared end; raw response is empty object.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C04/result.json"},
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C05","expected":"update","actual":"update","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Exact cursor target/preSHA; full body retains opaque token and completion rules while adding standard query serialization to preserve plus and other reserved characters.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C05/result.json"},
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C06","expected":"create","actual":"create","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Distinct server nonprogress despite exact cursor; generated managed target with empty preSHA stops and marks partial data incomplete without deleting the old cursor procedure.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C06/result.json"},
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C07","expected":"no_candidate","actual":"no_candidate","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Confirmed UTF-8 single-decode repair is already taught; raw response is empty object.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C07/result.json"},
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C08","expected":"update","actual":"update","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Exact UTF-8 target/preSHA; full body retains confirmed single decode and original bytes, consumes only a leading BOM and keeps BOM-free and interior-character behavior.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C08/result.json"},
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C09","expected":"create","actual":"create","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Distinct producer double-serialization repair; generated managed target with empty preSHA, regenerate from original text while keeping consumer single decode/parse.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C09/result.json"},
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C10","expected":"no_candidate","actual":"no_candidate","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Terminal retryable upstream failure and bounded same-input attempt already covered; raw response is empty object.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C10/result.json"},
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C11","expected":"update","actual":"update","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Exact retry target/preSHA; full body retains terminal receipt, same input, three-attempt and deadline bounds, and first checks whether the advertised wait fits before waiting or retrying.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C11/result.json"},
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C12","expected":"create","actual":"create","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Distinct nonretryable input-schema repair; generated managed target with empty preSHA, restores mandatory field from trusted record before corrected run and forbids unchanged retry.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C12/result.json"},
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C13","expected":"no_candidate","actual":"no_candidate","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Seed already teaches explicit m/mm single normalization before comparison; raw response is empty object.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C13/result.json"},
+    {"series":"HLP03_R7_DEVELOPMENT_20261024","id":"C14","expected":"update","actual":"update","class_correct":true,"identity_correct":true,"content_acceptable":true,"complete_acceptance":true,"rationale":"Exact unit target/preSHA; full body adds cm factor 0.01 while preserving m factor 1, mm factor 0.001, one normalization, original inputs and explicit unknown-unit rejection.","evidence":".air-worker/learning-loop-20261024/hlp03-r7-development-20261024/evidence/C14/result.json"}
+  ],
+  "designated_count": 32,
+  "executed_count": 14,
+  "blocked_count": 18,
+  "findings": [
+    "The source candidate passes bounded source QA, but the 32-case evaluation does not pass: 14 completed acceptable cases, C15 interrupted during preparation, nine later known cases unstarted, six fresh and two followups blocked.",
+    "The prospective known24 gate requires 24 completed canonical responses, cleanup, and Go/wrapper exit 0; none can be inferred for C15-C24 from summary.case_count=24 or C15 stdout start.",
+    "The original diagnostic identifies Get-ChildItem temp enumeration and Win32 NativeErrorCode 2. Whether a disappearing temporary entry caused it remains an unproved hypothesis; R6/R7 clean termination behavior does not explain the older R5 failure.",
+    "C18 and its C17/C20 counterboundaries were not measured in R7. Prior R6 C18 failure remains historical evidence, not an R7 result. No designated R7 holdout updates exist for verbatim old-case seed derivation.",
+    "P2/P3 and natural useful effect are not established by the partial synthetic observations; installed runtime 0.11.10 remains outside this source-candidate review."
+  ],
+  "limitations": [
+    "The case judgments cover each full observed event, complete applicable seed, frozen gold and actual candidate text for C01-C14; identical seed bodies were read once per exact SHA with all case associations retained.",
+    "No R7 PowerShell rerun, new failure-E2E check, continuous resource peak, full DEV-137 acceptance, fresh-topic response, followup response, release/install or production effect is claimed.",
+    "No completed independent-review job receipt/output hash is asserted; the coordinator must bind that provenance after completion."
+  ],
+  "next_step": "Preserve the interrupted evidence and failed advance gate. Diagnose the wrapper's observed temp-enumeration failure from the original terminal, source control flow and retained C15 fixture without assigning an ultimate cause or rerunning this frozen candidate. Then make an explicit separately scoped decision about any future measurement; do not automatically retry, sweep, fall back, relabel or advance to R8. Existing scoped-development authorization is not replaced by a generic approval gate."
+}

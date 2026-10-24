@@ -1,0 +1,40 @@
+{
+    "schema":  "air-worker.hlp03-r7-source-change/v1",
+    "at_utc":  "2026-10-24T14:17:48.5936952Z",
+    "source_base_sha":  "68f9725c433df319ccb71624f9dce0d5f0d07b9e",
+    "file":  "cmd/learn_adapter.go",
+    "prior_sha256":  "bc630efcec6f50471b647722d56b18d7922f82ba3cd1db79f452095069314647",
+    "candidate_sha256":  "397eb04179e06a08cebcd5ad64f20ca6fcc84b8b42aacb8ffc1366907be523b9",
+    "exact_replacement_verified":  true,
+    "from":  "Decide coverage before placement.",
+    "to":  "Identify the complete reusable correction supported by the run before deciding coverage and placement. When the evidence requires both a protective check and a repair of the established cause, retain both and choose placement for the whole correction, not for the check alone. A different corrective operation remains distinct when it repairs an unmet precondition, even if the existing operation has not completed.",
+    "tracked_source_files_changed":  [
+                                         "cmd/learn_adapter.go"
+                                     ],
+    "diff_numstat":  [
+                         "1\t1\tair-worker/cmd/learn_adapter.go"
+                     ],
+    "execution":  "MECHANICAL_SCRIPT",
+    "native_author_jobs":  0,
+    "host_advisory":  "Reasoned hypothesis only, not native acceptance",
+    "qa_path":  ".air-worker/learning-loop-20261024/hlp03-r7-source-qa.json",
+    "qa_sha256":  "2920964747faf31ca304ba2958d5e409ac2d870e27341fd16d0226668a57e352",
+    "go_pass":  74,
+    "go_fail":  0,
+    "go_skip":  2,
+    "vet_exit":  0,
+    "build_exit":  0,
+    "powershell_validation":  {
+                                  "status":  "REUSED_R6_RECEIPT_HASH_VERIFIED",
+                                  "executed_in_R7":  false,
+                                  "prior_qa_path":  "R:\\-4-\\air-worker\\worktrees\\airworker-learning-loop-20261024\\air-worker\\.air-worker\\learning-loop-20261024\\hlp03-r6-source-qa.json",
+                                  "prior_qa_sha256":  "85d30de584f14045a94711a5a76f61fd625b190d199f862d6255aa2c58f16a85",
+                                  "prior_test_log_sha256":  "1ea0b150cd97a8cd6d6ab95d92440dbe33c54beb2604a1debd0c048a72df739b",
+                                  "prior_exit_code":  0,
+                                  "runner_sha256":  "d3175bf9961250bb4d8eacb3023832b705e633873c5f73f8a507312af54563fb",
+                                  "tests_sha256":  "1105fb1044820daf557c57e4bdea7b9d0aff7d59a7c110dac4fd25e4e665063e"
+                              },
+    "source_acceptance":  "QA_PASS_INDEPENDENT_REVIEW_PENDING",
+    "model_quality":  "NOT_MEASURED",
+    "production_effect":  "NOT_PROVEN"
+}
