@@ -21,6 +21,90 @@ import (
 const sharedLearningConfigFile = "learning-module.json"
 const sharedLearningMaxBytes = 256 * 1024
 
+func learningFailureReason(stderr []byte) string {
+	if len(bytes.TrimSpace(stderr)) == 0 {
+		return ""
+	}
+	// Recognize the real native adapter's fixed diagnostics. Never copy arbitrary
+	// stderr, model output, paths or credentials into the durable learning journal.
+	// Unknown/custom adapter details stay withheld rather than guessed safe.
+	if len(stderr) > 4096 {
+		stderr = stderr[:4096]
+	}
+	line := strings.TrimSpace(string(stderr))
+	if i := strings.IndexAny(line, "\r\n"); i >= 0 {
+		line = line[:i]
+	}
+	message, native := strings.CutPrefix(line, "learning reviewer: ")
+	if !native {
+		return "detail withheld"
+	}
+	if strings.HasPrefix(message, "ОТКАЗ: job ") &&
+		strings.Contains(message, "duplicate start внутри owned scope запрещён") {
+		return "reviewer_job_busy"
+	}
+	for _, diagnostic := range []struct{ prefix, reason string }{
+		{"product root is not supplied", "reviewer_product_missing"},
+		{"shared learning is not enabled for product", "reviewer_learning_disabled"},
+		{"learning reviewer input exceeds byte limit", "reviewer_input_too_large"},
+		{"invalid JSON input", "reviewer_invalid_input"},
+		{"event is required", "reviewer_event_missing"},
+		{"cannot read existing class guidance:", "reviewer_context_read_failed"},
+		{"model output is not the required JSON object", "reviewer_invalid_model_output"},
+		{"proposed procedure is missing required Markdown sections", "reviewer_invalid_procedure"},
+		{"unsupported native action origin/format", "reviewer_invalid_native_origin"},
+		{"unregistered or changed native action", "reviewer_invalid_native_action"},
+		{"managed digest target has conflicting bytes", "reviewer_target_conflict"},
+		{"cannot inspect generated target:", "reviewer_target_read_failed"},
+		{"authenticated native response unavailable:", "reviewer_attestation_failed"},
+		{"Codex learning reviewer returned no agent_message", "reviewer_message_missing"},
+		{"Codex learning reviewer ended without a successful terminal event", "reviewer_terminal_missing"},
+		{"Ponytail:", "reviewer_skill_unavailable"},
+		{"job ещё RUNNING:", "reviewer_job_running"},
+	} {
+		if strings.HasPrefix(message, diagnostic.prefix) {
+			return diagnostic.reason
+		}
+	}
+	return "reviewer_failed; detail withheld"
+}
+
+func acquireLearningReviewerLock(ctx context.Context, product string) (func(), error) {
+	f, err := os.Open(product)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !st.IsDir() {
+		return nil, errors.New("learning product is not a directory")
+	}
+	root, err := openedFileFinalPath(f)
+	if err != nil {
+		return nil, err
+	}
+	path := filepath.Join(root, ".air-worker-reviewer.lock")
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		unlock, err := acquireBootstrapFileLock(path, 20*time.Millisecond)
+		if err == nil {
+			if err := ctx.Err(); err != nil {
+				unlock()
+				return nil, err
+			}
+			return unlock, nil
+		}
+		if !strings.Contains(err.Error(), "lock timeout") {
+			return nil, err
+		}
+	}
+}
+
 // This configuration selects ONE writer for a product. Its presence never migrates
 // historical state or switches an unrelated installed product to the new module.
 type sharedLearningSettings struct {
@@ -283,6 +367,9 @@ func runLearningProcess(ctx context.Context, product string, a *learningProcessA
 	var stdout, stderr learningBoundedOutput
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	if err := childCtx.Err(); err != nil {
+		return nil, err
+	}
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("learning adapter start failed: %w", err)
 	}
@@ -303,6 +390,9 @@ func runLearningProcess(ctx context.Context, product string, a *learningProcessA
 		return nil, childCtx.Err()
 	}
 	if err != nil {
+		if reason := learningFailureReason(stderr.Bytes()); reason != "" {
+			return nil, fmt.Errorf("learning adapter failed (%s): %w", reason, err)
+		}
 		return nil, fmt.Errorf("learning adapter failed: %w", err)
 	}
 	if stdout.overflow || stderr.overflow {
@@ -324,6 +414,11 @@ func sharedLearningConfig(product string, s sharedLearningSettings) learning.Con
 	}
 	if s.Reviewer != nil {
 		c.Reviewer = func(ctx context.Context, b json.RawMessage) (json.RawMessage, error) {
+			unlock, err := acquireLearningReviewerLock(ctx, product)
+			if err != nil {
+				return nil, fmt.Errorf("learning reviewer queue: %w", err)
+			}
+			defer unlock()
 			return runLearningProcess(ctx, product, s.Reviewer, b)
 		}
 	}
