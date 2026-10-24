@@ -1,0 +1,18 @@
+{
+    "schema":  "air-worker.hlp03-r5-evidence-bundle/v1",
+    "archive":  "docs/receipts/evidence/HLP03_REFINEMENT_R5_20261024.zip",
+    "sha256":  "0a20c619c55bc34988921dba60c8eb9002ab9068fc18142ce20b636beed016c2",
+    "bytes":  537344,
+    "entries":  281,
+    "manifest_files":  280,
+    "every_entry_reopened_and_sha_verified":  true,
+    "original_files_unchanged_after_archive":  true,
+    "native_job_id":  "gpt__hlp03-semantic-20261024__1792843422278901000__dd6444b0",
+    "native_job_status":  "DONE",
+    "native_job_receipt_sha256":  "d521526411889ae43fbf3ad357b074089940e253d2b035ad7b7802402997c5b4",
+    "independent_review_sha256":  "03c84603b24256dc8d9f750ccf52e5b25439d6298be5f6c468e91b07fa1e4c14",
+    "source_base_sha":  "92fd3ce9ad71f6ea5fe7c8252a341191ce4d6619",
+    "measured_binary_sha256":  "934eb3b5adc70cd886d7f204dacb74d90eb316a0b25516cb9cb507fd07371302",
+    "measured_adapter_sha256":  "c06762214fb4ff0cd64cda52e5aa18f11cfec70cdab49ea3edf15f9c7876f9f7",
+    "production_effect":  "NOT_PROVEN"
+}

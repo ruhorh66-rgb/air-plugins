@@ -1,0 +1,31 @@
+{
+  "schema": "air-worker.hlp03-followup-design/v1",
+  "status": "FROZEN_BEFORE_R5_MODEL_OUTPUTS",
+  "cases": [
+    {
+      "id": "C57",
+      "primary_case_id": "C52",
+      "target": "skills/learned/parse-explicit-calendar-dates.md",
+      "event": {
+        "kind": "failure",
+        "class": "calendar-date-decoding",
+        "observed": "The source explicitly declared YYYY-MM-DD and supplied 2026-04-05. A locale-based fallback reversed the month and day and represented the value as 4 May 2026. The implemented correction used the existing strict YYYY-MM-DD parsing procedure instead of that fallback.",
+        "outcome": "Parsing by the declared format produced year=2026, month=4 and day=5: 5 April 2026. The original input text was retained. No additional date format or new parsing rule was introduced."
+      }
+    },
+    {
+      "id": "C58",
+      "primary_case_id": "C55",
+      "target": "skills/learned/parse-declared-csv-records.md",
+      "event": {
+        "kind": "failure",
+        "class": "csv-record-decoding",
+        "observed": "The source explicitly declared comma-separated CSV with double-quote quoting. For the data row Ada,\"x,y\", a naive split on commas produced three fragments: [\"Ada\",\"\\\"x\",\"y\\\"\"]. The implemented correction used the existing structural CSV parser with the declared comma delimiter and double-quote quoting.",
+        "outcome": "The parser returned exactly two field values: [\"Ada\",\"x,y\"]. The quoted comma remained inside the second field, and field values and row association were preserved. No additional delimiter, quoting convention or field-name mapping was introduced."
+      }
+    }
+  ],
+  "derivation_rule": "Copy the actual designated canonical update content verbatim into only its original seed after exact identity and successful module lifecycle; preserve the other seed and frozen old failure/correction event. Missing or wrong primary updates fail the prerequisite and remain in the two-case denominator; no idealized replacement or retry.",
+  "purpose": "Old-event reviewer decisions after actual update; not execution of a learned algorithm or production effect.",
+  "prospective_design_note": "Followups were strengthened from old success events to old failure/correction events before any R5 output; no R1-R4 input or label was changed."
+}

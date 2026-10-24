@@ -1,0 +1,252 @@
+{
+  "schema": "airworker.intermediate-release-preparation/v1",
+  "date_sgt": "2026-10-24",
+  "status": "PREPARATION_COMPLETE_RELEASE_NOT_READY",
+  "node": "SRVLM01",
+  "source_base_sha": "92fd3ce9ad71f6ea5fe7c8252a341191ce4d6619",
+  "candidate": "HLP03_R5_SOURCE_ONLY",
+  "plan_goal": "A bounded Module Learning reliability increment using verified procedure reuse/update, explicit exact-SHA delivery and existing authenticated native-action binding; no full Hermes parity or natural-effect claim.",
+  "acceptance_separation": {
+    "source": "R5 offline QA passed; independent acceptance pending at preparation time",
+    "model": "R5 evaluation in progress; prior R4 quality FAIL remains historical",
+    "production": "NOT_PROVEN",
+    "P2": "BLOCKED_EXISTING_NATIVE_AUTHORITY",
+    "P3": "NOT_READY"
+  },
+  "observed_package_identity": {
+    "schema": "airworker.release-preparation-observation/v1",
+    "at_utc": "2026-10-24T11:53:30.2785975Z",
+    "source_base_sha": "92fd3ce9ad71f6ea5fe7c8252a341191ce4d6619",
+    "inspection_only": true,
+    "artifact_path": "R:\\-4-\\air-worker\\worktrees\\airworker-learning-loop-20261024\\air-worker\\.air-worker\\learning-loop-20261024\\air-worker-hlp03-r5.exe",
+    "artifact_sha256": "934eb3b5adc70cd886d7f204dacb74d90eb316a0b25516cb9cb507fd07371302",
+    "build_info": "R:\\-4-\\air-worker\\worktrees\\airworker-learning-loop-20261024\\air-worker\\.air-worker\\learning-loop-20261024\\air-worker-hlp03-r5.exe: go1.26.8\r\n\tpath\tairos/air-worker\r\n\tmod\tairos/air-worker\t(devel)\t\r\n\tdep\tgithub.com/ruhorh66-rgb/air-modules\tv0.1.1\th1:ZQxuh7osl/4qiGYFD9mzTAOiELPu7PVe1YFzXQrq53g=\r\n\tbuild\t-buildmode=exe\r\n\tbuild\t-compiler=gc\r\n\tbuild\tCGO_ENABLED=0\r\n\tbuild\tGOARCH=amd64\r\n\tbuild\tGOOS=windows\r\n\tbuild\tGOAMD64=v1",
+    "vcs_revision_present": false,
+    "vcs_modified_present": false,
+    "goflags": "",
+    "source_mechanism_files": [
+      {
+        "path": "cmd\\distribution_identity.go",
+        "sha256": "65632d0fcd238b90d9e8ad3e2a51115e2e5902f98e75aa4e18dba5aa11ab2c11"
+      },
+      {
+        "path": "cmd\\installsource.go",
+        "sha256": "ec3cee476fa56df1f783f2a50907ba005265a44e5688bebff05d0a46d8c90de5"
+      },
+      {
+        "path": "tools\\check-distribution-identity.ps1",
+        "sha256": "081c28ff7d6a92946eb3307d1317a26039a5181b036d6093443e484f7724c197"
+      },
+      {
+        "path": "tools\\campaign\\build-clean.ps1",
+        "sha256": "e05037c8ffc6945fd19bb53e6386081d5dbd1bdc56ace140d11a292111ffdbec"
+      },
+      {
+        "path": "tools\\campaign\\finalize-release.ps1",
+        "sha256": "7532157a3d8dda5327bf957195bf3f871ba8cb361988a18dd45f014dc2c9a57f"
+      },
+      {
+        "path": ".claude-plugin\\plugin.json",
+        "sha256": "4751a94d46865c0a524a411bddc3e4aab6124ae45016f637d3a00fc772ea70b7"
+      },
+      {
+        "path": "cmd\\main.go",
+        "sha256": "d2143e536d0b70aeaa0b882b0019cafb897297496e6e10254557fc2e21f743d9"
+      },
+      {
+        "path": "cmd\\tray\\main_windows.go",
+        "sha256": "e11c49e417bb3d07afd08086101eda93e8b457519e07c05f31999959db5f093d"
+      }
+    ],
+    "installed_runtime_unchanged": true,
+    "build_clean_or_finalize_executed": false,
+    "release_assets_downloaded": false,
+    "candidate_version_assigned": false,
+    "P3_status": "NOT_READY"
+  },
+  "observation_sha256": "5b1e68da072d51b491c34a31b74a00275095cf2ddf40731affcc269473157961",
+  "existing_mechanisms": [
+    {
+      "path": "tools/check-distribution-identity.ps1",
+      "use": "Read-only release tag/source identity and clean product-scope guard. Supply the Git repository root, not the nested product root.",
+      "future_command": "powershell -File tools/check-distribution-identity.ps1 -Repo <git_repository_root> -Version <approved_version> -Commit <frozen_source_commit>",
+      "executed": false,
+      "reason": "No new release version is assigned and this source checkout intentionally retains foreign WIP."
+    },
+    {
+      "path": "cmd/distribution_identity.go",
+      "use": "Reads CLI/tray version, SHA-256 and Go vcs.revision/vcs.modified; builds a payload snapshot and checks host distribution identity.",
+      "execution_scope": "Source inspected; no installed selfcheck state or services changed."
+    },
+    {
+      "path": "tools/campaign/build-clean.ps1",
+      "use": "Historical example of CLI/tray build flags and VCS identity checks.",
+      "executed": false,
+      "incompatible_current_actions": [
+        "Broad git add -A air-worker would include unrelated WIP.",
+        "Deletes/recreates campaign directories and creates another clone.",
+        "Copies and commits binary files for a historical campaign."
+      ],
+      "decision": "Do not run this historical script in the current task; reuse only reviewed build/identity requirements."
+    },
+    {
+      "path": "tools/campaign/finalize-release.ps1",
+      "use": "Historical 0.10.11 example of source/binary/receipt linkage.",
+      "executed": false,
+      "incompatible_current_actions": [
+        "Deletes/recreates campaign release directories and creates two clones.",
+        "Uses a historical base revision, branch and release narrative.",
+        "Stages/replaces payload and makes its own commits."
+      ],
+      "decision": "Do not execute or port this whole campaign; preserve one existing checkout."
+    },
+    {
+      "path": "cmd/installsource.go",
+      "use": "Existing GitHub marketplace source and downgrade guards; the source/provenance and rollback requirements remain mandatory.",
+      "executed": false,
+      "rollback_limit": "A higher installed version cannot be replaced with a lower one through ordinary non-elevated install. An approved rollback must use the existing authorized source/rights path; no manual file-copy or guard bypass is accepted."
+    }
+  ],
+  "candidate_components": [
+    {
+      "component": "CLI",
+      "source": "cmd",
+      "qa_artifact_sha256": "934eb3b5adc70cd886d7f204dacb74d90eb316a0b25516cb9cb507fd07371302",
+      "release_artifact_status": "NOT_BUILT",
+      "required": "Exact approved source, version and build flags; verifiable source revision and payload SHA."
+    },
+    {
+      "component": "Tray",
+      "source": "cmd/tray",
+      "release_artifact_status": "NOT_BUILT",
+      "required": "Same source/version as CLI; GUI-subsystem flags and independent identity readback."
+    },
+    {
+      "component": "Canonical plugin payload",
+      "source": ".claude-plugin/plugin.json; hooks; skills; supported host manifests",
+      "release_artifact_status": "NOT_FROZEN",
+      "required": "One canonical package, matching approved version and complete hashed payload; preserve host instruction/skill delivery."
+    },
+    {
+      "component": "Module dependency",
+      "source": "cmd/go.mod + cmd/go.sum",
+      "status": "PIN_PRESERVED",
+      "required": "github.com/ruhorh66-rgb/air-modules v0.1.1; no dependency uplift in this slice."
+    }
+  ],
+  "build_requirements": {
+    "cli": [
+      "CGO_ENABLED=0",
+      "go build -trimpath -ldflags=-s -w"
+    ],
+    "tray": [
+      "CGO_ENABLED=0",
+      "go build -trimpath -ldflags=-s -w -H=windowsgui ./tray"
+    ],
+    "source_binding": "Use the accepted exact source generation; verify the actual embedded revision and modification status rather than synthesizing them. Current R5 QA binary lacks both VCS fields and is not a release candidate.",
+    "checkout_constraint": "No extra clone/worktree was created. Final source-to-artifact proof compatible with preserved WIP must be established before P3; an altered historical campaign is not treated as already accepted."
+  },
+  "required_release_checks": [
+    {
+      "id": "version_and_native_slice",
+      "status": "PENDING_P2",
+      "criterion": "Native authority/rephase assigns the exact next version/slice without reusing 0.11.10 or conflicting with N126–N131."
+    },
+    {
+      "id": "source_and_model",
+      "status": "PENDING_R5_INDEPENDENT_REVIEW",
+      "criterion": "Exact frozen source and required real model behavior accepted separately; no automatic model-quality waiver."
+    },
+    {
+      "id": "artifact_provenance",
+      "status": "NOT_PROVEN",
+      "criterion": "CLI/tray embedded identity and full payload manifest match accepted source/version; build flags and dependency pin recorded."
+    },
+    {
+      "id": "isolated_package_smoke",
+      "status": "NOT_RUN",
+      "criterion": "Use only the accepted artifact to check version and required supported learning/delivery commands in an isolated fixture; no installed changes."
+    },
+    {
+      "id": "rollback",
+      "status": "NOT_RUN",
+      "criterion": "Identify verified 0.11.10 rollback material and validate restoration/identity in an isolated fixture under existing source/downgrade guards before any live installation."
+    },
+    {
+      "id": "publication",
+      "status": "WAIT_SEPARATE_EXACT_DECISION",
+      "criterion": "P3 accepted, exact tag/commit/asset authorized, then GitHub/marketplace readback."
+    },
+    {
+      "id": "installation",
+      "status": "WAIT_SEPARATE_EXACT_DECISION",
+      "criterion": "Exact approved asset and rollback procedure, installed CLI/tray/plugin identities and smoke; preserve services until separately authorized."
+    },
+    {
+      "id": "natural_effect",
+      "status": "NOT_PROVEN",
+      "criterion": "A natural suitable opportunity yields exact delivered SHA, authenticated native use/outcome and useful effect; synthetic corpus does not count."
+    }
+  ],
+  "baseline": {
+    "installed_version": "0.11.10",
+    "installed_runtime_sha256": "339c02469519752a53a4c2e43c4b033a8193e33189c339ffb9e601b087e881ab",
+    "published_tag_verification": {
+      "prior_analysis_reported_version": "0.11.10",
+      "publication_status": "TAG_VERIFIED_RELEASE_ASSETS_NOT_VERIFIED",
+      "current_repository_tag_readback": "DIRECT_GITHUB_TAG_AND_PEELED_COMMIT_CONFIRMED",
+      "queried_tag": "air-worker--v0.11.10",
+      "tag_object_sha": "08d48a50b320cd51c38968dc7efe94a594633aa9",
+      "peeled_commit_sha": "1e54fd564429a65bf1d4d58892f56d39bb28df94",
+      "release_assets_status": "NOT_VERIFIED",
+      "note": "Прямой GitHub readback подтверждает tag отдельно от installed source. Прежний пустой ls-remote обращался к локальному origin и не устанавливал состояние GitHub; assets ещё не проверены."
+    },
+    "rollback_tested": false
+  },
+  "native_authority": {
+    "status": "BLOCKED_EXISTING_P2",
+    "read_only_sources": [
+      "AirWorker_Wiki/01_TASKS/AIRWORKER_N124_A3_GITHUB_AUTHORITY_20261018.json",
+      "AirWorker_Wiki/03_REVIEW/AIRWORKER_N124_A3_NATIVE_ATOMIC_FIXTURE_HANDOFF_20261018.md",
+      "plan/N-124_p1-detect-cross-branch-node-id-collision-and-sta.md",
+      "plan/N-125_p0-causal-learned-use-effect-and-recurrence-prev.md"
+    ],
+    "finding": "The accepted local atomic fixture is not production GitHub authority. Owner/ref/namespace and separately approved isolated atomic-pair experiment remain unspecified or unaccepted; native amendment/header sync and full generation/identity acceptance remain separate.",
+    "no_production_ref_mutation": true,
+    "no_new_N_ID": true
+  },
+  "optimization": {
+    "parallel_preparation_completed": true,
+    "do_not_repeat": [
+      "Unchanged R4 schema/runner/process-tree QA without a concrete new risk",
+      "Prior R1–R4 model calls or label revisions",
+      "Historical campaign clones or full new packaging framework",
+      "Broader Hermes/OmniRouter capabilities outside the bounded release"
+    ],
+    "measurement_qualification": "R5 exposed a concrete final-observation failure in the unchanged runner. Future bounded deterministic diagnosis is warranted; prior source QA is not evidence of a clean R5 live wrapper terminal."
+  },
+  "preserved": {
+    "installed_runtime": true,
+    "services": true,
+    "native_PLAN_N_LEARN": true,
+    "foreign_WIP": true,
+    "AIR_ENV_002_contacted": false
+  },
+  "limits": [
+    "This is preparation and source inspection, not package, rollback, P2 or P3 acceptance.",
+    "The cause of missing VCS fields in the QA build was not diagnosed here; absence was directly observed.",
+    "Release assets for the existing published 0.11.10 tag were not downloaded or verified in this task."
+  ],
+  "final_checkpoint": {
+    "independent_review": "docs/receipts/LEARNING_HLP03_R5_INDEPENDENT_REVIEW_20261024.json",
+    "source": "ACCEPTED_BOUNDED_SOURCE_CANDIDATE",
+    "model": "FAIL_KNOWN_CLASS_IDENTITY_GATE",
+    "development_class_identity": "22/24",
+    "development_complete": "21/24",
+    "fresh6_followup2": "NOT_RUN_BLOCKED",
+    "P2": "BLOCKED_EXISTING_NATIVE_AUTHORITY",
+    "P3": "NOT_READY",
+    "release_candidate_selected": false,
+    "qualification": "The preparation-time observations above remain historical. Final checkpoint status does not turn the QA executable into a release artifact. Neither R4 nor R5 has passed the required model-quality gate."
+  }
+}

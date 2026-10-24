@@ -1,0 +1,119 @@
+{
+  "schema": "air-worker.hlp03-corpus-input/v1",
+  "cases": [
+    {
+      "id": "C51",
+      "procedures": [
+        {
+          "target": "skills/learned/parse-explicit-calendar-dates.md",
+          "body": "# Parse calendar dates using the declared format\n\n## When to apply\nWhen a source explicitly declares the YYYY-MM-DD calendar-date format: a four-digit year, two-digit month and two-digit day, with no time or time zone.\n\n## Procedure\n1. Confirm that the declared format is the supported YYYY-MM-DD format.\n2. Parse the year, month and day in that declared order and validate that they form a real Gregorian calendar date.\n3. Keep the parsed date for date operations and retain the original text for display and diagnosis.\n\n## Pitfalls\nDo not infer month/day order from the machine locale or from example values. Reject a missing or unsupported format and invalid dates explicitly; do not silently normalize an invalid date.\n"
+        },
+        {
+          "target": "skills/learned/parse-declared-csv-records.md",
+          "body": "# Parse declared comma-separated CSV structurally\n\n## When to apply\nWhen already decoded text is declared to be comma-separated CSV using double-quote quoting and doubled double quotes inside a quoted field.\n\n## Procedure\n1. Configure a structural CSV parser with the declared comma delimiter and double-quote quoting.\n2. Read records and fields through that parser so quoted delimiters, quoted line breaks and doubled quotes are interpreted as field content.\n3. Preserve the decoded field values and their row associations without trimming or numerical conversion.\n\n## Pitfalls\nDo not split lines on commas or remove quotes with ad hoc string replacements. Reject malformed quoting explicitly. Do not guess the CSV dialect or silently trim field content.\n"
+        }
+      ],
+      "event": {
+        "kind": "success",
+        "class": "calendar-date-decoding",
+        "observed": "The source declared YYYY-MM-DD and supplied 2026-04-05. The existing procedure parsed a valid calendar date with year=2026, month=4 and day=5, independently of the machine locale, and retained the original text.",
+        "outcome": "The parsed value represented 5 April 2026. No additional correction or previously unsupported input form was required."
+      }
+    },
+    {
+      "id": "C52",
+      "procedures": [
+        {
+          "target": "skills/learned/parse-explicit-calendar-dates.md",
+          "body": "# Parse calendar dates using the declared format\n\n## When to apply\nWhen a source explicitly declares the YYYY-MM-DD calendar-date format: a four-digit year, two-digit month and two-digit day, with no time or time zone.\n\n## Procedure\n1. Confirm that the declared format is the supported YYYY-MM-DD format.\n2. Parse the year, month and day in that declared order and validate that they form a real Gregorian calendar date.\n3. Keep the parsed date for date operations and retain the original text for display and diagnosis.\n\n## Pitfalls\nDo not infer month/day order from the machine locale or from example values. Reject a missing or unsupported format and invalid dates explicitly; do not silently normalize an invalid date.\n"
+        },
+        {
+          "target": "skills/learned/parse-declared-csv-records.md",
+          "body": "# Parse declared comma-separated CSV structurally\n\n## When to apply\nWhen already decoded text is declared to be comma-separated CSV using double-quote quoting and doubled double quotes inside a quoted field.\n\n## Procedure\n1. Configure a structural CSV parser with the declared comma delimiter and double-quote quoting.\n2. Read records and fields through that parser so quoted delimiters, quoted line breaks and doubled quotes are interpreted as field content.\n3. Preserve the decoded field values and their row associations without trimming or numerical conversion.\n\n## Pitfalls\nDo not split lines on commas or remove quotes with ad hoc string replacements. Reject malformed quoting explicitly. Do not guess the CSV dialect or silently trim field content.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "calendar-date-decoding",
+        "observed": "The input contract was extended to support an explicitly declared DD/MM/YYYY format as well as YYYY-MM-DD. With DD/MM/YYYY declared, 04/05/2026 must represent 4 May 2026. The existing YYYY-MM-DD-only parser rejected that input, and a locale-based fallback misread it as 5 April. The implemented correction added a parser branch selected by the declared DD/MM/YYYY format while retaining the YYYY-MM-DD branch and strict calendar-date validation.",
+        "outcome": "04/05/2026 under DD/MM/YYYY and 2026-05-04 under YYYY-MM-DD both produced year=2026, month=5 and day=4. Missing or unsupported format declarations and invalid calendar dates remained explicit failures. Original input text remained available."
+      }
+    },
+    {
+      "id": "C53",
+      "procedures": [
+        {
+          "target": "skills/learned/parse-explicit-calendar-dates.md",
+          "body": "# Parse calendar dates using the declared format\n\n## When to apply\nWhen a source explicitly declares the YYYY-MM-DD calendar-date format: a four-digit year, two-digit month and two-digit day, with no time or time zone.\n\n## Procedure\n1. Confirm that the declared format is the supported YYYY-MM-DD format.\n2. Parse the year, month and day in that declared order and validate that they form a real Gregorian calendar date.\n3. Keep the parsed date for date operations and retain the original text for display and diagnosis.\n\n## Pitfalls\nDo not infer month/day order from the machine locale or from example values. Reject a missing or unsupported format and invalid dates explicitly; do not silently normalize an invalid date.\n"
+        },
+        {
+          "target": "skills/learned/parse-declared-csv-records.md",
+          "body": "# Parse declared comma-separated CSV structurally\n\n## When to apply\nWhen already decoded text is declared to be comma-separated CSV using double-quote quoting and doubled double quotes inside a quoted field.\n\n## Procedure\n1. Configure a structural CSV parser with the declared comma delimiter and double-quote quoting.\n2. Read records and fields through that parser so quoted delimiters, quoted line breaks and doubled quotes are interpreted as field content.\n3. Preserve the decoded field values and their row associations without trimming or numerical conversion.\n\n## Pitfalls\nDo not split lines on commas or remove quotes with ad hoc string replacements. Reject malformed quoting explicitly. Do not guess the CSV dialect or silently trim field content.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "dated-record-selection",
+        "observed": "Three records declared YYYY-MM-DD dates: A had 2026-04-05, B had 2026-04-09 and C had 2026-04-02. Parsing was already verified to produce the correct three date values. The task explicitly required the record with the latest date, and the maximum was unique. A later selection step nevertheless returned the first input record A.",
+        "outcome": "Selecting the maximum already parsed date and returning its associated complete record produced B. The input order and the verified date-parsing procedure were left unchanged."
+      }
+    },
+    {
+      "id": "C54",
+      "procedures": [
+        {
+          "target": "skills/learned/parse-explicit-calendar-dates.md",
+          "body": "# Parse calendar dates using the declared format\n\n## When to apply\nWhen a source explicitly declares the YYYY-MM-DD calendar-date format: a four-digit year, two-digit month and two-digit day, with no time or time zone.\n\n## Procedure\n1. Confirm that the declared format is the supported YYYY-MM-DD format.\n2. Parse the year, month and day in that declared order and validate that they form a real Gregorian calendar date.\n3. Keep the parsed date for date operations and retain the original text for display and diagnosis.\n\n## Pitfalls\nDo not infer month/day order from the machine locale or from example values. Reject a missing or unsupported format and invalid dates explicitly; do not silently normalize an invalid date.\n"
+        },
+        {
+          "target": "skills/learned/parse-declared-csv-records.md",
+          "body": "# Parse declared comma-separated CSV structurally\n\n## When to apply\nWhen already decoded text is declared to be comma-separated CSV using double-quote quoting and doubled double quotes inside a quoted field.\n\n## Procedure\n1. Configure a structural CSV parser with the declared comma delimiter and double-quote quoting.\n2. Read records and fields through that parser so quoted delimiters, quoted line breaks and doubled quotes are interpreted as field content.\n3. Preserve the decoded field values and their row associations without trimming or numerical conversion.\n\n## Pitfalls\nDo not split lines on commas or remove quotes with ad hoc string replacements. Reject malformed quoting explicitly. Do not guess the CSV dialect or silently trim field content.\n"
+        }
+      ],
+      "event": {
+        "kind": "success",
+        "class": "csv-record-decoding",
+        "observed": "The source explicitly declared comma-separated CSV with double-quote quoting. The decoded text was name,note\\nAda,\"x,y\"\\n, where \\n denotes a line break. The existing structural CSV procedure returned the header fields [\"name\",\"note\"] and the data fields [\"Ada\",\"x,y\"].",
+        "outcome": "The quoted comma remained part of one field, both row associations were preserved, and no additional correction was required."
+      }
+    },
+    {
+      "id": "C55",
+      "procedures": [
+        {
+          "target": "skills/learned/parse-explicit-calendar-dates.md",
+          "body": "# Parse calendar dates using the declared format\n\n## When to apply\nWhen a source explicitly declares the YYYY-MM-DD calendar-date format: a four-digit year, two-digit month and two-digit day, with no time or time zone.\n\n## Procedure\n1. Confirm that the declared format is the supported YYYY-MM-DD format.\n2. Parse the year, month and day in that declared order and validate that they form a real Gregorian calendar date.\n3. Keep the parsed date for date operations and retain the original text for display and diagnosis.\n\n## Pitfalls\nDo not infer month/day order from the machine locale or from example values. Reject a missing or unsupported format and invalid dates explicitly; do not silently normalize an invalid date.\n"
+        },
+        {
+          "target": "skills/learned/parse-declared-csv-records.md",
+          "body": "# Parse declared comma-separated CSV structurally\n\n## When to apply\nWhen already decoded text is declared to be comma-separated CSV using double-quote quoting and doubled double quotes inside a quoted field.\n\n## Procedure\n1. Configure a structural CSV parser with the declared comma delimiter and double-quote quoting.\n2. Read records and fields through that parser so quoted delimiters, quoted line breaks and doubled quotes are interpreted as field content.\n3. Preserve the decoded field values and their row associations without trimming or numerical conversion.\n\n## Pitfalls\nDo not split lines on commas or remove quotes with ad hoc string replacements. Reject malformed quoting explicitly. Do not guess the CSV dialect or silently trim field content.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "csv-record-decoding",
+        "observed": "The source contract was extended to allow an explicitly declared semicolon delimiter as well as a comma delimiter, with the same double-quote quoting rules. For declared delimiter=';', the decoded text was name;note\\nAda;\"x;y\"\\n, where \\n denotes a line break. The existing comma-only reader did not produce the required two fields. The implemented correction configured the same structural CSV parser with the explicitly declared supported delimiter.",
+        "outcome": "With ';' declared, the parser returned [\"name\",\"note\"] and [\"Ada\",\"x;y\"]. With ',' declared, the existing comma-separated inputs continued to parse correctly. Quoted delimiters and line breaks, doubled quotes, exact decoded field values and explicit rejection of malformed input remained supported; no dialect guessing was introduced."
+      }
+    },
+    {
+      "id": "C56",
+      "procedures": [
+        {
+          "target": "skills/learned/parse-explicit-calendar-dates.md",
+          "body": "# Parse calendar dates using the declared format\n\n## When to apply\nWhen a source explicitly declares the YYYY-MM-DD calendar-date format: a four-digit year, two-digit month and two-digit day, with no time or time zone.\n\n## Procedure\n1. Confirm that the declared format is the supported YYYY-MM-DD format.\n2. Parse the year, month and day in that declared order and validate that they form a real Gregorian calendar date.\n3. Keep the parsed date for date operations and retain the original text for display and diagnosis.\n\n## Pitfalls\nDo not infer month/day order from the machine locale or from example values. Reject a missing or unsupported format and invalid dates explicitly; do not silently normalize an invalid date.\n"
+        },
+        {
+          "target": "skills/learned/parse-declared-csv-records.md",
+          "body": "# Parse declared comma-separated CSV structurally\n\n## When to apply\nWhen already decoded text is declared to be comma-separated CSV using double-quote quoting and doubled double quotes inside a quoted field.\n\n## Procedure\n1. Configure a structural CSV parser with the declared comma delimiter and double-quote quoting.\n2. Read records and fields through that parser so quoted delimiters, quoted line breaks and doubled quotes are interpreted as field content.\n3. Preserve the decoded field values and their row associations without trimming or numerical conversion.\n\n## Pitfalls\nDo not split lines on commas or remove quotes with ad hoc string replacements. Reject malformed quoting explicitly. Do not guess the CSV dialect or silently trim field content.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "csv-field-name-mapping",
+        "observed": "The declared comma CSV text was acct_id,amount\\nA7,12.50\\n, where \\n denotes a line break. Structural parsing was already verified: headers were [\"acct_id\",\"amount\"] and row values were [\"A7\",\"12.50\"]. The input contract explicitly supplied the header mapping acct_id -> account_id and amount -> amount. The consumer required canonical field names, but the adapter passed the parsed source header names through unchanged, leaving account_id absent.",
+        "outcome": "Applying the supplied header mapping after successful CSV parsing produced {\"account_id\":\"A7\",\"amount\":\"12.50\"}. The existing parsing procedure, field values and row association remained unchanged. The mapping came from this input contract; aliases were not guessed."
+      }
+    }
+  ]
+}

@@ -1,0 +1,290 @@
+{
+  "schema": "air-worker.hlp03-r5-advance-gate/v1",
+  "source_base_sha": "92fd3ce9ad71f6ea5fe7c8252a341191ce4d6619",
+  "protocol": "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R5.json",
+  "development": {
+    "designated": 24,
+    "executed": 24,
+    "class_identity_correct": 22,
+    "cleanup_verified": 24,
+    "native_completed": 24,
+    "observed_tool_calls": 0,
+    "observed_contaminated": 0,
+    "wrapper_exit_code": 1,
+    "go_exit_code": 0,
+    "terminal": "WRAPPER_FAILURE",
+    "results": [
+      {
+        "id": "C01",
+        "expected": "no_candidate",
+        "actual": "no_candidate",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C02",
+        "expected": "update",
+        "actual": "create",
+        "class_identity_correct": false,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C03",
+        "expected": "create",
+        "actual": "create",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C04",
+        "expected": "no_candidate",
+        "actual": "no_candidate",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C05",
+        "expected": "update",
+        "actual": "update",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C06",
+        "expected": "create",
+        "actual": "create",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C07",
+        "expected": "no_candidate",
+        "actual": "no_candidate",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C08",
+        "expected": "update",
+        "actual": "update",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C09",
+        "expected": "create",
+        "actual": "create",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C10",
+        "expected": "no_candidate",
+        "actual": "no_candidate",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C11",
+        "expected": "update",
+        "actual": "update",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C12",
+        "expected": "create",
+        "actual": "create",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C13",
+        "expected": "no_candidate",
+        "actual": "no_candidate",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C14",
+        "expected": "update",
+        "actual": "update",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C15",
+        "expected": "create",
+        "actual": "create",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C16",
+        "expected": "no_candidate",
+        "actual": "no_candidate",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C17",
+        "expected": "update",
+        "actual": "create",
+        "class_identity_correct": false,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C18",
+        "expected": "create",
+        "actual": "create",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C19",
+        "expected": "no_candidate",
+        "actual": "no_candidate",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C20",
+        "expected": "update",
+        "actual": "update",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C21",
+        "expected": "create",
+        "actual": "create",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C22",
+        "expected": "no_candidate",
+        "actual": "no_candidate",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C23",
+        "expected": "update",
+        "actual": "update",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      },
+      {
+        "id": "C24",
+        "expected": "create",
+        "actual": "create",
+        "class_identity_correct": true,
+        "cleanup_verified": true,
+        "native_terminal": "turn.completed",
+        "contaminated": false,
+        "observed_tool_calls": 0
+      }
+    ]
+  },
+  "advance_to_fresh": false,
+  "reasons": [
+    "Known development class/exact-identity gate failed: C02 and C17 created a new procedure instead of updating the eligible existing procedure.",
+    "Wrapper recorded a Win32Exception during final observation; original failure remains immutable."
+  ],
+  "remaining": {
+    "fresh_holdout": {
+      "designated": 6,
+      "executed": 0,
+      "status": "NOT_RUN_BLOCKED"
+    },
+    "old_case_followup": {
+      "designated": 2,
+      "executed": 0,
+      "status": "NOT_RUN_BLOCKED"
+    }
+  },
+  "total_designated": 32,
+  "total_executed": 24,
+  "semantic_content_acceptance": "INDEPENDENT_REVIEW_COMPLETED_21_OF_24_FULL_ACCEPTANCE",
+  "model_quality": "FAIL_KNOWN_CLASS_IDENTITY_GATE",
+  "production_effect": "NOT_PROVEN",
+  "no_selective_reruns": true,
+  "independent_review": {
+    "path": "docs/receipts/LEARNING_HLP03_R5_INDEPENDENT_REVIEW_20261024.json",
+    "sha256": "03c84603b24256dc8d9f750ccf52e5b25439d6298be5f6c468e91b07fa1e4c14",
+    "complete_acceptance": 21,
+    "executed": 24,
+    "model_quality": "FAIL_KNOWN_CLASS_IDENTITY_GATE",
+    "advance_gate_unchanged": true
+  }
+}

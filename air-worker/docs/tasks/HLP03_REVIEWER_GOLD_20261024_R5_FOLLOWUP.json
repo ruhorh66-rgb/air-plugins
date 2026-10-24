@@ -1,0 +1,38 @@
+{
+  "schema": "air-worker.hlp03-corpus-gold/v1",
+  "status": "FROZEN_BEFORE_R5_MODEL_OUTPUTS",
+  "series": "R5_OLD_CASE_AFTER_ACTUAL_UPDATE",
+  "source_base_sha": "92fd3ce9ad71f6ea5fe7c8252a341191ce4d6619",
+  "classes": {
+    "no_candidate": 2,
+    "update": 0,
+    "create": 0
+  },
+  "rules": {
+    "failed_prerequisites_remain_in_denominator": true,
+    "actual_updated_bytes_only": true,
+    "no_posthoc_label_changes": true
+  },
+  "cases": [
+    {
+      "id": "C57",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "primary_case_id": "C52",
+      "rationale": "This old failure/correction was completely covered by the original seed and must remain covered by its exact actual updated body.",
+      "content_invariants": [
+        "No new procedure or update; exact actual primary updated body and successful prerequisite required."
+      ]
+    },
+    {
+      "id": "C58",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "primary_case_id": "C55",
+      "rationale": "This old failure/correction was completely covered by the original seed and must remain covered by its exact actual updated body.",
+      "content_invariants": [
+        "No new procedure or update; exact actual primary updated body and successful prerequisite required."
+      ]
+    }
+  ]
+}

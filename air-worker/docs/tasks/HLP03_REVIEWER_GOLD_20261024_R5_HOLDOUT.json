@@ -1,0 +1,93 @@
+{
+  "schema": "air-worker.hlp03-corpus-gold/v1",
+  "status": "FROZEN_BEFORE_R5_MODEL_OUTPUTS",
+  "series": "R5_FRESH_HOLDOUT",
+  "source_base_sha": "92fd3ce9ad71f6ea5fe7c8252a341191ce4d6619",
+  "classes": {
+    "no_candidate": 2,
+    "update": 2,
+    "create": 2
+  },
+  "rules": {
+    "first_attempts_only": true,
+    "no_posthoc_label_changes": true,
+    "semantic_equivalence_allowed": true,
+    "literal_word_matching_is_not_acceptance": true,
+    "unsupported_scope_extensions_not_required": true
+  },
+  "cases": [
+    {
+      "id": "C51",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "Successful reuse of the declared-format date procedure; no new correction or input form.",
+      "content_invariants": [
+        "No new procedure or update; do not promote the sample date to a rule."
+      ]
+    },
+    {
+      "id": "C52",
+      "expected": "update",
+      "eligible_target": "skills/learned/parse-explicit-calendar-dates.md",
+      "rationale": "The same declared-format parsing correction is extended to one additional explicitly supported date format.",
+      "content_invariants": [
+        "Exact eligible target and actual fixture preSHA.",
+        "Retain YYYY-MM-DD and add DD/MM/YYYY, selected by explicit format declaration.",
+        "For DD/MM/YYYY read day before month; no locale/sample guessing.",
+        "Retain real calendar-date validation and explicit rejection of missing/unsupported formats and invalid dates.",
+        "Retain original input text alongside the parsed date.",
+        "Full replacement must preserve old applicability; no narrowing to slash-separated inputs."
+      ]
+    },
+    {
+      "id": "C53",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "Parsing already works; selecting the explicitly required latest record is a distinct corrective procedure.",
+      "content_invariants": [
+        "Empty update identity fields; existing procedures unchanged.",
+        "Apply to already parsed valid dates and an explicit latest-date requirement; the supplied event has a unique maximum.",
+        "Select the maximum parsed date and return its associated complete record.",
+        "Do not select by input order or arbitrary date strings.",
+        "No hardcoded sample record/dates; a tie-breaking policy is outside the demonstrated case and is not required."
+      ]
+    },
+    {
+      "id": "C54",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "The current structural CSV parser already handles the quoted comma.",
+      "content_invariants": [
+        "No new procedure or update; sample field values are not general lessons."
+      ]
+    },
+    {
+      "id": "C55",
+      "expected": "update",
+      "eligible_target": "skills/learned/parse-declared-csv-records.md",
+      "rationale": "The same structural parsing correction is extended to explicitly declared semicolon CSV, retaining comma CSV.",
+      "content_invariants": [
+        "Exact eligible target and actual fixture preSHA.",
+        "Retain comma CSV and add explicitly declared semicolon CSV.",
+        "Use a structural parser configured by the supported declared delimiter, not string splitting.",
+        "Retain double-quote/doubled-quote handling and quoted delimiters/line breaks.",
+        "Retain exact decoded field values and row associations; no trimming/numeric coercion.",
+        "Retain explicit malformed-input rejection and no dialect guessing.",
+        "Full replacement must not narrow the old comma applicability."
+      ]
+    },
+    {
+      "id": "C56",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "Parsing is already correct; apply the explicitly supplied mapping from source headers to canonical names afterward.",
+      "content_invariants": [
+        "Empty update identity fields; existing procedures unchanged.",
+        "Operate on successfully parsed fields and the mapping supplied by the input contract.",
+        "Associate canonical field names with corresponding parsed source values.",
+        "Preserve values and row associations; no amount conversion or parser change.",
+        "Do not guess aliases or universalize the sample mapping."
+      ]
+    }
+  ]
+}

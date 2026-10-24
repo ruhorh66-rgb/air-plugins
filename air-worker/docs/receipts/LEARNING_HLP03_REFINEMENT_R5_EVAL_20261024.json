@@ -1,0 +1,314 @@
+{
+  "schema": "air-worker.hlp03-r5-evaluation/v1",
+  "date_sgt": "2026-10-24",
+  "node": "SRVLM01",
+  "status": "CHECKPOINT_COMPLETE_MODEL_QUALITY_FAIL_NO_ADVANCE",
+  "source": {
+    "root": "R:\\-4-\\air-worker\\worktrees\\airworker-learning-loop-20261024\\air-worker",
+    "branch": "dev/airworker-learning-loop-20261024",
+    "source_base_sha": "92fd3ce9ad71f6ea5fe7c8252a341191ce4d6619",
+    "candidate": "R5",
+    "commit_binding": "The containing source commit binds the measured candidate file hashes and this evidence. The QA binary was built before that commit; no embedded Git revision is claimed.",
+    "production_diff": {
+      "file": "cmd/learn_adapter.go",
+      "added_lines": 1,
+      "removed_lines": 0,
+      "description": "One generic paragraph about actionable coverage, already-satisfied input state, and checking a new action against remaining limits."
+    },
+    "candidate_hashes": {
+      "adapter_sha256": "c06762214fb4ff0cd64cda52e5aa18f11cfec70cdab49ea3edf15f9c7876f9f7",
+      "harness_sha256": "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+      "runner_sha256": "e91c63125bf208ca84acfd9791001d8a40cf431a05004be6b269b8149990dfde",
+      "binary_sha256": "934eb3b5adc70cd886d7f204dacb74d90eb316a0b25516cb9cb507fd07371302"
+    },
+    "binary_is_release_artifact": false,
+    "candidate_version": "UNASSIGNED_NATIVE_REPHASE_PENDING",
+    "promoted_to_installed": false
+  },
+  "optimization": {
+    "contract": "Bounded learning reliability and existing exact-SHA delivery/native-action binding; full Hermes parity, historical18 migration, model matrix and new frameworks deferred.",
+    "preparation_receipt": "docs/receipts/AIRWORKER_INTERMEDIATE_RELEASE_PREPARATION_20261024.json",
+    "package_preparation": "COMPLETED_INSPECTION_ONLY",
+    "remaining_critical_dependencies": [
+      "HLP-03 model quality and diagnostic design decision",
+      "Existing N124/P2 native authority and reconciliation"
+    ],
+    "quality_gates_weakened": false,
+    "designated_calls_not_spent_after_failed_gate": 8,
+    "automatic_next_candidate_started": false
+  },
+  "protocol": {
+    "path": "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R5.json",
+    "sha256": "ba775ad41b07c6056a47b9629f28fa45d49d33efd56fe0c8aceefeb5179bfa40",
+    "development_freeze_sha256": "12fe400b22e9eb84c9778e4fef41161cc7024026f858fa5b53a11b9b621ca7d5",
+    "fresh_holdout_freeze_sha256": "d8d47b468783bb8db0ba0765ebbbdb949a1917fd09c04c2a1bb851853b06419f",
+    "development_corpus_sha256": "6c9560614e20e7a43777cbcd8df13078655d3ae59ceae4a9ab84c5aadd0e060f",
+    "development_gold_sha256": "d16c7c59cdf4b0f18bf942ec606bb5304c882bf8db041a0badc432cf4be58de6",
+    "model": "gpt-5.6-luna",
+    "effort": "medium",
+    "first_attempts_only": true,
+    "selective_reruns": 0,
+    "posthoc_label_changes": 0,
+    "fresh_inputs_exposed_to_learning_reviewer": false
+  },
+  "acceptance": {
+    "source": "ACCEPTED_BOUNDED_SOURCE_CANDIDATE",
+    "model": "FAIL_KNOWN_CLASS_IDENTITY_GATE",
+    "model_accepted": false,
+    "measurement": "PARTIAL_EVIDENCE_WRAPPER_FAILURE",
+    "whole_HLP03_accepted": false,
+    "canonical_reconciliation": "BLOCKED_N124",
+    "P3": "NOT_READY",
+    "installed_GPT_delivery": "NOT_PROVEN",
+    "production_effect": "NOT_PROVEN"
+  },
+  "results": {
+    "designated_total": 32,
+    "executed_total": 24,
+    "blocked_total": 8,
+    "development": {
+      "designated": 24,
+      "executed": 24,
+      "expected_classes": {
+        "no_candidate": 8,
+        "update": 8,
+        "create": 8
+      },
+      "actual_classes": {
+        "no_candidate": 8,
+        "create": 10,
+        "update": 6
+      },
+      "class_correct": 22,
+      "class_and_identity_correct": 22,
+      "content_acceptable": 21,
+      "complete_acceptance": 21,
+      "cleanup_reported": 24,
+      "native_turn_completed": 24
+    },
+    "fresh_holdout": {
+      "designated": 6,
+      "executed": 0,
+      "status": "NOT_RUN_BLOCKED"
+    },
+    "old_case_followup": {
+      "designated": 2,
+      "executed": 0,
+      "status": "NOT_RUN_BLOCKED"
+    }
+  },
+  "normalized_findings": {
+    "false_split_create_instead_of_update": [
+      "C02",
+      "C17"
+    ],
+    "new_procedure_internal_consistency": [
+      "C15"
+    ],
+    "required_update_wait_feasibility_now_present": [
+      "C11"
+    ],
+    "distinct_schema_create_now_present": [
+      "C21"
+    ],
+    "false_merges": 0,
+    "observed_tool_calls": 0,
+    "observed_contaminated": 0,
+    "unsafe_scope_loss_in_actual_updates": 0
+  },
+  "coordinator_qualifications": [
+    {
+      "cases": [
+        "C02",
+        "C17"
+      ],
+      "note": "The raw independent review marks content false partly because the required full update was not produced. Actual decisions were CREATE; existing APPLIED procedures were not overwritten. Classify these as false splits/failure to integrate a required update, not observed deletion of old knowledge or unsafe scope loss in an actual update. Raw receipt and full score21/24 remain unchanged."
+    },
+    {
+      "case": "C15",
+      "note": "A no-repeat-conversion pitfall exists. The remaining finding is inconsistency between already-normalized applicability and a normalization action in the new procedure. No actual execution or production double conversion was measured."
+    },
+    {
+      "cases": [
+        "R4",
+        "R5"
+      ],
+      "note": "On the same known24 corpus, R4 had23/24 class identity and21/24 conservative full acceptance; R5 has22/24 and21/24. These are observed first-attempt results, not a statistical or causal attribution of prompt effects."
+    },
+    {
+      "topic": "authorization",
+      "note": "The independent review's request for a separately authorized future candidate is advisory, not a new generic LPR approval requirement. Existing scoped source-work authorization remains valid. This bounded R5 protocol stops here; any later candidate requires a deliberate evidence-based plan and prospective freeze. No automatic R6 is started."
+    }
+  ],
+  "source_verification": {
+    "qa_path": ".air-worker/learning-loop-20261024/hlp03-r5-source-qa.json",
+    "qa_sha256": "5ecf1d2cfd65d0e4fc38260f8f24c5a833bc7c17ca20182fe0f7429a4bfbd4de",
+    "test_command": "go test . -run ^(TestLearningReviewer|TestHLP03) -count=1 -timeout 180s -json",
+    "passed_records": 74,
+    "failed_records": 0,
+    "skipped_records": 2,
+    "skip_reasons": [
+      "TestHLP03RealReviewerCorpus: live environment unset in offline QA",
+      "TestLearningReviewerCatalogueFailsBeforeProvider/unsafe: Windows symlink privilege unavailable"
+    ],
+    "vet_exit_code": 0,
+    "build_exit_code": 0,
+    "diff_check_exit_code": 0,
+    "source_review_limits": "Source acceptance is confined to this uncommitted candidate and targeted existing QA; no new tests, full suite, package acceptance, semantic model acceptance or production effect are inferred. The source QA skips were the real reviewer when its environment was unset and the Windows unsafe symlink privilege test.",
+    "unchanged_mechanism_qualification": "R4 schema and process-tree QA remain historical evidence of unchanged code. The R5 wrapper failure is a new measurement limitation; it prevents a clean live-run acceptance."
+  },
+  "independent_review": {
+    "path": "docs/receipts/LEARNING_HLP03_R5_INDEPENDENT_REVIEW_20261024.json",
+    "sha256": "03c84603b24256dc8d9f750ccf52e5b25439d6298be5f6c468e91b07fa1e4c14",
+    "model": "gpt-6-sol",
+    "effort": "medium",
+    "route": "native AirWorker executor",
+    "job_id": "gpt__hlp03-semantic-20261024__1792843422278901000__dd6444b0",
+    "status": "DONE",
+    "launcher_exit_code": 0,
+    "job_receipt_sha256": "d521526411889ae43fbf3ad357b074089940e253d2b035ad7b7802402997c5b4",
+    "raw_review_unchanged": true,
+    "provenance": "Final native receipt was read after the independent review completed; it is archived separately from the reviewer-authored verdict.",
+    "preflight_dispatch": {
+      "exit_code": 1,
+      "provider_started": false,
+      "reason": "Relative task-file resolved from AIR Commander working directory F:\\-8-\\air-commander instead of product; task-path preflight refused before job dispatch. Corrected by explicit Set-Location to existing product.",
+      "learning_review_calls": 0
+    }
+  },
+  "measurement": {
+    "original_terminal": {
+      "schema": "air-worker.hlp03-run-terminal/v1",
+      "run_id": "HLP03_R5_DEVELOPMENT_20261024",
+      "completed_at_utc": "2026-10-24T11:56:45.4229727Z",
+      "status": "WRAPPER_FAILURE",
+      "error_type": "System.ComponentModel.Win32Exception",
+      "error": "The system cannot find the file specified",
+      "go_pid": 14824,
+      "go_exit_code": 0,
+      "go_finished": true,
+      "taskkill_output": null,
+      "production_effect": "NOT_PROVEN"
+    },
+    "wrapper_exit_code": 1,
+    "go_exit_code": 0,
+    "wrapper_process_seconds": 333.42,
+    "reviewer_process_elapsed_ms": 298172,
+    "native_turns_completed": 24,
+    "canonical_responses": 24,
+    "cleanup_reported": 24,
+    "root_cause": "UNKNOWN",
+    "original_failure_rewritten": false,
+    "postfailure": {
+      "path": ".air-worker/learning-loop-20261024/hlp03-r5-postfailure-readback.json",
+      "sha256": "e6d0445f4b672fd77e5cd1ca98960d73d532cf7167c72365695b75680b9513ae",
+      "guards_unchanged": 18,
+      "frozen_bindings_unchanged": 7,
+      "fixture_roots_absent": 24,
+      "qa_temp_files": 0,
+      "qualification": "Separate postfailure readback, not a reconstructed original successful terminal."
+    }
+  },
+  "resources": {
+    "standard": "DEV-137 v1.1.0",
+    "working_estimate_bytes": 2147483648,
+    "hard_os_quota": false,
+    "recorded_sample_count": 21,
+    "recorded_complete_samples": 21,
+    "recorded_incomplete_samples": 0,
+    "observed_cache_temp_peak_bytes": 805755647,
+    "minimum_observed_free_bytes": 21365219328,
+    "after_sample_present": false,
+    "trajectory_status": "INTERRUPTED_BY_WRAPPER_FAILURE",
+    "postfailure_qa_temp_files": 0,
+    "qualification": "All persisted samples have complete=true, but sampling ended before an after record. A transient enumeration diagnostic and fatal Win32Exception are preserved. No full trajectory, instantaneous peak, RSS, hard quota or full DEV-137 acceptance is claimed.",
+    "full_DEV137_acceptance": "NOT_CLAIMED"
+  },
+  "usage": {
+    "learning_reviewer": {
+      "attempts": 24,
+      "input_tokens": 420434,
+      "cached_input_tokens": 59392,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 5144,
+      "reasoning_output_tokens": 1943,
+      "cost": null
+    },
+    "source_authoring_native_model_calls": 0,
+    "independent_native_review": {
+      "jobs": 1,
+      "input_tokens": 742563,
+      "cached_input_tokens": 674816,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 9999,
+      "reasoning_output_tokens": 1272,
+      "cost": null
+    },
+    "interpretation": "Cached input is included in input_tokens; reasoning output is included in output_tokens. Independent review usage is separate from the learning reviewer. Preflight path refusal made no provider call."
+  },
+  "evidence_bundle": {
+    "schema": "air-worker.hlp03-r5-evidence-bundle/v1",
+    "archive": "docs/receipts/evidence/HLP03_REFINEMENT_R5_20261024.zip",
+    "sha256": "0a20c619c55bc34988921dba60c8eb9002ab9068fc18142ce20b636beed016c2",
+    "bytes": 537344,
+    "entries": 281,
+    "manifest_files": 280,
+    "every_entry_reopened_and_sha_verified": true,
+    "original_files_unchanged_after_archive": true,
+    "native_job_id": "gpt__hlp03-semantic-20261024__1792843422278901000__dd6444b0",
+    "native_job_status": "DONE",
+    "native_job_receipt_sha256": "d521526411889ae43fbf3ad357b074089940e253d2b035ad7b7802402997c5b4",
+    "independent_review_sha256": "03c84603b24256dc8d9f750ccf52e5b25439d6298be5f6c468e91b07fa1e4c14",
+    "source_base_sha": "92fd3ce9ad71f6ea5fe7c8252a341191ce4d6619",
+    "measured_binary_sha256": "934eb3b5adc70cd886d7f204dacb74d90eb316a0b25516cb9cb507fd07371302",
+    "measured_adapter_sha256": "c06762214fb4ff0cd64cda52e5aa18f11cfec70cdab49ea3edf15f9c7876f9f7",
+    "production_effect": "NOT_PROVEN"
+  },
+  "preserved": {
+    "installed_runtime_version": "0.11.10",
+    "installed_plugin_version": "0.11.10",
+    "installed_runtime_sha256": "339c02469519752a53a4c2e43c4b033a8193e33189c339ffb9e601b087e881ab",
+    "services_not_operated": true,
+    "native_PLAN_N_LEARN_not_modified": true,
+    "foreign_WIP_not_staged": true,
+    "new_checkouts": 0,
+    "new_native_nodes": 0,
+    "module_pin": "v0.1.1",
+    "AIR_ENV_002_contacted": false,
+    "prior_R1_R4_evidence": "UNCHANGED"
+  },
+  "next_work": [
+    {
+      "order": 1,
+      "result": "Use the existing full R4/R5 evidence to decide a minimal coverage-versus-placement clarification; address C02/C17 and C15 without automatic prompt iteration.",
+      "receipt": "docs/receipts/LEARNING_HLP03_R5_BOUNDARY_DIAGNOSIS_20261024.json",
+      "status": "DIAGNOSIS_RECORDED_HYPOTHESIS_NOT_IMPLEMENTED"
+    },
+    {
+      "order": 2,
+      "result": "Before a future model measurement, add bounded exception position/stack/phase diagnostics to the existing runner and verify the failure-record path with an owned deterministic fixture. Behavioral repair requires a localized cause.",
+      "status": "PENDING_NO_PROVIDER_RERUN"
+    },
+    {
+      "order": 3,
+      "result": "Complete the existing N124/P2 authority/reconcile path using explicit owner/signer/ref/namespace and the separately authorized disposable atomic-pair experiment; no new parallel authority implementation or manual native-plan writes.",
+      "status": "BLOCKED_EXISTING_P2"
+    },
+    {
+      "order": 4,
+      "result": "Reuse completed package preparation. Select an accepted exact source candidate and version only after quality and P2; perform required package/provenance/smoke/rollback checks, then existing publication and install decisions.",
+      "status": "P3_NOT_READY"
+    }
+  ],
+  "limits": [
+    "Development source commit and GitHub branch publication are not release/tag/install acceptance.",
+    "The QA binary has no embedded vcs.revision/vcs.modified; it is identified by file SHA and source snapshot only.",
+    "Eight blocked cases remain in the32-case plan denominator and have no measured outcome; they are neither passes nor eight observed model errors.",
+    "No natural opportunity or useful production effect was measured."
+  ],
+  "publication": {
+    "target_url": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "target_branch": "dev/airworker-learning-loop-20261024",
+    "binding": "Postcommit explicit GitHub readback is recorded in the companion Wiki checkpoint; this receipt does not embed its own containing commit SHA."
+  }
+}

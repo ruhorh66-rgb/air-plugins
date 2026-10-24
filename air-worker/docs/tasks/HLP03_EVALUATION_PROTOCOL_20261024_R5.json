@@ -1,0 +1,81 @@
+{
+  "schema": "air-worker.hlp03-r5-evaluation-protocol/v1",
+  "status": "FIXED_BEFORE_R5_LEARNING_REVIEWER_OUTPUTS",
+  "source_base_sha": "92fd3ce9ad71f6ea5fe7c8252a341191ce4d6619",
+  "model": "gpt-5.6-luna",
+  "effort": "medium",
+  "candidate_frozen_for_all_series": true,
+  "reason": "One generic paragraph clarifies actionable coverage versus a mere caveat, consistency with already satisfied preconditions, and feasibility of a new action within existing bounds. Existing schema, pair/freshness validation, module lifecycle, harness and runner remain unchanged.",
+  "series": [
+    {
+      "id": "HLP03_R5_DEVELOPMENT_20261024",
+      "kind": "known_development_regression",
+      "cases": 24,
+      "corpus": "cmd/testdata/hlp03_reviewer_corpus_20261024_r4_development.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R4_DEVELOPMENT.json",
+      "rule": "Use the exact unchanged R4 development inputs and labels (R1/R2 union); previous outcomes remain immutable."
+    },
+    {
+      "id": "HLP03_R5_HOLDOUT_20261024",
+      "kind": "fresh_topic_holdout",
+      "cases": 6,
+      "corpus": "cmd/testdata/hlp03_reviewer_corpus_20261024_r5_holdout.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R5_HOLDOUT.json",
+      "advance_gate": "Run only if all 24 designated known cases have real completed canonical responses, exact expected class/identity, cleanup and unchanged protected/frozen identities. A failed gate leaves all fresh cases NOT_RUN_BLOCKED; inputs remain unexposed.",
+      "rule": "Fresh declared date-format and structural CSV topics frozen before outputs; no candidate/input/gold changes or retries."
+    },
+    {
+      "id": "HLP03_R5_FOLLOWUP_20261024",
+      "kind": "old_case_after_update",
+      "cases": 2,
+      "design": "docs/tasks/HLP03_FOLLOWUP_DESIGN_20261024_R5.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R5_FOLLOWUP.json",
+      "advance_gate": "Require the actual exact eligible designated holdout updates and successful module lifecycle. Missing or wrong update fails the prerequisite and stays in the denominator.",
+      "rule": "Copy actual applied update content verbatim into fresh seed fixtures; freeze derived corpus before calls."
+    }
+  ],
+  "attempts_per_case": 1,
+  "total_designated_attempts": 32,
+  "no_model_fallback": true,
+  "no_posthoc_label_changes": true,
+  "no_selective_reruns": true,
+  "no_automatic_next_candidate": true,
+  "stop_rule": "A failed technical/class/identity advance gate stops the subsequent designated series; unrun cases are NOT_RUN_BLOCKED, never counted as pass or removed from the plan denominator. Final independent content review still judges all collected evidence, including failures.",
+  "metrics": {
+    "class_identity": "Report designated, executed, correct and blocked counts separately for each series; exact module identity and canonical no_candidate required.",
+    "content": "Independent full-text review against the frozen original and new invariants; equivalent formulations accepted, literal matching is insufficient. Preserve R4 C11/C15 qualifications without relabeling prior answers.",
+    "followup": "Old failure/correction events must be covered by exact actual updated bodies; this measures reviewer retention decisions, not execution of the learned algorithm.",
+    "usage": "Learning-reviewer usage only; authoring/independent review separated; unknown values null.",
+    "comparison": "Known regression and fresh topics remain separate; different candidate corpora do not support a statistical improvement estimate."
+  },
+  "acceptance": {
+    "source": "Targeted existing reviewer tests, vet/build, exact source hashes and native independent source review; unchanged R4 schema/runner/process-tree QA reused.",
+    "model": "Every designated case in every series must meet required class/exact identity/content, with no false merge, unsafe scope loss, missing required behavior or observed contamination. Incomplete/blocked series do not pass.",
+    "production_effect": "NOT_PROVEN by these synthetic corpora. Installed delivery, native authority and natural useful effect remain separate."
+  },
+  "resources": {
+    "standard": "DEV-137 v1.1.0",
+    "working_estimate_bytes": 2147483648,
+    "hard_os_quota": false,
+    "max_concurrent_runs": 1,
+    "max_run_seconds": 1800,
+    "max_case_timeout_ms": 240000,
+    "sample_seconds": 15,
+    "full_DEV137_acceptance": "NOT_CLAIMED"
+  },
+  "constraints": {
+    "node": "SRVLM01",
+    "existing_checkout_only": true,
+    "installed_runtime_unchanged": true,
+    "native_PLAN_N_LEARN_unchanged": true,
+    "foreign_WIP_preserved": true,
+    "AIR_ENV_002_used": false
+  },
+  "prior_failures_preserved": {
+    "R1": "class11/12 complete8/12 original cleanup instrumentation exit1",
+    "R2": "complete24/28 four false merges",
+    "R3": "complete19/20 C02 invalid preSHA and development wrapper error/missing child OS exit",
+    "R4": "class31/32 conservative complete29/32 C21 missedcreate C11 feasibility C15 new-procedure consistency"
+  },
+  "development_authoring": "Coordinator reasoning plus deterministic text edit; no native coding-model call for R5; source acceptance remains independent."
+}

@@ -1,0 +1,535 @@
+{
+  "schema": "air-worker.hlp03-r5-independent-review/v1",
+  "reviewed_at_utc": "2026-10-24T12:05:53.993109Z",
+  "reviewer": {
+    "model": "gpt-6-sol",
+    "effort": "medium",
+    "route": "native executor",
+    "native_job_receipt": "NOT_OBSERVED_AT_REVIEW_TIME"
+  },
+  "reviewed_source_base_sha": "92fd3ce9ad71f6ea5fe7c8252a341191ce4d6619",
+  "exact_hashes_checked": {
+    "cmd/learn_adapter.go": "c06762214fb4ff0cd64cda52e5aa18f11cfec70cdab49ea3edf15f9c7876f9f7",
+    "cmd/learn_adapter_live_eval_test.go": "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+    "docs/tasks/run-hlp03-real-reviewer-20261024.ps1": "e91c63125bf208ca84acfd9791001d8a40cf431a05004be6b269b8149990dfde",
+    ".air-worker/learning-loop-20261024/air-worker-hlp03-r5.exe": "934eb3b5adc70cd886d7f204dacb74d90eb316a0b25516cb9cb507fd07371302",
+    "cmd/testdata/hlp03_reviewer_corpus_20261024_r4_development.json": "6c9560614e20e7a43777cbcd8df13078655d3ae59ceae4a9ab84c5aadd0e060f",
+    "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R4_DEVELOPMENT.json": "d16c7c59cdf4b0f18bf942ec606bb5304c882bf8db041a0badc432cf4be58de6",
+    "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R5.json": "ba775ad41b07c6056a47b9629f28fa45d49d33efd56fe0c8aceefeb5179bfa40",
+    "docs/tasks/HLP03_CORPUS_FREEZE_20261024_R5_DEVELOPMENT.json": "12fe400b22e9eb84c9778e4fef41161cc7024026f858fa5b53a11b9b621ca7d5"
+  },
+  "source_acceptance": {
+    "status": "ACCEPTED_BOUNDED_SOURCE_CANDIDATE",
+    "basis": "HEAD matches the specified source base; the sole production diff is one generic reviewer-prompt paragraph in cmd/learn_adapter.go. Direct file hashes match the source QA, frozen manifest, launch and designated binary/input bindings. Existing QA reports 74 passing test records, two skips, and successful targeted vet/build/diff check. The paragraph strengthens action coverage, input-state consistency and bounded waits without changing schema, process, runner or module gates.",
+    "limits": "Source acceptance is confined to this uncommitted candidate and targeted existing QA; no new tests, full suite, package acceptance, semantic model acceptance or production effect are inferred. The source QA skips were the real reviewer when its environment was unset and the Windows unsafe symlink privilege test."
+  },
+  "measurement_acceptance": {
+    "status": "PARTIAL_EVIDENCE_WRAPPER_FAILURE",
+    "original_wrapper_exit_code": 1,
+    "original_terminal_status": "WRAPPER_FAILURE",
+    "original_error_type": "System.ComponentModel.Win32Exception",
+    "original_error": "The system cannot find the file specified",
+    "durable_go_exit_code": 0,
+    "executed_native_turns": 24,
+    "cleanups_reported": 24,
+    "resources_samples": 21,
+    "last_resource_phase": "during",
+    "after_sample_recorded": false,
+    "fatal_root_cause": "UNKNOWN",
+    "assessment": "All 24 canonical development responses and native turn.completed markers are present; all case cleanups are reported verified_removed. The wrapper failed during final observation and its original terminal cannot be accepted as a clean successful run. A transient Get-ChildItem disappearance was observed, but the original terminal has no stack/position tying it to the fatal Win32Exception. Samples stop at during, so final continuous/resource acceptance is not established. Separate postfailure readback reports unchanged final hashes and absent fixture roots, but does not reconstruct the terminal.",
+    "minimum_next_diagnostic": "For a future separately authorized measurement, add deterministic error position/stack and the exact failing command to wrapper failure capture, then obtain a terminal after-sample; do not edit or rerun this frozen attempt."
+  },
+  "model_quality": {
+    "status": "FAIL_KNOWN_CLASS_IDENTITY_GATE",
+    "known_development": "21/24 complete, 22/24 class plus identity; C02 and C17 are wrong creates and C15 has a procedure contradiction. Fresh holdout and followup were blocked and have no measured outcomes.",
+    "acceptance": "NOT_ACCEPTED"
+  },
+  "production_effect": "NOT_PROVEN",
+  "case_results": [
+    {
+      "id": "C01",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_identity": {},
+      "actual_identity": {},
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The project-root absolute-path correction is already taught by the seed; canonical empty no_candidate is appropriate."
+    },
+    {
+      "id": "C02",
+      "expected": "update",
+      "actual": "create",
+      "expected_identity": {
+        "target": "skills/learned/project-configuration-paths.md",
+        "pre_sha256": "ffacb0e9e0fd3f398be6e786b47444bc27064fb10d76ada64c0009866b8637af"
+      },
+      "actual_identity": {
+        "target": "skills/learned/configuration-read-b5a7c702-33f63ae37ed52818.md",
+        "pre_sha256": ""
+      },
+      "class_correct": false,
+      "identity_correct": false,
+      "content_acceptable": false,
+      "complete_acceptance": false,
+      "rationale": "Embedded include resolution against its containing file is supported, and the body preserves main-file project-root resolution in words. It creates a separate procedure, though the frozen gold requires extending the existing path-resolution procedure; its replacement body lacks the old main-file numbered actions."
+    },
+    {
+      "id": "C03",
+      "expected": "create",
+      "actual": "create",
+      "expected_identity": {
+        "target": null,
+        "pre_sha256": ""
+      },
+      "actual_identity": {
+        "target": "skills/learned/configuration-read-b5a7c702-db5d4aa7df669675.md",
+        "pre_sha256": ""
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "After the intended JSON file opens and parses, the missing required sections field is a schema/input repair. The new procedure validates required fields and restores them without changing path resolution."
+    },
+    {
+      "id": "C04",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_identity": {},
+      "actual_identity": {},
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The seed already says to transmit next_cursor unchanged and collect through the declared end; omitting it adds no new correction."
+    },
+    {
+      "id": "C05",
+      "expected": "update",
+      "actual": "update",
+      "expected_identity": {
+        "target": "skills/learned/opaque-pagination-cursor.md",
+        "pre_sha256": "84506cd45d97e26e038d20333812f7bf1fac1632866d6f6c9cc456e928f6a86f"
+      },
+      "actual_identity": {
+        "target": "skills/learned/opaque-pagination-cursor.md",
+        "pre_sha256": "84506cd45d97e26e038d20333812f7bf1fac1632866d6f6c9cc456e928f6a86f"
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The update retains exact token transmission and full collection, adds standard query-parameter serialization for a plus-bearing token, and keeps the opaque-token pitfalls."
+    },
+    {
+      "id": "C06",
+      "expected": "create",
+      "actual": "create",
+      "expected_identity": {
+        "target": null,
+        "pre_sha256": ""
+      },
+      "actual_identity": {
+        "target": "skills/learned/pagination-c30ad110-f87c09089a2fb9a6.md",
+        "pre_sha256": ""
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The server repeats a cursor and records despite correct client transmission. The separate procedure stops and reports incomplete partial results, rather than recasting this as client token corruption."
+    },
+    {
+      "id": "C07",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_identity": {},
+      "actual_identity": {},
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Confirmed UTF-8 decoded once is exactly the seeded correction; no new procedure is warranted."
+    },
+    {
+      "id": "C08",
+      "expected": "update",
+      "actual": "update",
+      "expected_identity": {
+        "target": "skills/learned/decode-confirmed-utf8-once.md",
+        "pre_sha256": "341ffe5e7fa581868f93a1a8672e3f5059f8671080cc350ceac8940c5ba5e9bb"
+      },
+      "actual_identity": {
+        "target": "skills/learned/decode-confirmed-utf8-once.md",
+        "pre_sha256": "341ffe5e7fa581868f93a1a8672e3f5059f8671080cc350ceac8940c5ba5e9bb"
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The update keeps confirmed UTF-8 single decoding, adds conditional removal of only a leading BOM, preserves BOM-free handling and warns against deleting interior characters."
+    },
+    {
+      "id": "C09",
+      "expected": "create",
+      "actual": "create",
+      "expected_identity": {
+        "target": null,
+        "pre_sha256": ""
+      },
+      "actual_identity": {
+        "target": "skills/learned/text-input-def6dbe1-e736b8066d73b88e.md",
+        "pre_sha256": ""
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The producer serialized JSON text twice while the consumer decoded correctly. The create repairs producer serialization once and leaves consumer decoding alone."
+    },
+    {
+      "id": "C10",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_identity": {},
+      "actual_identity": {},
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The seed already authorizes a same-input retry for the specified terminal retryable upstream failure within three attempts and the original deadline."
+    },
+    {
+      "id": "C11",
+      "expected": "update",
+      "actual": "update",
+      "expected_identity": {
+        "target": "skills/learned/bounded-retry-transient-read.md",
+        "pre_sha256": "98fcd2868052396c07baa184f80bcc3a139e8ad107d3e83aed60cb25a72c5f38"
+      },
+      "actual_identity": {
+        "target": "skills/learned/bounded-retry-transient-read.md",
+        "pre_sha256": "98fcd2868052396c07baa184f80bcc3a139e8ad107d3e83aed60cb25a72c5f38"
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The update retains the terminal receipt predicate, same input, three total attempts and original deadline. Its new conditional step checks that retry_after_ms fits before waiting and returns failure otherwise."
+    },
+    {
+      "id": "C12",
+      "expected": "create",
+      "actual": "create",
+      "expected_identity": {
+        "target": null,
+        "pre_sha256": ""
+      },
+      "actual_identity": {
+        "target": "skills/learned/finite-read-job-c2e2ce8b-4bf6a56272562b77.md",
+        "pre_sha256": ""
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The receipt says non-retryable input_schema_invalid, with a missing CSV amount column. The create validates and repairs authoritative input, then reruns corrected input; it forbids retrying unchanged invalid input."
+    },
+    {
+      "id": "C13",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_identity": {},
+      "actual_identity": {},
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The seed already converts explicit m/mm values once to metres, compares numerically, and retains original fields."
+    },
+    {
+      "id": "C14",
+      "expected": "update",
+      "actual": "update",
+      "expected_identity": {
+        "target": "skills/learned/normalize-explicit-length-units.md",
+        "pre_sha256": "ff64b5d36c4c2d1a97710f9be50241b04b2da7b961f2330918e51aa22639ec75"
+      },
+      "actual_identity": {
+        "target": "skills/learned/normalize-explicit-length-units.md",
+        "pre_sha256": "ff64b5d36c4c2d1a97710f9be50241b04b2da7b961f2330918e51aa22639ec75"
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The update adds cm factor 0.01 while preserving m factor 1, mm factor 0.001, single conversion, original inputs and rejection of unknown units."
+    },
+    {
+      "id": "C15",
+      "expected": "create",
+      "actual": "create",
+      "expected_identity": {
+        "target": null,
+        "pre_sha256": ""
+      },
+      "actual_identity": {
+        "target": "skills/learned/length-comparison-e3c33566-eac5403a2e93fec3.md",
+        "pre_sha256": ""
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": false,
+      "complete_acceptance": false,
+      "rationale": "The create names a separate, input-set-specific calibration correction and warns against repeated conversion. Its applicability says values are already normalized, but numbered step 1 orders normalization again; that contradiction can cause double conversion and fails content acceptance."
+    },
+    {
+      "id": "C16",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_identity": {},
+      "actual_identity": {},
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The seed already uses <= for closed or absent mode and treats touching endpoints as overlap."
+    },
+    {
+      "id": "C17",
+      "expected": "update",
+      "actual": "create",
+      "expected_identity": {
+        "target": "skills/learned/closed-interval-overlap.md",
+        "pre_sha256": "dcaea0dbabcd8c97f7c439d8c9e693486b4336fa89d6e5aa4cd207fd369d4bb2"
+      },
+      "actual_identity": {
+        "target": "skills/learned/interval-overlap-4843eb70-152773cf67c4dbe1.md",
+        "pre_sha256": ""
+      },
+      "class_correct": false,
+      "identity_correct": false,
+      "content_acceptable": false,
+      "complete_acceptance": false,
+      "rationale": "The body correctly teaches strict < for explicit half_open and cautions that closed/absent mode stays closed. It creates a separate procedure, though the frozen gold requires an update preserving the old closed/default numbered procedure and valid zero-length closed behavior."
+    },
+    {
+      "id": "C18",
+      "expected": "create",
+      "actual": "create",
+      "expected_identity": {
+        "target": null,
+        "pre_sha256": ""
+      },
+      "actual_identity": {
+        "target": "skills/learned/interval-overlap-4843eb70-8186109830e3335d.md",
+        "pre_sha256": ""
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Reversed endpoints stem from producer mapping, outside the seed formula precondition. The new procedure rejects start > end, corrects the source mapping, and avoids silent swapping."
+    },
+    {
+      "id": "C19",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_identity": {},
+      "actual_identity": {},
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Full-byte SHA-256 comparison against the trusted digest and rejection of a mismatch are already seeded; file name and timestamps are not accepted as proof."
+    },
+    {
+      "id": "C20",
+      "expected": "update",
+      "actual": "update",
+      "expected_identity": {
+        "target": "skills/learned/verify-complete-artifact-sha256.md",
+        "pre_sha256": "2a6a6e59a9639353f95e24065fd7dcb4372733af7240287435fe2b75f32343a6"
+      },
+      "actual_identity": {
+        "target": "skills/learned/verify-complete-artifact-sha256.md",
+        "pre_sha256": "2a6a6e59a9639353f95e24065fd7dcb4372733af7240287435fe2b75f32343a6"
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Trusted length is conditional early rejection. The update still hashes all bytes when length matches or is absent, rejects digest mismatch, and keeps schema validation separate."
+    },
+    {
+      "id": "C21",
+      "expected": "create",
+      "actual": "create",
+      "expected_identity": {
+        "target": null,
+        "pre_sha256": ""
+      },
+      "actual_identity": {
+        "target": "skills/learned/artifact-verification-8593564d-622b2751ab434282.md",
+        "pre_sha256": ""
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Matching trusted SHA-256 establishes byte identity but the measurements object violates the required array schema. The separate create validates schema and repairs producer output without weakening integrity checking."
+    },
+    {
+      "id": "C22",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_identity": {},
+      "actual_identity": {},
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The seed already parses three integer components and compares them numerically, so lexical-sort failure adds no new correction."
+    },
+    {
+      "id": "C23",
+      "expected": "update",
+      "actual": "update",
+      "expected_identity": {
+        "target": "skills/learned/compare-three-part-numeric-versions.md",
+        "pre_sha256": "082369e6e1ac60dbbdbdc8a3bed05f62790af80365f330a02cb326a6286909f8"
+      },
+      "actual_identity": {
+        "target": "skills/learned/compare-three-part-numeric-versions.md",
+        "pre_sha256": "082369e6e1ac60dbbdbdc8a3bed05f62790af80365f330a02cb326a6286909f8"
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The update accepts exactly one optional lowercase v for parsing, keeps unprefixed three-part numeric comparison and original display spelling, and rejects repeated prefixes and unsupported suffixes."
+    },
+    {
+      "id": "C24",
+      "expected": "create",
+      "actual": "create",
+      "expected_identity": {
+        "target": null,
+        "pre_sha256": ""
+      },
+      "actual_identity": {
+        "target": "skills/learned/version-selection-58bac6c2-8b2e88529eb37be6.md",
+        "pre_sha256": ""
+      },
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "The comparator is correct but its cached list is stale. The new procedure checks the source generation and fetches the current list before numeric selection when needed."
+    }
+  ],
+  "counts": {
+    "designated_total": 32,
+    "executed_total": 24,
+    "blocked_total": 8,
+    "development": {
+      "designated": 24,
+      "executed": 24,
+      "expected_classes": {
+        "no_candidate": 8,
+        "update": 8,
+        "create": 8
+      },
+      "actual_classes": {
+        "no_candidate": 8,
+        "create": 10,
+        "update": 6
+      },
+      "class_correct": 22,
+      "class_and_identity_correct": 22,
+      "content_acceptable": 21,
+      "complete_acceptance": 21,
+      "cleanup_reported": 24,
+      "native_turn_completed": 24
+    },
+    "fresh_holdout": {
+      "designated": 6,
+      "executed": 0,
+      "status": "NOT_RUN_BLOCKED"
+    },
+    "old_case_followup": {
+      "designated": 2,
+      "executed": 0,
+      "status": "NOT_RUN_BLOCKED"
+    }
+  },
+  "findings": [
+    {
+      "id": "wrong_create_C02",
+      "references": [
+        "cmd/testdata/hlp03_reviewer_corpus_20261024_r4_development.json#C02",
+        "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R4_DEVELOPMENT.json#C02",
+        ".air-worker/learning-loop-20261024/hlp03-r5-development-20261024/evidence/summary.json#C02"
+      ],
+      "assessment": "Create body teaches embedded include base resolution and mentions retaining main-file project-root resolution, but the frozen update target is project-configuration-paths.md at its exact seed SHA. A separate create does not integrate or preserve the old numbered main-file procedure."
+    },
+    {
+      "id": "wrong_create_C17",
+      "references": [
+        "cmd/testdata/hlp03_reviewer_corpus_20261024_r4_development.json#C17",
+        "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R4_DEVELOPMENT.json#C17",
+        ".air-worker/learning-loop-20261024/hlp03-r5-development-20261024/evidence/summary.json#C17"
+      ],
+      "assessment": "Create body gives the supported half_open strict comparison and cautions that closed/absent mode retains closed semantics. Gold requires updating closed-interval-overlap.md at exact seed SHA, retaining its positive closed/default <= steps and valid zero-length closed behavior."
+    },
+    {
+      "id": "content_C15",
+      "references": [
+        "cmd/testdata/hlp03_reviewer_corpus_20261024_r4_development.json#C15",
+        "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R4_DEVELOPMENT.json#C15",
+        ".air-worker/learning-loop-20261024/hlp03-r5-development-20261024/evidence/summary.json#C15"
+      ],
+      "assessment": "The create is the correct class and calibration is distinct from unit conversion. Applicability says inputs are already normalized, yet Procedure step 1 orders normalization once again. The no-repeat pitfall does not resolve that contradiction. The supplied -0.20 m is properly treated as input-set-specific, not universal."
+    },
+    {
+      "id": "content_C11_pass",
+      "references": [
+        "cmd/testdata/hlp03_reviewer_corpus_20261024_r4_development.json#C11",
+        ".air-worker/learning-loop-20261024/hlp03-r5-development-20261024/evidence/summary.json#C11",
+        "docs/receipts/LEARNING_HLP03_REFINEMENT_EVAL_20261024.json"
+      ],
+      "assessment": "Unlike the qualified R4 body, the R5 update expressly checks whether retry_after_ms fits the remaining original deadline and fails without retry if it cannot; it also retains same input, three total attempts and no deadline extension."
+    },
+    {
+      "id": "measurement_unknown_cause",
+      "references": [
+        ".air-worker/learning-loop-20261024/hlp03-r5-development-20261024/terminal.json",
+        ".air-worker/learning-loop-20261024/hlp03-r5-development-20261024/resources.jsonl",
+        ".air-worker/learning-loop-20261024/hlp03-r5-postfailure-readback.json",
+        "docs/tasks/run-hlp03-real-reviewer-20261024.ps1"
+      ],
+      "assessment": "Wrapper exit 1 and Win32Exception remain failure evidence despite Go exit 0 and 24 completed turns. A nearby transient enumeration warning is insufficient to establish the fatal command. Final resource after sample is missing. Separate readback cannot rewrite original terminal."
+    },
+    {
+      "id": "release_preparation_only",
+      "references": [
+        "docs/receipts/AIRWORKER_INTERMEDIATE_RELEASE_PREPARATION_20261024.json"
+      ],
+      "assessment": "The preparation receipt says release not ready. QA binary lacks embedded VCS revision and modified metadata, no candidate release version is assigned, P2/N124 native authority is unresolved, and isolated package smoke and rollback have not run. No release, package, installation or production acceptance follows."
+    }
+  ],
+  "limitations": [
+    "Only the named local source, frozen inputs and immutable measured artifacts were reviewed read-only; no Go/model tests, provider calls, dispatch, install or release action occurred.",
+    "Synthetic development cases do not establish natural production usefulness or installed-runtime behavior.",
+    "Eight designated later cases were blocked by the prospective technical/class/identity gate; no uncollected answer is inferred.",
+    "The reviewer route is stated as native executor per task; no completed native job receipt was observed or fabricated."
+  ],
+  "next_step": {
+    "kind": "ADVISORY_ONLY",
+    "recommendation": "Keep the R5 advance gate closed. First reconcile the three concrete development failures C02, C17 and C15 in a separately authorized candidate decision, and capture deterministic wrapper error position/stack before any future measurement. Preserve this frozen failed attempt and its 32-case denominator; do not automatically start R6 or release work.",
+    "gate": "Any later candidate or measurement requires a separate prospective protocol and authorization; this review itself changes only its receipt."
+  }
+}
