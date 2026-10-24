@@ -25,13 +25,38 @@ function Get-AwFootprint([string]$Path) {
     $details=@($enumerationErrors | Select-Object -First 8 | ForEach-Object { [ordered]@{type=$_.Exception.GetType().FullName;detail=([string]$_.Exception.Message).Substring(0,[Math]::Min(512,([string]$_.Exception.Message).Length))} })
     [ordered]@{path=$Path;complete=($enumerationErrors.Count -eq 0);files=$(if ($enumerationErrors.Count -eq 0) {[int64]$measure.Count} else {$null});bytes=$(if ($enumerationErrors.Count -eq 0) {[int64]$measure.Sum} else {$null});error_count=$enumerationErrors.Count;errors=$details}
 }
+function Get-AwFailureDiagnostics($Record,[string]$Phase,[string]$Operation) {
+    $clip={ param($Value) if ($null -eq $Value) { return $null }; $s=[string]$Value; $s.Substring(0,[Math]::Min(4096,$s.Length)) }
+    $invocation=$Record.InvocationInfo
+    [ordered]@{
+        failure_phase=$Phase;failure_operation=$Operation
+        error_id=(& $clip $Record.FullyQualifiedErrorId)
+        exception_type=$Record.Exception.GetType().FullName
+        exception_hresult=$Record.Exception.HResult
+        native_error_code=$(if ($Record.Exception -is [ComponentModel.Win32Exception]) {$Record.Exception.NativeErrorCode} else {$null})
+        invocation_command=$(if ($invocation -and $invocation.MyCommand) {& $clip $invocation.MyCommand.Name} else {$null})
+        invocation_script_name=$(if ($invocation) {& $clip $invocation.ScriptName} else {$null})
+        invocation_line_number=$(if ($invocation) {$invocation.ScriptLineNumber} else {$null})
+        invocation_offset_in_line=$(if ($invocation) {$invocation.OffsetInLine} else {$null})
+        invocation_line=$(if ($invocation) {& $clip $invocation.Line} else {$null})
+        position_message=$(if ($invocation) {& $clip $invocation.PositionMessage} else {$null})
+        script_stack_trace=(& $clip $Record.ScriptStackTrace)
+    }
+}
 function Save-AwSample([string]$Phase) {
+    $script:awFailurePhase=$Phase
+    $script:awFailureOperation='disk_query'
     $disk=Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='R:'"
+    $script:awFailureOperation='cache_enumeration'
     $cache=Get-AwFootprint $env:GOCACHE
+    $script:awFailureOperation='temp_enumeration'
     $temp=Get-AwFootprint $env:GOTMPDIR
+    $script:awFailureOperation='evidence_enumeration'
     $evidence=Get-AwFootprint $awRun
+    $script:awFailureOperation='sample_assembly'
     $known=($cache.complete -and $temp.complete)
     $sample=[ordered]@{at_utc=[DateTime]::UtcNow.ToString('o');phase=$Phase;complete=($known -and $evidence.complete);cache=$cache;temp=$temp;evidence=$evidence;cache_temp_bytes=$(if ($known) {$cache.bytes+$temp.bytes} else {$null});working_estimate_bytes=2147483648;estimate_exceeded=$(if ($known) {(($cache.bytes+$temp.bytes) -gt 2147483648)} else {$null});volume_free_bytes=[int64]$disk.FreeSpace;volume_size_bytes=[int64]$disk.Size;disk_red=($disk.FreeSpace -lt 10737418240 -or ($disk.FreeSpace/$disk.Size) -lt 0.10)}
+    $script:awFailureOperation='append_sample'
     [IO.File]::AppendAllText((Join-Path $awRun 'resources.jsonl'),(($sample | ConvertTo-Json -Depth 10 -Compress)+[Environment]::NewLine),$awUtf8)
     $sample
 }
@@ -98,33 +123,43 @@ Write-AwJSON (Join-Path $awRun 'launch.json') $awLaunch
 $awGo=Start-Process -FilePath (Get-Command go).Source -ArgumentList $awArgs -WorkingDirectory (Join-Path $awSource 'cmd') -RedirectStandardOutput (Join-Path $awRun 'go-test.stdout.txt') -RedirectStandardError (Join-Path $awRun 'go-test.stderr.txt') -NoNewWindow -PassThru
 $awProcessHandle=$awGo.Handle # Keep the process handle so Windows PowerShell retains ExitCode after exit.
 try {
+$awFailurePhase='during'
+$awFailureOperation='process_record_write'
 Write-AwJSON (Join-Path $awRun 'process.json') ([ordered]@{pid=$awGo.Id;started_at_utc=$awStart.ToString('o')})
 $awStopReason=$null
+$awFailureOperation='wait_exit_observation'
 while (-not $awGo.WaitForExit(15000)) {
     $awSample=Save-AwSample 'during'
+    $awFailureOperation='wait_exit_observation'
     if ($awSample.disk_red -or ([DateTime]::UtcNow-$awStart).TotalSeconds -gt 1830) {
         $awStopReason=if ($awSample.disk_red) {'DISK_RED'} else {'OUTER_DEADLINE'}
         & taskkill.exe /PID $awGo.Id /T /F | Out-Null
         break
     }
 }
+$awFailureOperation='wait_exit_observation'
 $awGo.WaitForExit()
 $awAfter=Save-AwSample 'after'
 $awProtectedAfter=[ordered]@{}
 $awDrift=@()
+$awFailureOperation='protected_hash_readback'
 foreach ($path in $awProtected.Keys) {
     $awProtectedAfter[$path]=Get-AwSHA $path
     if ($awProtectedAfter[$path] -ne $awProtected[$path]) { $awDrift+=$path }
 }
+$awFailureOperation='frozen_hash_readback'
 $awResult=[ordered]@{schema='air-worker.hlp03-run-terminal/v1';run_id=$RunID;completed_at_utc=[DateTime]::UtcNow.ToString('o');elapsed_seconds=([DateTime]::UtcNow-$awStart).TotalSeconds;go_exit_code=$awGo.ExitCode;stop_reason=$awStopReason;protected_after=$awProtectedAfter;protected_drift=$awDrift;corpus_unchanged=((Get-AwSHA $awCorpus) -eq $awFreeze.corpus_sha256);gold_unchanged=((Get-AwSHA $awGold) -eq $awFreeze.gold_sha256);binary_unchanged=((Get-AwSHA $awBinary) -eq $awBinarySHA);protocol_unchanged=((Get-AwSHA $awProtocolPath) -eq $awProtocolSHA);harness_unchanged=((Get-AwSHA (Join-Path $awSource 'cmd\learn_adapter_live_eval_test.go')) -eq $awLaunch.harness_sha256);adapter_unchanged=((Get-AwSHA (Join-Path $awSource 'cmd\learn_adapter.go')) -eq $awLaunch.adapter_sha256);runner_unchanged=((Get-AwSHA $PSCommandPath) -eq $awLaunch.runner_sha256);roots_after=@(Get-AwRootMetadata $awSource; Get-AwRootMetadata $awTask);resource_after=$awAfter;quality='SCORE_SEPARATELY_AGAINST_FROZEN_GOLD';production_effect='NOT_PROVEN'}
+$awFailureOperation='terminal_serialization_write'
 Write-AwJSON (Join-Path $awRun 'terminal.json') $awResult
 $awResult | ConvertTo-Json -Depth 15 -Compress
 if ($awGo.ExitCode -ne 0 -or $awStopReason -or $awDrift.Count -gt 0 -or -not $awResult.binary_unchanged -or -not $awResult.corpus_unchanged -or -not $awResult.gold_unchanged -or -not $awResult.protocol_unchanged -or -not $awResult.harness_unchanged -or -not $awResult.adapter_unchanged -or -not $awResult.runner_unchanged) { exit 1 }
 exit 0
 } catch {
     $awFailure=$_
+    $awDiagnostics=Get-AwFailureDiagnostics $awFailure $awFailurePhase $awFailureOperation
     $awKillOutput=Stop-AwOwnedGo $awGo
     $failure=[ordered]@{schema='air-worker.hlp03-run-terminal/v1';run_id=$RunID;completed_at_utc=[DateTime]::UtcNow.ToString('o');status='WRAPPER_FAILURE';error_type=$awFailure.Exception.GetType().FullName;error=$awFailure.ToString();go_pid=$awGo.Id;go_exit_code=$awGo.ExitCode;go_finished=$awGo.HasExited;taskkill_output=$awKillOutput;production_effect='NOT_PROVEN'}
+    foreach ($key in $awDiagnostics.Keys) { $failure[$key]=$awDiagnostics[$key] }
     Write-AwJSON (Join-Path $awRun 'terminal.json') $failure
     $failure | ConvertTo-Json -Depth 15 -Compress
     exit 1

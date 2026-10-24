@@ -1,0 +1,111 @@
+{
+  "schema": "air-worker.hlp03-r6-boundary-diagnosis/v1",
+  "date_sgt": "2026-10-24",
+  "node": "SRVLM01",
+  "source_base_sha": "e6c3c7f960208b49bdd0b4e694bc7eb99554bdce",
+  "status": "CAPTURED_EVIDENCE_COMPLETE_SEMANTIC_BOUNDARY_REMAINS_OPEN",
+  "kind": "Coordinator analysis of immutable first-attempt evidence after independent review; not another model evaluation",
+  "independent_review": {
+    "path": "docs/receipts/LEARNING_HLP03_R6_INDEPENDENT_REVIEW_20261024.json",
+    "sha256": "1e240073ed473c208fd9dee219445cbe2d3822e924d773a55a74097bdf014d2f",
+    "known_complete": 23,
+    "known_executed": 24
+  },
+  "captured_transport": {
+    "readback": ".air-worker/learning-loop-20261024/hlp03-r6-c18-transport-readback.json",
+    "sha256": "3819ee610e057c117c0f25fe4f11a63b9c964357462f11f74b9d985273de3751",
+    "frozen_event_fields_equal": true,
+    "complete_packet_json_in_prompt": true,
+    "complete_prompt_in_native_prompt": true,
+    "complete_exact_sha_seed_in_prompt": true,
+    "prompt_sha256": "b68241b50590615631959b7e71b32c5acf4197fe15dd13bd6d9b43c8ab9e7a2d",
+    "native_prompt_sha256": "31124bdb84adaf5728ab6a989ee5b654d0f420858c4dd62c5bf4f0ad7bb5521b",
+    "presentation_difference": "Only the packet file's final LF is absent from the embedded JSON. Original files unchanged; no event field loss.",
+    "qualification": "Captured request completeness is established. Hidden provider internals and the model's causal reasoning are not observable."
+  },
+  "causal_chain": [
+    "Closed-interval overlap assumes valid ordered endpoints.",
+    "The frozen event establishes a producer field-mapping error that reversed start and end.",
+    "Successful correction has both boundary rejection before overlap and producer mapping repair to restore ordered endpoints.",
+    "Neither silently swapping the consumer's endpoints nor changing the overlap formula is an authorized substitute."
+  ],
+  "actual_c18": {
+    "expected": "create",
+    "actual": "update",
+    "target": "skills/learned/closed-interval-overlap.md",
+    "pre_sha256": "dcaea0dbabcd8c97f7c439d8c9e693486b4336fa89d6e5aa4cd207fd369d4bb2",
+    "useful_but_incomplete_addition": "Reject start > end before overlap calculation",
+    "missing": "Procedure for correcting the confirmed producer field mapping",
+    "old_closed_default_formula_preserved": true,
+    "lifecycle": "Applied and rolled back within disposable fixture; verified removed",
+    "interpretation": "False merge and incomplete correction; not an observed old-formula deletion or production damage."
+  },
+  "contrasts": [
+    {
+      "id": "C17",
+      "expected": "update",
+      "actual": "update",
+      "boundary": "Explicit half_open is a new mode of the same overlap operation; closed/default and ordered-endpoint precondition remain.",
+      "accepted": true
+    },
+    {
+      "id": "C20",
+      "expected": "update",
+      "actual": "update",
+      "boundary": "Trusted-length early rejection is within the same byte-integrity contract; it preserves full digest acceptance and old no-length path. The event requires no separate producer repair.",
+      "accepted": true
+    },
+    {
+      "id": "C21",
+      "expected": "create",
+      "actual": "create",
+      "boundary": "Schema type and producer repair remain separate from already-verified byte identity.",
+      "accepted": true
+    }
+  ],
+  "known_and_unknown": {
+    "established": [
+      "Complete producer cause and successful correction were present in the captured native request.",
+      "The output chose a local protective check and omitted the event's upstream repair.",
+      "The source/model/lifecycle validators do not detect this semantic omission; exact target/preSHA validity is insufficient."
+    ],
+    "not_established": [
+      "A specific prompt sentence caused C18.",
+      "R6 is statistically superior to R5 or another model.",
+      "Another unchanged attempt would pass or establish usefulness."
+    ]
+  },
+  "next_scoped_work": {
+    "goal": "Identify one general contract clarification requiring the complete supported corrective operation before choosing placement.",
+    "hypothesis": "The placement decision may be made from the easiest local guard instead of the full corrective lesson. A candidate clarification should require retaining the supported causal remedy and then deciding whether that whole remedy extends the existing operation.",
+    "scope": "One generic prompt clarification in the existing reviewer; no new schema, second provider pass, framework, domain keywords or case-specific exception.",
+    "counterchecks": [
+      "Do not convert every new validation/check to CREATE; C20 remains UPDATE.",
+      "Do not split legitimate same-operation mode/input extensions such as C02/C17.",
+      "A distinct producer remedy must not be reduced to a consumer precondition check."
+    ],
+    "experiment_prerequisites": [
+      "State a concrete general ambiguity and minimal change in a separate prospective task; do not rely on hoping for another successful sample.",
+      "Review changed source and run only existing targeted/focused QA needed for it.",
+      "Freeze one candidate and the known24/fresh6/old2 protocol before responses; preserve all prior evidence and gold."
+    ],
+    "stop_rule": "No automatic R7, model sweep, selective retry or posthoc gold change.",
+    "next_candidate_selected": false
+  },
+  "release_path": {
+    "critical_dependencies": [
+      "IR-QUALITY semantic completeness and placement",
+      "Existing N124/P2 authority and native reconciliation"
+    ],
+    "package_preparation": "Already complete as inspection; reuse it and existing core/Hermes mechanisms.",
+    "avoid": [
+      "Repeating package inventory",
+      "Building a release package before selecting an accepted candidate",
+      "Duplicating or editing the separate N124 WIP",
+      "Expanding this slice to full Hermes parity, historical procedure migration or a model matrix"
+    ],
+    "P3": "NOT_READY"
+  },
+  "additional_learning_calls": 0,
+  "installed_effect": "NOT_PROVEN"
+}

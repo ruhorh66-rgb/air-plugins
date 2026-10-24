@@ -1,0 +1,515 @@
+{
+  "schema": "air-worker.hlp03-r6-evaluation/v1",
+  "date_sgt": "2026-10-24",
+  "node": "SRVLM01",
+  "status": "SOURCE_ACCEPTED_EXECUTED_MEASUREMENT_ACCEPTED_MODEL_QUALITY_FAIL_RELEASE_NOT_READY",
+  "source": {
+    "root": "R:\\-4-\\air-worker\\worktrees\\airworker-learning-loop-20261024\\air-worker",
+    "branch": "dev/airworker-learning-loop-20261024",
+    "source_base_sha": "e6c3c7f960208b49bdd0b4e694bc7eb99554bdce",
+    "candidate": "R6",
+    "commit_binding": "The containing source commit binds the measured file hashes and this evidence. The QA binary was built before that commit; no containing Git revision or release artifact identity is claimed.",
+    "diff": {
+      "production_file": "cmd/learn_adapter.go",
+      "production_change": "Generic coverage-before-placement contract and coherent starting state; no case/domain exception.",
+      "test_harness_files": [
+        "docs/tasks/run-hlp03-real-reviewer-20261024.ps1",
+        "docs/tasks/test-run-hlp03-real-reviewer-20261024.ps1"
+      ],
+      "diagnostic_change": "Bounded original ErrorRecord phase/operation/location/stack and focused Windows PowerShell 5.1 tests; existing Stop-AwOwnedGo behavior unchanged.",
+      "tracked_files": 3,
+      "insertions": 50,
+      "deletions": 3
+    },
+    "candidate_hashes": {
+      "adapter_sha256": "bc630efcec6f50471b647722d56b18d7922f82ba3cd1db79f452095069314647",
+      "harness_sha256": "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+      "runner_sha256": "d3175bf9961250bb4d8eacb3023832b705e633873c5f73f8a507312af54563fb",
+      "runner_tests_sha256": "1105fb1044820daf557c57e4bdea7b9d0aff7d59a7c110dac4fd25e4e665063e",
+      "binary_sha256": "97a07619b9ada8c444488e97b1b6c0f428af15f74fd7465f4c3d86188b739780"
+    },
+    "snapshot_manifest_sha256": "d6e08a3cfda0be176594d9d11182ba6783960b8fc00dd846a68da9c20b4daeee",
+    "binary_is_release_artifact": false,
+    "candidate_version": "UNASSIGNED_NATIVE_REPHASE_PENDING",
+    "promoted_to_installed": false
+  },
+  "optimization": {
+    "contract": "Bounded learning reliability plus existing exact-SHA delivery and authenticated native-action binding; reuse existing AirWorker/Hermes mechanisms.",
+    "preparation_receipt": "docs/receipts/AIRWORKER_INTERMEDIATE_RELEASE_PREPARATION_20261024.json",
+    "package_preparation": "COMPLETED_INSPECTION_ONLY_REUSED",
+    "remaining_critical_dependencies": [
+      "HLP-03 semantic completeness and placement",
+      "Existing N124/P2 native authority and reconciliation"
+    ],
+    "quality_gates_weakened": false,
+    "designated_calls_not_spent_after_failed_gate": 8,
+    "automatic_next_candidate_started": false
+  },
+  "protocol": {
+    "path": "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R6.json",
+    "sha256": "339e71bfe5292778c192df48ae821a77ed869f338947f4eacb1a42d6f365aa66",
+    "development_freeze_sha256": "6ce394a3b74155d813db3edc6ba8dac5fd6f97e07ae3b0bee6a0f66ded15144b",
+    "fresh_holdout_freeze_sha256": "c522f8c691e51fbdc8834cc9eda7cd65951fab7dc9102fa302969f7caac1dc6f",
+    "development_corpus_sha256": "6c9560614e20e7a43777cbcd8df13078655d3ae59ceae4a9ab84c5aadd0e060f",
+    "development_gold_sha256": "d16c7c59cdf4b0f18bf942ec606bb5304c882bf8db041a0badc432cf4be58de6",
+    "fresh_inputs": "Exact unexecuted R5 six-case corpus and two-old-case followup design reused without changes.",
+    "model": "gpt-5.6-luna",
+    "effort": "medium",
+    "first_attempts_only": true,
+    "selective_reruns": 0,
+    "posthoc_label_changes": 0,
+    "fresh_inputs_exposed_to_learning_reviewer": false,
+    "advance_gate": "docs/receipts/LEARNING_HLP03_R6_ADVANCE_GATE_20261024.json",
+    "advance_gate_snapshot": "Original pre-independent-review stop record preserved, including its then-pending content verdict. Final independent verdict is bound below."
+  },
+  "acceptance": {
+    "source": "ACCEPTED_BOUNDED_SOURCE_CANDIDATE",
+    "model": "FAIL_KNOWN_CLASS_IDENTITY_GATE_AND_INCOMPLETE_DESIGN",
+    "model_accepted": false,
+    "measurement": "ACCEPTED_FOR_EXECUTED_DEVELOPMENT_ONLY",
+    "whole_HLP03_accepted": false,
+    "canonical_reconciliation": "BLOCKED_N124",
+    "P3": "NOT_READY",
+    "installed_GPT_delivery": "NOT_PROVEN",
+    "production_effect": "NOT_PROVEN"
+  },
+  "results": {
+    "designated_total": 32,
+    "executed_total": 24,
+    "blocked_total": 8,
+    "development": {
+      "designated": 24,
+      "executed": 24,
+      "class_correct": 23,
+      "class_identity_correct": 23,
+      "content_acceptable": 23,
+      "complete_acceptance": 23,
+      "expected_distribution": {
+        "no_candidate": 8,
+        "update": 8,
+        "create": 8
+      },
+      "actual_distribution": {
+        "no_candidate": 8,
+        "update": 9,
+        "create": 7
+      },
+      "complete_failed_cases": [
+        "C18"
+      ],
+      "rows": [
+        {
+          "id": "C01",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C02",
+          "expected": "update",
+          "actual": "update",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C03",
+          "expected": "create",
+          "actual": "create",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C04",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C05",
+          "expected": "update",
+          "actual": "update",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C06",
+          "expected": "create",
+          "actual": "create",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C07",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C08",
+          "expected": "update",
+          "actual": "update",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C09",
+          "expected": "create",
+          "actual": "create",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C10",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C11",
+          "expected": "update",
+          "actual": "update",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C12",
+          "expected": "create",
+          "actual": "create",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C13",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C14",
+          "expected": "update",
+          "actual": "update",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C15",
+          "expected": "create",
+          "actual": "create",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C16",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C17",
+          "expected": "update",
+          "actual": "update",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C18",
+          "expected": "create",
+          "actual": "update",
+          "class_correct": false,
+          "identity_correct": false,
+          "content_acceptable": false,
+          "complete_acceptance": false
+        },
+        {
+          "id": "C19",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C20",
+          "expected": "update",
+          "actual": "update",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C21",
+          "expected": "create",
+          "actual": "create",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C22",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C23",
+          "expected": "update",
+          "actual": "update",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        },
+        {
+          "id": "C24",
+          "expected": "create",
+          "actual": "create",
+          "class_correct": true,
+          "identity_correct": true,
+          "content_acceptable": true,
+          "complete_acceptance": true
+        }
+      ]
+    },
+    "fresh_holdout": {
+      "designated": 6,
+      "executed": 0,
+      "status": "NOT_RUN_BLOCKED"
+    },
+    "old_case_followup": {
+      "designated": 2,
+      "executed": 0,
+      "status": "NOT_RUN_BLOCKED",
+      "prerequisite": "No actual designated fresh updates exist to copy verbatim."
+    }
+  },
+  "normalized_findings": [
+    {
+      "id": "C18_FALSE_MERGE_AND_INCOMPLETE_PRODUCER_CORRECTION",
+      "expected": "create",
+      "actual": "update",
+      "target": "skills/learned/closed-interval-overlap.md",
+      "content_failure": "The body adds boundary rejection but omits the required producer field-mapping correction.",
+      "old_knowledge": "Closed/default formula and valid zero-length branch preserved; not an observed old-knowledge deletion.",
+      "scope": "Disposable model-evaluation fixture; update applied and rolled back, fixture removed."
+    }
+  ],
+  "coordinator_qualifications": [
+    "C02 and C17 chose the expected exact updates in R6; C15's already-normalized starting state is coherent. These single observations do not establish statistical improvement.",
+    "C18's supplied target/preSHA is mechanically valid for the old seed; it is the wrong semantic placement relative to frozen CREATE gold.",
+    "The coordinator's 23/24 screen was a conservative gate decision. The independent native reviewer separately read and accepted 23/24 complete answers."
+  ],
+  "source_verification": {
+    "qa_path": ".air-worker/learning-loop-20261024/hlp03-r6-source-qa.json",
+    "qa_sha256": "85d30de584f14045a94711a5a76f61fd625b190d199f862d6255aa2c58f16a85",
+    "test_command": "go test . -run ^(TestLearningReviewer|TestHLP03) -count=1 -timeout 180s -json",
+    "passed_records": 74,
+    "failed_records": 0,
+    "skipped_records": 2,
+    "skip_reasons": [
+      "Live real-reviewer environment unset in offline QA; actual live series is separately recorded.",
+      "Windows unsafe symlink privilege unavailable."
+    ],
+    "powershell_version": "Windows PowerShell 5.1",
+    "powershell_test_exit_code": 0,
+    "vet_exit_code": 0,
+    "build_exit_code": 0,
+    "diff_check_exit_code": 0,
+    "author": {
+      "path": "docs/receipts/LEARNING_HLP03_R6_AUTHOR_20261024.json",
+      "job_id": "gpt__hlp03-semantic-20261024__1792844917003967700__b330b13f",
+      "status": "DONE",
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "launcher_exit_code": 0,
+      "receipt_preserved": true,
+      "original_test_sha256": "e4350585b410d70fd1c583a8b57eae472700156ff5cbf599b663a897287f6f9c"
+    },
+    "coordinator_test_addition": "After native authoring, added a deterministic fault through actual Save-AwSample to verify phase/operation capture; final test hash is 1105fb1044820daf557c57e4bdea7b9d0aff7d59a7c110dac4fd25e4e665063e and was included in QA and independent review.",
+    "limits": "Focused in-process diagnostics tests plus unchanged owned-child/footprint tests do not establish whole live-process failure E2E or R5 root cause."
+  },
+  "independent_review": {
+    "path": "docs/receipts/LEARNING_HLP03_R6_INDEPENDENT_REVIEW_20261024.json",
+    "sha256": "1e240073ed473c208fd9dee219445cbe2d3822e924d773a55a74097bdf014d2f",
+    "model": "gpt-6-sol",
+    "effort": "medium",
+    "route": "native AirWorker executor",
+    "job_id": "gpt__hlp03-semantic-20261024__1792845730344127800__1ff748d2",
+    "status": "DONE",
+    "launcher_exit_code": 0,
+    "job_receipt_sha256": "cc75ba5bd0f6eda318b7826adc0b255cea99d75b973154c444044215c91cd986",
+    "job_output_sha256": "2322a151f50bb29a1786d98b38b2b0093fa2ea58595add41f8d57a6ccd17ced0",
+    "raw_review_unchanged": true,
+    "provenance": "Final native job receipt and output read after independent completion; both included in evidence archive."
+  },
+  "measurement": {
+    "run_id": "HLP03_R6_DEVELOPMENT_20261024",
+    "original_terminal_path": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/terminal.json",
+    "original_terminal_sha256": "a48fa9391c07218b0dfd5849f6f38b393851b2e94fd0bb3136aa4fc78140dfef",
+    "summary_sha256": "c06f0dabfceea98b8edd4647667fb9a61c1b7ff3e26823417250a3a7085dbce0",
+    "launch_sha256": "ee1d33d08cbcc7f71bdb42591e6484afba42303bf28d3477d386dc3959706c2d",
+    "wrapper_exit_code": 0,
+    "go_exit_code": 0,
+    "wrapper_process_seconds": 330.33,
+    "terminal_elapsed_seconds": 328.3172997,
+    "native_turns_completed": 24,
+    "canonical_responses": 24,
+    "observed_tool_calls": 0,
+    "observed_contaminated": 0,
+    "cleanup_verified": 24,
+    "original_terminal_rewritten": false,
+    "postrun": {
+      "path": ".air-worker/learning-loop-20261024/hlp03-r6-postrun-readback.json",
+      "sha256": "87537be09250c0f4a4a054ffcda65e1c15772b163cfea95ffe8c02386c75ff2c",
+      "guards_unchanged": 27,
+      "frozen_bindings_unchanged": 11,
+      "fixture_roots_absent": 24,
+      "qa_temp_files": 0
+    },
+    "prior_failure": "R5 Goexit0/wrapperexit1 remains unchanged evidence; ultimate Win32 cause UNKNOWN. R6 clean completion does not establish a fix for it."
+  },
+  "resources": {
+    "standard": "DEV-137 v1.1.0",
+    "working_estimate_bytes": 2147483648,
+    "hard_os_quota": false,
+    "samples": 22,
+    "complete_samples": 22,
+    "maximum_sampled_cache_temp_bytes": 838186279,
+    "minimum_sampled_volume_free_bytes": 20980703232,
+    "all_observed_reserves_passed": true,
+    "estimate_exceeded": false,
+    "after_cache_bytes": 823479941,
+    "after_temp_files": 0,
+    "continuous_peak_proven": false,
+    "full_DEV137_acceptance": "NOT_CLAIMED",
+    "max_concurrent_native_model_runs": 1,
+    "shared_cache_untouched": true
+  },
+  "usage": {
+    "learning_reviewer": {
+      "attempts": 24,
+      "input_tokens": 420621,
+      "cached_input_tokens": 160128,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 5978,
+      "reasoning_output_tokens": 2439,
+      "cost": null
+    },
+    "source_authoring": {
+      "jobs": 1,
+      "input_tokens": 873155,
+      "cached_input_tokens": 818048,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 10317,
+      "reasoning_output_tokens": 3009,
+      "cost": null
+    },
+    "independent_native_review": {
+      "jobs": 1,
+      "input_tokens": 1078454,
+      "cached_input_tokens": 1003264,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 11088,
+      "reasoning_output_tokens": 1888,
+      "cost": null
+    },
+    "additional_learning_calls_for_diagnosis": 0,
+    "interpretation": "Cached input is included in input_tokens; reasoning output is included in output_tokens. Authoring and independent review usage remain separate from learning-reviewer measurement. Cost not available."
+  },
+  "evidence_bundle": {
+    "schema": "air-worker.hlp03-r6-evidence-bundle/v1",
+    "archive": "docs/receipts/evidence/HLP03_REFINEMENT_R6_20261024.zip",
+    "sha256": "6049bca7aa6855343d1c30756c4dcbee4eab6a04e7a1f48b6e480b1e5bf57d8b",
+    "bytes": 617897,
+    "entries": 289,
+    "manifest_files": 288,
+    "every_entry_reopened_and_sha_verified": true,
+    "original_files_unchanged_after_archive": true,
+    "native_job_id": "gpt__hlp03-semantic-20261024__1792845730344127800__1ff748d2",
+    "native_job_status": "DONE",
+    "native_job_receipt_sha256": "cc75ba5bd0f6eda318b7826adc0b255cea99d75b973154c444044215c91cd986",
+    "independent_review_sha256": "1e240073ed473c208fd9dee219445cbe2d3822e924d773a55a74097bdf014d2f",
+    "source_base_sha": "e6c3c7f960208b49bdd0b4e694bc7eb99554bdce",
+    "measured_binary_sha256": "97a07619b9ada8c444488e97b1b6c0f428af15f74fd7465f4c3d86188b739780",
+    "measured_adapter_sha256": "bc630efcec6f50471b647722d56b18d7922f82ba3cd1db79f452095069314647",
+    "production_effect": "NOT_PROVEN"
+  },
+  "preserved": {
+    "installed_runtime_version": "0.11.10",
+    "installed_plugin_version": "0.11.10",
+    "installed_runtime_sha256": "339c02469519752a53a4c2e43c4b033a8193e33189c339ffb9e601b087e881ab",
+    "module_pin": "v0.1.1",
+    "services_not_operated": true,
+    "native_PLAN_N_LEARN_not_modified": true,
+    "foreign_WIP_not_staged": true,
+    "new_checkouts": 0,
+    "new_native_nodes": 0,
+    "AIR_ENV_002_contacted": false,
+    "prior_R1_R5_evidence": "UNCHANGED"
+  },
+  "next_work": {
+    "diagnosis": "docs/receipts/LEARNING_HLP03_R6_BOUNDARY_DIAGNOSIS_20261024.json",
+    "captured_event_and_seed_complete": true,
+    "goal": "Scope a minimal general clarification for complete causal correction before placement; countercheck against legitimate C17/C20 updates. No automatic R7.",
+    "next_candidate_selected": false,
+    "release_candidate_selected": false,
+    "package_preparation": "Reuse completed inventory; final package waits for quality and P2.",
+    "authority": "Existing N124 owner/signer/ref/claim and separately authorized disposable atomic proof remain unresolved; development push is not authority acceptance."
+  },
+  "limits": [
+    "Finite known synthetic corpus and one attempt per case do not establish population accuracy or useful natural production effect.",
+    "Eight blocked cases remain in the32-case plan denominator; they have no measured answer and are not eight observed model errors.",
+    "Source acceptance, model quality, executed measurement, P2/P3, release/tag/install and production effect are separate.",
+    "QA binary is identified by exact file SHA and source snapshot; it is not a release package."
+  ],
+  "publication": {
+    "target_url": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "target_branch": "dev/airworker-learning-loop-20261024",
+    "binding": "Postcommit explicit GitHub readback is recorded in the companion Wiki checkpoint; this receipt does not embed its containing commit SHA."
+  }
+}

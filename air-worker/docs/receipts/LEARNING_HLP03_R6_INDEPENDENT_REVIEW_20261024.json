@@ -1,0 +1,565 @@
+{
+  "schema": "air-worker.hlp03-r6-independent-review/v1",
+  "reviewed_at_utc": "2026-10-24T12:44:52.939087Z",
+  "reviewer": {
+    "model": "gpt-6-sol",
+    "effort": "medium",
+    "route": "native executor"
+  },
+  "source_base_sha": "e6c3c7f960208b49bdd0b4e694bc7eb99554bdce",
+  "exact_hashes_checked": {
+    "cmd/learn_adapter.go": {
+      "sha256": "bc630efcec6f50471b647722d56b18d7922f82ba3cd1db79f452095069314647",
+      "matches_snapshot": true
+    },
+    "cmd/learn_adapter_live_eval_test.go": {
+      "sha256": "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+      "matches_snapshot": true
+    },
+    "cmd/go.mod": {
+      "sha256": "ca5b48c57a0a14f48736edae21b0f98dc74e77f0e212f2938416ebb556f75391",
+      "matches_snapshot": true
+    },
+    "cmd/go.sum": {
+      "sha256": "76e7ceb133483a6a8a6cbd80c58c609dbe0e1b828bf9f3df3f481d17d60ea95f",
+      "matches_snapshot": true
+    },
+    "docs/tasks/run-hlp03-real-reviewer-20261024.ps1": {
+      "sha256": "d3175bf9961250bb4d8eacb3023832b705e633873c5f73f8a507312af54563fb",
+      "matches_snapshot": true
+    },
+    "docs/tasks/test-run-hlp03-real-reviewer-20261024.ps1": {
+      "sha256": "1105fb1044820daf557c57e4bdea7b9d0aff7d59a7c110dac4fd25e4e665063e",
+      "matches_snapshot": true
+    },
+    "binary": {
+      "path": ".air-worker/learning-loop-20261024/air-worker-hlp03-r6.exe",
+      "sha256": "97a07619b9ada8c444488e97b1b6c0f428af15f74fd7465f4c3d86188b739780",
+      "matches_freeze_or_launch": true
+    },
+    "development_corpus": {
+      "path": "cmd/testdata/hlp03_reviewer_corpus_20261024_r4_development.json",
+      "sha256": "6c9560614e20e7a43777cbcd8df13078655d3ae59ceae4a9ab84c5aadd0e060f",
+      "matches_freeze_or_launch": true
+    },
+    "development_gold": {
+      "path": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R4_DEVELOPMENT.json",
+      "sha256": "d16c7c59cdf4b0f18bf942ec606bb5304c882bf8db041a0badc432cf4be58de6",
+      "matches_freeze_or_launch": true
+    },
+    "holdout_corpus": {
+      "path": "cmd/testdata/hlp03_reviewer_corpus_20261024_r5_holdout.json",
+      "sha256": "c222c4675faddda60bfac41d890974baf70aaf2c1ea7cc8db79a39124654cf32",
+      "matches_freeze_or_launch": true
+    },
+    "holdout_gold": {
+      "path": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R5_HOLDOUT.json",
+      "sha256": "9c1a1ff01a3d7fe2a5f35a7e8d5ed31d3c4e0b9c4bec3dbff1b2b6eae4f383de",
+      "matches_freeze_or_launch": true
+    },
+    "protocol": {
+      "path": "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R6.json",
+      "sha256": "339e71bfe5292778c192df48ae821a77ed869f338947f4eacb1a42d6f365aa66",
+      "matches_freeze_or_launch": true
+    },
+    "followup_design": {
+      "path": "docs/tasks/HLP03_FOLLOWUP_DESIGN_20261024_R5.json",
+      "sha256": "075f48b51ebdd4ba9a1742af3759517aec57dc71ea43bd197e88e3a0fe909b32",
+      "matches_freeze_or_launch": true
+    },
+    "followup_gold": {
+      "path": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R5_FOLLOWUP.json",
+      "sha256": "8b3ea16460495236f9d161891889d882b04be42c1b2dc0be3594e94bf2c9a934",
+      "matches_freeze_or_launch": true
+    },
+    "source_qa": {
+      "path": ".air-worker/learning-loop-20261024/hlp03-r6-source-qa.json",
+      "sha256": "85d30de584f14045a94711a5a76f61fd625b190d199f862d6255aa2c58f16a85",
+      "matches_freeze_or_launch": true
+    },
+    "powershell_test_log": {
+      "path": ".air-worker/learning-loop-20261024/hlp03-r6-source-powershell.txt",
+      "sha256": "1ea0b150cd97a8cd6d6ab95d92440dbe33c54beb2604a1debd0c048a72df739b",
+      "matches_freeze_or_launch": true
+    },
+    "development_freeze": {
+      "path": "docs/tasks/HLP03_CORPUS_FREEZE_20261024_R6_DEVELOPMENT.json",
+      "sha256": "6ce394a3b74155d813db3edc6ba8dac5fd6f97e07ae3b0bee6a0f66ded15144b",
+      "matches_freeze_or_launch": true
+    }
+  },
+  "source_acceptance": {
+    "status": "ACCEPTED_BOUNDED_SOURCE_CANDIDATE",
+    "basis": "Complete diff inspected: only generic reviewer prompt and bounded wrapper error diagnostics/focused tests changed. QA-bound hashes match snapshot and launch; targeted Go tests, vet, build, diff check and Windows PowerShell 5.1 focused tests exited 0. Stop-AwOwnedGo, schema, module lifecycle and Go harness unchanged. Author receipt keeps its earlier test SHA; coordinator's Save-AwSample disk-fault test is in the final QA-bound SHA.",
+    "evidence": [
+      "cmd/learn_adapter.go",
+      "docs/tasks/run-hlp03-real-reviewer-20261024.ps1",
+      "docs/tasks/test-run-hlp03-real-reviewer-20261024.ps1",
+      ".air-worker/learning-loop-20261024/hlp03-r6-source-qa.json",
+      "docs/receipts/LEARNING_HLP03_R6_AUTHOR_20261024.json"
+    ]
+  },
+  "measurement_acceptance": {
+    "status": "ACCEPTED_FOR_EXECUTED_DEVELOPMENT_ONLY",
+    "basis": "Original live run has Go exit 0, wrapper exit 0, terminal readback and 24 native turn.completed results. All 24 cleanups verified, zero observed tool calls/contamination; 22/22 resource samples complete, sampled cache+temp peak 838186279 bytes, after sample complete, 27 protected guards and 11 frozen bindings unchanged, 24 fixture roots absent. No live failure occurred in R6, so new failure diagnostics establish test behavior but not a live failure cause. Prospective C18 stop was followed; later series unmeasured.",
+    "evidence": [
+      ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/launch.json",
+      ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/terminal.json",
+      ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/resources.jsonl",
+      ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/summary.json",
+      ".air-worker/learning-loop-20261024/hlp03-r6-postrun-readback.json",
+      "docs/receipts/LEARNING_HLP03_R6_ADVANCE_GATE_20261024.json"
+    ]
+  },
+  "model_quality": {
+    "status": "FAIL_KNOWN_CLASS_IDENTITY_GATE_AND_INCOMPLETE_DESIGN",
+    "known_development_complete": 23,
+    "known_development_executed": 24,
+    "finding": "C18 false merge and incomplete producer correction. Coordinator screen was a conservative stop, not formal semantic acceptance. Independent full-text review accepts the other 23 observed rows."
+  },
+  "production_effect": "NOT_PROVEN",
+  "series_results": [
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "kind": "known_development_regression",
+      "designated": 24,
+      "executed": 24,
+      "blocked": 0,
+      "class_correct": 23,
+      "identity_correct": 23,
+      "class_identity_correct": 23,
+      "content_acceptable": 23,
+      "complete_acceptance": 23,
+      "status": "FAIL_C18"
+    },
+    {
+      "series": "HLP03_R6_HOLDOUT_20261024",
+      "kind": "fresh_topic_holdout",
+      "designated": 6,
+      "executed": 0,
+      "blocked": 6,
+      "status": "NOT_RUN_BLOCKED_BY_DEVELOPMENT_GATE"
+    },
+    {
+      "series": "HLP03_R6_FOLLOWUP_20261024",
+      "kind": "old_case_after_update",
+      "designated": 2,
+      "executed": 0,
+      "blocked": 2,
+      "status": "NOT_RUN_BLOCKED; designated R6 holdout updates unavailable, so verbatim-body prerequisite failed"
+    }
+  ],
+  "case_results": [
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C01",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_target": null,
+      "actual_target": null,
+      "actual_pre_sha256": null,
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Existing seed already resolves the main file from the trusted project root; canonical empty-object no_candidate.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C01/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C02",
+      "expected": "update",
+      "actual": "update",
+      "expected_target": "skills/learned/project-configuration-paths.md",
+      "actual_target": "skills/learned/project-configuration-paths.md",
+      "actual_pre_sha256": "ffacb0e9e0fd3f398be6e786b47444bc27064fb10d76ada64c0009866b8637af",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Exact configuration-path seed and preSHA; whole replacement retains main project-root resolution/read and adds containing-file base for embedded references.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C02/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C03",
+      "expected": "create",
+      "actual": "create",
+      "expected_target": null,
+      "actual_target": "skills/learned/configuration-read-b5a7c702-9735797ccb5754e0.md",
+      "actual_pre_sha256": "",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Distinct missing schema field after correct open and JSON parse; teaches schema validation and repair without changing path resolution.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C03/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C04",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_target": null,
+      "actual_target": null,
+      "actual_pre_sha256": null,
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Existing cursor seed already teaches carrying the issued token and collecting until the API ends; canonical no_candidate.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C04/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C05",
+      "expected": "update",
+      "actual": "update",
+      "expected_target": "skills/learned/opaque-pagination-cursor.md",
+      "actual_target": "skills/learned/opaque-pagination-cursor.md",
+      "actual_pre_sha256": "84506cd45d97e26e038d20333812f7bf1fac1632866d6f6c9cc456e928f6a86f",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Exact cursor seed and preSHA; retains issued-token transmission and collection through end, adding standard query serialization for +.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C05/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C06",
+      "expected": "create",
+      "actual": "create",
+      "expected_target": null,
+      "actual_target": "skills/learned/pagination-c30ad110-89c260095d6df31b.md",
+      "actual_pre_sha256": "",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Distinct server nonprogress after correct cursor transmission; stops repeated cursor/no-new-record paging and marks partial result incomplete.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C06/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C07",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_target": null,
+      "actual_target": null,
+      "actual_pre_sha256": null,
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Existing seed covers confirmed UTF-8 single decode; canonical no_candidate.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C07/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C08",
+      "expected": "update",
+      "actual": "update",
+      "expected_target": "skills/learned/decode-confirmed-utf8-once.md",
+      "actual_target": "skills/learned/decode-confirmed-utf8-once.md",
+      "actual_pre_sha256": "341ffe5e7fa581868f93a1a8672e3f5059f8671080cc350ceac8940c5ba5e9bb",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Exact UTF-8 seed and preSHA; preserves one decode and original bytes, conditionally removes only leading BOM while retaining interior U+FEFF.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C08/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C09",
+      "expected": "create",
+      "actual": "create",
+      "expected_target": null,
+      "actual_target": "skills/learned/text-input-def6dbe1-e7b99630bf5719b5.md",
+      "actual_pre_sha256": "",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Distinct producer double-serialization correction from already-correct consumer decode and parse; regeneration starts with original text.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C09/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C10",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_target": null,
+      "actual_target": null,
+      "actual_pre_sha256": null,
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Existing bounded transient retry seed covers the same receipt and authorized same-input retry; canonical no_candidate.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C10/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C11",
+      "expected": "update",
+      "actual": "update",
+      "expected_target": "skills/learned/bounded-retry-transient-read.md",
+      "actual_target": "skills/learned/bounded-retry-transient-read.md",
+      "actual_pre_sha256": "98fcd2868052396c07baa184f80bcc3a139e8ad107d3e83aed60cb25a72c5f38",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Exact retry seed and preSHA; retains terminal retryability, same input, three-attempt cap and deadline, checks advertised wait fits before retry.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C11/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C12",
+      "expected": "create",
+      "actual": "create",
+      "expected_target": null,
+      "actual_target": "skills/learned/finite-read-job-c2e2ce8b-77d9fc7d73118ef8.md",
+      "actual_pre_sha256": "",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Distinct nonretryable missing-column input repair from authoritative original, with corrected rerun; no unchanged-input retry.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C12/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C13",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_target": null,
+      "actual_target": null,
+      "actual_pre_sha256": null,
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Existing seed converts explicit m/mm once and compares normalized values; canonical no_candidate.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C13/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C14",
+      "expected": "update",
+      "actual": "update",
+      "expected_target": "skills/learned/normalize-explicit-length-units.md",
+      "actual_target": "skills/learned/normalize-explicit-length-units.md",
+      "actual_pre_sha256": "ff64b5d36c4c2d1a97710f9be50241b04b2da7b961f2330918e51aa22639ec75",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Exact unit seed and preSHA; adds declared cm factor 0.01 while retaining m/mm, one conversion, original values and unsupported-unit guard.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C14/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C15",
+      "expected": "create",
+      "actual": "create",
+      "expected_target": null,
+      "actual_target": "skills/learned/length-comparison-e3c33566-816ca79957251fb1.md",
+      "actual_pre_sha256": "",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Distinct input-set-specific calibration after completed normalization; obtains adjustment from applicable specification and avoids a universal offset.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C15/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C16",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_target": null,
+      "actual_target": null,
+      "actual_pre_sha256": null,
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Existing closed-interval seed covers a shared endpoint and closed default; canonical no_candidate.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C16/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C17",
+      "expected": "update",
+      "actual": "update",
+      "expected_target": "skills/learned/closed-interval-overlap.md",
+      "actual_target": "skills/learned/closed-interval-overlap.md",
+      "actual_pre_sha256": "dcaea0dbabcd8c97f7c439d8c9e693486b4336fa89d6e5aa4cd207fd369d4bb2",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Exact overlap seed and preSHA; adds strict comparison only for explicit half_open while retaining closed/default non-strict and zero-length closed behavior.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C17/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C18",
+      "expected": "create",
+      "actual": "update",
+      "expected_target": null,
+      "actual_target": "skills/learned/closed-interval-overlap.md",
+      "actual_pre_sha256": "dcaea0dbabcd8c97f7c439d8c9e693486b4336fa89d6e5aa4cd207fd369d4bb2",
+      "class_correct": false,
+      "identity_correct": false,
+      "content_acceptable": false,
+      "complete_acceptance": false,
+      "rationale": "False merge into exact overlap seed: rejecting unordered endpoints is useful but the body omits correction of the producer's reversed field mapping; required distinct input/producer remedy is absent. Closed overlap formula remains intact.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C18/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C19",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_target": null,
+      "actual_target": null,
+      "actual_pre_sha256": null,
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Existing seed rejects incomplete bytes by trusted full SHA-256; canonical no_candidate.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C19/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C20",
+      "expected": "update",
+      "actual": "update",
+      "expected_target": "skills/learned/verify-complete-artifact-sha256.md",
+      "actual_target": "skills/learned/verify-complete-artifact-sha256.md",
+      "actual_pre_sha256": "2a6a6e59a9639353f95e24065fd7dcb4372733af7240287435fe2b75f32343a6",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Exact artifact seed and preSHA; trusted length mismatch rejects early, matching/absent length still requires full digest, and schema remains separate.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C20/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C21",
+      "expected": "create",
+      "actual": "create",
+      "expected_target": null,
+      "actual_target": "skills/learned/artifact-verification-8593564d-3d39a165576b5b97.md",
+      "actual_pre_sha256": "",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Distinct application-schema check after byte identity; detects field type, obtains corrected producer content and requires renewed digest verification.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C21/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C22",
+      "expected": "no_candidate",
+      "actual": "no_candidate",
+      "expected_target": null,
+      "actual_target": null,
+      "actual_pre_sha256": null,
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Existing numeric three-part version comparator covers this list; canonical no_candidate.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C22/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C23",
+      "expected": "update",
+      "actual": "update",
+      "expected_target": "skills/learned/compare-three-part-numeric-versions.md",
+      "actual_target": "skills/learned/compare-three-part-numeric-versions.md",
+      "actual_pre_sha256": "082369e6e1ac60dbbdbdc8a3bed05f62790af80365f330a02cb326a6286909f8",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Exact comparator seed and preSHA; permits one lowercase v for parsing while retaining numeric comparison, original spelling and unsupported-shape rejection.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C23/result.json"
+    },
+    {
+      "series": "HLP03_R6_DEVELOPMENT_20261024",
+      "id": "C24",
+      "expected": "create",
+      "actual": "create",
+      "expected_target": null,
+      "actual_target": "skills/learned/version-selection-58bac6c2-262bf6556c9f97ab.md",
+      "actual_pre_sha256": "",
+      "class_correct": true,
+      "identity_correct": true,
+      "content_acceptable": true,
+      "complete_acceptance": true,
+      "rationale": "Distinct source-generation cache freshness check before the unchanged numeric comparator; refreshes stale list.",
+      "evidence": ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C24/result.json"
+    }
+  ],
+  "designated_count": 32,
+  "executed_count": 24,
+  "blocked_count": 8,
+  "findings": [
+    {
+      "id": "C18_FALSE_MERGE",
+      "severity": "model_gate",
+      "detail": "The actual update targets closed-interval-overlap.md with the exact old SHA and adds rejection of start>end, while the frozen gold requires a distinct producer field-mapping and input-boundary correction. Its replacement body leaves the producer mapping error uncorrected. This is a semantic defect, not an identity-hash error.",
+      "evidence": [
+        ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/evidence/C18/result.json",
+        "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R4_DEVELOPMENT.json",
+        "cmd/testdata/hlp03_reviewer_corpus_20261024_r4_development.json"
+      ]
+    },
+    {
+      "id": "DIAGNOSTIC_SCOPE",
+      "severity": "qualification",
+      "detail": "Focused PowerShell 5.1 evidence covers real caught Win32Exception/ErrorRecord location, bounds, JSON round trip, unavailable native code, and an injected disk-query error through actual Save-AwSample, plus existing footprint and owned-child tests. It is an in-process helper test, not whole live-process failure E2E. The successful R6 live terminal has no diagnostic failure fields; R5 wrapper failure remains historical with ultimate cause unknown.",
+      "evidence": [
+        ".air-worker/learning-loop-20261024/hlp03-r6-source-qa.json",
+        ".air-worker/learning-loop-20261024/hlp03-r6-source-powershell.txt",
+        ".air-worker/learning-loop-20261024/hlp03-r6-development-20261024/terminal.json",
+        "docs/receipts/LEARNING_HLP03_REFINEMENT_R5_EVAL_20261024.json"
+      ]
+    },
+    {
+      "id": "GATE",
+      "severity": "protocol",
+      "detail": "The fixed advance rule requires 24/24 known class/exact-identity and no clear frozen-content violation before fresh exposure. C18 fails both class and content; blocking 6 fresh and 2 followup is protocol-conformant. No actual designated R6 holdout update exists to seed old-event followup.",
+      "evidence": [
+        "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R6.json",
+        "docs/receipts/LEARNING_HLP03_R6_ADVANCE_GATE_20261024.json"
+      ]
+    },
+    {
+      "id": "BOUNDARY",
+      "severity": "acceptance",
+      "detail": "P2/N124 and P3 remain unaccepted by this source task. Installed AirWorker 0.11.10 was not modified; there is no installed or natural production-use evidence.",
+      "evidence": [
+        "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R6.json",
+        ".air-worker/learning-loop-20261024/hlp03-r6-postrun-readback.json"
+      ]
+    }
+  ],
+  "limitations": [
+    "First attempts on synthetic known cases do not establish statistical improvement or natural usefulness; no fresh-topic or followup model answers were collected.",
+    "Resource samples are periodic, not a continuous peak or full DEV-137 acceptance.",
+    "No R6 live wrapper failure occurred; the added diagnostics cannot establish the R5 ultimate Win32 cause.",
+    "The coordinator binds the final native job receipt/output hash after completion; this review does not assert that provenance."
+  ],
+  "next_step": "Preserve the R6 stop and diagnose C18's coverage-versus-placement error against the frozen event, seed and actual update. Any later source candidate and prospectively frozen evaluation must be separately scoped; no automatic R7, model sweep, fallback or selective retry."
+}

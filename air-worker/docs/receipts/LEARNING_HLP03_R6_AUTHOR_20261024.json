@@ -1,0 +1,45 @@
+{
+  "schema": "air-worker.hlp03-r6-author/v1",
+  "source_base_sha": "e6c3c7f960208b49bdd0b4e694bc7eb99554bdce",
+  "files_changed": [
+    {
+      "path": "cmd/learn_adapter.go",
+      "sha256": "bc630efcec6f50471b647722d56b18d7922f82ba3cd1db79f452095069314647"
+    },
+    {
+      "path": "docs/tasks/run-hlp03-real-reviewer-20261024.ps1",
+      "sha256": "d3175bf9961250bb4d8eacb3023832b705e633873c5f73f8a507312af54563fb"
+    },
+    {
+      "path": "docs/tasks/test-run-hlp03-real-reviewer-20261024.ps1",
+      "sha256": "e4350585b410d70fd1c583a8b57eae472700156ff5cbf599b663a897287f6f9c"
+    },
+    {
+      "path": "docs/receipts/LEARNING_HLP03_R6_AUTHOR_20261024.json",
+      "sha256": null,
+      "hash_note": "This receipt cannot contain its own SHA256 without changing that SHA256; coordinator may bind its final file hash externally."
+    }
+  ],
+  "implementation": [
+    "Replaced the specified generic reviewer prompt sentences with the coverage-before-placement hypothesis and starting-state instruction; retained exact update identity, full-body preservation and existing validators.",
+    "Added bounded ErrorRecord diagnostics to the existing wrapper failure receipt, with phase and operation recorded at the disk, enumeration, append, wait/exit, protected/frozen hash and terminal-write boundaries. Captured diagnostics before owned-child cleanup.",
+    "Extended the existing AST-extracted helper test with caught Win32Exception and command failures, JSON round trips and length checks."
+  ],
+  "validations": [
+    "PowerShell 7.6.8 parser accepted the runner and focused test scripts with zero parse errors.",
+    "gofmt -d cmd/learn_adapter.go produced no diff.",
+    "In-process AST-extracted diagnostic helper check passed: caught Win32Exception native code 123, real invocation location and stack, 4096-character error id bound, JSON round trip, and unavailable native code plus Get-Item command on a separate caught error.",
+    "git diff --check passed."
+  ],
+  "limits": [
+    "Full focused PowerShell 5.1 test script was not run because it launches and stops an owned child; coordinator testing remains pending.",
+    "Go tests, Go vet, model/provider calls and the full live reviewer runner were not run.",
+    "The R5 wrapper failure root cause remains unknown; these diagnostics have not yet observed a future live failure."
+  ],
+  "acceptance": {
+    "source": "AUTHOR_CHANGE_COMPLETE_COORDINATOR_QA_PENDING",
+    "model_quality": "NOT_MEASURED",
+    "production_effect": "NOT_PROVEN"
+  },
+  "native_executor_receipt": "NOT_BOUND_BY_AUTHOR"
+}
