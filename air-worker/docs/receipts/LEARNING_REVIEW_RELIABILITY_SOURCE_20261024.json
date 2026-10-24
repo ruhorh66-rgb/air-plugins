@@ -1,0 +1,127 @@
+{
+  "schema": "air-worker.learning.reliability-source/v1",
+  "status": "PASS_FUNCTIONAL_SOURCE_SCOPE",
+  "observed_at_utc": "2026-10-24T02:06:09.3341132Z",
+  "base_source_sha": "8ca190f32fa4ed42fe3f05398c66b72de7dc71ea",
+  "reviewed_source_sha": "c2b85c294a38bdb65cbd788cd90dcabe3d03eac7",
+  "branch": "dev/airworker-learning-loop-20261024",
+  "module_dependency": "github.com/ruhorh66-rgb/air-modules v0.1.1",
+  "changed_paths": [
+    "cmd/learn_shared.go",
+    "cmd/learn_reviewer_reliability_test.go"
+  ],
+  "file_sha256": {
+    "cmd/learn_shared.go": "3c77f73f13b9fe3e2383f97d052bc31029e3b8f308a2ac3872fdef5eb5633c50",
+    "cmd/learn_reviewer_reliability_test.go": "cf975e649619b7ba72758d6cec00074cfc15ff0f7f3a6e6502f040edac25ac70"
+  },
+  "behavior": [
+    "Reviewer adapter admission is serialized by canonical product across processes using the existing OS file-lock helper; different products are independent.",
+    "Queued cancellation and an already-cancelled pre-start context prevent adapter launch. Queue errors retain their stage and wrapped context error.",
+    "A nonzero adapter error remains wrapped and carries a fixed safe category recognized from real native learning reviewer diagnostics.",
+    "Arbitrary stderr, paths, provider messages and credentials are never copied to the durable RV; unknown details are explicitly withheld.",
+    "The common duplicate-start job guard, shared module version and verified-use semantics are unchanged."
+  ],
+  "implementation_evidence": {
+    "route": "Two native AirWorker executor tasks followed by coordinator correction and independent read-only Codex review",
+    "native_executor_jobs": [
+      {
+        "model": "gpt-6-sol",
+        "effort": "low",
+        "status": "DONE",
+        "exit_code": 0
+      },
+      {
+        "model": "gpt-6-sol",
+        "effort": "medium",
+        "status": "DONE",
+        "exit_code": 0
+      }
+    ],
+    "coordinator_correction": "Replaced a synthetic reason-prefix test contract with real cmdLearningReviewerAdapter diagnostics. RV integration runs the production command/printer and stubs only provider output.",
+    "native_orchestrate_or_autonomous_loop_proven": false
+  },
+  "verification": {
+    "platform": "Windows",
+    "test_command": "go test . -run '^(TestLearning|TestShared|TestDeferred|TestJobReceipt|TestAirWorkerStopDeferredReview)' -count=1 -timeout 120s -json",
+    "test_exit_code": 0,
+    "passed_records": 76,
+    "failed_records": 0,
+    "skipped_records": 4,
+    "skipped_tests": [
+      "TestLearningProcessTreeHelper",
+      "TestSharedConfigEntryPresenceFailsClosed/dangling-symlink",
+      "TestLearningProcessHelper",
+      "TestSharedPlanConsumerChild"
+    ],
+    "skip_details": "Three helper entrypoints are skipped outside their subprocess modes. The dangling-symlink fixture was skipped because the host lacks the required symlink privilege.",
+    "qa_raw_sha256": "f475b34c5185461fde2ab13aad2634ffc9acc26ef6a580db12fdb9afebf0584d",
+    "qa_summary_sha256": "61d7db390dee63d2fe7f13bd8be21ba98aa9d85822ad3637bb58650700d74154",
+    "vet": {
+      "command": "go vet .",
+      "exit_code": 0
+    },
+    "build": {
+      "command": "go build -o <isolated-task-root>/air-worker-source.exe .",
+      "exit_code": 0,
+      "sha256": "0c07a16aed908b6e5d4f6cb07a1555e80b48b7429f223921ed903f688526a87d",
+      "release_artifact": false
+    },
+    "diff_check_exit_code": 0,
+    "direct_proofs": [
+      "Two helper processes cannot enter one product's reviewer slot together; a different product can enter.",
+      "Configured Reviewer callback returns on queued cancellation without launching its adapter.",
+      "Production adapter invalid-model-output, duplicate-job, private-error and no-candidate paths persist linked event_id/run_id/review_id and expected RV outcomes.",
+      "Wrapped exit status, protocol failure and timeout remain distinguishable."
+    ]
+  },
+  "independent_review": {
+    "launcher": "Codex CLI through AIR Commander Test",
+    "model": "gpt-6-sol",
+    "effort": "medium",
+    "sandbox": "read-only",
+    "exit_code": 0,
+    "verdict_sha256": "d769dc1fd76e366ac11c2067d207aa58b25a411acdd54009837ca07750a60e20",
+    "verdict": {
+      "source_sha": "c2b85c294a38bdb65cbd788cd90dcabe3d03eac7",
+      "decision": "PASS",
+      "p0_count": 0,
+      "p1_count": 0,
+      "findings": [],
+      "evidence": [
+        "HEAD matches the requested SHA; review covered the committed diff and its direct adapter, lock, and saved-RV paths.",
+        "The reviewer callback locks the opened product’s canonical path, checks context while queued and after acquisition, and releases the lock after the adapter returns. The pre-start context check prevents an already-cancelled launch.",
+        "Production adapter errors use the reviewed stderr format. Nonzero exit errors remain wrapped; only fixed categories, never raw stderr, reach the module’s durable RV. The tests invoke the native command and printer with only provider output stubbed, then check RV linkage and outcomes.",
+        "Coordinator reports 76 passes, 4 skips, no failures, plus successful vet, build, and diff check on the same bytes."
+      ],
+      "limitations": [
+        "Tests were not rerun in this read-only review; POSIX execution was not tested.",
+        "This review does not close the canonical PLAN or prove production learning or autonomy. Running-process recovery, legacy .out archival, and skill delivery and useful use remain outside scope."
+      ]
+    }
+  },
+  "resources": {
+    "qa_temp_files_after": 0,
+    "owned_qa_cache_retained": true,
+    "shared_cache_changed": false,
+    "continuous_peak_proven": false,
+    "hard_quota_enforcement_proven": false,
+    "dev137_production_acceptance": "NOT_PROVEN"
+  },
+  "boundaries": {
+    "installed_product_changed": false,
+    "new_release_published": false,
+    "canonical_plan_or_learn_mutated": false,
+    "full_HLP02_accepted": false,
+    "GPT_skill_delivery": "NOT_PROVEN",
+    "natural_use_or_effect": "NOT_PROVEN",
+    "historical_40_stderr_recovered": false,
+    "POSIX_runtime_tested": false,
+    "deferred": [
+      "Running-process teardown/recovery",
+      "Legacy per-attempt .out archival",
+      "APPLIED semantic deduplication",
+      "GPT delivery and verified useful use",
+      "Canonical plan authority/rephase and release acceptance"
+    ]
+  }
+}
