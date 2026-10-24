@@ -1,0 +1,156 @@
+{
+  "schema": "air-worker.learning.hermes-reuse-source/v1",
+  "status": "PASS_FUNCTIONAL_SOURCE_SCOPE",
+  "date_sgt": "2026-10-24",
+  "base_source_sha": "8f76207136ab27cc8c9bab7ee667862238126e25",
+  "reviewed_source_sha": "ca92aa4d2e6c1b8bf68954f1a3701611c3bfa632",
+  "branch": "dev/airworker-learning-loop-20261024",
+  "module_dependency": "github.com/ruhorh66-rgb/air-modules v0.1.1",
+  "confirmed_gap": "The prior adapter read only the legacy unsuffixed error-class target while new procedures were stored at content-hash-suffixed targets. Previously APPLIED generated procedures therefore did not enter the next review prompt through that path. Exact byte deduplication alone did not cover paraphrases.",
+  "behavior": [
+    "Before provider execution, reuse the module index and existing bounded verified reader to supply all currently indexed APPLIED procedures with skill_id, target, SHA256 and complete body. Reviewer context reads emit neither skill_loaded nor procedure_used.",
+    "Prefer applicable existing skills: same cause/applicability/action with mere rewording returns no candidate; a useful refinement requires explicit update_target and update_pre_sha256; genuinely distinct causes, conditions or corrective actions retain the existing content-hash create path.",
+    "Revalidate the supplied catalogue, full bytes, settings and applicable active self-owner after the provider returns. Overflow, unsafe paths, drift and unavailable bodies fail closed before proposing a change.",
+    "An update must name an exact supplied eligible target@SHA. Case-insensitive protected targets and registered machine-action lessons cannot be refined by the generic reviewer. The existing module retains preSHA apply, backup and rollback.",
+    "Exact duplicate body anywhere in the supplied catalogue is a no-op after update identity validation; updating A to B's exact existing body does not erase A or create a duplicate. Invalid updates never fall back to creation.",
+    "Canonical apply/content remain compatible; optional update identity is a pair. Reject missing/null/unknown/duplicate/case-aliased fields, nonobjects and trailing payload. Persist only fixed safe reviewer failure categories."
+  ],
+  "bounds": {
+    "max_procedures": 32,
+    "max_single_procedure_bytes": 65536,
+    "max_total_procedure_bytes": 131072,
+    "partial_context_fallback": false,
+    "behavior_on_excess": "FAIL_BEFORE_PROVIDER"
+  },
+  "hermes_reuse": {
+    "repository": "https://github.com/NousResearch/hermes-agent",
+    "commit": "0e427d788d253630d38a3a51cd76849e73cd6925",
+    "source": "agent/background_review.py",
+    "git_blob": "25c80ccaf615328a44b990040e45a38943508528",
+    "pattern": "Existing suitable skill first; fresh full read before update; create only when no suitable class-level skill exists; preserve provenance and lifecycle.",
+    "adaptation": "AirWorker preserves its own protected/native-action policy and reuses module v0.1.1 index, propose/apply, backup and rollback. Hermes permissions to edit bundled skills are not imported.",
+    "python_code_copied": false,
+    "new_database_queue_or_semantic_index": false
+  },
+  "changed_paths": [
+    "README.md",
+    "cmd/learn_adapter.go",
+    "cmd/learn_adapter_reuse_test.go",
+    "cmd/learn_shared.go"
+  ],
+  "workspace_file_sha256": {
+    "README.md": "3c76a367365f1360bf5ae9f38fc4377a744461c9bb9f3d03f83773c667a79dcf",
+    "cmd/learn_adapter.go": "758a0dad5fa704e97d62f6290746db6b8defcac8e5d595cf2730cfe1bdb5fa18",
+    "cmd/learn_adapter_reuse_test.go": "70e18a2848995dad7ba05021fc082902a282da02ebee7693a8c99426ad3a5e74",
+    "cmd/learn_shared.go": "b19b57a3bbfa8ef826923c8ca5a0889b60b8c8c1bcd537ecd95ac40f7abaef85"
+  },
+  "verification": {
+    "platform": "Windows",
+    "command": "go test . -run ^(TestLearning|TestHLP03|TestN102|TestN093|TestN104|TestN108|TestNativeFeedback|TestSharedReviewer|TestShared.*Context|TestSelfLoad|TestExplicitDelivery|TestValidateLearningProof|TestConfirmedSelfLearningContextSHA) -count=1 -timeout 180s -json",
+    "exit_code": 0,
+    "passed_records": 259,
+    "failed_records": 0,
+    "skipped_records": 8,
+    "skipped": [
+      "TestN108ChildNativeFeedbackMutex",
+      "TestLearningReviewerCatalogueFailsBeforeProvider/unsafe",
+      "TestLearningProcessTreeHelper",
+      "TestLearningProcessHelper",
+      "TestN093LinkedRuntimeProvenanceCannotAuthorizeUse/review-event",
+      "TestN093LinkedRuntimeProvenanceCannotAuthorizeUse/review-canonical",
+      "TestN093LinkedRuntimeProvenanceCannotAuthorizeUse/events",
+      "TestN093LinkedRuntimeProvenanceCannotAuthorizeUse/ledger"
+    ],
+    "skip_detail": {
+      "helper_entrypoints": 3,
+      "windows_file_symlink_privilege": 5,
+      "not_counted_as_pass": true
+    },
+    "vet_exit_code": 0,
+    "build_exit_code": 0,
+    "diff_check_exit_code": 0,
+    "qa_raw_sha256": "8f3fb9658f047863d47163386641daf004f9a4989567e5ea0d087ba82dfe46b6",
+    "qa_summary_sha256": "a0b01ed8a6259108e5411b0d235003884077bbd7663b5e2b87d0cd45a2220e9a",
+    "binary_sha256": "69343382ba477a74dddd5b86092e31281b45d5d0284d536d4a037fae0aa02021",
+    "release_artifact": false,
+    "scope": "Actual adapter and existing learning module fixture paths, including content-hash apply/update/backup/rollback/idempotence, stale/foreign/protected/native-action/strict-response negatives, and prior learning delivery/action regression.",
+    "semantic_provider_quality": "NOT_PROVEN_PROVIDER_STUBS_ONLY"
+  },
+  "implementation_evidence": {
+    "native_executor_models": [
+      {
+        "model": "gpt-6-sol",
+        "effort": "low",
+        "status": "DONE"
+      },
+      {
+        "model": "gpt-6-sol",
+        "effort": "medium",
+        "status": "DONE"
+      }
+    ],
+    "coordinator_corrections": [
+      "Reject missing/null/case-aliased required model-answer fields rather than silently counting malformed JSON as no_candidate; retain canonical two-field compatibility.",
+      "Add eight malformed-answer regression cases.",
+      "Pin Hermes update-first/fresh-read reference and explicit context/eligibility boundaries in README."
+    ],
+    "native_orchestrate_proven": false
+  },
+  "independent_review": {
+    "model": "gpt-6-sol",
+    "effort": "medium",
+    "sandbox": "read-only",
+    "exit_code": 0,
+    "verdict_sha256": "0fae54e13d38e096d44c222e2c960368b5f1b4978bb94e63184cce1dd360cc21",
+    "verdict": {
+      "source_sha": "ca92aa4d2e6c1b8bf68954f1a3701611c3bfa632",
+      "decision": "PASS",
+      "p0_count": 0,
+      "p1_count": 0,
+      "findings": [],
+      "evidence": [
+        "HEAD matches the requested SHA. The four changed source files match the coordinator QA summary’s SHA256 hashes.",
+        "The adapter supplies complete target, SHA, skill ID, and body for every indexed APPLIED procedure, including content-hash targets. It rejects count, size, and changed-body failures before provider invocation and records no load/use event for context reads.",
+        "Update responses require an exact supplied target and preSHA, fresh settings/catalogue/bytes, and applicable active self-owner. Protected and registered machine-action bodies are excluded. The module fixture verifies apply, backup, rollback, idempotence, and preservation of an unrelated procedure.",
+        "Strict response parsing rejects missing, null, duplicate, unknown, and case-aliased fields while retaining legacy two-field responses. Fixed failure reasons withhold injected detail.",
+        "Coordinator QA for this SHA reports 259 passed, 0 failed, and exit code 0; vet, build, and diff checks also report 0."
+      ],
+      "limitations": [
+        "No tests, builds, providers, or files were run or changed in this independent review.",
+        "Semantic same/refinement/distinct decisions were provider-stubbed; live semantic quality is not proven.",
+        "The privilege-dependent unsafe symlink test and other listed Windows skips remain NOT_PROVEN. This review does not establish whole HLP-03, installed delivery, production utility, full release/POSIX behavior, or full resource acceptance."
+      ]
+    }
+  },
+  "resources": {
+    "reused_worktree_and_task_cache": true,
+    "obsolete_own_cache_files_removed": 7,
+    "removed_bytes": 138305162,
+    "shared_cache_changed": false,
+    "final_cache_bytes": 491814443,
+    "final_cache_files": 2794,
+    "final_temp_bytes": 0,
+    "final_temp_files": 0,
+    "combined_cache_temp_limit_bytes": 536870912,
+    "combined_cache_temp_limit_files": 8000,
+    "final_bounds_within_budget": true,
+    "continuous_peak_proven": false,
+    "hard_quota_proven": false,
+    "full_DEV137_acceptance": "NOT_PROVEN"
+  },
+  "boundaries": {
+    "installed_product_changed": false,
+    "installed_version": "0.11.10",
+    "release_published": false,
+    "canonical_plan_or_LEARN_mutated": false,
+    "new_native_nodes": 0,
+    "whole_HLP03_accepted": false,
+    "historical_18_procedures_classified_or_migrated": false,
+    "live_semantic_quality": "NOT_PROVEN",
+    "primary_installed_GPT_delivery": "NOT_PROVEN",
+    "natural_opportunity_and_measured_benefit": "NOT_PROVEN",
+    "POSIX_and_full_release_acceptance": "NOT_PROVEN",
+    "canonical_reconciliation": "BLOCKED_N124",
+    "next_source_result": "Evaluate actual reviewer model decisions on a fixed labelled corpus of same cause/action, useful refinement and distinct causes/conditions/actions. Record confusion matrix, duplicate creation, false merges and token/time costs separately from contract tests. No live LEARN cleanup."
+  }
+}
