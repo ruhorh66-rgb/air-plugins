@@ -1,0 +1,152 @@
+{
+  "schema": "air-worker.learning.gpt-causal-use-source/v1",
+  "status": "PASS_FUNCTIONAL_SOURCE_SCOPE",
+  "date_sgt": "2026-10-24",
+  "base_source_sha": "93ff359ec359cd2fe43658c44cfcf69633237100",
+  "reviewed_source_sha": "4b76ae8d8d1a6bbc2901d44e1a56db9f8cc4812b",
+  "branch": "dev/airworker-learning-loop-20261024",
+  "module_dependency": "github.com/ruhorh66-rgb/air-modules v0.1.1",
+  "behavior": [
+    "Explicit self load signs the exact current delivery snapshot with existing owner-private HMAC and returns its SHA only after secure byte-for-byte publication readback.",
+    "Real validate accepts all four explicit learning proof flags, preserves ordinary native argv, and fails closed for invalid, stale, unsigned, foreign, mismatched or inapplicable delivery.",
+    "The existing typed native preflight, module-owned event readback and immutable signed intent/final result bind delivery principal/session/run/context SHA to the exact supported action. Actual action executor remains air-worker.",
+    "An earlier independent result cannot acquire a later GPT delivery binding. Exact retries return the same action evidence without a second procedure_used; different or refreshed proof cannot relabel it.",
+    "Load alone creates no procedure_used. The supported protective action defers validation: exit 2, native_validation_executed=false, with outcome_receipt_path in the linked JSON response.",
+    "Refresh or used/outcome mutation invalidates the previous current delivery proof. Historical native receipts remain immutable."
+  ],
+  "supported_action": "validate.canonical-config-preflight@1",
+  "supported_outcome": "deferred_missing_configuration",
+  "supported_effect": "avoided_repeat_validation_with_missing_config",
+  "commands": {
+    "delivery": "air-worker learn self load -principal <p> -session-key <k> -run-id <r> -target <catalog target> -expected-sha256 <catalog SHA> -json",
+    "action": "air-worker validate <original validate arguments> -learning-principal <p> -learning-session-key <k> -learning-run-id <r> -learning-context-sha256 <returned context_receipt_sha256>"
+  },
+  "hermes_reuse": {
+    "repository": "https://github.com/NousResearch/hermes-agent",
+    "commit": "0e427d788d253630d38a3a51cd76849e73cd6925",
+    "sources": [
+      "tools/skills_tool.py",
+      "tools/skill_usage.py",
+      "agent/background_review.py"
+    ],
+    "pattern": "Discovery -> explicit current full skill read -> action/result; exclude inherited earlier results. Reuse AirWorker native signed machinery for stronger outcome evidence.",
+    "metric_boundary": "The inspected Hermes skill_view wrapper increments view and use on successful loading; those counters are not adopted as proof of measured useful effect.",
+    "python_code_copied": false,
+    "new_database_scheduler_or_parallel_journal": false
+  },
+  "changed_paths": [
+    "README.md",
+    "cmd/self_learning_load.go",
+    "cmd/self_learning_usage.go",
+    "cmd/self_learning_delivery.go",
+    "cmd/self_learning_delivery_test.go",
+    "cmd/self_preflight_native_guard.go",
+    "cmd/self_preflight_typed_result.go",
+    "cmd/validate.go"
+  ],
+  "file_sha256": {
+    "README.md": "435ff6b322e7e989cabeeed42f66d1e8c08fa9877b9db450223d22e3c4289ffb",
+    "cmd/self_learning_load.go": "566fc78cd93ca6b2c327b59b17556a7fa7af9913f0db3cb7f8e0c285c7cccc37",
+    "cmd/self_learning_usage.go": "56bb94f7f8dcfbf41b737b8c74413109d20245796f6114f813dc15e2d844503d",
+    "cmd/self_learning_delivery.go": "0d5bf1925a4550d277133ee1351093104bb5c9a3eec1e14b8abacc223e692554",
+    "cmd/self_learning_delivery_test.go": "5f20d4d8db643fe85b627feaf3674f103372d4ee471b2589e6d83a9634283539",
+    "cmd/self_preflight_native_guard.go": "0efbd8c8189f2bb3c7da931a17e2b08564d5576095328f7b479008a0eb8f6a03",
+    "cmd/self_preflight_typed_result.go": "5b6a4a400bd7b4baa9df0907fad32d46f097e33c7b19de9c20b0321ef4cfa1b8",
+    "cmd/validate.go": "cb5099ae53ea16ebde659ecf93d670354abc0afb656ca86ac2e46e83bebccfc0"
+  },
+  "verification": {
+    "platform": "Windows",
+    "command": "go test . -run ^(TestExplicitDelivery|TestValidateLearningProof|TestConfirmedSelfLearningContextSHA|TestSelfLoad|TestAirWorkerSelfLearning|TestShared.*Context|TestN093|TestNativePreflight) -count=1 -timeout 180s -json",
+    "exit_code": 0,
+    "passed_records": 120,
+    "failed_records": 0,
+    "skipped_records": 4,
+    "skipped": [
+      "TestN093LinkedRuntimeProvenanceCannotAuthorizeUse/review-event",
+      "TestN093LinkedRuntimeProvenanceCannotAuthorizeUse/review-canonical",
+      "TestN093LinkedRuntimeProvenanceCannotAuthorizeUse/events",
+      "TestN093LinkedRuntimeProvenanceCannotAuthorizeUse/ledger"
+    ],
+    "skip_reason": "Existing N093 Windows file-symlink tests require a privilege unavailable without elevation. These cases are NOT counted as passed.",
+    "vet_exit_code": 0,
+    "build_exit_code": 0,
+    "diff_check_exit_code": 0,
+    "qa_raw_sha256": "0a50543a1e2bce87348b7a5685f575d88a414d1c1503be17bd14166857370b62",
+    "qa_summary_sha256": "c375a686789a01e12f9980bcf5db962b9fbc78467bd9ff41be24c51a4b593051",
+    "binary_sha256": "75c43bfad7f856b64ee89d38de860d3994c6fbdb99fd78b9512e5b6b07a37937",
+    "release_artifact": false,
+    "scope": "Real cmdLearn/cmdValidate paths with existing learning-module fixtures, fresh process, stale/tampered/owner/provenance/parser/replay tests and N093 regression. Test reviewer is fixture-only; no real provider calls in tests."
+  },
+  "implementation_evidence": {
+    "native_executor_models": [
+      {
+        "model": "gpt-6-sol",
+        "effort": "low",
+        "status": "DONE"
+      },
+      {
+        "model": "gpt-6-sol",
+        "effort": "medium",
+        "status": "DONE"
+      }
+    ],
+    "coordinator_corrections": [
+      "Exact snapshot publication/readback identity.",
+      "Negative assertions distinguish rejected rc2 from successful protective rc2; edited snapshots submit recomputed SHA to exercise HMAC checks.",
+      "Preserve both -product and --product argument values; attribute pinned Hermes workflow."
+    ],
+    "native_orchestrate_proven": false
+  },
+  "independent_review": {
+    "model": "gpt-6-sol",
+    "effort": "medium",
+    "sandbox": "read-only",
+    "exit_code": 0,
+    "verdict_sha256": "c254c8647e5e9c56188d01f99fe0721f047961c6a12431040f250edcba9fbe1a",
+    "verdict": {
+      "source_sha": "4b76ae8d8d1a6bbc2901d44e1a56db9f8cc4812b",
+      "decision": "PASS",
+      "p0_count": 0,
+      "p1_count": 0,
+      "findings": [],
+      "evidence": [
+        "HEAD matches the requested SHA. Reviewed all eight changed paths and the direct helpers for context writing, bounded evidence reads, owner checks, signed CLI failure matching, and typed result finalization.",
+        "Explicit load publishes one authenticated current context receipt and returns its SHA after exact byte readback. Validate preserves the native argument vector, requires all four proof flags, and verifies the current receipt before the native action.",
+        "The signed intent and final result bind the GPT delivery identity and context SHA while retaining air-worker as executor. Existing immutable receipt checks prevent retrospective association and duplicate credit.",
+        "QA summary for this SHA records 120 passing tests, zero failures, and exit 0 for the targeted test command, vet, build, and diff check."
+      ],
+      "limitations": [
+        "This is a read-only source review; I did not rerun tests or builds.",
+        "Four legacy N093 Windows symlink subtests were skipped because elevation was unavailable; they are not counted as passed.",
+        "PASS applies only to this source review. Installed GPT integration, full HLP-05, cognitive causality, natural useful effect, full release or POSIX acceptance, and continuous resource quota acceptance remain unproven."
+      ]
+    }
+  },
+  "resources": {
+    "reused_worktree_and_task_cache": true,
+    "obsolete_own_cache_files_removed": 5,
+    "removed_bytes": 99575316,
+    "shared_cache_changed": false,
+    "final_cache_bytes": 493112305,
+    "final_cache_files": 2718,
+    "final_temp_files": 0,
+    "final_bounds_within_budget": true,
+    "continuous_peak_proven": false,
+    "hard_quota_proven": false,
+    "full_DEV137_acceptance": "NOT_PROVEN"
+  },
+  "boundaries": {
+    "installed_product_changed": false,
+    "release_published": false,
+    "canonical_plan_or_LEARN_mutated": false,
+    "new_native_nodes": 0,
+    "whole_HLP05_accepted": false,
+    "primary_installed_GPT_delivery": "NOT_PROVEN",
+    "mechanical_delivery_action_binding": "PASS_SOURCE_FIXTURE",
+    "cognitive_GPT_causation": "NOT_CLAIMED",
+    "natural_opportunity_and_measured_benefit": "NOT_PROVEN",
+    "POSIX_and_full_release_acceptance": "NOT_PROVEN",
+    "canonical_reconciliation": "BLOCKED_N124",
+    "next_source_result": "HLP-03 quality: supply verified existing analogues and prefer appropriate existing skill updates using the Hermes workflow; distinguish duplicate paraphrases from different causes/actions."
+  }
+}
