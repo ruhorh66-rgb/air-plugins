@@ -468,17 +468,23 @@ func validateProductUsingPinnedInputs(root string, pinned *nativeValidatePinnedB
 }
 
 func cmdValidate(argv []string) int {
+	ordinary, delivery, proofErr := splitValidateLearningProof(argv)
+	if proofErr != nil {
+		fmt.Fprintln(os.Stderr, "validate:", proofErr)
+		return 2
+	}
+	argv = ordinary
 	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
 	product := fs.String("product", ".", "корень продукта")
 	asJSON := fs.Bool("json", false, "машинный вывод")
-	if err := fs.Parse(argv); err != nil {
+	if err := fs.Parse(argv); err != nil || (delivery != nil && fs.NArg() != 0) {
 		return 2
 	}
 	// A subsequent native retry can use only a real reviewer-applied,
 	// SHA-verified preflight procedure and a signed earlier exact CLI failure.
 	// This guard performs no validator execution when it safely defers a
 	// redundant retry against the same still-missing configuration.
-	preflight, preflightErr := nativePreflightGuard(append([]string{"validate"}, argv...))
+	preflight, preflightErr := nativePreflightGuardWithDelivery(append([]string{"validate"}, argv...), delivery)
 	if preflightErr != nil {
 		fmt.Fprintln(os.Stderr, "validate: native self-learning preflight evidence incomplete; no successful outcome is claimed")
 		return 2
@@ -486,13 +492,21 @@ func cmdValidate(argv []string) int {
 	if preflight.Deferred {
 		nativePreflightDeferred.Store(true)
 		if *asJSON {
-			b, _ := json.MarshalIndent(map[string]any{
+			response := map[string]any{
 				"schema":                     "air-worker.validate-preflight/v1",
 				"status":                     "deferred_missing_configuration",
 				"native_validation_executed": false,
 				"effect":                     "avoided_repeat_validation_with_missing_config",
 				"procedure_used":             preflight.RuleID,
-			}, "", "  ")
+			}
+			if delivery != nil {
+				response["outcome_receipt_path"] = preflight.ReceiptPath
+				response["delivery_principal"] = delivery.Principal
+				response["delivery_session_key"] = delivery.Session
+				response["delivery_run_id"] = delivery.RunID
+				response["delivery_context_sha256"] = delivery.ContextSHA
+			}
+			b, _ := json.MarshalIndent(response, "", "  ")
 			fmt.Print(string(b) + lineEnding)
 		} else {
 			fmt.Print("validate : DEFERRED — existing run-config.json remains missing; native learned preflight prevented a blind retry. Full validation did NOT run." + lineEnding)

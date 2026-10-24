@@ -89,7 +89,8 @@ func cmdLearnSelfLoad(argv []string) int {
 		fmt.Fprintln(os.Stderr, "learn self load: owner changed during delivery")
 		return 2
 	}
-	if err := captureAirWorkerSelfLearningContextReceipt(owner, in, result.LoadedSkills); err != nil {
+	contextSHA, err := captureSelfLearningContext(owner, in, result.LoadedSkills, true)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "learn self load:", err)
 		return 2
 	}
@@ -103,6 +104,7 @@ func cmdLearnSelfLoad(argv []string) int {
 		"session_key": identity.SessionKey, "run_id": runID, "target": cleanTarget,
 		"sha256": *sha, "rule_id": cleanTarget + "@" + *sha,
 		"context": result.Context, "context_receipt_path": path,
+		"context_receipt_sha256": contextSHA,
 	}); err != nil {
 		fmt.Fprintln(os.Stderr, "learn self load: write response:", err)
 		return 2

@@ -52,6 +52,10 @@ type nativePreflightUseReceipt struct {
 	IntentSHA                string `json:"intent_sha256,omitempty"`
 	ConfirmedEventID         string `json:"confirmed_event_id,omitempty"`
 	PlanFingerprint          string `json:"plan_fingerprint,omitempty"`
+	DeliveryPrincipal        string `json:"delivery_principal,omitempty"`
+	DeliverySession          string `json:"delivery_session_key,omitempty"`
+	DeliveryRunID            string `json:"delivery_run_id,omitempty"`
+	DeliveryContextSHA       string `json:"delivery_context_sha256,omitempty"`
 }
 
 // A typed native receipt is bound to the same product-private key used for
@@ -72,13 +76,23 @@ func nativeTypedPreflightReceiptMAC(key []byte, receipt nativePreflightUseReceip
 // validator. It can never grant permissions or apply executable rules.
 // Missing configuration is checked against OS state, never model text.
 func nativePreflightGuard(argv []string) (nativePreflightGuardResult, error) {
+	return nativePreflightGuardWithDelivery(argv, nil)
+}
+
+func nativePreflightGuardWithDelivery(argv []string, proof *learningDeliveryProof) (nativePreflightGuardResult, error) {
 	var out nativePreflightGuardResult
 	if len(argv) < 2 || argv[0] != "validate" {
+		if proof != nil {
+			return out, errors.New("learning delivery requires validate")
+		}
 		return out, nil
 	}
 	// This is a pure read-only precondition predicate; passing rc=2 is NOT
 	// an assertion that the current validation has actually been executed.
 	if ownCLITrustedFailureCause(argv, 2) != "validate-run-config-missing" {
+		if proof != nil {
+			return out, errors.New("learning delivery action is inapplicable")
+		}
 		return out, nil
 	}
 	owner, on, err := activeAirWorkerSelfLearningOwner()
@@ -86,6 +100,9 @@ func nativePreflightGuard(argv []string) (nativePreflightGuardResult, error) {
 		return out, err
 	}
 	if !on {
+		if proof != nil {
+			return out, errors.New("learning delivery owner disabled")
+		}
 		return out, nil
 	}
 	prior, found, err := findPriorSignedPreflightFailure(owner, argv)
@@ -93,6 +110,9 @@ func nativePreflightGuard(argv []string) (nativePreflightGuardResult, error) {
 		return out, err
 	}
 	if !found {
+		if proof != nil {
+			return out, errors.New("learning delivery has no matching native failure")
+		}
 		return out, nil
 	}
 	rule, eventID, eligible, err := findAppliedPreflightRule(owner, prior)
@@ -100,7 +120,15 @@ func nativePreflightGuard(argv []string) (nativePreflightGuardResult, error) {
 		return out, err
 	}
 	if !eligible {
+		if proof != nil {
+			return out, errors.New("learning delivery has no matching reviewed APPLIED rule")
+		}
 		return out, nil
+	}
+	if proof != nil {
+		if err := verifyCurrentLearningDelivery(owner, *proof, rule); err != nil {
+			return out, err
+		}
 	}
 	lock, locked := acquireLock(lockName("native-preflight-use", owner.Settings.RuntimeRoot))
 	if !locked {
@@ -118,16 +146,24 @@ func nativePreflightGuard(argv []string) (nativePreflightGuardResult, error) {
 		return out, errors.New("self-learning owner changed during native preflight")
 	}
 	if ownCLITrustedFailureCause(argv, 2) != "validate-run-config-missing" {
+		if proof != nil {
+			return out, errors.New("learning delivery action changed")
+		}
 		return out, nil
 	}
 	if !currentSelfLearningRuleBytes(again, rule) {
 		return out, errors.New("selected reviewed preflight procedure changed after selection")
 	}
-	return recordNativePreflightPreventedRetry(again, prior, rule, eventID, argv)
+	return recordNativePreflightPreventedRetryWithDelivery(again, prior, rule, eventID, argv, proof)
 }
 
 func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFailureReceipt,
 	rule selfLearningLoadedRule, sourceEvent string, argv []string) (nativePreflightGuardResult, error) {
+	return recordNativePreflightPreventedRetryWithDelivery(owner, prior, rule, sourceEvent, argv, nil)
+}
+
+func recordNativePreflightPreventedRetryWithDelivery(owner selfLearningOwner, prior ownCLIFailureReceipt,
+	rule selfLearningLoadedRule, sourceEvent string, argv []string, proof *learningDeliveryProof) (nativePreflightGuardResult, error) {
 	var out nativePreflightGuardResult
 	// The currently applied SHA alone never selects a machine action: the
 	// complete reviewed bytes must compile to a release-owned typed handler.
@@ -155,6 +191,14 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 		return out, errors.New("N093: original native run identity/HMAC changed")
 	}
 	isTyped := rule.SHA256 != n118ApprovedPreflightDeferralSHA
+	if proof != nil {
+		if !isTyped {
+			return out, errors.New("learning delivery requires typed native action")
+		}
+		if err := verifyCurrentLearningDelivery(owner, *proof, rule); err != nil {
+			return out, err
+		}
+	}
 	planFingerprint := ""
 	if isTyped {
 		planFingerprint, err = n093NativePlanFingerprint(owner.Selector.ProductRoot)
@@ -206,6 +250,11 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 			return out, errors.New("N093: native PLAN changed before action intent")
 		}
 	}
+	if proof != nil {
+		if err := verifyCurrentLearningDelivery(owner, *proof, rule); err != nil {
+			return out, err
+		}
+	}
 	receipt := nativePreflightUseReceipt{
 		Schema: "air-worker.n118.native-preflight-use/v1",
 		Status: "native_preflight_retry_prepared", RunID: usedID,
@@ -235,6 +284,12 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 		receipt.ProcessID = os.Getpid()
 		receipt.Nonce = identity[:24]
 		receipt.PlanFingerprint = planFingerprint
+		if proof != nil {
+			receipt.DeliveryPrincipal = proof.Principal
+			receipt.DeliverySession = proof.Session
+			receipt.DeliveryRunID = proof.RunID
+			receipt.DeliveryContextSHA = proof.ContextSHA
+		}
 		receipt.ReceiptMAC, err = nativeTypedPreflightReceiptMAC(key, receipt)
 		if err != nil {
 			return out, err
@@ -334,6 +389,11 @@ func recordNativePreflightPreventedRetry(owner selfLearningOwner, prior ownCLIFa
 		return out, err
 	}
 	if !usageFound {
+		if proof != nil {
+			if err := verifyCurrentLearningDelivery(owner, *proof, rule); err != nil {
+				return out, err
+			}
+		}
 		if isTyped {
 			if ownCLITrustedFailureCause(argv, 2) != action.Precondition {
 				return out, errors.New("N093: native preflight changed before use event")

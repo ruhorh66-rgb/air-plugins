@@ -1,6 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -33,11 +37,26 @@ type selfLearningContextReceipt struct {
 	RuntimeRoot  string                   `json:"runtime_root"`
 	Loaded       []selfLearningLoadedRule `json:"loaded"`
 	CreatedAt    string                   `json:"created_at"`
+	ConfigSHA    string                   `json:"config_sha256,omitempty"`
+	DeliveryID   string                   `json:"delivery_id,omitempty"`
+	DeliveryMAC  string                   `json:"delivery_hmac_sha256,omitempty"`
 	UsedAt       string                   `json:"used_at,omitempty"`
 	UsedRuleID   string                   `json:"used_rule_id,omitempty"`
 	Outcome      string                   `json:"outcome,omitempty"`
 	OutcomeRef   string                   `json:"outcome_ref,omitempty"`
 	ObservedTool string                   `json:"observed_tool,omitempty"`
+}
+
+func selfLearningDeliveryMAC(key []byte, rec selfLearningContextReceipt) (string, error) {
+	rec.DeliveryMAC = ""
+	raw, err := json.Marshal(rec)
+	if err != nil {
+		return "", err
+	}
+	mac := hmac.New(sha256.New, key)
+	_, _ = mac.Write([]byte("air-worker.explicit-self-delivery/v1\x00"))
+	_, _ = mac.Write(raw)
+	return hex.EncodeToString(mac.Sum(nil)), nil
 }
 
 type selfLearningTriggerReceipt struct {
@@ -170,19 +189,24 @@ func loadedRulesFromObserved(observed string) []selfLearningLoadedRule {
 }
 
 func captureAirWorkerSelfLearningContextReceipt(owner selfLearningOwner, in hookInput, skills []sharedLearningCatalogSkill) error {
+	_, err := captureSelfLearningContext(owner, in, skills, false)
+	return err
+}
+
+func captureSelfLearningContext(owner selfLearningOwner, in hookInput, skills []sharedLearningCatalogSkill, explicit bool) (string, error) {
 	byTarget := map[string]selfLearningLoadedRule{}
 	for _, skill := range skills {
 		target := strings.TrimSpace(skill.Target)
 		sha := strings.ToLower(strings.TrimSpace(skill.SHA256))
 		if target == "" || len(sha) != 64 {
-			return errors.New("current self-learning delivery has invalid target/SHA identity")
+			return "", errors.New("current self-learning delivery has invalid target/SHA identity")
 		}
 		if _, err := hex.DecodeString(sha); err != nil {
-			return errors.New("current self-learning delivery has invalid SHA")
+			return "", errors.New("current self-learning delivery has invalid SHA")
 		}
 		key := strings.ToLower(filepath.ToSlash(target))
 		if previous, exists := byTarget[key]; exists && !strings.EqualFold(previous.SHA256, sha) {
-			return fmt.Errorf("current self-learning delivery contains multiple SHAs for %s", target)
+			return "", fmt.Errorf("current self-learning delivery contains multiple SHAs for %s", target)
 		}
 		byTarget[key] = selfLearningLoadedRule{Target: target, SHA256: sha}
 	}
@@ -195,17 +219,71 @@ func captureAirWorkerSelfLearningContextReceipt(owner selfLearningOwner, in hook
 	})
 	path, err := selfLearningContextReceiptPath(in)
 	if err != nil {
-		return err
+		return "", err
 	}
 	rec := selfLearningContextReceipt{
 		Schema: selfLearningContextReceiptSchema, Principal: hookPrincipal(in), Session: in.SessionID,
 		RunID: selfLearningRunID(in), ProductRoot: owner.Selector.ProductRoot, RuntimeRoot: owner.Settings.RuntimeRoot,
 		Loaded: loaded, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
+	if explicit {
+		if len(loaded) != 1 {
+			return "", errors.New("explicit delivery requires one rule")
+		}
+		var nonce [16]byte
+		if _, err := rand.Read(nonce[:]); err != nil {
+			return "", err
+		}
+		rec.DeliveryID = hex.EncodeToString(nonce[:])
+		rec.ConfigSHA = owner.Selector.ConfigSHA256
+		key, err := ownCLIPrivateKey(owner.Settings.RuntimeRoot)
+		if err != nil {
+			return "", err
+		}
+		rec.DeliveryMAC, err = selfLearningDeliveryMAC(key, rec)
+		for i := range key {
+			key[i] = 0
+		}
+		if err != nil {
+			return "", err
+		}
+	}
 	// This file is the exact CURRENT delivery snapshot for the run. Never carry
-	// used/outcome fields across a later context refresh; durable historical use
-	// remains in the shared module event journal.
-	return writeSelfLearningContextReceipt(path, rec)
+	// used/outcome fields across a later context refresh. Refresh or a later
+	// used/outcome mutation invalidates the old current delivery hash; immutable
+	// native intent/result receipts retain accepted past evidence. Never re-sign
+	// a mutated historical delivery to preserve its old authority.
+	if err := writeSelfLearningContextReceipt(path, rec); err != nil {
+		return "", err
+	}
+	if !explicit {
+		return "", nil
+	}
+	expected, err := json.MarshalIndent(rec, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return confirmedSelfLearningContextSHA(path, append(expected, '\n'))
+}
+
+func confirmedSelfLearningContextSHA(path string, expected []byte) (string, error) {
+	raw, err := n093ReadContextEvidence(path)
+	if err != nil {
+		return "", err
+	}
+	if !bytes.Equal(raw, expected) {
+		return "", errors.New("current self-learning delivery changed after publication")
+	}
+	return learnSHA(raw), nil
+}
+
+func n093ReadContextEvidence(path string) ([]byte, error) {
+	root := hookStateDir()
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return nil, err
+	}
+	return n093ReadRuntimeEvidence(root, filepath.ToSlash(rel), 32*1024)
 }
 
 func executionUnknownLoadedRule(rec selfLearningContextReceipt) (selfLearningLoadedRule, bool) {

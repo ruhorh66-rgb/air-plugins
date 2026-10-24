@@ -78,6 +78,14 @@ func finalizeN093TypedPreflightResult(owner selfLearningOwner, prior ownCLIFailu
 		intent.PlanFingerprint == "" {
 		return "", false, errors.New("N093: pending intent was forged or mismatched")
 	}
+	if intent.DeliveryContextSHA != "" {
+		proof := learningDeliveryProof{intent.DeliveryPrincipal, intent.DeliverySession, intent.DeliveryRunID, intent.DeliveryContextSHA}
+		if err := verifyCurrentLearningDelivery(owner, proof, rule); err != nil {
+			return "", false, err
+		}
+	} else if intent.DeliveryPrincipal != "" || intent.DeliverySession != "" || intent.DeliveryRunID != "" {
+		return "", false, errors.New("N093: partial delivery binding")
+	}
 	if _, err := time.Parse(time.RFC3339Nano, intent.CreatedUTC); err != nil {
 		return "", false, errors.New("N093: invalid native intent timestamp")
 	}
@@ -163,6 +171,12 @@ func finalizeN093TypedPreflightResult(owner selfLearningOwner, prior ownCLIFailu
 	}
 
 	result := intent
+	if intent.DeliveryContextSHA != "" {
+		proof := learningDeliveryProof{intent.DeliveryPrincipal, intent.DeliverySession, intent.DeliveryRunID, intent.DeliveryContextSHA}
+		if err := verifyCurrentLearningDelivery(owner, proof, rule); err != nil {
+			return "", false, err
+		}
+	}
 	result.Schema = "air-worker.n093.typed-preflight-use/v1"
 	result.Status = action.Outcome
 	result.Outcome = action.Outcome
