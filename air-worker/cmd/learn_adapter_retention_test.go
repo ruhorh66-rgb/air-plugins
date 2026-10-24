@@ -25,7 +25,7 @@ const n102NewCLI = "# Reconcile missing product flag diagnostics\n\n" +
 func invokeN102Reviewer(t *testing.T, product string, response string) (int, string) {
 	t.Helper()
 	saved := learningReviewerInvoke
-	learningReviewerInvoke = func(root, prompt, model, effort string) (string, error) {
+	learningReviewerInvoke = func(root, prompt, outputSchema, model, effort string) (string, error) {
 		if root != product || !strings.Contains(prompt, n102PriorCLI[:55]) {
 			t.Fatalf("old learning not supplied or wrong root")
 		}

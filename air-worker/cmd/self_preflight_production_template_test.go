@@ -89,7 +89,7 @@ func TestN093ProductionAdapterRejectsUnsignedSyntheticMachineCapsule(t *testing.
 	prior := learningReviewerInvoke
 	defer func() { learningReviewerInvoke = prior }()
 	calls := 0
-	learningReviewerInvoke = func(root, prompt, model, effort string) (string, error) {
+	learningReviewerInvoke = func(root, prompt, outputSchema, model, effort string) (string, error) {
 		if root != product || !strings.Contains(prompt, "~~~air-worker-action") {
 			t.Fatal("production reviewer prompt not bound to source owner/action")
 		}
@@ -224,7 +224,7 @@ func TestN093ProductionAdapterRejectsSpoofedPreflightOrigins(t *testing.T) {
 			product, _ := sharedProductFixture(t, false)
 			previous := learningReviewerInvoke
 			defer func() { learningReviewerInvoke = previous }()
-			learningReviewerInvoke = func(_, _, _, _ string) (string, error) {
+			learningReviewerInvoke = func(_, _, _, _, _ string) (string, error) {
 				b, _ := json.Marshal(learningReviewerAnswer{Apply: true, Content: capsule})
 				return string(b), nil
 			}

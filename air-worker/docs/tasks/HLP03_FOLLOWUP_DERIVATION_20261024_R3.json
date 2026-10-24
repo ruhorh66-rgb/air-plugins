@@ -1,0 +1,26 @@
+{
+  "schema": "air-worker.hlp03-followup-derivation/v1",
+  "series": "R3",
+  "designated_denominator": 2,
+  "runnable_count": 2,
+  "failed_prerequisites": 0,
+  "derivation": "Actual canonical candidate copied verbatim into its designated seed only; other seed and frozen event unchanged.",
+  "cases": [
+    {
+      "id": "C37",
+      "primary_case_id": "C32",
+      "target": "skills/learned/group-mandatory-boolean-filter.md",
+      "prerequisite": "PASS",
+      "primary_pre_sha256": "aeec114eb8349edefc441070253f4664d955e0fa4c0dccb88d79f76f17062f07",
+      "actual_updated_sha256": "79488eb642e9270178a2bb3d38f49a394ce3060ccc6eb742031cb59672dbd2c6"
+    },
+    {
+      "id": "C38",
+      "primary_case_id": "C35",
+      "target": "skills/learned/convert-one-based-selection-position.md",
+      "prerequisite": "PASS",
+      "primary_pre_sha256": "90088594c319347dba1fa072bf7acede2bc7a8b0abfda6378c8efaedc867394e",
+      "actual_updated_sha256": "adfa6ca5b62b9af6730ab31609687897fd6ca634182af0b6c5510e40c41c2827"
+    }
+  ]
+}

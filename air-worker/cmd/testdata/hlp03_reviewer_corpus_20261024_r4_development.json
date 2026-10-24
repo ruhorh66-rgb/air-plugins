@@ -1,0 +1,653 @@
+{
+  "schema": "air-worker.hlp03-corpus-input/v1",
+  "cases": [
+    {
+      "id": "C01",
+      "procedures": [
+        {
+          "target": "skills/learned/project-configuration-paths.md",
+          "body": "# Resolve project configuration paths\n\n## When to apply\nWhen a configuration input exists under its declared project base but opening a relative path from a different working directory fails. The project root is known and trusted.\n\n## Procedure\n1. Resolve the main configuration path against the declared project root.\n2. Use the resulting absolute path to check and read the intended configuration file.\n\n## Pitfalls\nDo not depend on the caller's current directory or search the whole disk for a replacement. A readable file must still satisfy its schema.\n"
+        },
+        {
+          "target": "skills/learned/opaque-pagination-cursor.md",
+          "body": "# Preserve opaque pagination cursors\n\n## When to apply\nWhen an API returns next_cursor and a client omits or changes that token, so the next request does not fetch the intended next page. Correct token transmission makes the server advance.\n\n## Procedure\n1. Take next_cursor from the last successful response.\n2. Pass it as the next request's cursor parameter without changing its logical value.\n3. Collect all returned pages until the API declares the end.\n\n## Pitfalls\nDo not invent, parse, trim or otherwise reinterpret an opaque token. A first page alone is not the full result.\n"
+        },
+        {
+          "target": "skills/learned/decode-confirmed-utf8-once.md",
+          "body": "# Decode confirmed UTF-8 input once\n\n## When to apply\nWhen the source is confirmed to be UTF-8 but the reader uses a system-default encoding and corrupts text before parsing.\n\n## Procedure\n1. Decode the source bytes explicitly as UTF-8 once.\n2. Pass the resulting Unicode text to the parser without another encoding conversion.\n\n## Pitfalls\nDo not guess the source encoding or repeatedly re-encode corrupted text. Preserve the original bytes for diagnosis.\n"
+        },
+        {
+          "target": "skills/learned/bounded-retry-transient-read.md",
+          "body": "# Retry a terminal transient read failure within its existing budget\n\n## When to apply\nWhen a read job has a terminal receipt with state=failed, retryable=true and reason=upstream_unavailable. The existing job configuration permits at most three total attempts and supplies an overall deadline.\n\n## Procedure\n1. Confirm the terminal receipt and that an attempt and time budget remain.\n2. Retry the same read job with the same input within those existing limits.\n3. Return an explicit failure when either limit is exhausted.\n\n## Pitfalls\nAn error code alone does not prove that retry is appropriate. Do not increase the allowed number of attempts or extend the overall deadline.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "configuration-read",
+        "observed": "The report builder was launched from a temporary directory and said report.json was missing. The file existed and was readable in the explicitly supplied project root. Resolving the main configuration path from that project root and reading its absolute path fixed the run. No other correction was required.",
+        "outcome": "The correct configuration was read and report generation completed."
+      }
+    },
+    {
+      "id": "C02",
+      "procedures": [
+        {
+          "target": "skills/learned/project-configuration-paths.md",
+          "body": "# Resolve project configuration paths\n\n## When to apply\nWhen a configuration input exists under its declared project base but opening a relative path from a different working directory fails. The project root is known and trusted.\n\n## Procedure\n1. Resolve the main configuration path against the declared project root.\n2. Use the resulting absolute path to check and read the intended configuration file.\n\n## Pitfalls\nDo not depend on the caller's current directory or search the whole disk for a replacement. A readable file must still satisfy its schema.\n"
+        },
+        {
+          "target": "skills/learned/opaque-pagination-cursor.md",
+          "body": "# Preserve opaque pagination cursors\n\n## When to apply\nWhen an API returns next_cursor and a client omits or changes that token, so the next request does not fetch the intended next page. Correct token transmission makes the server advance.\n\n## Procedure\n1. Take next_cursor from the last successful response.\n2. Pass it as the next request's cursor parameter without changing its logical value.\n3. Collect all returned pages until the API declares the end.\n\n## Pitfalls\nDo not invent, parse, trim or otherwise reinterpret an opaque token. A first page alone is not the full result.\n"
+        },
+        {
+          "target": "skills/learned/decode-confirmed-utf8-once.md",
+          "body": "# Decode confirmed UTF-8 input once\n\n## When to apply\nWhen the source is confirmed to be UTF-8 but the reader uses a system-default encoding and corrupts text before parsing.\n\n## Procedure\n1. Decode the source bytes explicitly as UTF-8 once.\n2. Pass the resulting Unicode text to the parser without another encoding conversion.\n\n## Pitfalls\nDo not guess the source encoding or repeatedly re-encode corrupted text. Preserve the original bytes for diagnosis.\n"
+        },
+        {
+          "target": "skills/learned/bounded-retry-transient-read.md",
+          "body": "# Retry a terminal transient read failure within its existing budget\n\n## When to apply\nWhen a read job has a terminal receipt with state=failed, retryable=true and reason=upstream_unavailable. The existing job configuration permits at most three total attempts and supplies an overall deadline.\n\n## Procedure\n1. Confirm the terminal receipt and that an attempt and time budget remain.\n2. Retry the same read job with the same input within those existing limits.\n3. Return an explicit failure when either limit is exhausted.\n\n## Pitfalls\nAn error code alone does not prove that retry is appropriate. Do not increase the allowed number of attempts or extend the overall deadline.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "configuration-read",
+        "observed": "The main report.json was already read by absolute path. It referred to includes/layout.json, which existed relative to the directory containing report.json. When launched from a temporary directory the reader incorrectly resolved this embedded relative reference from the process current directory. The implemented correction resolves relative references inside a configuration file from the directory of that containing file; the main project-root resolution is retained.",
+        "outcome": "Both main and included configuration were read and the report completed."
+      }
+    },
+    {
+      "id": "C03",
+      "procedures": [
+        {
+          "target": "skills/learned/project-configuration-paths.md",
+          "body": "# Resolve project configuration paths\n\n## When to apply\nWhen a configuration input exists under its declared project base but opening a relative path from a different working directory fails. The project root is known and trusted.\n\n## Procedure\n1. Resolve the main configuration path against the declared project root.\n2. Use the resulting absolute path to check and read the intended configuration file.\n\n## Pitfalls\nDo not depend on the caller's current directory or search the whole disk for a replacement. A readable file must still satisfy its schema.\n"
+        },
+        {
+          "target": "skills/learned/opaque-pagination-cursor.md",
+          "body": "# Preserve opaque pagination cursors\n\n## When to apply\nWhen an API returns next_cursor and a client omits or changes that token, so the next request does not fetch the intended next page. Correct token transmission makes the server advance.\n\n## Procedure\n1. Take next_cursor from the last successful response.\n2. Pass it as the next request's cursor parameter without changing its logical value.\n3. Collect all returned pages until the API declares the end.\n\n## Pitfalls\nDo not invent, parse, trim or otherwise reinterpret an opaque token. A first page alone is not the full result.\n"
+        },
+        {
+          "target": "skills/learned/decode-confirmed-utf8-once.md",
+          "body": "# Decode confirmed UTF-8 input once\n\n## When to apply\nWhen the source is confirmed to be UTF-8 but the reader uses a system-default encoding and corrupts text before parsing.\n\n## Procedure\n1. Decode the source bytes explicitly as UTF-8 once.\n2. Pass the resulting Unicode text to the parser without another encoding conversion.\n\n## Pitfalls\nDo not guess the source encoding or repeatedly re-encode corrupted text. Preserve the original bytes for diagnosis.\n"
+        },
+        {
+          "target": "skills/learned/bounded-retry-transient-read.md",
+          "body": "# Retry a terminal transient read failure within its existing budget\n\n## When to apply\nWhen a read job has a terminal receipt with state=failed, retryable=true and reason=upstream_unavailable. The existing job configuration permits at most three total attempts and supplies an overall deadline.\n\n## Procedure\n1. Confirm the terminal receipt and that an attempt and time budget remain.\n2. Retry the same read job with the same input within those existing limits.\n3. Return an explicit failure when either limit is exhausted.\n\n## Pitfalls\nAn error code alone does not prove that retry is appropriate. Do not increase the allowed number of attempts or extend the overall deadline.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "configuration-read",
+        "observed": "The report builder said the configuration was incomplete. Evidence showed that the correct report.json was opened by absolute path and was syntactically valid JSON. Its required sections field was missing from the test input. Restoring the field from the specified schema corrected the run; changing working directories had no effect.",
+        "outcome": "The corrected input satisfied the schema and report generation completed."
+      }
+    },
+    {
+      "id": "C04",
+      "procedures": [
+        {
+          "target": "skills/learned/project-configuration-paths.md",
+          "body": "# Resolve project configuration paths\n\n## When to apply\nWhen a configuration input exists under its declared project base but opening a relative path from a different working directory fails. The project root is known and trusted.\n\n## Procedure\n1. Resolve the main configuration path against the declared project root.\n2. Use the resulting absolute path to check and read the intended configuration file.\n\n## Pitfalls\nDo not depend on the caller's current directory or search the whole disk for a replacement. A readable file must still satisfy its schema.\n"
+        },
+        {
+          "target": "skills/learned/opaque-pagination-cursor.md",
+          "body": "# Preserve opaque pagination cursors\n\n## When to apply\nWhen an API returns next_cursor and a client omits or changes that token, so the next request does not fetch the intended next page. Correct token transmission makes the server advance.\n\n## Procedure\n1. Take next_cursor from the last successful response.\n2. Pass it as the next request's cursor parameter without changing its logical value.\n3. Collect all returned pages until the API declares the end.\n\n## Pitfalls\nDo not invent, parse, trim or otherwise reinterpret an opaque token. A first page alone is not the full result.\n"
+        },
+        {
+          "target": "skills/learned/decode-confirmed-utf8-once.md",
+          "body": "# Decode confirmed UTF-8 input once\n\n## When to apply\nWhen the source is confirmed to be UTF-8 but the reader uses a system-default encoding and corrupts text before parsing.\n\n## Procedure\n1. Decode the source bytes explicitly as UTF-8 once.\n2. Pass the resulting Unicode text to the parser without another encoding conversion.\n\n## Pitfalls\nDo not guess the source encoding or repeatedly re-encode corrupted text. Preserve the original bytes for diagnosis.\n"
+        },
+        {
+          "target": "skills/learned/bounded-retry-transient-read.md",
+          "body": "# Retry a terminal transient read failure within its existing budget\n\n## When to apply\nWhen a read job has a terminal receipt with state=failed, retryable=true and reason=upstream_unavailable. The existing job configuration permits at most three total attempts and supplies an overall deadline.\n\n## Procedure\n1. Confirm the terminal receipt and that an attempt and time budget remain.\n2. Retry the same read job with the same input within those existing limits.\n3. Return an explicit failure when either limit is exhausted.\n\n## Pitfalls\nAn error code alone does not prove that retry is appropriate. Do not increase the allowed number of attempts or extend the overall deadline.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "pagination",
+        "observed": "The API returned 100 records and a nonempty next_cursor. The client omitted cursor from the next request and received the first 100 records again. Passing the token from each previous successful response yielded another 100 records and then 40 before the API declared the end.",
+        "outcome": "All 240 records were collected."
+      }
+    },
+    {
+      "id": "C05",
+      "procedures": [
+        {
+          "target": "skills/learned/project-configuration-paths.md",
+          "body": "# Resolve project configuration paths\n\n## When to apply\nWhen a configuration input exists under its declared project base but opening a relative path from a different working directory fails. The project root is known and trusted.\n\n## Procedure\n1. Resolve the main configuration path against the declared project root.\n2. Use the resulting absolute path to check and read the intended configuration file.\n\n## Pitfalls\nDo not depend on the caller's current directory or search the whole disk for a replacement. A readable file must still satisfy its schema.\n"
+        },
+        {
+          "target": "skills/learned/opaque-pagination-cursor.md",
+          "body": "# Preserve opaque pagination cursors\n\n## When to apply\nWhen an API returns next_cursor and a client omits or changes that token, so the next request does not fetch the intended next page. Correct token transmission makes the server advance.\n\n## Procedure\n1. Take next_cursor from the last successful response.\n2. Pass it as the next request's cursor parameter without changing its logical value.\n3. Collect all returned pages until the API declares the end.\n\n## Pitfalls\nDo not invent, parse, trim or otherwise reinterpret an opaque token. A first page alone is not the full result.\n"
+        },
+        {
+          "target": "skills/learned/decode-confirmed-utf8-once.md",
+          "body": "# Decode confirmed UTF-8 input once\n\n## When to apply\nWhen the source is confirmed to be UTF-8 but the reader uses a system-default encoding and corrupts text before parsing.\n\n## Procedure\n1. Decode the source bytes explicitly as UTF-8 once.\n2. Pass the resulting Unicode text to the parser without another encoding conversion.\n\n## Pitfalls\nDo not guess the source encoding or repeatedly re-encode corrupted text. Preserve the original bytes for diagnosis.\n"
+        },
+        {
+          "target": "skills/learned/bounded-retry-transient-read.md",
+          "body": "# Retry a terminal transient read failure within its existing budget\n\n## When to apply\nWhen a read job has a terminal receipt with state=failed, retryable=true and reason=upstream_unavailable. The existing job configuration permits at most three total attempts and supplies an overall deadline.\n\n## Procedure\n1. Confirm the terminal receipt and that an attempt and time budget remain.\n2. Retry the same read job with the same input within those existing limits.\n3. Return an explicit failure when either limit is exhausted.\n\n## Pitfalls\nAn error code alone does not prove that retry is appropriate. Do not increase the allowed number of attempts or extend the overall deadline.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "pagination",
+        "observed": "The client took next_cursor but inserted it into a URL manually. The token contained +; server-side request inspection confirmed that it arrived as a space and continuation was rejected. Using the HTTP client's standard query-parameter serializer preserved the token's logical value and made the server advance. No API semantics or permissions changed.",
+        "outcome": "The next pages were fetched and collection reached the declared end."
+      }
+    },
+    {
+      "id": "C06",
+      "procedures": [
+        {
+          "target": "skills/learned/project-configuration-paths.md",
+          "body": "# Resolve project configuration paths\n\n## When to apply\nWhen a configuration input exists under its declared project base but opening a relative path from a different working directory fails. The project root is known and trusted.\n\n## Procedure\n1. Resolve the main configuration path against the declared project root.\n2. Use the resulting absolute path to check and read the intended configuration file.\n\n## Pitfalls\nDo not depend on the caller's current directory or search the whole disk for a replacement. A readable file must still satisfy its schema.\n"
+        },
+        {
+          "target": "skills/learned/opaque-pagination-cursor.md",
+          "body": "# Preserve opaque pagination cursors\n\n## When to apply\nWhen an API returns next_cursor and a client omits or changes that token, so the next request does not fetch the intended next page. Correct token transmission makes the server advance.\n\n## Procedure\n1. Take next_cursor from the last successful response.\n2. Pass it as the next request's cursor parameter without changing its logical value.\n3. Collect all returned pages until the API declares the end.\n\n## Pitfalls\nDo not invent, parse, trim or otherwise reinterpret an opaque token. A first page alone is not the full result.\n"
+        },
+        {
+          "target": "skills/learned/decode-confirmed-utf8-once.md",
+          "body": "# Decode confirmed UTF-8 input once\n\n## When to apply\nWhen the source is confirmed to be UTF-8 but the reader uses a system-default encoding and corrupts text before parsing.\n\n## Procedure\n1. Decode the source bytes explicitly as UTF-8 once.\n2. Pass the resulting Unicode text to the parser without another encoding conversion.\n\n## Pitfalls\nDo not guess the source encoding or repeatedly re-encode corrupted text. Preserve the original bytes for diagnosis.\n"
+        },
+        {
+          "target": "skills/learned/bounded-retry-transient-read.md",
+          "body": "# Retry a terminal transient read failure within its existing budget\n\n## When to apply\nWhen a read job has a terminal receipt with state=failed, retryable=true and reason=upstream_unavailable. The existing job configuration permits at most three total attempts and supplies an overall deadline.\n\n## Procedure\n1. Confirm the terminal receipt and that an attempt and time budget remain.\n2. Retry the same read job with the same input within those existing limits.\n3. Return an explicit failure when either limit is exhausted.\n\n## Pitfalls\nAn error code alone does not prove that retry is appropriate. Do not increase the allowed number of attempts or extend the overall deadline.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "pagination",
+        "observed": "The client sent the exact issued cursor; the test server confirmed the value. The server nonetheless returned the same records and same next_cursor indefinitely. The implemented correction detects repeated cursor with no new records, terminates the finite collection and returns an explicit incomplete result instead of claiming a full list.",
+        "outcome": "Collection stopped with a clear no-progress reason and the partial results were marked incomplete."
+      }
+    },
+    {
+      "id": "C07",
+      "procedures": [
+        {
+          "target": "skills/learned/project-configuration-paths.md",
+          "body": "# Resolve project configuration paths\n\n## When to apply\nWhen a configuration input exists under its declared project base but opening a relative path from a different working directory fails. The project root is known and trusted.\n\n## Procedure\n1. Resolve the main configuration path against the declared project root.\n2. Use the resulting absolute path to check and read the intended configuration file.\n\n## Pitfalls\nDo not depend on the caller's current directory or search the whole disk for a replacement. A readable file must still satisfy its schema.\n"
+        },
+        {
+          "target": "skills/learned/opaque-pagination-cursor.md",
+          "body": "# Preserve opaque pagination cursors\n\n## When to apply\nWhen an API returns next_cursor and a client omits or changes that token, so the next request does not fetch the intended next page. Correct token transmission makes the server advance.\n\n## Procedure\n1. Take next_cursor from the last successful response.\n2. Pass it as the next request's cursor parameter without changing its logical value.\n3. Collect all returned pages until the API declares the end.\n\n## Pitfalls\nDo not invent, parse, trim or otherwise reinterpret an opaque token. A first page alone is not the full result.\n"
+        },
+        {
+          "target": "skills/learned/decode-confirmed-utf8-once.md",
+          "body": "# Decode confirmed UTF-8 input once\n\n## When to apply\nWhen the source is confirmed to be UTF-8 but the reader uses a system-default encoding and corrupts text before parsing.\n\n## Procedure\n1. Decode the source bytes explicitly as UTF-8 once.\n2. Pass the resulting Unicode text to the parser without another encoding conversion.\n\n## Pitfalls\nDo not guess the source encoding or repeatedly re-encode corrupted text. Preserve the original bytes for diagnosis.\n"
+        },
+        {
+          "target": "skills/learned/bounded-retry-transient-read.md",
+          "body": "# Retry a terminal transient read failure within its existing budget\n\n## When to apply\nWhen a read job has a terminal receipt with state=failed, retryable=true and reason=upstream_unavailable. The existing job configuration permits at most three total attempts and supplies an overall deadline.\n\n## Procedure\n1. Confirm the terminal receipt and that an attempt and time budget remain.\n2. Retry the same read job with the same input within those existing limits.\n3. Return an explicit failure when either limit is exhausted.\n\n## Pitfalls\nAn error code alone does not prove that retry is appropriate. Do not increase the allowed number of attempts or extend the overall deadline.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "text-input",
+        "observed": "The original file contained valid UTF-8 bytes for Russian field names. The reader used Windows-1251 and supplied corrupted field names to the parser. Explicitly decoding the same bytes as UTF-8 once restored the field names and parsing succeeded; source bytes did not change.",
+        "outcome": "The original input parsed with correct field names."
+      }
+    },
+    {
+      "id": "C08",
+      "procedures": [
+        {
+          "target": "skills/learned/project-configuration-paths.md",
+          "body": "# Resolve project configuration paths\n\n## When to apply\nWhen a configuration input exists under its declared project base but opening a relative path from a different working directory fails. The project root is known and trusted.\n\n## Procedure\n1. Resolve the main configuration path against the declared project root.\n2. Use the resulting absolute path to check and read the intended configuration file.\n\n## Pitfalls\nDo not depend on the caller's current directory or search the whole disk for a replacement. A readable file must still satisfy its schema.\n"
+        },
+        {
+          "target": "skills/learned/opaque-pagination-cursor.md",
+          "body": "# Preserve opaque pagination cursors\n\n## When to apply\nWhen an API returns next_cursor and a client omits or changes that token, so the next request does not fetch the intended next page. Correct token transmission makes the server advance.\n\n## Procedure\n1. Take next_cursor from the last successful response.\n2. Pass it as the next request's cursor parameter without changing its logical value.\n3. Collect all returned pages until the API declares the end.\n\n## Pitfalls\nDo not invent, parse, trim or otherwise reinterpret an opaque token. A first page alone is not the full result.\n"
+        },
+        {
+          "target": "skills/learned/decode-confirmed-utf8-once.md",
+          "body": "# Decode confirmed UTF-8 input once\n\n## When to apply\nWhen the source is confirmed to be UTF-8 but the reader uses a system-default encoding and corrupts text before parsing.\n\n## Procedure\n1. Decode the source bytes explicitly as UTF-8 once.\n2. Pass the resulting Unicode text to the parser without another encoding conversion.\n\n## Pitfalls\nDo not guess the source encoding or repeatedly re-encode corrupted text. Preserve the original bytes for diagnosis.\n"
+        },
+        {
+          "target": "skills/learned/bounded-retry-transient-read.md",
+          "body": "# Retry a terminal transient read failure within its existing budget\n\n## When to apply\nWhen a read job has a terminal receipt with state=failed, retryable=true and reason=upstream_unavailable. The existing job configuration permits at most three total attempts and supplies an overall deadline.\n\n## Procedure\n1. Confirm the terminal receipt and that an attempt and time budget remain.\n2. Retry the same read job with the same input within those existing limits.\n3. Return an explicit failure when either limit is exhausted.\n\n## Pitfalls\nAn error code alone does not prove that retry is appropriate. Do not increase the allowed number of attempts or extend the overall deadline.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "text-input",
+        "observed": "A new file from the same confirmed UTF-8 source began with the UTF-8 BOM. UTF-8 decoding produced correct letters, but the strict parser rejected the initial U+FEFF. The correction detects and consumes a UTF-8 BOM only at the start during the single UTF-8 decode. Characters within the content are not deleted, and a BOM-free UTF-8 file follows the original path.",
+        "outcome": "Both BOM-prefixed and BOM-free inputs parsed correctly."
+      }
+    },
+    {
+      "id": "C09",
+      "procedures": [
+        {
+          "target": "skills/learned/project-configuration-paths.md",
+          "body": "# Resolve project configuration paths\n\n## When to apply\nWhen a configuration input exists under its declared project base but opening a relative path from a different working directory fails. The project root is known and trusted.\n\n## Procedure\n1. Resolve the main configuration path against the declared project root.\n2. Use the resulting absolute path to check and read the intended configuration file.\n\n## Pitfalls\nDo not depend on the caller's current directory or search the whole disk for a replacement. A readable file must still satisfy its schema.\n"
+        },
+        {
+          "target": "skills/learned/opaque-pagination-cursor.md",
+          "body": "# Preserve opaque pagination cursors\n\n## When to apply\nWhen an API returns next_cursor and a client omits or changes that token, so the next request does not fetch the intended next page. Correct token transmission makes the server advance.\n\n## Procedure\n1. Take next_cursor from the last successful response.\n2. Pass it as the next request's cursor parameter without changing its logical value.\n3. Collect all returned pages until the API declares the end.\n\n## Pitfalls\nDo not invent, parse, trim or otherwise reinterpret an opaque token. A first page alone is not the full result.\n"
+        },
+        {
+          "target": "skills/learned/decode-confirmed-utf8-once.md",
+          "body": "# Decode confirmed UTF-8 input once\n\n## When to apply\nWhen the source is confirmed to be UTF-8 but the reader uses a system-default encoding and corrupts text before parsing.\n\n## Procedure\n1. Decode the source bytes explicitly as UTF-8 once.\n2. Pass the resulting Unicode text to the parser without another encoding conversion.\n\n## Pitfalls\nDo not guess the source encoding or repeatedly re-encode corrupted text. Preserve the original bytes for diagnosis.\n"
+        },
+        {
+          "target": "skills/learned/bounded-retry-transient-read.md",
+          "body": "# Retry a terminal transient read failure within its existing budget\n\n## When to apply\nWhen a read job has a terminal receipt with state=failed, retryable=true and reason=upstream_unavailable. The existing job configuration permits at most three total attempts and supplies an overall deadline.\n\n## Procedure\n1. Confirm the terminal receipt and that an attempt and time budget remain.\n2. Retry the same read job with the same input within those existing limits.\n3. Return an explicit failure when either limit is exhausted.\n\n## Pitfalls\nAn error code alone does not prove that retry is appropriate. Do not increase the allowed number of attempts or extend the overall deadline.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "text-input",
+        "observed": "UTF-8 decoding was already correct, but the parsed string values contained literal Unicode escape sequences instead of letters. A trace showed that the producer serialized a string to JSON twice. The correction was to serialize exactly once at the producer and regenerate the test file from the original text. The consumer still decodes and parses once.",
+        "outcome": "Regenerated values contained the intended letters without extra consumer conversions."
+      }
+    },
+    {
+      "id": "C10",
+      "procedures": [
+        {
+          "target": "skills/learned/project-configuration-paths.md",
+          "body": "# Resolve project configuration paths\n\n## When to apply\nWhen a configuration input exists under its declared project base but opening a relative path from a different working directory fails. The project root is known and trusted.\n\n## Procedure\n1. Resolve the main configuration path against the declared project root.\n2. Use the resulting absolute path to check and read the intended configuration file.\n\n## Pitfalls\nDo not depend on the caller's current directory or search the whole disk for a replacement. A readable file must still satisfy its schema.\n"
+        },
+        {
+          "target": "skills/learned/opaque-pagination-cursor.md",
+          "body": "# Preserve opaque pagination cursors\n\n## When to apply\nWhen an API returns next_cursor and a client omits or changes that token, so the next request does not fetch the intended next page. Correct token transmission makes the server advance.\n\n## Procedure\n1. Take next_cursor from the last successful response.\n2. Pass it as the next request's cursor parameter without changing its logical value.\n3. Collect all returned pages until the API declares the end.\n\n## Pitfalls\nDo not invent, parse, trim or otherwise reinterpret an opaque token. A first page alone is not the full result.\n"
+        },
+        {
+          "target": "skills/learned/decode-confirmed-utf8-once.md",
+          "body": "# Decode confirmed UTF-8 input once\n\n## When to apply\nWhen the source is confirmed to be UTF-8 but the reader uses a system-default encoding and corrupts text before parsing.\n\n## Procedure\n1. Decode the source bytes explicitly as UTF-8 once.\n2. Pass the resulting Unicode text to the parser without another encoding conversion.\n\n## Pitfalls\nDo not guess the source encoding or repeatedly re-encode corrupted text. Preserve the original bytes for diagnosis.\n"
+        },
+        {
+          "target": "skills/learned/bounded-retry-transient-read.md",
+          "body": "# Retry a terminal transient read failure within its existing budget\n\n## When to apply\nWhen a read job has a terminal receipt with state=failed, retryable=true and reason=upstream_unavailable. The existing job configuration permits at most three total attempts and supplies an overall deadline.\n\n## Procedure\n1. Confirm the terminal receipt and that an attempt and time budget remain.\n2. Retry the same read job with the same input within those existing limits.\n3. Return an explicit failure when either limit is exhausted.\n\n## Pitfalls\nAn error code alone does not prove that retry is appropriate. Do not increase the allowed number of attempts or extend the overall deadline.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "finite-read-job",
+        "observed": "A read job ended with a terminal receipt state=failed, retryable=true and reason=upstream_unavailable. Its second attempt with the same input completed successfully. The configured three-total-attempt limit and overall deadline were respected. The response supplied no further scheduling information.",
+        "outcome": "The authorized retry succeeded within the existing bounds."
+      }
+    },
+    {
+      "id": "C11",
+      "procedures": [
+        {
+          "target": "skills/learned/project-configuration-paths.md",
+          "body": "# Resolve project configuration paths\n\n## When to apply\nWhen a configuration input exists under its declared project base but opening a relative path from a different working directory fails. The project root is known and trusted.\n\n## Procedure\n1. Resolve the main configuration path against the declared project root.\n2. Use the resulting absolute path to check and read the intended configuration file.\n\n## Pitfalls\nDo not depend on the caller's current directory or search the whole disk for a replacement. A readable file must still satisfy its schema.\n"
+        },
+        {
+          "target": "skills/learned/opaque-pagination-cursor.md",
+          "body": "# Preserve opaque pagination cursors\n\n## When to apply\nWhen an API returns next_cursor and a client omits or changes that token, so the next request does not fetch the intended next page. Correct token transmission makes the server advance.\n\n## Procedure\n1. Take next_cursor from the last successful response.\n2. Pass it as the next request's cursor parameter without changing its logical value.\n3. Collect all returned pages until the API declares the end.\n\n## Pitfalls\nDo not invent, parse, trim or otherwise reinterpret an opaque token. A first page alone is not the full result.\n"
+        },
+        {
+          "target": "skills/learned/decode-confirmed-utf8-once.md",
+          "body": "# Decode confirmed UTF-8 input once\n\n## When to apply\nWhen the source is confirmed to be UTF-8 but the reader uses a system-default encoding and corrupts text before parsing.\n\n## Procedure\n1. Decode the source bytes explicitly as UTF-8 once.\n2. Pass the resulting Unicode text to the parser without another encoding conversion.\n\n## Pitfalls\nDo not guess the source encoding or repeatedly re-encode corrupted text. Preserve the original bytes for diagnosis.\n"
+        },
+        {
+          "target": "skills/learned/bounded-retry-transient-read.md",
+          "body": "# Retry a terminal transient read failure within its existing budget\n\n## When to apply\nWhen a read job has a terminal receipt with state=failed, retryable=true and reason=upstream_unavailable. The existing job configuration permits at most three total attempts and supplies an overall deadline.\n\n## Procedure\n1. Confirm the terminal receipt and that an attempt and time budget remain.\n2. Retry the same read job with the same input within those existing limits.\n3. Return an explicit failure when either limit is exhausted.\n\n## Pitfalls\nAn error code alone does not prove that retry is appropriate. Do not increase the allowed number of attempts or extend the overall deadline.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "finite-read-job",
+        "observed": "A read job ended with state=failed, retryable=true and reason=upstream_unavailable. The receipt also supplied retry_after_ms=2000. An immediate retry encountered the same temporary unavailability. The implemented correction honors that advertised wait before the next permitted attempt, while retaining the three-total-attempt maximum and the original overall deadline. If the wait cannot fit, the job reports failure without another attempt.",
+        "outcome": "After the advertised wait the next allowed attempt succeeded within the original deadline."
+      }
+    },
+    {
+      "id": "C12",
+      "procedures": [
+        {
+          "target": "skills/learned/project-configuration-paths.md",
+          "body": "# Resolve project configuration paths\n\n## When to apply\nWhen a configuration input exists under its declared project base but opening a relative path from a different working directory fails. The project root is known and trusted.\n\n## Procedure\n1. Resolve the main configuration path against the declared project root.\n2. Use the resulting absolute path to check and read the intended configuration file.\n\n## Pitfalls\nDo not depend on the caller's current directory or search the whole disk for a replacement. A readable file must still satisfy its schema.\n"
+        },
+        {
+          "target": "skills/learned/opaque-pagination-cursor.md",
+          "body": "# Preserve opaque pagination cursors\n\n## When to apply\nWhen an API returns next_cursor and a client omits or changes that token, so the next request does not fetch the intended next page. Correct token transmission makes the server advance.\n\n## Procedure\n1. Take next_cursor from the last successful response.\n2. Pass it as the next request's cursor parameter without changing its logical value.\n3. Collect all returned pages until the API declares the end.\n\n## Pitfalls\nDo not invent, parse, trim or otherwise reinterpret an opaque token. A first page alone is not the full result.\n"
+        },
+        {
+          "target": "skills/learned/decode-confirmed-utf8-once.md",
+          "body": "# Decode confirmed UTF-8 input once\n\n## When to apply\nWhen the source is confirmed to be UTF-8 but the reader uses a system-default encoding and corrupts text before parsing.\n\n## Procedure\n1. Decode the source bytes explicitly as UTF-8 once.\n2. Pass the resulting Unicode text to the parser without another encoding conversion.\n\n## Pitfalls\nDo not guess the source encoding or repeatedly re-encode corrupted text. Preserve the original bytes for diagnosis.\n"
+        },
+        {
+          "target": "skills/learned/bounded-retry-transient-read.md",
+          "body": "# Retry a terminal transient read failure within its existing budget\n\n## When to apply\nWhen a read job has a terminal receipt with state=failed, retryable=true and reason=upstream_unavailable. The existing job configuration permits at most three total attempts and supplies an overall deadline.\n\n## Procedure\n1. Confirm the terminal receipt and that an attempt and time budget remain.\n2. Retry the same read job with the same input within those existing limits.\n3. Return an explicit failure when either limit is exhausted.\n\n## Pitfalls\nAn error code alone does not prove that retry is appropriate. Do not increase the allowed number of attempts or extend the overall deadline.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "finite-read-job",
+        "observed": "A read job ended with the same generic process error code, but its terminal receipt said retryable=false and reason=input_schema_invalid. The test CSV lacked the mandatory amount column. Repeating unchanged input gave the same failure. Validating the CSV schema and restoring the missing column from the original test record corrected the input; the corrected job then succeeded.",
+        "outcome": "The corrected CSV was accepted and the read job completed."
+      }
+    },
+    {
+      "id": "C13",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "length-comparison",
+        "observed": "The two input lengths are A=900 mm and B=1 m. The parser produced the intended numeric values and units, but comparing 900 to 1 incorrectly selected A as the longer length.",
+        "outcome": "A single explicit conversion to metres produced A=0.9 m and B=1 m; numeric comparison then selected B. Original input fields were retained."
+      }
+    },
+    {
+      "id": "C14",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "length-comparison",
+        "observed": "A source now supplies explicitly labelled cm as well as the previous m and mm. The supported-unit conversion rejected 25 cm. The source's declared centimetre-to-metre factor is 0.01.",
+        "outcome": "Adding the declared cm conversion produced 0.25 m. The prior m and mm conversions and original-input preservation still worked; values were normalized once."
+      }
+    },
+    {
+      "id": "C15",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "length-comparison",
+        "observed": "All input values are already in metres and their unit conversions are verified. A synthetic instrument sample of 1.20 m should yield 1.00 m under the calibration specification supplied for this input set. That specification supplies an additive offset of -0.20 m; the comparison stage had omitted the calibration step.",
+        "outcome": "Applying the calibration offset supplied for this input set as a separate step produced the specified 1.00 m. Repeating unit conversion did not fix the discrepancy. The offset is input-set-specific, not a universal constant."
+      }
+    },
+    {
+      "id": "C16",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "interval-overlap",
+        "observed": "The valid closed intervals [1,3] and [3,5] were reported as nonoverlapping because a strict boundary comparison excluded their shared endpoint.",
+        "outcome": "Using max(start1,start2) <= min(end1,end2) reported overlap at 3. Closed remains the declared or default mode."
+      }
+    },
+    {
+      "id": "C17",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "interval-overlap",
+        "observed": "The source now explicitly supports a half_open mode as well as closed. For declared half_open, intervals [1,3) and [3,5) were incorrectly reported as overlapping by the existing closed comparison.",
+        "outcome": "Selecting strict max(start1,start2) < min(end1,end2) for explicitly declared half_open fixed the result. For closed or an absent mode, the prior non-strict comparison still applied; no implicit mode change was made."
+      }
+    },
+    {
+      "id": "C18",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "interval-overlap",
+        "observed": "An input interval has start=5 and end=1. Investigation showed a producer field-mapping error reversed start and end in the exported record. The downstream overlap formula was called outside its valid ordered-endpoint precondition.",
+        "outcome": "The input boundary check rejected start > end with an explicit error before overlap calculation. Correcting the producer's field mapping restored ordered endpoints. The consumer did not silently swap endpoints or change the overlap formula."
+      }
+    },
+    {
+      "id": "C19",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "artifact-verification",
+        "observed": "A transferred file exists under the expected name, but the transfer omitted a block of bytes. Its full SHA-256 does not match the trusted expected digest.",
+        "outcome": "The truncated file was rejected. Receiving the complete original bytes produced a matching digest; filename and timestamps were not treated as integrity evidence."
+      }
+    },
+    {
+      "id": "C20",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "artifact-verification",
+        "observed": "The trusted artifact manifest now additionally supplies expected byte length. A truncated remote file has 7,340,032 bytes instead of 8,388,608. Previously, reading the remote file for the mandatory full digest check spent 30 seconds before rejecting it.",
+        "outcome": "When trusted expected length is present, checking actual length first rejects a mismatch before the full read. A matching length still proceeds to the full SHA-256 check; when expected length is absent, the existing full-digest path remains available."
+      }
+    },
+    {
+      "id": "C21",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "artifact-verification",
+        "observed": "A received artifact's full SHA-256 matches its trusted expected digest: the delivered bytes are exactly the expected bytes. Application parsing nevertheless fails because the supplied schema requires measurements to be an array, while the artifact producer emitted an object.",
+        "outcome": "A separate application-schema validation detected the type error, and correcting the producer regenerated schema-valid content. Delivery byte verification remained unchanged; a digest match was not treated as schema acceptance."
+      }
+    },
+    {
+      "id": "C22",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "version-selection",
+        "observed": "A list contains 2.9.0 and 2.10.0. Lexical sorting incorrectly picked 2.9.0 as newer.",
+        "outcome": "Comparing the parsed major, minor and patch integers selected 2.10.0. The original spelling was kept for display."
+      }
+    },
+    {
+      "id": "C23",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "version-selection",
+        "observed": "A source now permits exactly one optional leading lowercase v, for example v2.10.0, in addition to the previous three-part numeric form. The prior parser rejected that permitted prefix.",
+        "outcome": "Removing one permitted leading v only for parsing allowed the same numeric three-component comparison. Unprefixed input remained supported, original spelling stayed available for display, and repeated prefixes or prerelease/build suffixes remained unsupported."
+      }
+    },
+    {
+      "id": "C24",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "version-selection",
+        "observed": "The numeric comparator correctly chose 2.9.0 from the list it was given. That list came from a cache for a previous source generation and omitted the currently available 2.10.0. The source exposes a current generation identifier.",
+        "outcome": "Reusing the cached list only when its stored generation matches the current source generation, otherwise fetching the current list, supplied the missing version. The numeric comparator itself was unchanged."
+      }
+    }
+  ]
+}

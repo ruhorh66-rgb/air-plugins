@@ -12,7 +12,7 @@ func TestLearningReviewerAdapterProducesManagedProcedure(t *testing.T) {
 	product, _, _ := selfLearningFixture(t)
 	original := learningReviewerInvoke
 	defer func() { learningReviewerInvoke = original }()
-	learningReviewerInvoke = func(root, prompt, model, effort string) (string, error) {
+	learningReviewerInvoke = func(root, prompt, outputSchema, model, effort string) (string, error) {
 		if root != product {
 			t.Fatalf("reviewer root=%q want %q", root, product)
 		}
@@ -57,7 +57,7 @@ func TestLearningReviewerAdapterNoCandidate(t *testing.T) {
 	product, _ := sharedProductFixture(t, false)
 	original := learningReviewerInvoke
 	defer func() { learningReviewerInvoke = original }()
-	learningReviewerInvoke = func(root, prompt, model, effort string) (string, error) {
+	learningReviewerInvoke = func(root, prompt, outputSchema, model, effort string) (string, error) {
 		return `{"apply":false,"content":""}`, nil
 	}
 	inPath := filepath.Join(t.TempDir(), "review.json")

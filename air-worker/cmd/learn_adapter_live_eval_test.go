@@ -241,9 +241,6 @@ func TestHLP03RealReviewerCorpus(t *testing.T) {
 	if corpus.Schema != "air-worker.hlp03-corpus-input/v1" || len(corpus.Cases) == 0 || len(corpus.Cases) > 24 {
 		t.Fatal("invalid corpus schema or case count")
 	}
-	if len(corpus.Cases) != 12 {
-		t.Fatal("HLP-03 requires all 12 fixed cases")
-	}
 	ids := map[string]bool{}
 	validID := regexp.MustCompile(`^C[0-9]{2}$`)
 	for _, c := range corpus.Cases {
@@ -290,11 +287,12 @@ func TestHLP03RealReviewerCorpus(t *testing.T) {
 		ConfigSHA  string        `json:"config_template_sha256"`
 		SourceHEAD string        `json:"source_head"`
 		HarnessSHA string        `json:"harness_sha256"`
+		CaseCount  int           `json:"case_count"`
 		Model      string        `json:"model"`
 		Effort     string        `json:"effort"`
 		Cases      []hlp03Record `json:"cases"`
-	}{"air-worker.hlp03-eval-output/v1", hlp03SHA(corpusBytes), hlp03SHA(binaryBytes), hlp03SHA(configBytes), strings.TrimSpace(string(head)), hlp03SHA(harnessBytes), model, effort, nil}
-	identity := map[string]any{"corpus_sha256": summary.CorpusSHA, "binary_sha256": summary.BinarySHA, "config_template_sha256": summary.ConfigSHA, "adapter_config_template": config, "model": model, "effort": effort, "source_head": summary.SourceHEAD, "harness_sha256": summary.HarnessSHA}
+	}{"air-worker.hlp03-eval-output/v1", hlp03SHA(corpusBytes), hlp03SHA(binaryBytes), hlp03SHA(configBytes), strings.TrimSpace(string(head)), hlp03SHA(harnessBytes), len(corpus.Cases), model, effort, nil}
+	identity := map[string]any{"corpus_sha256": summary.CorpusSHA, "binary_sha256": summary.BinarySHA, "config_template_sha256": summary.ConfigSHA, "adapter_config_template": config, "model": model, "effort": effort, "source_head": summary.SourceHEAD, "harness_sha256": summary.HarnessSHA, "case_count": len(corpus.Cases)}
 	if err := hlp03Write(filepath.Join(output, "identity.json"), identity); err != nil {
 		t.Fatal(err)
 	}
@@ -424,7 +422,7 @@ func TestHLP03RealReviewerCorpus(t *testing.T) {
 				}
 				if strings.HasSuffix(path, ".out") {
 					outCount++
-					native := hlp03NativeEvidence(b, ownedRoot, corpusPath, sourceRoot, "HLP03_REVIEWER_GOLD_20261024", "HLP03_CORPUS_FREEZE_20261024")
+					native := hlp03NativeEvidence(b, ownedRoot, corpusPath, sourceRoot, "HLP03_REVIEWER_GOLD_", "HLP03_CORPUS_FREEZE_", "HLP03_FOLLOWUP_DESIGN_", "HLP03_EVALUATION_PROTOCOL_")
 					r.Native.Usage, r.Native.Terminal, r.Native.ToolCalls, r.Native.Contaminated, r.Native.RawToolCalls = native.Usage, native.Terminal, native.ToolCalls, native.Contaminated, native.RawToolCalls
 					r.Native.OutputModel = native.Model
 				}

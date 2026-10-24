@@ -1,0 +1,24 @@
+# HLP-03 R4 — constrain update identity and keep resource observation safe
+
+Ruhor authorized continued source work and self-recheck on 2026-10-24. SRVLM01 only, existing checkout R:\-4-\air-worker\worktrees\airworker-learning-loop-20261024\air-worker. Base HEAD 2524960bdb950bc075bb7cbebccbcf9bf933efb8. Apply installed Ponytail full mode and reuse native kernel/structured-output mechanisms. R1/R2/R3 model series are finished and immutable; do not change their corpora, gold, results or snapshots.
+
+Concrete failures:
+1. R3 C02 chose the proper target and refinement but emitted an extra hex digit in update_pre_sha256. Existing pair validator correctly rejected it. Current learningReviewerOutputSchema only requires unconstrained strings, while trusted fresh catalogue already supplies exact eligible identities.
+2. run-hlp03-real-reviewer-20261024.ps1 Get-AwFootprint recursively enumerated a temporary tree while Go cleanup removed entries. A transient Get-ChildItem error terminated the wrapper, leaving its still-bounded child to finish. All twelve records and cleanup results were preserved, but wrapper terminal/OS exit capture were lost. Do not relabel that run PASS; details are in .air-worker/learning-loop-20261024/hlp03-r3-development-20261024/recovery.json.
+
+Allowed bounded changes:
+- cmd/learn_adapter.go: keep the R3 production prompt text unchanged. Build the existing JSON output schema from the same fresh trusted catalogue and settings that build the prompt. For update_target and update_pre_sha256 use string enum values consisting of the empty string plus only actual eligible targets/SHA values. Keep the current required fields, additionalProperties=false, content limit and all final validators. Never repair an incorrect model identity, map an approximate hash, parse identities back out of prompt text, or accept a cross-paired target/SHA. Empty enum selection still supports create/no_candidate; a catalogue with no eligible procedures must permit only empty update fields. Keep final catalogue freshness, exact pair, protected/machine exclusions, module ownership, backup/rollback and native receipts unchanged. Passing the schema as a plain explicit argument through the existing invoke seam is fine; avoid globals, parallel APIs, caches, IDs or new frameworks.
+- Relevant existing reviewer tests: adapt invoke stubs only as needed for the explicit schema parameter. Add meaningful coverage for eligible/ineligible enum choices, no-eligible case, native schema handoff if the existing seam permits it, and unchanged rejection of wrong/cross-paired identities. No English substring tests claiming semantic quality.
+- docs/tasks/run-hlp03-real-reviewer-20261024.ps1: resource enumeration must tolerate the known disappearing-entry race and record when a sample is incomplete (error count/type/details as bounded metadata), never silently call unknown bytes zero or claim a partial sample is complete. Preserve root/reparse checks, free-space reserve and 2 GiB monitored working estimate, not a hard OS quota. Any other fatal post-launch exception must retain an explicit failure observation and ensure the owned Go process tree is stopped or observed finished before wrapper exit. Preserve original errors and true exit status, no retry/provider re-run. Keep one process at a time, deadline and frozen input/hash guards. Avoid broad CIM process inventories; existing disk observation is enough.
+- A small focused PowerShell test beside the runner is permitted for deterministic enumeration-fault and owned-child-cleanup behavior. Reuse native PowerShell/.NET and the existing script; no Pester dependency, no copied alternate launcher or general process framework.
+
+Do not read R4 corpus/gold/follow-up files, invoke learning reviewer, or modify the live evaluator harness unless a concrete blocker is explained first. No extra checkout, module/dependency changes, PLAN/N/LEARN, installed runtime/config/services, AIR-ENV-002, release/install, commit or push. Preserve unrelated WIP.
+
+QA sequentially, task-owned GOCACHE/GOTMPDIR/TEMP/TMP. DEV-137 v1.1.0 working estimate 2 GiB, ample free disk reserve, no shared cache cleanup.
+1. gofmt only changed Go files.
+2. AIR_WORKER_HLP03_LIVE unset: go test . -run '^(TestLearningReviewer|TestHLP03)' -count=1 -timeout 180s.
+3. go vet .
+4. go build -o <taskroot>\air-worker-hlp03-r4.exe .
+5. Parse PowerShell and execute focused deterministic source tests without any model call.
+6. git diff --check for changed tracked files.
+Write <taskroot>\hlp03-r4-source-qa.json with exact commands/exit codes/log paths, all touched source/test SHA values, R4 binary SHA and resource before/after metadata; bounded logs alongside. Never overwrite preexisting R4 binary/evidence; stop and reconcile if found. Report actual limits, including that schema choice sets do not themselves enforce target/SHA pairing and source tests do not prove model quality or production effect.

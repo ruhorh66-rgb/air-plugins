@@ -1,0 +1,1530 @@
+{
+  "schema": "air-worker.hlp03-refinement-independent-review/v1",
+  "recorded_at_utc": "2026-10-24T07:31:32.321564Z",
+  "reviewer_provenance": {
+    "declared_dispatch": "gpt6-sol:medium expected by task file",
+    "actual_executor_receipt": "not available in supplied task evidence",
+    "actual_model_and_effort": "unverified; no inference from self-name or task dispatch",
+    "independence": "Read-only review of source and first-attempt evidence; host advisory agents that hung are not counted as acceptance."
+  },
+  "source_acceptance": {
+    "status": "ACCEPTED_WITH_LIMITS",
+    "reasons": [
+      "R4 schema is built from the same fresh, hash-checked APPLIED catalogue passed to the prompt and only advertises update-eligible targets and SHA strings plus empty choices. Native Codex command receives that schema path; returned JSON is parsed strictly.",
+      "The final validator re-reads settings and catalogue, requires exact target/SHA pairing and eligibility, and retains owner, protected-target, freshness, Markdown and module guards. Separate enum arrays alone do not enforce target/SHA pairing.",
+      "Prompt remains generic causal guidance with full prior-body retention instructions; no corpus labels or example answers are embedded.",
+      "Changed unit tests, go vet, build and PowerShell runner source test passed in recorded source QA; this review did not rerun them."
+    ],
+    "concrete_findings": [
+      {
+        "location": "cmd/learn_adapter.go:29-45,163-176",
+        "finding": "Eligible enum strings derive from the trusted fresh catalogue and are supplied to native Codex output schema."
+      },
+      {
+        "location": "cmd/learn_adapter.go:197-274",
+        "finding": "Strict JSON and final catalogue/identity checks reject malformed or cross-paired updates; R3 C02 demonstrates an invalid SHA is refused."
+      },
+      {
+        "location": "cmd/learn_adapter.go:434-455",
+        "finding": "Protected/native-action exclusion and generic prompt preserve source trust boundaries."
+      },
+      {
+        "location": "cmd/learn_adapter.go:29-45,255-274",
+        "finding": "Duplicate SHA values across targets would appear as duplicate enum strings but cannot authorize the wrong pair; final exact pair check still applies. Duplicate target entries are not expected from the native index, and no duplicate-identity exploit was observed."
+      },
+      {
+        "location": "docs/tasks/run-hlp03-real-reviewer-20261024.ps1:20-63,145-194",
+        "finding": "R4 sampler records incomplete enumeration with null bytes; cleanup helper was verified by coordinator on an actual disposable parent and descendant. Native author sandbox restrictions on taskkill/CIM remain a qualification."
+      }
+    ]
+  },
+  "measurement": {
+    "series": {
+      "R2_development": {
+        "status": "COMPLETE_WITH_LIMITS",
+        "case_count": 12,
+        "freeze_hashes_match": {
+          "corpus": true,
+          "gold": true,
+          "protocol": true
+        },
+        "native_completed_count": 12,
+        "native_usage_recorded_count": 12,
+        "observed_forbidden_tool_access_count": 0,
+        "observed_tool_call_count": 0,
+        "cleanup_verified_count": 12,
+        "backup_verified_count": 6,
+        "rollback_verified_count": 6,
+        "resource_samples": 10,
+        "complete_resource_samples": 0,
+        "resource_completeness_unrecorded_samples": 10,
+        "terminal_present": true,
+        "go_exit_code": 0,
+        "limitations": [
+          "Legacy resource rows do not record completeness; observed bytes are partial evidence and cannot prove a peak or DEV-137 compliance.",
+          "No observed forbidden access in terminal tool events does not prove filesystem isolation."
+        ],
+        "terminal_hash_guards_passed": true
+      },
+      "R2_holdout": {
+        "status": "COMPLETE_WITH_LIMITS",
+        "case_count": 12,
+        "freeze_hashes_match": {
+          "corpus": true,
+          "gold": true,
+          "protocol": true
+        },
+        "native_completed_count": 12,
+        "native_usage_recorded_count": 12,
+        "observed_forbidden_tool_access_count": 0,
+        "observed_tool_call_count": 0,
+        "cleanup_verified_count": 12,
+        "backup_verified_count": 6,
+        "rollback_verified_count": 6,
+        "resource_samples": 12,
+        "complete_resource_samples": 0,
+        "resource_completeness_unrecorded_samples": 12,
+        "terminal_present": true,
+        "go_exit_code": 0,
+        "limitations": [
+          "Legacy resource rows do not record completeness; observed bytes are partial evidence and cannot prove a peak or DEV-137 compliance.",
+          "No observed forbidden access in terminal tool events does not prove filesystem isolation."
+        ],
+        "terminal_hash_guards_passed": true
+      },
+      "R2_followup": {
+        "status": "COMPLETE_WITH_LIMITS",
+        "case_count": 4,
+        "freeze_hashes_match": {
+          "corpus": true,
+          "gold": true,
+          "protocol": true
+        },
+        "native_completed_count": 4,
+        "native_usage_recorded_count": 4,
+        "observed_forbidden_tool_access_count": 0,
+        "observed_tool_call_count": 0,
+        "cleanup_verified_count": 4,
+        "backup_verified_count": 0,
+        "rollback_verified_count": 0,
+        "resource_samples": 5,
+        "complete_resource_samples": 0,
+        "resource_completeness_unrecorded_samples": 5,
+        "terminal_present": true,
+        "go_exit_code": 0,
+        "limitations": [
+          "Legacy resource rows do not record completeness; observed bytes are partial evidence and cannot prove a peak or DEV-137 compliance.",
+          "No observed forbidden access in terminal tool events does not prove filesystem isolation."
+        ],
+        "terminal_hash_guards_passed": true
+      },
+      "R3_development": {
+        "status": "USABLE_WITH_QUALIFICATION",
+        "case_count": 12,
+        "freeze_hashes_match": {
+          "corpus": true,
+          "gold": true,
+          "protocol": true
+        },
+        "native_completed_count": 12,
+        "native_usage_recorded_count": 12,
+        "observed_forbidden_tool_access_count": 0,
+        "observed_tool_call_count": 0,
+        "cleanup_verified_count": 12,
+        "backup_verified_count": 3,
+        "rollback_verified_count": 3,
+        "resource_samples": 3,
+        "complete_resource_samples": 0,
+        "resource_completeness_unrecorded_samples": 3,
+        "terminal_present": false,
+        "go_exit_code": null,
+        "limitations": [
+          "Resource enumeration raced with a removed temporary entry; original wrapper failed and no development terminal or durable OS exit code exists. Recovery and Go stdout preserve all 12 first attempts; Go PASS/ok records collection, not model quality. C02 reviewer_invalid_update stays in the denominator. Two metadata probes were stopped without model rerun.",
+          "Legacy resource rows do not record completeness; observed bytes are partial evidence and cannot prove a peak or DEV-137 compliance.",
+          "No observed forbidden access in terminal tool events does not prove filesystem isolation."
+        ],
+        "terminal_hash_guards_passed": null
+      },
+      "R3_holdout": {
+        "status": "COMPLETE_WITH_LIMITS",
+        "case_count": 6,
+        "freeze_hashes_match": {
+          "corpus": true,
+          "gold": true,
+          "protocol": true
+        },
+        "native_completed_count": 6,
+        "native_usage_recorded_count": 6,
+        "observed_forbidden_tool_access_count": 0,
+        "observed_tool_call_count": 0,
+        "cleanup_verified_count": 6,
+        "backup_verified_count": 2,
+        "rollback_verified_count": 2,
+        "resource_samples": 6,
+        "complete_resource_samples": 0,
+        "resource_completeness_unrecorded_samples": 6,
+        "terminal_present": true,
+        "go_exit_code": 0,
+        "limitations": [
+          "Legacy resource rows do not record completeness; observed bytes are partial evidence and cannot prove a peak or DEV-137 compliance.",
+          "No observed forbidden access in terminal tool events does not prove filesystem isolation."
+        ],
+        "terminal_hash_guards_passed": true
+      },
+      "R3_followup": {
+        "status": "COMPLETE_WITH_LIMITS",
+        "case_count": 2,
+        "freeze_hashes_match": {
+          "corpus": true,
+          "gold": true,
+          "protocol": true
+        },
+        "native_completed_count": 2,
+        "native_usage_recorded_count": 2,
+        "observed_forbidden_tool_access_count": 0,
+        "observed_tool_call_count": 0,
+        "cleanup_verified_count": 2,
+        "backup_verified_count": 0,
+        "rollback_verified_count": 0,
+        "resource_samples": 3,
+        "complete_resource_samples": 0,
+        "resource_completeness_unrecorded_samples": 3,
+        "terminal_present": true,
+        "go_exit_code": 0,
+        "limitations": [
+          "Legacy resource rows do not record completeness; observed bytes are partial evidence and cannot prove a peak or DEV-137 compliance.",
+          "No observed forbidden access in terminal tool events does not prove filesystem isolation."
+        ],
+        "terminal_hash_guards_passed": true
+      },
+      "R4_development": {
+        "status": "COMPLETE_WITH_LIMITS",
+        "case_count": 24,
+        "freeze_hashes_match": {
+          "corpus": true,
+          "gold": true,
+          "protocol": true
+        },
+        "native_completed_count": 24,
+        "native_usage_recorded_count": 24,
+        "observed_forbidden_tool_access_count": 0,
+        "observed_tool_call_count": 0,
+        "cleanup_verified_count": 24,
+        "backup_verified_count": 8,
+        "rollback_verified_count": 8,
+        "resource_samples": 17,
+        "complete_resource_samples": 17,
+        "resource_completeness_unrecorded_samples": 0,
+        "terminal_present": true,
+        "go_exit_code": 0,
+        "limitations": [
+          "Resource samples are observations, not an OS quota or full DEV-137 proof.",
+          "No observed forbidden access in terminal tool events does not prove filesystem isolation."
+        ],
+        "terminal_hash_guards_passed": true
+      },
+      "R4_holdout": {
+        "status": "COMPLETE_WITH_LIMITS",
+        "case_count": 6,
+        "freeze_hashes_match": {
+          "corpus": true,
+          "gold": true,
+          "protocol": true
+        },
+        "native_completed_count": 6,
+        "native_usage_recorded_count": 6,
+        "observed_forbidden_tool_access_count": 0,
+        "observed_tool_call_count": 0,
+        "cleanup_verified_count": 6,
+        "backup_verified_count": 2,
+        "rollback_verified_count": 2,
+        "resource_samples": 7,
+        "complete_resource_samples": 7,
+        "resource_completeness_unrecorded_samples": 0,
+        "terminal_present": true,
+        "go_exit_code": 0,
+        "limitations": [
+          "Resource samples are observations, not an OS quota or full DEV-137 proof.",
+          "No observed forbidden access in terminal tool events does not prove filesystem isolation."
+        ],
+        "terminal_hash_guards_passed": true
+      },
+      "R4_followup": {
+        "status": "COMPLETE_WITH_LIMITS",
+        "case_count": 2,
+        "freeze_hashes_match": {
+          "corpus": true,
+          "gold": true,
+          "protocol": true
+        },
+        "native_completed_count": 2,
+        "native_usage_recorded_count": 2,
+        "observed_forbidden_tool_access_count": 0,
+        "observed_tool_call_count": 0,
+        "cleanup_verified_count": 2,
+        "backup_verified_count": 0,
+        "rollback_verified_count": 0,
+        "resource_samples": 3,
+        "complete_resource_samples": 3,
+        "resource_completeness_unrecorded_samples": 0,
+        "terminal_present": true,
+        "go_exit_code": 0,
+        "limitations": [
+          "Resource samples are observations, not an OS quota or full DEV-137 proof.",
+          "No observed forbidden access in terminal tool events does not prove filesystem isolation."
+        ],
+        "terminal_hash_guards_passed": true
+      }
+    },
+    "overall": "Nine pinned gpt-5.6-luna medium first-attempt series have 80 designated records. Native turn.completed and usage appear in all 80 case records; one R3 identity response was rejected by the adapter. No replay/stub or observed forbidden source/gold tool access was found. Fixture cleanup is recorded for all 80. Source QA, frozen input hashes, launch/terminal guards and candidate snapshots support provenance, subject to R3 development wrapper failure and sampling limits.",
+    "limits": [
+      "R1 immutable baseline is outside this score.",
+      "R2 uses 12 old development, 12 fresh-topic holdout and four old-event followups. R3 uses 12 old development, six fresh-topic holdout and two old-event followups. R4 uses 24 known regression, six changed fresh-topic holdout and two old-event followups. Changed topics do not support a controlled statistical improvement claim.",
+      "Current working estimate is 2 GiB, not an enforced OS quota; unknown sample bytes must remain unknown. Full DEV-137 compliance is not established.",
+      "R3 C02 has a successful native terminal and usage but its malformed identity was rejected before apply; this is a model/validator quality failure, not provider transport failure."
+    ],
+    "candidate_snapshots": {
+      "R2": {
+        "manifest_file_count": 5,
+        "all_manifest_hashes_match": true,
+        "binary_hash_matches": true
+      },
+      "R3": {
+        "manifest_file_count": 5,
+        "all_manifest_hashes_match": true,
+        "binary_hash_matches": true
+      },
+      "R4": {
+        "manifest_file_count": 12,
+        "all_manifest_hashes_match": true,
+        "binary_hash_matches": true
+      }
+    },
+    "lifecycle_totals": {
+      "unchanged": 33,
+      "rolled_back": 27,
+      "applied": 19,
+      "none": 1
+    }
+  },
+  "model_quality": {
+    "R2": {
+      "series": {
+        "development": {
+          "designated": 12,
+          "fully_correct": 10,
+          "class_correct": 10,
+          "identity_correct": 10,
+          "false_merge": 2,
+          "unsafe_scope_loss": 0,
+          "incomplete_update": 0
+        },
+        "holdout": {
+          "designated": 12,
+          "fully_correct": 10,
+          "class_correct": 10,
+          "identity_correct": 10,
+          "false_merge": 2,
+          "unsafe_scope_loss": 0,
+          "incomplete_update": 0
+        },
+        "followup": {
+          "designated": 4,
+          "fully_correct": 4,
+          "class_correct": 4,
+          "identity_correct": 4,
+          "false_merge": 0,
+          "unsafe_scope_loss": 0,
+          "incomplete_update": 0
+        }
+      },
+      "per_case": [
+        {
+          "series": "development",
+          "id": "C01",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C02",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/project-configuration-paths.md",
+          "actual_target": "skills/learned/project-configuration-paths.md",
+          "candidate_sha256": "cfeb9c072927566cb418a96afd6fdca05cc1927c70b889bc91d5120d0c149dcf"
+        },
+        {
+          "series": "development",
+          "id": "C03",
+          "expected": "create",
+          "actual": "update",
+          "class_match": false,
+          "identity_correct": false,
+          "content_verdict": "false_merge",
+          "fully_correct": false,
+          "reason": "Schema-required fields are a separate content-validation cause; updating the path-resolution procedure conflates remedies.",
+          "actual_target": "skills/learned/project-configuration-paths.md",
+          "candidate_sha256": "8d0e01de2f9276f97e4dc5cbe7e51221513fdcdeaf5127908510bb7ec18fcd74",
+          "false_merge": true
+        },
+        {
+          "series": "development",
+          "id": "C04",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C05",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/opaque-pagination-cursor.md",
+          "actual_target": "skills/learned/opaque-pagination-cursor.md",
+          "candidate_sha256": "0417775e2471651de3135cc7b76e51431373c587167185d1526a18ab5946fa90"
+        },
+        {
+          "series": "development",
+          "id": "C06",
+          "expected": "create",
+          "actual": "update",
+          "class_match": false,
+          "identity_correct": false,
+          "content_verdict": "false_merge",
+          "fully_correct": false,
+          "reason": "Server repetition after correct cursor transmission is a separate no-progress cause; the response overwrote the client cursor procedure.",
+          "actual_target": "skills/learned/opaque-pagination-cursor.md",
+          "candidate_sha256": "c80a1aa41715fa0aa863709fd5556a0c0fe1b98df04778ec08ceb56f57a60ea7",
+          "false_merge": true
+        },
+        {
+          "series": "development",
+          "id": "C07",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C08",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/decode-confirmed-utf8-once.md",
+          "actual_target": "skills/learned/decode-confirmed-utf8-once.md",
+          "candidate_sha256": "86ec66cdad46e7c2de8a4fb730ea5e26b27d3fb9eb1694580dbcb2f11085ef46"
+        },
+        {
+          "series": "development",
+          "id": "C09",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/text-input-def6dbe1-4f1d3ce187f8b5f8.md",
+          "candidate_sha256": "4f1d3ce187f8b5f854b586e44d46862b1802487374247e80ada585ca1e39267e"
+        },
+        {
+          "series": "development",
+          "id": "C10",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C11",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/bounded-retry-transient-read.md",
+          "actual_target": "skills/learned/bounded-retry-transient-read.md",
+          "candidate_sha256": "58dbd48b8e06e2a79d54c5c8fa249123b3b6b0d8ba40820bf00be8d883b0086d"
+        },
+        {
+          "series": "development",
+          "id": "C12",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/finite-read-job-c2e2ce8b-a93dc69c128cdffc.md",
+          "candidate_sha256": "a93dc69c128cdffcda9cab9c6829f60a2ba62954f9024f7ebbba013e6b65d93b"
+        },
+        {
+          "series": "holdout",
+          "id": "C13",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "holdout",
+          "id": "C14",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/normalize-explicit-length-units.md",
+          "actual_target": "skills/learned/normalize-explicit-length-units.md",
+          "candidate_sha256": "e43791e0e0a65b8fa06f6f995055d7ab76a22903a3c647d16248517964575dff"
+        },
+        {
+          "series": "holdout",
+          "id": "C15",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/length-comparison-e3c33566-cdaedacce0dcaac3.md",
+          "candidate_sha256": "cdaedacce0dcaac3f7249b2796ac281f7557f72813a2034759f5cf1ad9c7ed91"
+        },
+        {
+          "series": "holdout",
+          "id": "C16",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "holdout",
+          "id": "C17",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/closed-interval-overlap.md",
+          "actual_target": "skills/learned/closed-interval-overlap.md",
+          "candidate_sha256": "33ccddcd1fb1e0e4909a0a495a2164ae5fc7fd090ecf6e08ee789892f2d7eede"
+        },
+        {
+          "series": "holdout",
+          "id": "C18",
+          "expected": "create",
+          "actual": "update",
+          "class_match": false,
+          "identity_correct": false,
+          "content_verdict": "false_merge",
+          "fully_correct": false,
+          "reason": "Invalid endpoint ordering is an upstream validation defect; updating closed-overlap guidance conflates it with the overlap formula.",
+          "actual_target": "skills/learned/closed-interval-overlap.md",
+          "candidate_sha256": "61a06ec9c8b09160cb1c4456b2bda911931a73a239d1e98a37dcbb47404de969",
+          "false_merge": true
+        },
+        {
+          "series": "holdout",
+          "id": "C19",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "holdout",
+          "id": "C20",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/verify-complete-artifact-sha256.md",
+          "actual_target": "skills/learned/verify-complete-artifact-sha256.md",
+          "candidate_sha256": "5a62653f2f1658e23deb3d724758b007eeabbc3f0156140de24f2520182a429a"
+        },
+        {
+          "series": "holdout",
+          "id": "C21",
+          "expected": "create",
+          "actual": "update",
+          "class_match": false,
+          "identity_correct": false,
+          "content_verdict": "false_merge",
+          "fully_correct": false,
+          "reason": "Schema-invalid bytes despite matching SHA require a separate application-validation procedure; updating byte-integrity guidance conflates the causes.",
+          "actual_target": "skills/learned/verify-complete-artifact-sha256.md",
+          "candidate_sha256": "f9cfd48d830d1852aceb44121bf324dbf6e100c85d2d5f9209e52394880de2b3",
+          "false_merge": true
+        },
+        {
+          "series": "holdout",
+          "id": "C22",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "holdout",
+          "id": "C23",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/compare-three-part-numeric-versions.md",
+          "actual_target": "skills/learned/compare-three-part-numeric-versions.md",
+          "candidate_sha256": "eed623a1649cb6a8978b5bcf393322717fa633b4638ec280e4a4474a6fcacb7e"
+        },
+        {
+          "series": "holdout",
+          "id": "C24",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/version-selection-58bac6c2-68be4c0ed319e8eb.md",
+          "candidate_sha256": "68be4c0ed319e8eb3355239dab825acd09309cfbad837cf7c198ce55bd58bdf4"
+        },
+        {
+          "series": "followup",
+          "id": "C25",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "followup",
+          "id": "C26",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "followup",
+          "id": "C27",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "followup",
+          "id": "C28",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        }
+      ],
+      "total": {
+        "designated": 28,
+        "fully_correct": 24
+      }
+    },
+    "R3": {
+      "series": {
+        "development": {
+          "designated": 12,
+          "fully_correct": 11,
+          "class_correct": 11,
+          "identity_correct": 11,
+          "false_merge": 0,
+          "unsafe_scope_loss": 0,
+          "incomplete_update": 0
+        },
+        "holdout": {
+          "designated": 6,
+          "fully_correct": 6,
+          "class_correct": 6,
+          "identity_correct": 6,
+          "false_merge": 0,
+          "unsafe_scope_loss": 0,
+          "incomplete_update": 0
+        },
+        "followup": {
+          "designated": 2,
+          "fully_correct": 2,
+          "class_correct": 2,
+          "identity_correct": 2,
+          "false_merge": 0,
+          "unsafe_scope_loss": 0,
+          "incomplete_update": 0
+        }
+      },
+      "per_case": [
+        {
+          "series": "development",
+          "id": "C01",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C02",
+          "expected": "update",
+          "actual": "provider_or_adapter_error",
+          "class_match": false,
+          "identity_correct": false,
+          "content_verdict": "invalid_identity",
+          "fully_correct": false,
+          "reason": "Raw model response selected the correct update target but preSHA has one extra hex digit; the final validator rejected it as reviewer_invalid_update.",
+          "expected_target": "skills/learned/project-configuration-paths.md",
+          "native_terminal": "turn.completed"
+        },
+        {
+          "series": "development",
+          "id": "C03",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/configuration-read-b5a7c702-06a138be725234de.md",
+          "candidate_sha256": "06a138be725234dee3f585322cc389ebffd9d8f5bcbdf03a946ef950274dfffa"
+        },
+        {
+          "series": "development",
+          "id": "C04",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C05",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/opaque-pagination-cursor.md",
+          "actual_target": "skills/learned/opaque-pagination-cursor.md",
+          "candidate_sha256": "33583a114f19519d37694b7b1209fafc6e52f77903b69283827c94216af3d072"
+        },
+        {
+          "series": "development",
+          "id": "C06",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/pagination-c30ad110-56a51ef4c0e3fab6.md",
+          "candidate_sha256": "56a51ef4c0e3fab65000207a50607771e7fa424faf7a33b6e7686899c6eaa4fc"
+        },
+        {
+          "series": "development",
+          "id": "C07",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C08",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/decode-confirmed-utf8-once.md",
+          "actual_target": "skills/learned/decode-confirmed-utf8-once.md",
+          "candidate_sha256": "aedbd459efa089d7c3cb2d059ab188e661322d44bc8c9e6169507c9100f73067"
+        },
+        {
+          "series": "development",
+          "id": "C09",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/text-input-def6dbe1-0df563cc75736cf1.md",
+          "candidate_sha256": "0df563cc75736cf1601a60b9b7b5cbd9420ea11056190c8aa3c56b5994e710a1"
+        },
+        {
+          "series": "development",
+          "id": "C10",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C11",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/bounded-retry-transient-read.md",
+          "actual_target": "skills/learned/bounded-retry-transient-read.md",
+          "candidate_sha256": "be258f939c7158085a5d0f855b1208e0019e1b7b6bbc6058462579b8c6c8ee62"
+        },
+        {
+          "series": "development",
+          "id": "C12",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/finite-read-job-c2e2ce8b-c649c7b08712650f.md",
+          "candidate_sha256": "c649c7b08712650f7b90536efc7f8960b903662e8086c88194494ad6a1158424"
+        },
+        {
+          "series": "holdout",
+          "id": "C31",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "holdout",
+          "id": "C32",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/group-mandatory-boolean-filter.md",
+          "actual_target": "skills/learned/group-mandatory-boolean-filter.md",
+          "candidate_sha256": "79488eb642e9270178a2bb3d38f49a394ce3060ccc6eb742031cb59672dbd2c6"
+        },
+        {
+          "series": "holdout",
+          "id": "C33",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/boolean-filter-5c00aa31-0125234f9c816c03.md",
+          "candidate_sha256": "0125234f9c816c03c2eba3f5fdc909c24677fb52d360809ac8fdc0477261e382"
+        },
+        {
+          "series": "holdout",
+          "id": "C34",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "holdout",
+          "id": "C35",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/convert-one-based-selection-position.md",
+          "actual_target": "skills/learned/convert-one-based-selection-position.md",
+          "candidate_sha256": "adfa6ca5b62b9af6730ab31609687897fd6ca634182af0b6c5510e40c41c2827"
+        },
+        {
+          "series": "holdout",
+          "id": "C36",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/selection-index-c30acfe5-b6e379d8bbfc33e6.md",
+          "candidate_sha256": "b6e379d8bbfc33e68db71e95d47c783b95002000be2901abef71dd532f994893"
+        },
+        {
+          "series": "followup",
+          "id": "C37",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "followup",
+          "id": "C38",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        }
+      ],
+      "total": {
+        "designated": 20,
+        "fully_correct": 19
+      }
+    },
+    "R4": {
+      "series": {
+        "development": {
+          "designated": 24,
+          "fully_correct": 21,
+          "class_correct": 23,
+          "identity_correct": 23,
+          "false_merge": 0,
+          "unsafe_scope_loss": 1,
+          "incomplete_update": 2
+        },
+        "holdout": {
+          "designated": 6,
+          "fully_correct": 6,
+          "class_correct": 6,
+          "identity_correct": 6,
+          "false_merge": 0,
+          "unsafe_scope_loss": 0,
+          "incomplete_update": 0
+        },
+        "followup": {
+          "designated": 2,
+          "fully_correct": 2,
+          "class_correct": 2,
+          "identity_correct": 2,
+          "false_merge": 0,
+          "unsafe_scope_loss": 0,
+          "incomplete_update": 0
+        }
+      },
+      "per_case": [
+        {
+          "series": "development",
+          "id": "C01",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C02",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/project-configuration-paths.md",
+          "actual_target": "skills/learned/project-configuration-paths.md",
+          "candidate_sha256": "64e90fa4b61f9db30c5d89a0bd758634319e913f0f2b31783863bcde2955a28e"
+        },
+        {
+          "series": "development",
+          "id": "C03",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/configuration-read-b5a7c702-18a3410e6dd09004.md",
+          "candidate_sha256": "18a3410e6dd090045038861b9a8bdda16beef0e1876d65de4c4d1818f3fdd881"
+        },
+        {
+          "series": "development",
+          "id": "C04",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C05",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/opaque-pagination-cursor.md",
+          "actual_target": "skills/learned/opaque-pagination-cursor.md",
+          "candidate_sha256": "b888fc1033bc502fed020b3aa27337fe0ee9e8463010d4284784d4fdcae6754c"
+        },
+        {
+          "series": "development",
+          "id": "C06",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/pagination-c30ad110-926100f3804d1f33.md",
+          "candidate_sha256": "926100f3804d1f33e6a1d3b04fc7b97175a0f6500872e59000af76453ac366bf"
+        },
+        {
+          "series": "development",
+          "id": "C07",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C08",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/decode-confirmed-utf8-once.md",
+          "actual_target": "skills/learned/decode-confirmed-utf8-once.md",
+          "candidate_sha256": "daf29906cccc0f60218c3c2e2a28505d01fd00e9aa26ec4142a3bdaf6e328e24"
+        },
+        {
+          "series": "development",
+          "id": "C09",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/text-input-def6dbe1-77a1c34fe923d337.md",
+          "candidate_sha256": "77a1c34fe923d33759ce4ec3e69a0bfade56070d20eb545140773e2d7f2715f1"
+        },
+        {
+          "series": "development",
+          "id": "C10",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C11",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "incomplete_update",
+          "fully_correct": false,
+          "reason": "The added wait step does not explicitly check whether retry_after_ms fits the remaining overall deadline before waiting; it can consume time beyond the fixed deadline.",
+          "expected_target": "skills/learned/bounded-retry-transient-read.md",
+          "actual_target": "skills/learned/bounded-retry-transient-read.md",
+          "candidate_sha256": "9789392153efb2e2e4861e2c57e8ea1a12f7934887df98eb0c42538c816a3e02",
+          "incomplete_update": true
+        },
+        {
+          "series": "development",
+          "id": "C12",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/finite-read-job-c2e2ce8b-b51bc6b5b76cd33c.md",
+          "candidate_sha256": "b51bc6b5b76cd33cf5e73fbf709e7be928b97d7527f774a337524321b5865945"
+        },
+        {
+          "series": "development",
+          "id": "C13",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C14",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/normalize-explicit-length-units.md",
+          "actual_target": "skills/learned/normalize-explicit-length-units.md",
+          "candidate_sha256": "e43791e0e0a65b8fa06f6f995055d7ab76a22903a3c647d16248517964575dff"
+        },
+        {
+          "series": "development",
+          "id": "C15",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "incorrect_content",
+          "fully_correct": false,
+          "reason": "The event states unit normalization is already complete, but the new procedure orders normalization again before applying calibration; it omits an explicit guard against repeating conversion.",
+          "actual_target": "skills/learned/length-comparison-e3c33566-364dd3af28402cbb.md",
+          "candidate_sha256": "364dd3af28402cbb8f7b2c870a1351dcbecb4de128eb68774597348e5f4bc6da",
+          "incomplete_update": true,
+          "unsafe_scope_loss": true
+        },
+        {
+          "series": "development",
+          "id": "C16",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C17",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/closed-interval-overlap.md",
+          "actual_target": "skills/learned/closed-interval-overlap.md",
+          "candidate_sha256": "6d1d273f17451c3766ee0325b37a4cede523f5c02871e6a5659c174f02ab4747"
+        },
+        {
+          "series": "development",
+          "id": "C18",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/interval-overlap-4843eb70-61c77a0ff9bfe7f0.md",
+          "candidate_sha256": "61c77a0ff9bfe7f01f2affbbfa37310262529f315ed900bc73151b4548295c3f"
+        },
+        {
+          "series": "development",
+          "id": "C19",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C20",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/verify-complete-artifact-sha256.md",
+          "actual_target": "skills/learned/verify-complete-artifact-sha256.md",
+          "candidate_sha256": "49b3df65a44961ec73ab4a1365759074169abd017e8f6e51ef8a4ffc0ed06001"
+        },
+        {
+          "series": "development",
+          "id": "C21",
+          "expected": "create",
+          "actual": "no_candidate",
+          "class_match": false,
+          "identity_correct": false,
+          "content_verdict": "missed_create",
+          "fully_correct": false,
+          "reason": "The model returned no candidate for a distinct schema-validation and producer-correction lesson after byte integrity already passed."
+        },
+        {
+          "series": "development",
+          "id": "C22",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "development",
+          "id": "C23",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/compare-three-part-numeric-versions.md",
+          "actual_target": "skills/learned/compare-three-part-numeric-versions.md",
+          "candidate_sha256": "300e24514175cbf11b2435b4dc469a8cf9cd84d83eb1ee42df2d949805dc5605"
+        },
+        {
+          "series": "development",
+          "id": "C24",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/version-selection-58bac6c2-9d654c5e6a8bc710.md",
+          "candidate_sha256": "9d654c5e6a8bc710f5c1477ca09682805dcc54c2afe6e117235524b3eacd78c4"
+        },
+        {
+          "series": "holdout",
+          "id": "C41",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "holdout",
+          "id": "C42",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/sort-whole-number-text-numerically.md",
+          "actual_target": "skills/learned/sort-whole-number-text-numerically.md",
+          "candidate_sha256": "7795f6bf17e7fc068f7c1e7181430c0d6b27442849228bd0532d20c4ba525d12"
+        },
+        {
+          "series": "holdout",
+          "id": "C43",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/numeric-token-order-806a3308-67f76687f758940b.md",
+          "candidate_sha256": "67f76687f758940b6aa92075952c8dd8cb54f6332d6e21e87a14acb8b92d2422"
+        },
+        {
+          "series": "holdout",
+          "id": "C44",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "holdout",
+          "id": "C45",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Full replacement retains prior applicability and required actions and adds the frozen event's conditional correction.",
+          "expected_target": "skills/learned/remove-one-literal-prefix.md",
+          "actual_target": "skills/learned/remove-one-literal-prefix.md",
+          "candidate_sha256": "27dcfe903472eb3875cd00045786f15fde690cce541c41f4dccd1b360b0efa38"
+        },
+        {
+          "series": "holdout",
+          "id": "C46",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "correct",
+          "fully_correct": true,
+          "reason": "Distinct procedure addresses the frozen event's cause and corrective action without overwriting a seed.",
+          "actual_target": "skills/learned/literal-edge-marker-374197c0-9854ec06b75dee39.md",
+          "candidate_sha256": "9854ec06b75dee395656d7bdd190b9f487f119d1a71b0c351d05789a1487bef8"
+        },
+        {
+          "series": "followup",
+          "id": "C47",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        },
+        {
+          "series": "followup",
+          "id": "C48",
+          "expected": "no_candidate",
+          "actual": "no_candidate",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "not_applicable",
+          "fully_correct": true,
+          "reason": "Frozen event is already covered by an applied procedure; no new candidate or identity change."
+        }
+      ],
+      "total": {
+        "designated": 32,
+        "fully_correct": 29
+      }
+    }
+  },
+  "followup_validation": {
+    "R2": {
+      "designated_denominator": 4,
+      "runnable_count": 4,
+      "failed_prerequisites": 0,
+      "cases": [
+        {
+          "id": "C25",
+          "primary_case_id": "C14",
+          "prerequisite": "PASS",
+          "canonical_content_verbatim": true,
+          "derivation_sha_matches": true,
+          "followup_fully_correct": true
+        },
+        {
+          "id": "C26",
+          "primary_case_id": "C17",
+          "prerequisite": "PASS",
+          "canonical_content_verbatim": true,
+          "derivation_sha_matches": true,
+          "followup_fully_correct": true
+        },
+        {
+          "id": "C27",
+          "primary_case_id": "C20",
+          "prerequisite": "PASS",
+          "canonical_content_verbatim": true,
+          "derivation_sha_matches": true,
+          "followup_fully_correct": true
+        },
+        {
+          "id": "C28",
+          "primary_case_id": "C23",
+          "prerequisite": "PASS",
+          "canonical_content_verbatim": true,
+          "derivation_sha_matches": true,
+          "followup_fully_correct": true
+        }
+      ],
+      "limitation": "Tests reuse on actual primary content within the synthetic fixtures; they do not execute learned procedures in production."
+    },
+    "R3": {
+      "designated_denominator": 2,
+      "runnable_count": 2,
+      "failed_prerequisites": 0,
+      "cases": [
+        {
+          "id": "C37",
+          "primary_case_id": "C32",
+          "prerequisite": "PASS",
+          "canonical_content_verbatim": true,
+          "derivation_sha_matches": true,
+          "followup_fully_correct": true
+        },
+        {
+          "id": "C38",
+          "primary_case_id": "C35",
+          "prerequisite": "PASS",
+          "canonical_content_verbatim": true,
+          "derivation_sha_matches": true,
+          "followup_fully_correct": true
+        }
+      ],
+      "limitation": "Tests reuse on actual primary content within the synthetic fixtures; they do not execute learned procedures in production."
+    },
+    "R4": {
+      "designated_denominator": 2,
+      "runnable_count": 2,
+      "failed_prerequisites": 0,
+      "cases": [
+        {
+          "id": "C47",
+          "primary_case_id": "C42",
+          "prerequisite": "PASS",
+          "canonical_content_verbatim": true,
+          "derivation_sha_matches": true,
+          "followup_fully_correct": true
+        },
+        {
+          "id": "C48",
+          "primary_case_id": "C45",
+          "prerequisite": "PASS",
+          "canonical_content_verbatim": true,
+          "derivation_sha_matches": true,
+          "followup_fully_correct": true
+        }
+      ],
+      "limitation": "Tests reuse on actual primary content within the synthetic fixtures; they do not execute learned procedures in production."
+    }
+  },
+  "production_effect": {
+    "status": "NOT_PROVEN",
+    "reasons": [
+      "Fixtures do not execute learned procedures in natural production.",
+      "Installed 0.11.10 delivery was unchanged.",
+      "Historical18 migration and native N124 reconciliation remain separate."
+    ]
+  },
+  "remaining_gates": [
+    "Fix or constrain the model-quality misses shown per case, then run a new frozen independent evaluation before a quality acceptance claim.",
+    "Obtain production execution evidence, installed delivery evidence, historical18 migration and native N124 reconciliation separately.",
+    "Preserve R3 development missing OS exit and sampling limits; no reconstructed terminal or full DEV-137 claim."
+  ]
+}

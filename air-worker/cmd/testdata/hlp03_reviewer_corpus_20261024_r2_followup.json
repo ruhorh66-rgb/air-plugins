@@ -1,0 +1,113 @@
+{
+  "schema": "air-worker.hlp03-corpus-input/v1",
+  "cases": [
+    {
+      "id": "C25",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m, cm, or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; cm uses factor 0.01; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "length-comparison",
+        "observed": "The two input lengths are A=900 mm and B=1 m. The parser produced the intended numeric values and units, but comparing 900 to 1 incorrectly selected A as the longer length.",
+        "outcome": "A single explicit conversion to metres produced A=0.9 m and B=1 m; numeric comparison then selected B. Original input fields were retained."
+      }
+    },
+    {
+      "id": "C26",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Compare interval overlap using the declared endpoint mode\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed or half_open. Closed is the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared mode, or closed when the mode is absent.\n2. For closed mode, report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. For half_open mode, report overlap exactly when max(start1, start2) < min(end1, end2).\n4. Treat a shared endpoint as overlap only in closed mode; a valid zero-length closed interval overlaps accordingly.\n\n## Pitfalls\nDo not silently switch the interval mode. A non-strict comparison incorrectly treats touching half-open intervals as overlapping, while a strict comparison loses valid closed shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "interval-overlap",
+        "observed": "The valid closed intervals [1,3] and [3,5] were reported as nonoverlapping because a strict boundary comparison excluded their shared endpoint.",
+        "outcome": "Using max(start1,start2) <= min(end1,end2) reported overlap at 3. Closed remains the declared or default mode."
+      }
+    },
+    {
+      "id": "C27",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact. If a trusted expected byte length is also available, use it as an early completeness check.\n\n## Procedure\n1. If a trusted expected byte length is present, compare it with the received file's actual byte length and reject a mismatch before reading the full file.\n2. Compute SHA-256 over every byte of the received file.\n3. Compare the computed digest with the trusted expected digest.\n4. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A matching length still requires the complete SHA-256 check. When expected length is absent, use the full-digest path. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, without prerelease or build suffixes.\n\n## Procedure\n1. Parse exactly the three integer components.\n2. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n3. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "artifact-verification",
+        "observed": "A transferred file exists under the expected name, but the transfer omitted a block of bytes. Its full SHA-256 does not match the trusted expected digest.",
+        "outcome": "The truncated file was rejected. Receiving the complete original bytes produced a matching digest; filename and timestamps were not treated as integrity evidence."
+      }
+    },
+    {
+      "id": "C28",
+      "procedures": [
+        {
+          "target": "skills/learned/normalize-explicit-length-units.md",
+          "body": "# Normalize explicit length units before comparison\n\n## When to apply\nWhen already parsed numeric lengths with explicit m or mm units must be compared and raw numeric comparison would mix units.\n\n## Procedure\n1. Convert each input to metres once: m uses factor 1; mm uses factor 0.001.\n2. Compare the normalized numeric values.\n3. Keep the original numeric value and declared unit for display and diagnosis.\n\n## Pitfalls\nDo not convert an already normalized value again. Do not guess an unknown or missing unit; report unsupported input explicitly.\n"
+        },
+        {
+          "target": "skills/learned/closed-interval-overlap.md",
+          "body": "# Include shared endpoints when comparing closed intervals\n\n## When to apply\nWhen two finite intervals have valid ordered endpoints with start <= end and the overlap mode is closed. Closed is also the existing default when no mode is supplied.\n\n## Procedure\n1. Use the declared closed mode, or closed when the mode is absent.\n2. Report overlap exactly when max(start1, start2) <= min(end1, end2).\n3. Treat a shared endpoint as overlap, including a valid zero-length closed interval.\n\n## Pitfalls\nDo not silently switch the interval mode. A strict comparison would lose valid shared-endpoint overlap. This procedure assumes the supplied endpoints are correctly ordered.\n"
+        },
+        {
+          "target": "skills/learned/verify-complete-artifact-sha256.md",
+          "body": "# Verify complete received artifact bytes against a trusted SHA-256\n\n## When to apply\nWhen artifact transfer has finished and a trusted expected SHA-256 is available for that exact artifact.\n\n## Procedure\n1. Compute SHA-256 over every byte of the received file.\n2. Compare the computed digest with the trusted expected digest.\n3. Accept byte integrity only when the digests match; reject a mismatch explicitly.\n\n## Pitfalls\nThe filename, presence, modification time or apparent size is not proof of byte integrity. A digest match does not validate the artifact's application-level schema.\n"
+        },
+        {
+          "target": "skills/learned/compare-three-part-numeric-versions.md",
+          "body": "# Compare three-part versions numerically\n\n## When to apply\nWhen versions consist of exactly three nonnegative integer components in major.minor.patch form, optionally preceded by one lowercase `v`, without prerelease or build suffixes.\n\n## Procedure\n1. Remove one optional leading lowercase `v` for parsing.\n2. Parse exactly the three integer components.\n3. Compare major numerically, then minor when major is equal, then patch when both preceding components are equal.\n4. Preserve the original version spelling for display.\n\n## Pitfalls\nDo not sort the full version strings lexically. Reject unsupported shapes, repeated prefixes, or suffixes explicitly instead of silently reinterpreting them.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "version-selection",
+        "observed": "A list contains 2.9.0 and 2.10.0. Lexical sorting incorrectly picked 2.9.0 as newer.",
+        "outcome": "Comparing the parsed major, minor and patch integers selected 2.10.0. The original spelling was kept for display."
+      }
+    }
+  ]
+}

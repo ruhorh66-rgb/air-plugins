@@ -1,0 +1,66 @@
+{
+    "schema":  "air-worker.hlp03-corpus-freeze/v1",
+    "series":  "R2_HOLDOUT",
+    "frozen_at_utc":  "2026-10-24T06:48:44.9249200Z",
+    "source_base_sha":  "2524960bdb950bc075bb7cbebccbcf9bf933efb8",
+    "candidate_source_hashes":  {
+                                    "adapter_sha256":  "337a34c15f7fd7f06426b3049bcfdbb85a36c9a55d7c5e4e52437a3fbca5a4c0",
+                                    "harness_sha256":  "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+                                    "runner_sha256":  "04565081303bcdca6ca300a61f5c60ae6ba8c151f6d3ede774cac786a55ddeea",
+                                    "binary_sha256":  "b4bbd675b1407d0a31e0fec7f08e4371eee5781c03c2a451e8c3f660d8761b4b"
+                                },
+    "corpus_path":  "cmd/testdata/hlp03_reviewer_corpus_20261024_r2_holdout.json",
+    "corpus_sha256":  "72b9380d636eff0f9f96e080422b982158dab330b782ebd93e906cb7c02ff69c",
+    "gold_path":  "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R2_HOLDOUT.json",
+    "gold_sha256":  "5186545bcc96ea064b19455113a341e2afcc547d6510d5208f3f5e6991fb47a8",
+    "protocol_path":  "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R2.json",
+    "protocol_sha256":  "c0a7ecd151d5966990886887639f738735ddfcfc4c570f6fc327a42e71068039",
+    "case_count":  12,
+    "case_ids":  [
+                     "C13",
+                     "C14",
+                     "C15",
+                     "C16",
+                     "C17",
+                     "C18",
+                     "C19",
+                     "C20",
+                     "C21",
+                     "C22",
+                     "C23",
+                     "C24"
+                 ],
+    "classes":  {
+                    "create":  4,
+                    "no_candidate":  4,
+                    "update":  4
+                },
+    "seed_identities":  [
+                            {
+                                "target":  "skills/learned/normalize-explicit-length-units.md",
+                                "sha256":  "ff64b5d36c4c2d1a97710f9be50241b04b2da7b961f2330918e51aa22639ec75"
+                            },
+                            {
+                                "target":  "skills/learned/closed-interval-overlap.md",
+                                "sha256":  "dcaea0dbabcd8c97f7c439d8c9e693486b4336fa89d6e5aa4cd207fd369d4bb2"
+                            },
+                            {
+                                "target":  "skills/learned/verify-complete-artifact-sha256.md",
+                                "sha256":  "2a6a6e59a9639353f95e24065fd7dcb4372733af7240287435fe2b75f32343a6"
+                            },
+                            {
+                                "target":  "skills/learned/compare-three-part-numeric-versions.md",
+                                "sha256":  "082369e6e1ac60dbbdbdc8a3bed05f62790af80365f330a02cb326a6286909f8"
+                            }
+                        ],
+    "model":  "gpt-5.6-luna",
+    "effort":  "medium",
+    "r2_learning_reviewer_calls_before_freeze":  0,
+    "labels_excluded_from_input":  true,
+    "posthoc_relabeling_allowed":  false,
+    "retry_policy":  "ONE_ATTEMPT_PER_CASE_PER_FROZEN_CANDIDATE",
+    "followup_design":  "docs/tasks/HLP03_FOLLOWUP_DESIGN_20261024_R2.json",
+    "followup_design_sha256":  "958c7992b81cd4cb0700dde5334f145b40b2ec9877aba737b51cef7c1e90d37b",
+    "followup_gold_sha256":  "2d0295cb4db485701df741b548f8c3292a39b9d865ac31b174407d71face27a7",
+    "production_effect":  "NOT_PROVEN"
+}

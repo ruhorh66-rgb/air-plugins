@@ -1,0 +1,44 @@
+{
+  "schema": "air-worker.hlp03-corpus-gold/v1",
+  "status": "FROZEN_BEFORE_R2_MODEL_OUTPUTS",
+  "series": "R2_OLD_CASES_AFTER_UPDATE",
+  "classes": {
+    "no_candidate": 4,
+    "update": 0,
+    "create": 0
+  },
+  "cases": [
+    {
+      "id": "C25",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "The updated procedure must still cover this previously covered case; no extra or replacement procedure is needed."
+    },
+    {
+      "id": "C26",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "The updated procedure must still cover this previously covered case; no extra or replacement procedure is needed."
+    },
+    {
+      "id": "C27",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "The updated procedure must still cover this previously covered case; no extra or replacement procedure is needed."
+    },
+    {
+      "id": "C28",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "The updated procedure must still cover this previously covered case; no extra or replacement procedure is needed."
+    }
+  ],
+  "rules": {
+    "first_attempts_only": true,
+    "no_posthoc_label_changes": true,
+    "semantic_equivalence_allowed": true,
+    "literal_word_matching_is_not_acceptance": true,
+    "full_replacement_must_preserve_old_applicability_and_actions": true,
+    "source_acceptance_model_quality_production_effect_separate": true
+  }
+}

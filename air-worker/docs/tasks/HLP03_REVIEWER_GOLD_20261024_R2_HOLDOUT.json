@@ -1,0 +1,152 @@
+{
+  "schema": "air-worker.hlp03-corpus-gold/v1",
+  "status": "FROZEN_BEFORE_R2_MODEL_OUTPUTS",
+  "series": "R2_HOLDOUT",
+  "source_base_sha": "2524960bdb950bc075bb7cbebccbcf9bf933efb8",
+  "scope": "12 fresh synthetic cases on four topics distinct from the baseline; no statistical improvement claim across different corpora",
+  "classes": {
+    "no_candidate": 4,
+    "update": 4,
+    "create": 4
+  },
+  "rules": {
+    "first_attempts_only": true,
+    "no_posthoc_label_changes": true,
+    "semantic_equivalence_allowed": true,
+    "literal_word_matching_is_not_acceptance": true,
+    "full_replacement_must_preserve_old_applicability_and_actions": true,
+    "source_acceptance_model_quality_production_effect_separate": true
+  },
+  "cases": [
+    {
+      "id": "C13",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "Same mixed-unit failure and conversion already covered by S1."
+    },
+    {
+      "id": "C14",
+      "expected": "update",
+      "eligible_target": "skills/learned/normalize-explicit-length-units.md",
+      "content_invariants": {
+        "old": [
+          "m stays unchanged; mm is multiplied by 0.001 once",
+          "original numeric value and unit retained",
+          "unknown units rejected, not guessed"
+        ],
+        "addition": [
+          "cm is accepted with factor 0.01 to metres"
+        ],
+        "forbidden": [
+          "cm-only applicability",
+          "double conversion",
+          "guessing missing/unknown units"
+        ]
+      },
+      "rationale": "Add the explicitly supported cm branch to the same normalization procedure without narrowing m/mm coverage."
+    },
+    {
+      "id": "C15",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "Calibration is a distinct missing step governed by supplied calibration data, not unit conversion; no universal numeric offset."
+    },
+    {
+      "id": "C16",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "Shared endpoint for closed intervals is already covered by S2."
+    },
+    {
+      "id": "C17",
+      "expected": "update",
+      "eligible_target": "skills/learned/closed-interval-overlap.md",
+      "content_invariants": {
+        "old": [
+          "closed and missing mode both use <=",
+          "shared endpoints and valid zero-length closed intervals retain overlap",
+          "valid ordered-endpoint precondition retained"
+        ],
+        "addition": [
+          "explicit half_open uses <"
+        ],
+        "forbidden": [
+          "changing closed/default to strict <",
+          "silently selecting a different mode"
+        ]
+      },
+      "rationale": "Add declared half_open behavior to the same overlap procedure, preserving closed and default closed behavior."
+    },
+    {
+      "id": "C18",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "Producer field mapping and input validation are a distinct cause outside the ordered-interval precondition; do not change the overlap formula."
+    },
+    {
+      "id": "C19",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "Missing bytes and complete digest verification are already covered by S3."
+    },
+    {
+      "id": "C20",
+      "expected": "update",
+      "eligible_target": "skills/learned/verify-complete-artifact-sha256.md",
+      "content_invariants": {
+        "old": [
+          "without length metadata, all bytes are hashed against trusted expected SHA-256",
+          "matching size cannot replace full digest verification",
+          "schema validity stays separate from integrity"
+        ],
+        "addition": [
+          "trusted expected length enables early rejection before hashing on size mismatch"
+        ],
+        "forbidden": [
+          "accepting on size alone",
+          "making length metadata mandatory for the old digest path"
+        ]
+      },
+      "rationale": "Add materially useful early length rejection while preserving full digest acceptance and the old path without length metadata."
+    },
+    {
+      "id": "C21",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "Application schema validity is separate from verified delivery bytes; correct the producer/schema issue separately."
+    },
+    {
+      "id": "C22",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "Numeric component comparison is already covered by S4."
+    },
+    {
+      "id": "C23",
+      "expected": "update",
+      "eligible_target": "skills/learned/compare-three-part-numeric-versions.md",
+      "content_invariants": {
+        "old": [
+          "unprefixed major.minor.patch remains accepted",
+          "all three integer components compared numerically",
+          "original spelling retained; unsupported suffixes rejected"
+        ],
+        "addition": [
+          "remove exactly one allowed leading lowercase v for parsing"
+        ],
+        "forbidden": [
+          "v-only applicability",
+          "lexical sorting",
+          "stripping arbitrary characters or admitting unsupported suffixes"
+        ]
+      },
+      "rationale": "Add one permitted prefix normalization while preserving the same comparator and original supported input."
+    },
+    {
+      "id": "C24",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "Freshness of the input list is a separate cause; the comparator is already correct."
+    }
+  ]
+}

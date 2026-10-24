@@ -32,9 +32,17 @@ func TestLearningReviewerAppliedReuse(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			saved := learningReviewerInvoke
-			learningReviewerInvoke = func(root, prompt, model, effort string) (string, error) {
+			learningReviewerInvoke = func(root, prompt, outputSchema, model, effort string) (string, error) {
 				if !strings.Contains(prompt, "Target: "+target) || !strings.Contains(prompt, "SHA256: "+sha) || !strings.Contains(prompt, n102PriorCLI) {
 					t.Fatal("missing trusted applied body")
+				}
+				var schema struct {
+					Properties map[string]struct {
+						Enum []string `json:"enum"`
+					} `json:"properties"`
+				}
+				if err := json.Unmarshal([]byte(outputSchema), &schema); err != nil || !containsString(schema.Properties["update_target"].Enum, target) || !containsString(schema.Properties["update_pre_sha256"].Enum, sha) {
+					t.Fatalf("reviewer schema missing eligible identity: %v", err)
 				}
 				return tc.answer, nil
 			}
@@ -76,6 +84,37 @@ func TestLearningReviewerAppliedReuse(t *testing.T) {
 	}
 }
 
+func TestLearningReviewerOutputSchemaEligibility(t *testing.T) {
+	s := sharedLearningSettings{ManagedSkillPrefix: "skills/learned", ProtectedTargets: []string{"skills/learned/protected.md"}}
+	skills := []reviewerSkill{
+		{sharedLearningCatalogSkill: sharedLearningCatalogSkill{Target: "skills/learned/eligible.md", SHA256: "eligible-sha"}, Body: "ordinary"},
+		{sharedLearningCatalogSkill: sharedLearningCatalogSkill{Target: "skills/learned/protected.md", SHA256: "protected-sha"}, Body: "ordinary"},
+		{sharedLearningCatalogSkill: sharedLearningCatalogSkill{Target: "elsewhere.md", SHA256: "foreign-sha"}, Body: "ordinary"},
+	}
+	for _, tc := range []struct {
+		name            string
+		skills          []reviewerSkill
+		targets, hashes []string
+	}{
+		{"filtered", skills, []string{"", "skills/learned/eligible.md"}, []string{"", "eligible-sha"}},
+		{"none", skills[1:], []string{""}, []string{""}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var got struct {
+				Properties map[string]struct {
+					Enum []string `json:"enum"`
+				} `json:"properties"`
+			}
+			if err := json.Unmarshal([]byte(reviewerOutputSchema(tc.skills, s)), &got); err != nil {
+				t.Fatal(err)
+			}
+			if fmt.Sprint(got.Properties["update_target"].Enum) != fmt.Sprint(tc.targets) || fmt.Sprint(got.Properties["update_pre_sha256"].Enum) != fmt.Sprint(tc.hashes) {
+				t.Fatalf("schema enums: %+v", got.Properties)
+			}
+		})
+	}
+}
+
 func reuseAnswer(content, target, sha string) string {
 	b, _ := json.Marshal(learningReviewerAnswer{Apply: true, Content: content, UpdateTarget: target, UpdatePreSHA256: sha})
 	return string(b)
@@ -94,7 +133,7 @@ func reuseSeed(t *testing.T, product string, s sharedLearningSettings, id, targe
 func reuseReview(t *testing.T, product, packet, answer string, inspect func(string)) (int, string) {
 	t.Helper()
 	prior := learningReviewerInvoke
-	learningReviewerInvoke = func(root, prompt, model, effort string) (string, error) {
+	learningReviewerInvoke = func(root, prompt, outputSchema, model, effort string) (string, error) {
 		if root != product {
 			t.Fatalf("wrong reviewer root %q", root)
 		}
@@ -246,6 +285,7 @@ func TestLearningReviewerUpdateIdentityAndDuplicates(t *testing.T) {
 		{"missing-sha", reuseAnswer(n102NewCLI, a, ""), 2},
 		{"missing-target", reuseAnswer(n102NewCLI, "", sha), 2},
 		{"wrong-sha", reuseAnswer(n102NewCLI, a, strings.Repeat("0", 64)), 2},
+		{"cross-paired-sha", reuseAnswer(n102NewCLI, a, learnSHA([]byte(n102NewCLI))), 2},
 		{"malformed-sha", reuseAnswer(n102NewCLI, a, "not-sha"), 2},
 		{"untracked", reuseAnswer(n102NewCLI, "skills/learned/untracked.md", sha), 2},
 		{"unsafe", reuseAnswer(n102NewCLI, "../escape.md", sha), 2},

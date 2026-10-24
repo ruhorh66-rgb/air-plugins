@@ -1,0 +1,689 @@
+{
+  "schema": "air-worker.hlp03-refinement-evaluation/v1",
+  "recorded_at_utc": "2026-10-24T07:40:45Z",
+  "status": "SOURCE_ACCEPTED_WITH_LIMITS_MODEL_QUALITY_FAIL_PRODUCTION_NOT_PROVEN",
+  "node": "SRVLM01",
+  "source": {
+    "root": "R:\\-4-\\air-worker\\worktrees\\airworker-learning-loop-20261024\\air-worker",
+    "branch": "dev/airworker-learning-loop-20261024",
+    "base_head": "2524960bdb950bc075bb7cbebccbcf9bf933efb8",
+    "final_candidate": "R4",
+    "final_source_hashes": {
+      "cmd/learn_adapter.go": "055476faefc3aa4aed82e16eddbbfdbd42ac8dc0290ba323989865ebce4f27da",
+      "cmd/learn_adapter_test.go": "ac74d02102288656a7d32ac9a4a20db911c4749b257e961cf48bf13f8ce20a94",
+      "cmd/learn_adapter_reuse_test.go": "07509c1462850bbce04d7b88dc233064ed21c1153381bd90d575e9aeb18e0c30",
+      "cmd/learn_adapter_retention_test.go": "db9b70e226754b434a89f7666e0790579f378fbfff3c2e3942912eb341ad459f",
+      "cmd/learn_reviewer_reliability_test.go": "29828cf4692981830b4e719415e99f566a80a5c1cda83e0ce93918773a2bd68c",
+      "cmd/self_preflight_production_template_test.go": "201a85f294a231b84d1e7c9a4be5fc26d06fa86d914d72f50369e50704cb4095",
+      "docs/tasks/run-hlp03-real-reviewer-20261024.ps1": "e91c63125bf208ca84acfd9791001d8a40cf431a05004be6b269b8149990dfde",
+      "docs/tasks/test-run-hlp03-real-reviewer-20261024.ps1": "3e20936bd61db15199cc463e011b7e461dacacd8570d7599c1c95a1004d01438"
+    },
+    "harness_sha256": "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+    "binary_sha256": "990474ed81bfabaac020f634de4e97154825d1beba5aee4fe7d0b290570a6195",
+    "build_provenance": "Candidate binary was built from base HEAD plus the recorded source changes. Snapshots and source hashes identify tested bytes; the later commit containing this receipt is recorded in the Wiki continuation report.",
+    "new_checkout_created": false,
+    "release_version_assigned": false
+  },
+  "implementation": {
+    "hermes_reference": "AirWorker_Wiki/05_KNOWLEDGE_BASE/AIRWORKER_HERMES_REUSE_REVIEWER_20261024.json",
+    "hermes_pinned_commit": "0e427d788d253630d38a3a51cd76849e73cd6925",
+    "reused": [
+      "Existing verified APPLIED catalogue and module identity/freshness checks",
+      "Native Codex invocation, output schema, terminal receipts and token usage",
+      "Module-owned proposal/apply, backup, rollback and isolated fixtures"
+    ],
+    "changes": [
+      "R2 generic prompt preserves the complete old procedure and required applicability/actions/bounds/input/order when refining; R3 narrows refinement to the same causal correction.",
+      "R4 keeps the R3 semantic prompt and supplies eligible target/SHA enum choices through the existing structured-output schema. Final exact pair and freshness validators remain authoritative.",
+      "Existing evaluator/runner support bounded case counts and separate frozen series. Resource enumeration now records unknown/incomplete samples, and fatal wrapper errors stop or observe the owned child before returning."
+    ],
+    "new_framework": false,
+    "module_pin": "github.com/ruhorh66-rgb/air-modules v0.1.1"
+  },
+  "experiment": {
+    "learning_reviewer_model": "gpt-5.6-luna",
+    "effort": "medium",
+    "series_count": 9,
+    "designated_first_attempts": 80,
+    "attempts_per_case_per_candidate": 1,
+    "model_fallback": false,
+    "selective_reruns": false,
+    "protocols": [
+      "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R2.json",
+      "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R3.json",
+      "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R4.json"
+    ],
+    "followups": "Eight frozen old events reused the exact actual primary update content in fresh native module fixtures. All eight prerequisite/byte checks and decisions passed.",
+    "comparison_limit": "Known regression and fresh holdouts are reported separately. Different topic/size holdouts do not establish a controlled improvement estimate."
+  },
+  "acceptance": {
+    "source": {
+      "status": "ACCEPTED_WITH_LIMITS",
+      "independent_receipt": "docs/receipts/LEARNING_HLP03_REFINEMENT_INDEPENDENT_REVIEW_20261024.json",
+      "checks": [
+        "Recorded targeted reviewer/evaluator Go tests",
+        "go vet and source build",
+        "PowerShell parsing and deterministic incomplete-sample test",
+        "Coordinator observed actual disposable parent and descendant termination through the runner helper"
+      ],
+      "limits": [
+        "Separate target/SHA enum arrays do not enforce pair correctness; final exact pair validation is required.",
+        "Native author sandbox denied taskkill/CIM; the coordinator separately verified actual tree cleanup on owned disposable processes.",
+        "Source acceptance does not establish model quality, installed delivery or production effect."
+      ]
+    },
+    "model_quality": {
+      "status": "FAIL",
+      "final_R4_class_and_identity": {
+        "correct": 31,
+        "designated": 32
+      },
+      "final_R4_conservative_complete": {
+        "correct": 29,
+        "designated": 32
+      },
+      "full_HLP03_accepted": false
+    },
+    "production": {
+      "status": "NOT_PROVEN",
+      "installed_delivery": "NOT_PERFORMED",
+      "natural_use_and_effect": "NOT_PROVEN",
+      "historical18_classification_or_migration": "NOT_PERFORMED",
+      "canonical_reconciliation": "BLOCKED_N124",
+      "new_native_nodes": 0
+    }
+  },
+  "results": {
+    "R2": {
+      "candidate": {
+        "adapter_sha256": "337a34c15f7fd7f06426b3049bcfdbb85a36c9a55d7c5e4e52437a3fbca5a4c0",
+        "harness_sha256": "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+        "runner_sha256": "04565081303bcdca6ca300a61f5c60ae6ba8c151f6d3ede774cac786a55ddeea",
+        "binary_sha256": "b4bbd675b1407d0a31e0fec7f08e4371eee5781c03c2a451e8c3f660d8761b4b"
+      },
+      "status": "FAIL_FROZEN_MODEL_QUALITY_GATE",
+      "series": [
+        {
+          "id": "development",
+          "designated": 12,
+          "class_and_identity_correct": 10,
+          "fully_correct_in_independent_review": 10,
+          "decision_quality": "FAIL_THIS_SERIES",
+          "usage": {
+            "input_tokens": 205868,
+            "cached_input_tokens": 72960,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 2796,
+            "reasoning_output_tokens": 974
+          },
+          "reviewer_elapsed_ms": 128029,
+          "resources": {
+            "series": "development",
+            "summary_sha256": "af7a2e5d7ed4a203733cc937f1451fa0ba2aea88f9745a822933e59bd79110fe",
+            "terminal_sha256": "8e27527d786bfafe92cf808d4fd739c3ece54bf08fb32e23b0ad09b75ddd8068",
+            "elapsed_seconds": 137.4146513,
+            "go_exit_code": 0,
+            "peak_cache_temp_bytes": 708496681,
+            "min_volume_free_bytes": 22984040448,
+            "sample_count": 10,
+            "all_guards_unchanged": true,
+            "final_temp_bytes": 0
+          },
+          "native_measurement": {
+            "terminal_responses": 12,
+            "missing_usage": 0,
+            "contaminated": 0,
+            "tool_calls": 0,
+            "cleanup_verified": 12
+          },
+          "run_evidence": "runs/r2-development/",
+          "freeze": "docs/tasks/HLP03_CORPUS_FREEZE_20261024_R2_DEVELOPMENT.json"
+        },
+        {
+          "id": "holdout",
+          "designated": 12,
+          "class_and_identity_correct": 10,
+          "fully_correct_in_independent_review": 10,
+          "decision_quality": "FAIL_THIS_SERIES",
+          "usage": {
+            "input_tokens": 206250,
+            "cached_input_tokens": 87552,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 3074,
+            "reasoning_output_tokens": 1198
+          },
+          "reviewer_elapsed_ms": 142561,
+          "resources": {
+            "series": "holdout",
+            "summary_sha256": "2b477c687a427dfc10bf6c67701899aec33844f199f25436da71f4240a73f019",
+            "terminal_sha256": "9f3ad4ec048f4aeddf1458020ad86071531cf54b0e0068530daa2e375a32b7c8",
+            "elapsed_seconds": 161.8228679,
+            "go_exit_code": 0,
+            "peak_cache_temp_bytes": 708497055,
+            "min_volume_free_bytes": 22979133440,
+            "sample_count": 12,
+            "all_guards_unchanged": true,
+            "final_temp_bytes": 0
+          },
+          "native_measurement": {
+            "terminal_responses": 12,
+            "missing_usage": 0,
+            "contaminated": 0,
+            "tool_calls": 0,
+            "cleanup_verified": 12
+          },
+          "run_evidence": "runs/r2-holdout/",
+          "freeze": "docs/tasks/HLP03_CORPUS_FREEZE_20261024_R2_HOLDOUT.json"
+        },
+        {
+          "id": "followup",
+          "designated": 4,
+          "class_and_identity_correct": 4,
+          "fully_correct_in_independent_review": 4,
+          "decision_quality": "PASS_THIS_SERIES",
+          "usage": {
+            "input_tokens": 68842,
+            "cached_input_tokens": 29184,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 283,
+            "reasoning_output_tokens": 167
+          },
+          "reviewer_elapsed_ms": 46601,
+          "resources": {
+            "series": "followup",
+            "summary_sha256": "b6a1286823309d849fb6fb25eaeb857f6ec342a1b8ac5f917b2cda9d45747e00",
+            "terminal_sha256": "2e63b15e3bb4ddf01fe79c07ec936c620657055a718a5556593deab2ea5b5d0d",
+            "elapsed_seconds": 52.3340337,
+            "go_exit_code": 0,
+            "peak_cache_temp_bytes": 708498157,
+            "min_volume_free_bytes": 22977032192,
+            "sample_count": 5,
+            "all_guards_unchanged": true,
+            "final_temp_bytes": 0
+          },
+          "native_measurement": {
+            "terminal_responses": 4,
+            "missing_usage": 0,
+            "contaminated": 0,
+            "tool_calls": 0,
+            "cleanup_verified": 4
+          },
+          "run_evidence": "runs/r2-followup/",
+          "freeze": "docs/tasks/HLP03_CORPUS_FREEZE_20261024_R2_FOLLOWUP.json"
+        }
+      ],
+      "fully_correct_total": {
+        "designated": 28,
+        "fully_correct": 24
+      },
+      "failures": [
+        {
+          "series": "development",
+          "id": "C03",
+          "expected": "create",
+          "actual": "update",
+          "class_match": false,
+          "identity_correct": false,
+          "content_verdict": "false_merge",
+          "fully_correct": false,
+          "reason": "Schema-required fields are a separate content-validation cause; updating the path-resolution procedure conflates remedies.",
+          "actual_target": "skills/learned/project-configuration-paths.md",
+          "candidate_sha256": "8d0e01de2f9276f97e4dc5cbe7e51221513fdcdeaf5127908510bb7ec18fcd74",
+          "false_merge": true
+        },
+        {
+          "series": "development",
+          "id": "C06",
+          "expected": "create",
+          "actual": "update",
+          "class_match": false,
+          "identity_correct": false,
+          "content_verdict": "false_merge",
+          "fully_correct": false,
+          "reason": "Server repetition after correct cursor transmission is a separate no-progress cause; the response overwrote the client cursor procedure.",
+          "actual_target": "skills/learned/opaque-pagination-cursor.md",
+          "candidate_sha256": "c80a1aa41715fa0aa863709fd5556a0c0fe1b98df04778ec08ceb56f57a60ea7",
+          "false_merge": true
+        },
+        {
+          "series": "holdout",
+          "id": "C18",
+          "expected": "create",
+          "actual": "update",
+          "class_match": false,
+          "identity_correct": false,
+          "content_verdict": "false_merge",
+          "fully_correct": false,
+          "reason": "Invalid endpoint ordering is an upstream validation defect; updating closed-overlap guidance conflates it with the overlap formula.",
+          "actual_target": "skills/learned/closed-interval-overlap.md",
+          "candidate_sha256": "61a06ec9c8b09160cb1c4456b2bda911931a73a239d1e98a37dcbb47404de969",
+          "false_merge": true
+        },
+        {
+          "series": "holdout",
+          "id": "C21",
+          "expected": "create",
+          "actual": "update",
+          "class_match": false,
+          "identity_correct": false,
+          "content_verdict": "false_merge",
+          "fully_correct": false,
+          "reason": "Schema-invalid bytes despite matching SHA require a separate application-validation procedure; updating byte-integrity guidance conflates the causes.",
+          "actual_target": "skills/learned/verify-complete-artifact-sha256.md",
+          "candidate_sha256": "f9cfd48d830d1852aceb44121bf324dbf6e100c85d2d5f9209e52394880de2b3",
+          "false_merge": true
+        }
+      ]
+    },
+    "R3": {
+      "candidate": {
+        "adapter_sha256": "dc991045765317c1feadff02a345165870353041402fadc424ff890cd6d07591",
+        "harness_sha256": "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+        "runner_sha256": "04565081303bcdca6ca300a61f5c60ae6ba8c151f6d3ede774cac786a55ddeea",
+        "binary_sha256": "fabd1a8615701d64596ab184f16f8349bb7a2dbc8c145da67b866052f7ab4070"
+      },
+      "status": "FAIL_FROZEN_MODEL_QUALITY_GATE",
+      "series": [
+        {
+          "id": "development",
+          "designated": 12,
+          "class_and_identity_correct": 11,
+          "fully_correct_in_independent_review": 11,
+          "decision_quality": "FAIL_THIS_SERIES",
+          "usage": {
+            "input_tokens": 206259,
+            "cached_input_tokens": 116736,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 2610,
+            "reasoning_output_tokens": 891
+          },
+          "reviewer_elapsed_ms": 123829,
+          "resources": {
+            "sample_count": 3,
+            "peak_observed_cache_temp_bytes": 740884757,
+            "min_observed_volume_free_bytes": 22921719808,
+            "sampling_complete": false,
+            "last_sample_phase": "during"
+          },
+          "native_measurement": {
+            "terminal_responses": 12,
+            "missing_usage": 0,
+            "contaminated": 0,
+            "tool_calls": 0,
+            "cleanup_verified": 12
+          },
+          "run_evidence": "runs/r3-development/",
+          "freeze": "docs/tasks/HLP03_CORPUS_FREEZE_20261024_R3_DEVELOPMENT.json"
+        },
+        {
+          "id": "holdout",
+          "designated": 6,
+          "class_and_identity_correct": 6,
+          "fully_correct_in_independent_review": 6,
+          "decision_quality": "PASS_THIS_SERIES",
+          "usage": {
+            "input_tokens": 100984,
+            "cached_input_tokens": 72960,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1497,
+            "reasoning_output_tokens": 536
+          },
+          "reviewer_elapsed_ms": 59679,
+          "resources": {
+            "sample_count": 6,
+            "peak_observed_cache_temp_bytes": 740878843,
+            "min_observed_volume_free_bytes": 22921859072,
+            "sampling_complete": true,
+            "last_sample_phase": "after"
+          },
+          "native_measurement": {
+            "terminal_responses": 6,
+            "missing_usage": 0,
+            "contaminated": 0,
+            "tool_calls": 0,
+            "cleanup_verified": 6
+          },
+          "run_evidence": "runs/r3-holdout/",
+          "freeze": "docs/tasks/HLP03_CORPUS_FREEZE_20261024_R3_HOLDOUT.json"
+        },
+        {
+          "id": "followup",
+          "designated": 2,
+          "class_and_identity_correct": 2,
+          "fully_correct_in_independent_review": 2,
+          "decision_quality": "PASS_THIS_SERIES",
+          "usage": {
+            "input_tokens": 33784,
+            "cached_input_tokens": 14592,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 132,
+            "reasoning_output_tokens": 74
+          },
+          "reviewer_elapsed_ms": 17709,
+          "resources": {
+            "sample_count": 3,
+            "peak_observed_cache_temp_bytes": 740880120,
+            "min_observed_volume_free_bytes": 22920806400,
+            "sampling_complete": true,
+            "last_sample_phase": "after"
+          },
+          "native_measurement": {
+            "terminal_responses": 2,
+            "missing_usage": 0,
+            "contaminated": 0,
+            "tool_calls": 0,
+            "cleanup_verified": 2
+          },
+          "run_evidence": "runs/r3-followup/",
+          "freeze": "docs/tasks/HLP03_CORPUS_FREEZE_20261024_R3_FOLLOWUP.json"
+        }
+      ],
+      "fully_correct_total": {
+        "designated": 20,
+        "fully_correct": 19
+      },
+      "failures": [
+        {
+          "series": "development",
+          "id": "C02",
+          "expected": "update",
+          "actual": "provider_or_adapter_error",
+          "class_match": false,
+          "identity_correct": false,
+          "content_verdict": "invalid_identity",
+          "fully_correct": false,
+          "reason": "Raw model response selected the correct update target but preSHA has one extra hex digit; the final validator rejected it as reviewer_invalid_update.",
+          "expected_target": "skills/learned/project-configuration-paths.md",
+          "native_terminal": "turn.completed"
+        }
+      ]
+    },
+    "R4": {
+      "candidate": {
+        "adapter_sha256": "055476faefc3aa4aed82e16eddbbfdbd42ac8dc0290ba323989865ebce4f27da",
+        "harness_sha256": "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+        "runner_sha256": "e91c63125bf208ca84acfd9791001d8a40cf431a05004be6b269b8149990dfde",
+        "binary_sha256": "990474ed81bfabaac020f634de4e97154825d1beba5aee4fe7d0b290570a6195"
+      },
+      "status": "FAIL_FROZEN_MODEL_QUALITY_GATE",
+      "series": [
+        {
+          "id": "development",
+          "designated": 24,
+          "class_and_identity_correct": 23,
+          "fully_correct_in_independent_review": 21,
+          "decision_quality": "FAIL_THIS_SERIES",
+          "usage": {
+            "input_tokens": 418005,
+            "cached_input_tokens": 74240,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 5118,
+            "reasoning_output_tokens": 1927
+          },
+          "reviewer_elapsed_ms": 222514,
+          "resources": {
+            "sample_count": 17,
+            "incomplete_samples": 0,
+            "peak_observed_cache_temp_bytes": 773327629,
+            "min_observed_volume_free_bytes": 22858579968,
+            "last_phase": "after",
+            "temp_bytes_after": 0
+          },
+          "native_measurement": {
+            "terminal_responses": 24,
+            "missing_usage": 0,
+            "contaminated": 0,
+            "tool_calls": 0,
+            "cleanup_verified": 24
+          },
+          "run_evidence": "runs/r4-development/",
+          "freeze": "docs/tasks/HLP03_CORPUS_FREEZE_20261024_R4_DEVELOPMENT.json"
+        },
+        {
+          "id": "holdout",
+          "designated": 6,
+          "class_and_identity_correct": 6,
+          "fully_correct_in_independent_review": 6,
+          "decision_quality": "PASS_THIS_SERIES",
+          "usage": {
+            "input_tokens": 101871,
+            "cached_input_tokens": 14720,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1400,
+            "reasoning_output_tokens": 578
+          },
+          "reviewer_elapsed_ms": 72416,
+          "resources": {
+            "sample_count": 7,
+            "incomplete_samples": 0,
+            "peak_observed_cache_temp_bytes": 773318650,
+            "min_observed_volume_free_bytes": 22857469952,
+            "last_phase": "after",
+            "temp_bytes_after": 0
+          },
+          "native_measurement": {
+            "terminal_responses": 6,
+            "missing_usage": 0,
+            "contaminated": 0,
+            "tool_calls": 0,
+            "cleanup_verified": 6
+          },
+          "run_evidence": "runs/r4-holdout/",
+          "freeze": "docs/tasks/HLP03_CORPUS_FREEZE_20261024_R4_HOLDOUT.json"
+        },
+        {
+          "id": "followup",
+          "designated": 2,
+          "class_and_identity_correct": 2,
+          "fully_correct_in_independent_review": 2,
+          "decision_quality": "PASS_THIS_SERIES",
+          "usage": {
+            "input_tokens": 33955,
+            "cached_input_tokens": 0,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 152,
+            "reasoning_output_tokens": 94
+          },
+          "reviewer_elapsed_ms": 14991,
+          "resources": {
+            "sample_count": 3,
+            "incomplete_samples": 0,
+            "peak_observed_cache_temp_bytes": 773319027,
+            "min_observed_volume_free_bytes": 22857314304,
+            "last_phase": "after",
+            "temp_bytes_after": 0
+          },
+          "native_measurement": {
+            "terminal_responses": 2,
+            "missing_usage": 0,
+            "contaminated": 0,
+            "tool_calls": 0,
+            "cleanup_verified": 2
+          },
+          "run_evidence": "runs/r4-followup/",
+          "freeze": "docs/tasks/HLP03_CORPUS_FREEZE_20261024_R4_FOLLOWUP.json"
+        }
+      ],
+      "fully_correct_total": {
+        "designated": 32,
+        "fully_correct": 29
+      },
+      "failures": [
+        {
+          "series": "development",
+          "id": "C11",
+          "expected": "update",
+          "actual": "update",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "incomplete_update",
+          "fully_correct": false,
+          "reason": "The added wait step does not explicitly check whether retry_after_ms fits the remaining overall deadline before waiting; it can consume time beyond the fixed deadline.",
+          "expected_target": "skills/learned/bounded-retry-transient-read.md",
+          "actual_target": "skills/learned/bounded-retry-transient-read.md",
+          "candidate_sha256": "9789392153efb2e2e4861e2c57e8ea1a12f7934887df98eb0c42538c816a3e02",
+          "incomplete_update": true
+        },
+        {
+          "series": "development",
+          "id": "C15",
+          "expected": "create",
+          "actual": "create",
+          "class_match": true,
+          "identity_correct": true,
+          "content_verdict": "incorrect_content",
+          "fully_correct": false,
+          "reason": "The event states unit normalization is already complete, but the new procedure orders normalization again before applying calibration; it omits an explicit guard against repeating conversion.",
+          "actual_target": "skills/learned/length-comparison-e3c33566-364dd3af28402cbb.md",
+          "candidate_sha256": "364dd3af28402cbb8f7b2c870a1351dcbecb4de128eb68774597348e5f4bc6da",
+          "incomplete_update": true,
+          "unsafe_scope_loss": true
+        },
+        {
+          "series": "development",
+          "id": "C21",
+          "expected": "create",
+          "actual": "no_candidate",
+          "class_match": false,
+          "identity_correct": false,
+          "content_verdict": "missed_create",
+          "fully_correct": false,
+          "reason": "The model returned no candidate for a distinct schema-validation and producer-correction lesson after byte integrity already passed."
+        }
+      ]
+    }
+  },
+  "coordinator_review_qualifications": {
+    "raw_independent_receipt_preserved": true,
+    "conservative_score_retained": true,
+    "notes": [
+      {
+        "case": "R4/development/C11",
+        "assessment": "Conservative completeness finding: the answer retains three total attempts, same input, an overall deadline and a prohibition on extending it. The added mandatory wait lacks an explicit feasibility check before waiting. Do not describe this as deletion of the old deadline; clarify the timing branch before a quality acceptance claim."
+      },
+      {
+        "case": "R4/development/C15",
+        "assessment": "The actual decision is create and existing procedures were not overwritten. The new body says normalization is already complete, then instructs normalization again. A no-repeat conversion pitfall is present, contrary to the raw review wording that no guard exists; the remaining issue is internal inconsistency between precondition and step. Treat it as a new-procedure content finding, not scope loss in an update."
+      }
+    ],
+    "normalized_final_R4_findings": {
+      "missed_create": 1,
+      "update_timing_completeness_finding": 1,
+      "new_procedure_content_inconsistency": 1,
+      "unsafe_scope_loss_in_updates": 0,
+      "identity_errors": 0,
+      "false_merges": 0
+    },
+    "label_policy": "No frozen gold, model answer or native independent receipt was changed. These notes qualify interpretation of the raw finding tags; the conservative 29/32 full score remains."
+  },
+  "measurement": {
+    "native_terminal_responses": 80,
+    "native_usage_records": 80,
+    "observed_tool_calls": 0,
+    "observed_forbidden_source_or_gold_access": 0,
+    "filesystem_isolation_proven": false,
+    "fixture_cleanup_verified": 80,
+    "lifecycle": {
+      "unchanged": 33,
+      "rolled_back_updates": 27,
+      "applied_creates": 19,
+      "invalid_update_blocked_before_apply": 1
+    },
+    "R3_development": {
+      "wrapper_exit_code": 1,
+      "go_stdout": "PASS/ok for collection of all12 outcomes; model quality still includes C02 invalid identity",
+      "os_exit_code": null,
+      "terminal_present": false,
+      "recovery_evidence": "runs/r3-development/recovery.json",
+      "cause": "Recursive resource enumeration raced with removed temporary entries.",
+      "qualification": "All12 first attempts retained; original terminal and complete resource trajectory were not reconstructed. Later successful runs do not replace that evidence."
+    }
+  },
+  "usage": {
+    "scope": "Learning reviewer calls only; authoring and independent review excluded. Input includes cached input; output includes reasoning output as reported by native usage.",
+    "input_tokens": 1375818,
+    "cached_input_tokens": 482944,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 17062,
+    "reasoning_output_tokens": 6439
+  },
+  "resources": {
+    "standard": "DEV-137 v1.1.0",
+    "working_estimate_bytes": 2147483648,
+    "hard_os_quota": false,
+    "max_concurrent_model_runs": 1,
+    "observed_R4_cache_temp_peak_bytes": 773327629,
+    "R4_complete_samples": 27,
+    "R4_incomplete_samples": 0,
+    "R4_min_observed_free_bytes": 22857314304,
+    "final_R4_temp_files": 0,
+    "final_R4_temp_bytes": 0,
+    "full_DEV137_acceptance": "NOT_CLAIMED",
+    "limits": [
+      "R2/R3 legacy resource rows do not record a completeness flag; R3 development has an interrupted sampling trajectory.",
+      "The sampled cache/temp maximum is an observed value, not a proven instantaneous process-memory or full-workspace peak.",
+      "R4 author QA resource snapshots bracketed final diff/hash work after Go QA; they are not a full before/peak/after trace."
+    ]
+  },
+  "preserved": {
+    "installed_runtime_version": "0.11.10",
+    "plugin_versions_checked_at_start": {
+      "codex": "0.11.10",
+      "claude": "0.11.10"
+    },
+    "installed_runtime_sha256": "339c02469519752a53a4c2e43c4b033a8193e33189c339ffb9e601b087e881ab",
+    "protected_hash_drift": [],
+    "foreign_wiki_WIP_hashes_unchanged": true,
+    "source_foreign_untracked_WIP_files_retained": 8,
+    "proof": "preservation-check.json in evidence bundle",
+    "proof_sha256": "6cd391311f0938830684f320567fb88aa2fe190f4f6d74adfc92ffb49efca9b9",
+    "services_changed": false,
+    "production_native_PLAN_N_LEARN_written": false,
+    "AIR_ENV_002_contacted": false
+  },
+  "independent_review": {
+    "receipt": "docs/receipts/LEARNING_HLP03_REFINEMENT_INDEPENDENT_REVIEW_20261024.json",
+    "sha256": "4abc4f8dfc3bc7a24508c5570df45eb3a473675028e713d7f1ed5fe07861aa10",
+    "native_job_id": "gpt__hlp03-semantic-20261024__1792826922568506100__0615a04e",
+    "native_status": "DONE",
+    "native_model": "gpt-6-sol",
+    "native_effort": "medium",
+    "native_sandbox": "workspace-write",
+    "provenance_note": "Raw review correctly left its own completed executor receipt unverified while running. The coordinator binds it to the subsequently completed native receipt included in this bundle.",
+    "host_advisory_not_counted": "Remote reads by host advisory agents hung and were aborted; they are not independent acceptance."
+  },
+  "evidence_bundle": {
+    "path": "docs/receipts/evidence/HLP03_REFINEMENT_R2_R3_R4_20261024.zip",
+    "bytes": 1466816,
+    "sha256": "ec50bc1c251dd115d4c45c8ca5d4e240077c6f20151c7dab67862e9ccb041fc6",
+    "entries_verified": 963,
+    "manifest_files": 962,
+    "manifest_sha256": "0ff61c83c349941ba2768c77ce281b88bffb38c98967b898c0beb8d6d3153aff"
+  },
+  "prior_baseline": {
+    "receipt": "docs/receipts/LEARNING_HLP03_REAL_REVIEWER_EVAL_20261024.json",
+    "receipt_sha256": "55662174c815dcd1392f478178e16289bd0350d10fe980137bbee9ff0eca4cab",
+    "evidence_zip_sha256": "7f1b052f413e8c8cdf5e889a9d4da4fb98d63f6b74b2d879b702211b4b009ec3",
+    "immutable": true,
+    "class_and_identity": "11/12",
+    "complete": "8/12",
+    "original_go_exit_code": 1
+  },
+  "next_work": [
+    {
+      "order": 1,
+      "goal": "Resolve the remaining HLP-03 model-quality boundary and content findings",
+      "details": "C21 must distinguish an existing integrity disclaimer from a separate schema/producer correction procedure; C11 needs unambiguous pre-wait deadline feasibility; C15 needs consistent use of the already-normalized input state. Review the full text and frozen labels before any generic source refinement. Never relabel or overwrite R1-R4."
+    },
+    {
+      "order": 2,
+      "goal": "Use a new prospective frozen evaluation for any further candidate",
+      "details": "Reuse the native reviewer/schema/catalogue/module lifecycle and existing harness. Fix candidate/code/model, corpus/gold and old-event followups before answers, retain first attempts and separate known regression from fresh topics. Do not claim statistical improvement across different holdouts."
+    },
+    {
+      "order": 3,
+      "goal": "Keep production and canonical planning gates separate",
+      "details": "Installed 0.11.10, services and native PLAN/N/LEARN remain preserved. Native reconciliation is BLOCKED_N124; no new N nodes. Installed delivery, natural use/effect and historical18 classification/migration remain NOT_PROVEN or pending."
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "schema": "air-worker.hlp03-corpus-input/v1",
+  "cases": [
+    {
+      "id": "C31",
+      "event": {
+        "kind": "failure",
+        "class": "boolean-filter",
+        "observed": "The filter must select in-stock products that are blue or green. With in_stock=false, blue=false and green=true, the generated in_stock AND blue OR green expression returned true.",
+        "outcome": "Grouping the positive color alternatives as in_stock AND (blue OR green) made that record fail the filter. The boolean input values were already correct."
+      },
+      "procedures": [
+        {
+          "target": "skills/learned/group-mandatory-boolean-filter.md",
+          "body": "# Group alternatives under the mandatory boolean condition\n\n## When to apply\nWhen a boolean filter requires mandatory condition A and at least one positive alternative B or C. All boolean values have already been computed correctly.\n\n## Procedure\n1. Group the alternatives as (B OR C).\n2. Combine the group with the mandatory condition as A AND (B OR C).\n3. Verify that A=false produces false regardless of the values of B and C.\n\n## Pitfalls\nDo not emit A AND B OR C without grouping. Do not drop the mandatory condition or change the meaning of the already computed input values.\n"
+        },
+        {
+          "target": "skills/learned/convert-one-based-selection-position.md",
+          "body": "# Convert one-based selection positions to zero-based indices\n\n## When to apply\nWhen a user selects one-based position p in a one-dimensional list of length N, and the interface and target collection use the same element ordering.\n\n## Procedure\n1. Validate that 1 <= p <= N; reject an invalid position explicitly.\n2. Subtract one exactly once and access index p-1.\n3. The first position maps to index 0 and the last position maps to N-1.\n\n## Pitfalls\nDo not use a one-based position directly as an index or subtract one twice. This arithmetic assumes the interface and target collection have the same ordering.\n"
+        }
+      ]
+    },
+    {
+      "id": "C32",
+      "event": {
+        "kind": "failure",
+        "class": "boolean-filter",
+        "observed": "The filter builder now receives an explicit mode that negates the whole group of color alternatives. The requested rule is in_stock AND NOT (blue OR green), but the emitted in_stock AND NOT blue OR green incorrectly allowed green records.",
+        "outcome": "The builder applied NOT to the complete grouped alternatives in the explicitly negated mode. The existing positive mode retained in_stock AND (blue OR green)."
+      },
+      "procedures": [
+        {
+          "target": "skills/learned/group-mandatory-boolean-filter.md",
+          "body": "# Group alternatives under the mandatory boolean condition\n\n## When to apply\nWhen a boolean filter requires mandatory condition A and at least one positive alternative B or C. All boolean values have already been computed correctly.\n\n## Procedure\n1. Group the alternatives as (B OR C).\n2. Combine the group with the mandatory condition as A AND (B OR C).\n3. Verify that A=false produces false regardless of the values of B and C.\n\n## Pitfalls\nDo not emit A AND B OR C without grouping. Do not drop the mandatory condition or change the meaning of the already computed input values.\n"
+        },
+        {
+          "target": "skills/learned/convert-one-based-selection-position.md",
+          "body": "# Convert one-based selection positions to zero-based indices\n\n## When to apply\nWhen a user selects one-based position p in a one-dimensional list of length N, and the interface and target collection use the same element ordering.\n\n## Procedure\n1. Validate that 1 <= p <= N; reject an invalid position explicitly.\n2. Subtract one exactly once and access index p-1.\n3. The first position maps to index 0 and the last position maps to N-1.\n\n## Pitfalls\nDo not use a one-based position directly as an index or subtract one twice. This arithmetic assumes the interface and target collection have the same ordering.\n"
+        }
+      ]
+    },
+    {
+      "id": "C33",
+      "event": {
+        "kind": "failure",
+        "class": "boolean-filter",
+        "observed": "The product boolean filter was verified against its truth table and selected exactly the intended products. Joining the selected products with the photos table then duplicated one product with two photos, causing an overstated product count.",
+        "outcome": "Photos were aggregated to one record per product_id before the join. The boolean filter expression was unchanged and the product count became correct."
+      },
+      "procedures": [
+        {
+          "target": "skills/learned/group-mandatory-boolean-filter.md",
+          "body": "# Group alternatives under the mandatory boolean condition\n\n## When to apply\nWhen a boolean filter requires mandatory condition A and at least one positive alternative B or C. All boolean values have already been computed correctly.\n\n## Procedure\n1. Group the alternatives as (B OR C).\n2. Combine the group with the mandatory condition as A AND (B OR C).\n3. Verify that A=false produces false regardless of the values of B and C.\n\n## Pitfalls\nDo not emit A AND B OR C without grouping. Do not drop the mandatory condition or change the meaning of the already computed input values.\n"
+        },
+        {
+          "target": "skills/learned/convert-one-based-selection-position.md",
+          "body": "# Convert one-based selection positions to zero-based indices\n\n## When to apply\nWhen a user selects one-based position p in a one-dimensional list of length N, and the interface and target collection use the same element ordering.\n\n## Procedure\n1. Validate that 1 <= p <= N; reject an invalid position explicitly.\n2. Subtract one exactly once and access index p-1.\n3. The first position maps to index 0 and the last position maps to N-1.\n\n## Pitfalls\nDo not use a one-based position directly as an index or subtract one twice. This arithmetic assumes the interface and target collection have the same ordering.\n"
+        }
+      ]
+    },
+    {
+      "id": "C34",
+      "event": {
+        "kind": "failure",
+        "class": "selection-index",
+        "observed": "The interface displays [A, B, C, D] in the same order as the target collection. The user selects position 3, but direct access at index 3 returns D.",
+        "outcome": "After checking the position bounds and subtracting one exactly once, index 2 returned C."
+      },
+      "procedures": [
+        {
+          "target": "skills/learned/group-mandatory-boolean-filter.md",
+          "body": "# Group alternatives under the mandatory boolean condition\n\n## When to apply\nWhen a boolean filter requires mandatory condition A and at least one positive alternative B or C. All boolean values have already been computed correctly.\n\n## Procedure\n1. Group the alternatives as (B OR C).\n2. Combine the group with the mandatory condition as A AND (B OR C).\n3. Verify that A=false produces false regardless of the values of B and C.\n\n## Pitfalls\nDo not emit A AND B OR C without grouping. Do not drop the mandatory condition or change the meaning of the already computed input values.\n"
+        },
+        {
+          "target": "skills/learned/convert-one-based-selection-position.md",
+          "body": "# Convert one-based selection positions to zero-based indices\n\n## When to apply\nWhen a user selects one-based position p in a one-dimensional list of length N, and the interface and target collection use the same element ordering.\n\n## Procedure\n1. Validate that 1 <= p <= N; reject an invalid position explicitly.\n2. Subtract one exactly once and access index p-1.\n3. The first position maps to index 0 and the last position maps to N-1.\n\n## Pitfalls\nDo not use a one-based position directly as an index or subtract one twice. This arithmetic assumes the interface and target collection have the same ordering.\n"
+        }
+      ]
+    },
+    {
+      "id": "C35",
+      "event": {
+        "kind": "failure",
+        "class": "selection-index",
+        "observed": "The interface now supplies grid coordinates whose row and column are each one-based, with the same row and column order in the target grid. For row=2 and column=3, converting only the row selected [1][3] instead of [1][2].",
+        "outcome": "The code checked row and column bounds independently, then subtracted one from each coordinate once. Existing one-dimensional selection continued to validate position p and use p-1."
+      },
+      "procedures": [
+        {
+          "target": "skills/learned/group-mandatory-boolean-filter.md",
+          "body": "# Group alternatives under the mandatory boolean condition\n\n## When to apply\nWhen a boolean filter requires mandatory condition A and at least one positive alternative B or C. All boolean values have already been computed correctly.\n\n## Procedure\n1. Group the alternatives as (B OR C).\n2. Combine the group with the mandatory condition as A AND (B OR C).\n3. Verify that A=false produces false regardless of the values of B and C.\n\n## Pitfalls\nDo not emit A AND B OR C without grouping. Do not drop the mandatory condition or change the meaning of the already computed input values.\n"
+        },
+        {
+          "target": "skills/learned/convert-one-based-selection-position.md",
+          "body": "# Convert one-based selection positions to zero-based indices\n\n## When to apply\nWhen a user selects one-based position p in a one-dimensional list of length N, and the interface and target collection use the same element ordering.\n\n## Procedure\n1. Validate that 1 <= p <= N; reject an invalid position explicitly.\n2. Subtract one exactly once and access index p-1.\n3. The first position maps to index 0 and the last position maps to N-1.\n\n## Pitfalls\nDo not use a one-based position directly as an index or subtract one twice. This arithmetic assumes the interface and target collection have the same ordering.\n"
+        }
+      ]
+    },
+    {
+      "id": "C36",
+      "event": {
+        "kind": "failure",
+        "class": "selection-index",
+        "observed": "Position 3 was correctly converted to index 2, but the interface showed items sorted by name while the target collection retained arrival order. The resulting selected object was wrong despite the correct subtraction.",
+        "outcome": "The interface passed the selected record’s stable identifier, and the target object was found by that identifier. Position-to-index arithmetic was unchanged."
+      },
+      "procedures": [
+        {
+          "target": "skills/learned/group-mandatory-boolean-filter.md",
+          "body": "# Group alternatives under the mandatory boolean condition\n\n## When to apply\nWhen a boolean filter requires mandatory condition A and at least one positive alternative B or C. All boolean values have already been computed correctly.\n\n## Procedure\n1. Group the alternatives as (B OR C).\n2. Combine the group with the mandatory condition as A AND (B OR C).\n3. Verify that A=false produces false regardless of the values of B and C.\n\n## Pitfalls\nDo not emit A AND B OR C without grouping. Do not drop the mandatory condition or change the meaning of the already computed input values.\n"
+        },
+        {
+          "target": "skills/learned/convert-one-based-selection-position.md",
+          "body": "# Convert one-based selection positions to zero-based indices\n\n## When to apply\nWhen a user selects one-based position p in a one-dimensional list of length N, and the interface and target collection use the same element ordering.\n\n## Procedure\n1. Validate that 1 <= p <= N; reject an invalid position explicitly.\n2. Subtract one exactly once and access index p-1.\n3. The first position maps to index 0 and the last position maps to N-1.\n\n## Pitfalls\nDo not use a one-based position directly as an index or subtract one twice. This arithmetic assumes the interface and target collection have the same ordering.\n"
+        }
+      ]
+    }
+  ]
+}

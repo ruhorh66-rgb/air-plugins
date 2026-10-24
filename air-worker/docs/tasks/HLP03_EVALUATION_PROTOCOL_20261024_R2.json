@@ -1,0 +1,78 @@
+{
+  "schema": "air-worker.hlp03-r2-evaluation-protocol/v1",
+  "status": "FIXED_BEFORE_R2_LEARNING_REVIEWER_OUTPUTS",
+  "source_base_sha": "2524960bdb950bc075bb7cbebccbcf9bf933efb8",
+  "model": "gpt-5.6-luna",
+  "effort": "medium",
+  "candidate_frozen_for_all_series": true,
+  "series": [
+    {
+      "id": "HLP03_R2_DEVELOPMENT_20261024",
+      "kind": "development_regression",
+      "cases": 12,
+      "corpus": "cmd/testdata/hlp03_reviewer_corpus_20261024.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024.json",
+      "rule": "Original baseline remains unchanged; this is a new source candidate with one fresh attempt per old case, not a retry or replacement of the baseline."
+    },
+    {
+      "id": "HLP03_R2_HOLDOUT_20261024",
+      "kind": "fresh_topic_holdout",
+      "cases": 12,
+      "corpus": "cmd/testdata/hlp03_reviewer_corpus_20261024_r2_holdout.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R2_HOLDOUT.json",
+      "rule": "No prompt, binary, harness, label or scoring change after seeing any R2 provider answer. Topics and content invariants differ from baseline."
+    },
+    {
+      "id": "HLP03_R2_FOLLOWUP_20261024",
+      "kind": "old_case_after_update",
+      "cases": 4,
+      "design": "docs/tasks/HLP03_FOLLOWUP_DESIGN_20261024_R2.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R2_FOLLOWUP.json",
+      "rule": "Derive bodies mechanically from the designated successful holdout updates, never edit answers. Freeze actual derived corpus hashes before these calls. Missing/wrong primary update fails the corresponding prerequisite; all four remain in denominator."
+    }
+  ],
+  "attempts_per_case": 1,
+  "total_designated_attempts": 28,
+  "no_model_fallback": true,
+  "no_posthoc_label_changes": true,
+  "no_selective_reruns": true,
+  "metrics": {
+    "class_identity": "All designated cases in each series, including technical failures; no_candidate requires real successful canonical {}.",
+    "content": "Independent semantic review of complete replacement against frozen old/additional invariants. Equivalent wording/formulas accepted; literal keyword matching is insufficient.",
+    "followup": "All four frozen old events should receive no_candidate with the actual updated body seeded by the module in a fresh fixture.",
+    "usage": "Separate each series; only learning reviewer usage, authoring and independent review excluded. Missing usage null, never zero.",
+    "comparison": "Development regression may be compared descriptively with its original first baseline. Scores on the different holdout topics are not a controlled statistical improvement estimate."
+  },
+  "acceptance": {
+    "source": "Targeted reviewer/evidence tests, vet/build, current harness real run, independent source review; separate from content quality.",
+    "model": "Each series passes only if every designated case has the required class/exact identity/content preservation, no unsafe scope loss/false merge/incomplete update or contamination and complete real provider evidence.",
+    "production_effect": "NOT_PROVEN by any synthetic series; installed delivery, natural use and useful effect remain separate."
+  },
+  "baseline_recheck": {
+    "class_identity_score": "11/12",
+    "strict_complete_score": "8/12",
+    "C02": "Frozen class disagreement at a meaningful granularity boundary; not unsafe update.",
+    "C05_C08": "Unsafe scope loss based on complete text and lost earlier applicability, not mere title wording.",
+    "C11": "Conservative incomplete-update verdict for a standalone replacement; existing bounds/same job can be semantically reasonable when an explicit external contract supplies omitted requirements, but this corpus does not provide that reference. Do not relabel old gold.",
+    "baseline_go_exit_code": 1,
+    "cleanup": "Prior instrumentation defect preserved; current corrected order is exercised by R2 real runs."
+  },
+  "resources": {
+    "standard": "DEV-137 v1.1.0",
+    "working_estimate_bytes": 2147483648,
+    "hard_os_quota": false,
+    "max_concurrent_runs": 1,
+    "max_run_seconds": 1800,
+    "max_case_timeout_ms": 240000,
+    "sample_seconds": 15,
+    "full_DEV137_acceptance": "NOT_CLAIMED"
+  },
+  "constraints": {
+    "node": "SRVLM01",
+    "existing_checkout_only": true,
+    "installed_runtime_unchanged": true,
+    "native_PLAN_N_LEARN_unchanged": true,
+    "foreign_WIP_preserved": true,
+    "AIR_ENV_002_used": false
+  }
+}

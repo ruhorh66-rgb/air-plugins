@@ -1,0 +1,71 @@
+{
+  "schema": "air-worker.hlp03-r3-evaluation-protocol/v1",
+  "status": "FIXED_BEFORE_R3_LEARNING_REVIEWER_OUTPUTS",
+  "source_base_sha": "2524960bdb950bc075bb7cbebccbcf9bf933efb8",
+  "model": "gpt-5.6-luna",
+  "effort": "medium",
+  "candidate_frozen_for_all_series": true,
+  "reason": "R2 preserved content but merged separate causes when they appeared in one workflow. R3 prospectively narrows only the generic causal-boundary guidance.",
+  "series": [
+    {
+      "id": "HLP03_R3_DEVELOPMENT_20261024",
+      "kind": "development_regression",
+      "cases": 12,
+      "corpus": "cmd/testdata/hlp03_reviewer_corpus_20261024.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024.json",
+      "rule": "Known development data; one first attempt per R3 candidate. R1/R2 observations remain immutable."
+    },
+    {
+      "id": "HLP03_R3_HOLDOUT_20261024",
+      "kind": "fresh_topic_holdout",
+      "cases": 6,
+      "corpus": "cmd/testdata/hlp03_reviewer_corpus_20261024_r3_holdout.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R3_HOLDOUT.json",
+      "rule": "New topics; no prompt, binary, harness, labels or scoring changes after any R3 learning reviewer answer."
+    },
+    {
+      "id": "HLP03_R3_FOLLOWUP_20261024",
+      "kind": "old_case_after_update",
+      "cases": 2,
+      "design": "docs/tasks/HLP03_FOLLOWUP_DESIGN_20261024_R3.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R3_FOLLOWUP.json",
+      "rule": "Copy actual eligible updates verbatim into seeds; freeze derived corpus before calls. Missing/wrong update fails prerequisite and remains in denominator."
+    }
+  ],
+  "attempts_per_case": 1,
+  "total_designated_attempts": 20,
+  "no_model_fallback": true,
+  "no_posthoc_label_changes": true,
+  "no_selective_reruns": true,
+  "metrics": {
+    "class_identity": "All designated cases in each series, including technical failures; no_candidate requires real successful canonical {}.",
+    "content": "Independent semantic review of complete replacement against frozen old/additional invariants. Equivalent wording/formulas accepted; literal keyword matching is insufficient.",
+    "followup": "Both frozen old events must yield no_candidate with their actual updated bodies; count failed prerequisites as failure.",
+    "usage": "Separate each series; only learning reviewer usage, authoring and independent review excluded. Missing usage null, never zero.",
+    "comparison": "Old development data allow descriptive regression comparison. R2 and R3 fresh holdouts differ in topics and size; their scores are not a controlled improvement estimate."
+  },
+  "acceptance": {
+    "source": "Targeted reviewer/evidence tests, vet/build, current harness real run, independent source review; separate from content quality.",
+    "model": "Each series passes only if every designated case has the required class/exact identity/content preservation, no unsafe scope loss/false merge/incomplete update or contamination and complete real provider evidence.",
+    "production_effect": "NOT_PROVEN by any synthetic series; installed delivery, natural use and useful effect remain separate."
+  },
+  "resources": {
+    "standard": "DEV-137 v1.1.0",
+    "working_estimate_bytes": 2147483648,
+    "hard_os_quota": false,
+    "max_concurrent_runs": 1,
+    "max_run_seconds": 1800,
+    "max_case_timeout_ms": 240000,
+    "sample_seconds": 15,
+    "full_DEV137_acceptance": "NOT_CLAIMED"
+  },
+  "constraints": {
+    "node": "SRVLM01",
+    "existing_checkout_only": true,
+    "installed_runtime_unchanged": true,
+    "native_PLAN_N_LEARN_unchanged": true,
+    "foreign_WIP_preserved": true,
+    "AIR_ENV_002_used": false
+  },
+  "r2_baseline": "Retain all 28 designated R2 outcomes, including false merges; do not treat another candidate as a retry that overwrites them."
+}

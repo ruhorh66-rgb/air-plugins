@@ -1,0 +1,52 @@
+{
+    "schema":  "air-worker.hlp03-corpus-freeze/v1",
+    "series":  "R3_HOLDOUT",
+    "frozen_at_utc":  "2026-10-24T07:01:13.4034901Z",
+    "source_base_sha":  "2524960bdb950bc075bb7cbebccbcf9bf933efb8",
+    "candidate_source_hashes":  {
+                                    "adapter_sha256":  "dc991045765317c1feadff02a345165870353041402fadc424ff890cd6d07591",
+                                    "harness_sha256":  "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+                                    "runner_sha256":  "04565081303bcdca6ca300a61f5c60ae6ba8c151f6d3ede774cac786a55ddeea",
+                                    "binary_sha256":  "fabd1a8615701d64596ab184f16f8349bb7a2dbc8c145da67b866052f7ab4070"
+                                },
+    "corpus_path":  "cmd/testdata/hlp03_reviewer_corpus_20261024_r3_holdout.json",
+    "corpus_sha256":  "32c1f1c17e5e8ff246d0ee2f0d296101857d24f8a3eef07ea13075359a824a49",
+    "gold_path":  "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R3_HOLDOUT.json",
+    "gold_sha256":  "2ce7f1fb5cf7f86926be271c0f997375ac3990b2031c5c3c4ecab3f44cb36db5",
+    "protocol_path":  "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R3.json",
+    "protocol_sha256":  "e0e821a41a1ab7596e2e005bdfcc1f564852e901b06f5bb3f418d43f5104db0b",
+    "case_count":  6,
+    "case_ids":  [
+                     "C31",
+                     "C32",
+                     "C33",
+                     "C34",
+                     "C35",
+                     "C36"
+                 ],
+    "classes":  {
+                    "no_candidate":  2,
+                    "update":  2,
+                    "create":  2
+                },
+    "seed_identities":  [
+                            {
+                                "target":  "skills/learned/group-mandatory-boolean-filter.md",
+                                "sha256":  "aeec114eb8349edefc441070253f4664d955e0fa4c0dccb88d79f76f17062f07"
+                            },
+                            {
+                                "target":  "skills/learned/convert-one-based-selection-position.md",
+                                "sha256":  "90088594c319347dba1fa072bf7acede2bc7a8b0abfda6378c8efaedc867394e"
+                            }
+                        ],
+    "model":  "gpt-5.6-luna",
+    "effort":  "medium",
+    "labels_excluded_from_input":  true,
+    "posthoc_relabeling_allowed":  false,
+    "retry_policy":  "ONE_ATTEMPT_PER_CASE_PER_FROZEN_CANDIDATE",
+    "followup_design":  "docs/tasks/HLP03_FOLLOWUP_DESIGN_20261024_R3.json",
+    "followup_design_sha256":  "829526a794cc6d246da580cb296177888ec83df18fc5d326434bb000467acf07",
+    "followup_gold_sha256":  "fa71e95bac97f79b2bf67f5ecf38945163566d6c32d608c376bea252b1844e8c",
+    "production_effect":  "NOT_PROVEN",
+    "r3_learning_reviewer_calls_before_freeze":  0
+}

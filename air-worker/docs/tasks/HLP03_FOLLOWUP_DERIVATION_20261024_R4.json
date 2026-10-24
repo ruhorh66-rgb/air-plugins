@@ -1,0 +1,26 @@
+{
+  "schema": "air-worker.hlp03-followup-derivation/v1",
+  "series": "R4",
+  "designated_denominator": 2,
+  "runnable_count": 2,
+  "failed_prerequisites": 0,
+  "derivation": "Actual canonical content copied verbatim into only the designated original seed; other seed and frozen old event unchanged.",
+  "cases": [
+    {
+      "id": "C47",
+      "primary_case_id": "C42",
+      "target": "skills/learned/sort-whole-number-text-numerically.md",
+      "prerequisite": "PASS",
+      "primary_pre_sha256": "04f898da3ee0bd92b28be5b53a3772aaf868ced23ddccb5845cb662438057309",
+      "actual_updated_sha256": "7795f6bf17e7fc068f7c1e7181430c0d6b27442849228bd0532d20c4ba525d12"
+    },
+    {
+      "id": "C48",
+      "primary_case_id": "C45",
+      "target": "skills/learned/remove-one-literal-prefix.md",
+      "prerequisite": "PASS",
+      "primary_pre_sha256": "a927a2f2b66d3ee8ef391798e1de9b212f3765ebf27c0ed4ddb3d0d868036fbe",
+      "actual_updated_sha256": "27dcfe903472eb3875cd00045786f15fde690cce541c41f4dccd1b360b0efa38"
+    }
+  ]
+}

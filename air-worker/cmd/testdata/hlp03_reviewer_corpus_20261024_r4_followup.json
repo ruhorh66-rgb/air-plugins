@@ -1,0 +1,43 @@
+{
+  "schema": "air-worker.hlp03-corpus-input/v1",
+  "cases": [
+    {
+      "id": "C47",
+      "procedures": [
+        {
+          "target": "skills/learned/sort-whole-number-text-numerically.md",
+          "body": "# Sort ordinary decimal text by exact numeric value\n\n## When to apply\nWhen a sequence of textual finite ordinary decimal numbers must be sorted by numeric value. An optional leading sign is allowed; whole numbers and fractional values are allowed, while exponents, nonfinite values and thousands separators are outside this input format.\n\n## Procedure\n1. Parse each token as an exact decimal numeric key only for its sorting key; reject tokens outside the declared input format.\n2. Sort the original tokens by those exact numeric keys.\n3. Preserve each original token spelling in the output instead of formatting the key back to text.\n\n## Pitfalls\nLexical order puts \"10.0\" before \"2.5\". A floating-point key can lose precision for large integers or decimal fractions. Do not change the original text merely to compute the ordering.\n"
+        },
+        {
+          "target": "skills/learned/remove-one-literal-prefix.md",
+          "body": "# Remove one exact literal prefix\n\n## When to apply\nWhen the caller supplies a nonempty literal prefix and requests removal of exactly one leading occurrence from a string. Matching is exact and case-sensitive.\n\n## Procedure\n1. Check whether the string starts with the complete supplied prefix.\n2. If it does, remove exactly the prefix length once.\n3. Otherwise return the original string unchanged.\n\n## Pitfalls\nA character-set trimming operation such as lstrip(prefix) does not remove a literal prefix. Do not use a global replacement, remove interior occurrences, or repeatedly remove multiple leading copies when one removal was requested.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "numeric-token-order",
+        "observed": "For whole-number strings [\"9007199254740993\",\"9007199254740992\",\"-2\"], floating-point sorting keys collapsed the two large positive values and left them in the wrong order.",
+        "outcome": "Exact integer keys produced [\"-2\",\"9007199254740992\",\"9007199254740993\"] while retaining the original spelling of every token."
+      }
+    },
+    {
+      "id": "C48",
+      "procedures": [
+        {
+          "target": "skills/learned/sort-whole-number-text-numerically.md",
+          "body": "# Sort whole-number text by exact numeric value\n\n## When to apply\nWhen a sequence of textual whole decimal numbers must be sorted by numeric value. An optional leading sign is allowed; fractional values, exponents, nonfinite values and thousands separators are outside this input format.\n\n## Procedure\n1. Parse each token as an exact integer only for its sorting key; reject tokens outside the declared input format.\n2. Sort the original tokens by those exact numeric keys.\n3. Preserve each original token spelling in the output instead of formatting the key back to text.\n\n## Pitfalls\nLexical order puts \"10\" before \"2\". A floating-point key can lose precision for large integers. Do not change the original text merely to compute the ordering.\n"
+        },
+        {
+          "target": "skills/learned/remove-one-literal-prefix.md",
+          "body": "# Remove one exact literal edge marker\n\n## When to apply\nWhen the caller supplies a nonempty literal prefix or suffix and requests removal of exactly one leading or trailing occurrence from a string. Matching is exact and case-sensitive.\n\n## Procedure\n1. Check whether the string starts with the complete supplied prefix or ends with the complete supplied suffix, according to the selected edge.\n2. If it does, remove exactly the selected marker length once.\n3. Otherwise return the original string unchanged.\n\n## Pitfalls\nCharacter-set trimming operations such as `lstrip(prefix)` or `rstrip(suffix)` do not remove a literal marker. Do not use a global replacement, remove interior occurrences, or repeatedly remove multiple edge copies when one removal was requested.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "literal-edge-marker",
+        "observed": "The caller requested one left-edge removal of the exact nonempty prefix \"TAG:\" from \"TAG:TAG:value\", but repeatedly removing the marker produced \"value\".",
+        "outcome": "Checking the full prefix and removing exactly its length once produced \"TAG:value\". The second occurrence was retained."
+      }
+    }
+  ]
+}

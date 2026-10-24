@@ -1,0 +1,30 @@
+{
+  "schema": "air-worker.hlp03-followup-design/v1",
+  "status": "FROZEN_BEFORE_R4_MODEL_OUTPUTS",
+  "cases": [
+    {
+      "id": "C47",
+      "primary_case_id": "C42",
+      "target": "skills/learned/sort-whole-number-text-numerically.md",
+      "event": {
+        "kind": "failure",
+        "class": "numeric-token-order",
+        "observed": "For whole-number strings [\"9007199254740993\",\"9007199254740992\",\"-2\"], floating-point sorting keys collapsed the two large positive values and left them in the wrong order.",
+        "outcome": "Exact integer keys produced [\"-2\",\"9007199254740992\",\"9007199254740993\"] while retaining the original spelling of every token."
+      }
+    },
+    {
+      "id": "C48",
+      "primary_case_id": "C45",
+      "target": "skills/learned/remove-one-literal-prefix.md",
+      "event": {
+        "kind": "failure",
+        "class": "literal-edge-marker",
+        "observed": "The caller requested one left-edge removal of the exact nonempty prefix \"TAG:\" from \"TAG:TAG:value\", but repeatedly removing the marker produced \"value\".",
+        "outcome": "Checking the full prefix and removing exactly its length once produced \"TAG:value\". The second occurrence was retained."
+      }
+    }
+  ],
+  "derivation_rule": "Copy the actual designated canonical update content verbatim into only its original seed after exact identity and successful module lifecycle. Preserve other seed and frozen old event. Missing/wrong primary update fails the corresponding prerequisite in the two-case denominator.",
+  "purpose": "Old-event reviewer decisions after actual update; not execution of the learned algorithm and not production effect."
+}

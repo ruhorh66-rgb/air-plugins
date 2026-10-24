@@ -189,7 +189,7 @@ func TestLearningFailureAdapterChild(t *testing.T) {
 	case "native-invalid-model", "native-duplicate", "native-secret", "native-empty":
 		// Run the production adapter command and printer. Only the provider seam
 		// is deterministic; the persisted diagnostic contract is not mocked.
-		learningReviewerInvoke = func(string, string, string, string) (string, error) {
+		learningReviewerInvoke = func(string, string, string, string, string) (string, error) {
 			switch mode {
 			case "native-invalid-model":
 				return "not-json", nil

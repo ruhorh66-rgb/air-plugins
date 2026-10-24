@@ -1,0 +1,54 @@
+{
+    "schema":  "air-worker.hlp03-corpus-freeze/v1",
+    "series":  "R4_HOLDOUT",
+    "frozen_at_utc":  "2026-10-24T07:19:04.1556791Z",
+    "source_base_sha":  "2524960bdb950bc075bb7cbebccbcf9bf933efb8",
+    "candidate_source_hashes":  {
+                                    "adapter_sha256":  "055476faefc3aa4aed82e16eddbbfdbd42ac8dc0290ba323989865ebce4f27da",
+                                    "harness_sha256":  "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+                                    "runner_sha256":  "e91c63125bf208ca84acfd9791001d8a40cf431a05004be6b269b8149990dfde",
+                                    "binary_sha256":  "990474ed81bfabaac020f634de4e97154825d1beba5aee4fe7d0b290570a6195"
+                                },
+    "corpus_path":  "cmd/testdata/hlp03_reviewer_corpus_20261024_r4_holdout.json",
+    "corpus_sha256":  "fe6617a86dff8b492aeb8d1a19475f66a53eab2ff518e9f48308596134be1338",
+    "gold_path":  "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R4_HOLDOUT.json",
+    "gold_sha256":  "68d89ea721b405dd26f1b95785b4c2c245fd02608c572b3dc04d939faf06d151",
+    "protocol_path":  "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R4.json",
+    "protocol_sha256":  "7f24d89040a5ac2c8c431819489f3832ed4ec677d471a47de117513db6d0f804",
+    "case_count":  6,
+    "case_ids":  [
+                     "C41",
+                     "C42",
+                     "C43",
+                     "C44",
+                     "C45",
+                     "C46"
+                 ],
+    "classes":  {
+                    "no_candidate":  2,
+                    "update":  2,
+                    "create":  2
+                },
+    "seed_identities":  [
+                            {
+                                "target":  "skills/learned/remove-one-literal-prefix.md",
+                                "sha256":  "a927a2f2b66d3ee8ef391798e1de9b212f3765ebf27c0ed4ddb3d0d868036fbe"
+                            },
+                            {
+                                "target":  "skills/learned/sort-whole-number-text-numerically.md",
+                                "sha256":  "04f898da3ee0bd92b28be5b53a3772aaf868ced23ddccb5845cb662438057309"
+                            }
+                        ],
+    "model":  "gpt-5.6-luna",
+    "effort":  "medium",
+    "labels_excluded_from_input":  true,
+    "posthoc_relabeling_allowed":  false,
+    "retry_policy":  "ONE_ATTEMPT_PER_CASE_PER_FROZEN_CANDIDATE",
+    "followup_design":  "docs/tasks/HLP03_FOLLOWUP_DESIGN_20261024_R4.json",
+    "followup_design_sha256":  "192bf783b85cc1b7c698769328f1c41fbc45aab0b21c3854237b8f8ac9e2a225",
+    "followup_gold_sha256":  "ea5af8227bc5297ed0cb83ef5c0f2c223627bf47cc65a7ccfd9918a2c8aa74f8",
+    "production_effect":  "NOT_PROVEN",
+    "r4_learning_reviewer_calls_before_freeze":  0,
+    "source_qa_sha256":  "5cfd1330da8c5bbdead53c3fd86fb50a356248b078712e84ed3573fbba13ad4d",
+    "coordinator_runner_qa_sha256":  "c24dc63604d9b6464c5dcd60e2a101040b4f6978c2b530650476e62da3d119c4"
+}

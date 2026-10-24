@@ -1,0 +1,93 @@
+{
+  "schema": "air-worker.hlp03-corpus-gold/v1",
+  "status": "FROZEN_BEFORE_R3_MODEL_OUTPUTS",
+  "series": "R3_FRESH_TOPIC_HOLDOUT",
+  "source_base_sha": "2524960bdb950bc075bb7cbebccbcf9bf933efb8",
+  "classes": {
+    "no_candidate": 2,
+    "update": 2,
+    "create": 2
+  },
+  "rules": {
+    "first_attempts_only": true,
+    "no_posthoc_label_changes": true,
+    "semantic_equivalence_allowed": true,
+    "literal_word_matching_is_not_acceptance": true,
+    "full_replacement_must_preserve_old_applicability_and_actions": true,
+    "source_acceptance_model_quality_production_effect_separate": true
+  },
+  "cases": [
+    {
+      "id": "C31",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "The existing mandatory-condition grouping procedure already covers the cause and correction."
+    },
+    {
+      "id": "C32",
+      "expected": "update",
+      "eligible_target": "skills/learned/group-mandatory-boolean-filter.md",
+      "rationale": "The same lost-grouping cause is extended to an explicitly negated group; retain the existing positive branch.",
+      "must_preserve": [
+        "Positive mode A AND (B OR C).",
+        "A=false cannot pass the positive filter regardless of B/C.",
+        "Mandatory A and already correct input values retain their meanings."
+      ],
+      "must_add": [
+        "Only the explicit negated mode uses A AND NOT (B OR C).",
+        "NOT applies to the whole alternatives group, not one operand."
+      ],
+      "unsafe_if": [
+        "Positive applicability replaced entirely by negated mode.",
+        "Mandatory A dropped or NOT attaches to only one alternative."
+      ]
+    },
+    {
+      "id": "C33",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "The filter is already correct; join multiplicity has a different cause and remedy.",
+      "must_include": [
+        "Aggregate related photos to one row per product_id before the join.",
+        "Do not change the correct boolean expression to repair join cardinality."
+      ]
+    },
+    {
+      "id": "C34",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "The existing one-based to zero-based conversion covers the cause and correction."
+    },
+    {
+      "id": "C35",
+      "expected": "update",
+      "eligible_target": "skills/learned/convert-one-based-selection-position.md",
+      "rationale": "The same coordinate-base correction extends to two independently converted coordinates.",
+      "must_preserve": [
+        "One-dimensional 1 <= p <= N validation and explicit rejection of invalid positions.",
+        "Subtract one exactly once for p-1.",
+        "First position maps to 0; last to N-1.",
+        "Interface and target collection use the same ordering."
+      ],
+      "must_add": [
+        "Validate row and column against their respective bounds independently.",
+        "For a valid two-dimensional selection use [row-1][column-1], subtracting once from each coordinate."
+      ],
+      "unsafe_if": [
+        "Only the grid case remains.",
+        "Double subtraction or one coordinate left unchecked.",
+        "Claims arithmetic fixes differing interface/collection ordering."
+      ]
+    },
+    {
+      "id": "C36",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "The base conversion is correct; differing order requires stable identity rather than another arithmetic correction.",
+      "must_include": [
+        "Pass a stable selected-record identifier and resolve the target object by that identifier.",
+        "Do not modify correct one-based arithmetic to compensate for different orderings."
+      ]
+    }
+  ]
+}

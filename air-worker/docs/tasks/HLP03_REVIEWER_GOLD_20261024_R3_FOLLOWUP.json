@@ -1,0 +1,32 @@
+{
+  "schema": "air-worker.hlp03-corpus-gold/v1",
+  "status": "FROZEN_BEFORE_R3_MODEL_OUTPUTS",
+  "series": "R3_OLD_CASES_AFTER_UPDATE",
+  "classes": {
+    "no_candidate": 2,
+    "update": 0,
+    "create": 0
+  },
+  "rules": {
+    "first_attempts_only": true,
+    "no_posthoc_label_changes": true,
+    "semantic_equivalence_allowed": true,
+    "literal_word_matching_is_not_acceptance": true,
+    "full_replacement_must_preserve_old_applicability_and_actions": true,
+    "source_acceptance_model_quality_production_effect_separate": true
+  },
+  "cases": [
+    {
+      "id": "C37",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "The actual updated procedure must continue to cover this old cause and corrective action."
+    },
+    {
+      "id": "C38",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "The actual updated procedure must continue to cover this old cause and corrective action."
+    }
+  ]
+}

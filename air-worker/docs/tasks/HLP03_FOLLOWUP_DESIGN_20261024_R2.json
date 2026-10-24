@@ -1,0 +1,52 @@
+{
+  "schema": "air-worker.hlp03-followup-design/v1",
+  "status": "FROZEN_BEFORE_R2_MODEL_OUTPUTS",
+  "cases": [
+    {
+      "id": "C25",
+      "primary_case_id": "C14",
+      "target": "skills/learned/normalize-explicit-length-units.md",
+      "event": {
+        "kind": "failure",
+        "class": "length-comparison",
+        "observed": "The two input lengths are A=900 mm and B=1 m. The parser produced the intended numeric values and units, but comparing 900 to 1 incorrectly selected A as the longer length.",
+        "outcome": "A single explicit conversion to metres produced A=0.9 m and B=1 m; numeric comparison then selected B. Original input fields were retained."
+      }
+    },
+    {
+      "id": "C26",
+      "primary_case_id": "C17",
+      "target": "skills/learned/closed-interval-overlap.md",
+      "event": {
+        "kind": "failure",
+        "class": "interval-overlap",
+        "observed": "The valid closed intervals [1,3] and [3,5] were reported as nonoverlapping because a strict boundary comparison excluded their shared endpoint.",
+        "outcome": "Using max(start1,start2) <= min(end1,end2) reported overlap at 3. Closed remains the declared or default mode."
+      }
+    },
+    {
+      "id": "C27",
+      "primary_case_id": "C20",
+      "target": "skills/learned/verify-complete-artifact-sha256.md",
+      "event": {
+        "kind": "failure",
+        "class": "artifact-verification",
+        "observed": "A transferred file exists under the expected name, but the transfer omitted a block of bytes. Its full SHA-256 does not match the trusted expected digest.",
+        "outcome": "The truncated file was rejected. Receiving the complete original bytes produced a matching digest; filename and timestamps were not treated as integrity evidence."
+      }
+    },
+    {
+      "id": "C28",
+      "primary_case_id": "C23",
+      "target": "skills/learned/compare-three-part-numeric-versions.md",
+      "event": {
+        "kind": "failure",
+        "class": "version-selection",
+        "observed": "A list contains 2.9.0 and 2.10.0. Lexical sorting incorrectly picked 2.9.0 as newer.",
+        "outcome": "Comparing the parsed major, minor and patch integers selected 2.10.0. The original spelling was kept for display."
+      }
+    }
+  ],
+  "derivation_rule": "For each designated primary case, retain all original holdout seeds except replace target body with that case's actual canonical candidate content, only if actual decision is update with correct target/preSHA and successful module lifecycle. Never edit/rewrite the candidate. Use a fresh module fixture; query the frozen old event. Missing/wrong primary update is a failed prerequisite in the four-case denominator, not silently excluded.",
+  "purpose": "Reviewer on old applicability after an update; this is not execution of the learned procedure or production effect"
+}

@@ -1,0 +1,124 @@
+{
+    "schema":  "air-worker.hlp03-corpus-freeze/v1",
+    "series":  "R2_FOLLOWUP",
+    "frozen_at_utc":  "2026-10-24T06:57:58.6208424Z",
+    "source_base_sha":  "2524960bdb950bc075bb7cbebccbcf9bf933efb8",
+    "candidate_source_hashes":  {
+                                    "adapter_sha256":  "337a34c15f7fd7f06426b3049bcfdbb85a36c9a55d7c5e4e52437a3fbca5a4c0",
+                                    "harness_sha256":  "961277bac635a49226bf36d1444c20fe6290d25fc831ce3e397fa5cceab1a49b",
+                                    "runner_sha256":  "04565081303bcdca6ca300a61f5c60ae6ba8c151f6d3ede774cac786a55ddeea",
+                                    "binary_sha256":  "b4bbd675b1407d0a31e0fec7f08e4371eee5781c03c2a451e8c3f660d8761b4b"
+                                },
+    "corpus_path":  "cmd/testdata/hlp03_reviewer_corpus_20261024_r2_followup.json",
+    "corpus_sha256":  "bb3ed9867e428e32af50c15c2996b911c927c7dd0b7864864047bd57431911fe",
+    "gold_path":  "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R2_FOLLOWUP.json",
+    "gold_sha256":  "2d0295cb4db485701df741b548f8c3292a39b9d865ac31b174407d71face27a7",
+    "protocol_path":  "docs/tasks/HLP03_EVALUATION_PROTOCOL_20261024_R2.json",
+    "protocol_sha256":  "c0a7ecd151d5966990886887639f738735ddfcfc4c570f6fc327a42e71068039",
+    "case_count":  4,
+    "case_ids":  [
+                     "C25",
+                     "C26",
+                     "C27",
+                     "C28"
+                 ],
+    "classes":  {
+                    "create":  0,
+                    "no_candidate":  4,
+                    "update":  0
+                },
+    "seed_identities":  [
+                            {
+                                "case_id":  "C25",
+                                "target":  "skills/learned/normalize-explicit-length-units.md",
+                                "sha256":  "e43791e0e0a65b8fa06f6f995055d7ab76a22903a3c647d16248517964575dff"
+                            },
+                            {
+                                "case_id":  "C25",
+                                "target":  "skills/learned/closed-interval-overlap.md",
+                                "sha256":  "dcaea0dbabcd8c97f7c439d8c9e693486b4336fa89d6e5aa4cd207fd369d4bb2"
+                            },
+                            {
+                                "case_id":  "C25",
+                                "target":  "skills/learned/verify-complete-artifact-sha256.md",
+                                "sha256":  "2a6a6e59a9639353f95e24065fd7dcb4372733af7240287435fe2b75f32343a6"
+                            },
+                            {
+                                "case_id":  "C25",
+                                "target":  "skills/learned/compare-three-part-numeric-versions.md",
+                                "sha256":  "082369e6e1ac60dbbdbdc8a3bed05f62790af80365f330a02cb326a6286909f8"
+                            },
+                            {
+                                "case_id":  "C26",
+                                "target":  "skills/learned/normalize-explicit-length-units.md",
+                                "sha256":  "ff64b5d36c4c2d1a97710f9be50241b04b2da7b961f2330918e51aa22639ec75"
+                            },
+                            {
+                                "case_id":  "C26",
+                                "target":  "skills/learned/closed-interval-overlap.md",
+                                "sha256":  "33ccddcd1fb1e0e4909a0a495a2164ae5fc7fd090ecf6e08ee789892f2d7eede"
+                            },
+                            {
+                                "case_id":  "C26",
+                                "target":  "skills/learned/verify-complete-artifact-sha256.md",
+                                "sha256":  "2a6a6e59a9639353f95e24065fd7dcb4372733af7240287435fe2b75f32343a6"
+                            },
+                            {
+                                "case_id":  "C26",
+                                "target":  "skills/learned/compare-three-part-numeric-versions.md",
+                                "sha256":  "082369e6e1ac60dbbdbdc8a3bed05f62790af80365f330a02cb326a6286909f8"
+                            },
+                            {
+                                "case_id":  "C27",
+                                "target":  "skills/learned/normalize-explicit-length-units.md",
+                                "sha256":  "ff64b5d36c4c2d1a97710f9be50241b04b2da7b961f2330918e51aa22639ec75"
+                            },
+                            {
+                                "case_id":  "C27",
+                                "target":  "skills/learned/closed-interval-overlap.md",
+                                "sha256":  "dcaea0dbabcd8c97f7c439d8c9e693486b4336fa89d6e5aa4cd207fd369d4bb2"
+                            },
+                            {
+                                "case_id":  "C27",
+                                "target":  "skills/learned/verify-complete-artifact-sha256.md",
+                                "sha256":  "5a62653f2f1658e23deb3d724758b007eeabbc3f0156140de24f2520182a429a"
+                            },
+                            {
+                                "case_id":  "C27",
+                                "target":  "skills/learned/compare-three-part-numeric-versions.md",
+                                "sha256":  "082369e6e1ac60dbbdbdc8a3bed05f62790af80365f330a02cb326a6286909f8"
+                            },
+                            {
+                                "case_id":  "C28",
+                                "target":  "skills/learned/normalize-explicit-length-units.md",
+                                "sha256":  "ff64b5d36c4c2d1a97710f9be50241b04b2da7b961f2330918e51aa22639ec75"
+                            },
+                            {
+                                "case_id":  "C28",
+                                "target":  "skills/learned/closed-interval-overlap.md",
+                                "sha256":  "dcaea0dbabcd8c97f7c439d8c9e693486b4336fa89d6e5aa4cd207fd369d4bb2"
+                            },
+                            {
+                                "case_id":  "C28",
+                                "target":  "skills/learned/verify-complete-artifact-sha256.md",
+                                "sha256":  "2a6a6e59a9639353f95e24065fd7dcb4372733af7240287435fe2b75f32343a6"
+                            },
+                            {
+                                "case_id":  "C28",
+                                "target":  "skills/learned/compare-three-part-numeric-versions.md",
+                                "sha256":  "eed623a1649cb6a8978b5bcf393322717fa633b4638ec280e4a4474a6fcacb7e"
+                            }
+                        ],
+    "model":  "gpt-5.6-luna",
+    "effort":  "medium",
+    "labels_excluded_from_input":  true,
+    "posthoc_relabeling_allowed":  false,
+    "retry_policy":  "ONE_ATTEMPT_PER_CASE_PER_FROZEN_CANDIDATE",
+    "followup_design":  "docs/tasks/HLP03_FOLLOWUP_DESIGN_20261024_R2.json",
+    "followup_design_sha256":  "958c7992b81cd4cb0700dde5334f145b40b2ec9877aba737b51cef7c1e90d37b",
+    "followup_gold_sha256":  "2d0295cb4db485701df741b548f8c3292a39b9d865ac31b174407d71face27a7",
+    "production_effect":  "NOT_PROVEN",
+    "followup_reviewer_calls_before_freeze":  0,
+    "primary_summary_sha256":  "2b477c687a427dfc10bf6c67701899aec33844f199f25436da71f4240a73f019",
+    "derivation_sha256":  "486f153bd8b383f269f6dcaedc5cb990e685d16d82902b58058e881173f8e9df"
+}

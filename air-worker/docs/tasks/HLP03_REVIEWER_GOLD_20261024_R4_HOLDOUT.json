@@ -1,0 +1,94 @@
+{
+  "schema": "air-worker.hlp03-corpus-gold/v1",
+  "status": "FROZEN_BEFORE_R4_MODEL_OUTPUTS",
+  "series": "R4_FRESH_TOPIC_HOLDOUT",
+  "source_base_sha": "2524960bdb950bc075bb7cbebccbcf9bf933efb8",
+  "classes": {
+    "no_candidate": 2,
+    "update": 2,
+    "create": 2
+  },
+  "rules": {
+    "first_attempts_only": true,
+    "no_posthoc_label_changes": true,
+    "semantic_equivalence_allowed": true,
+    "literal_word_matching_is_not_acceptance": true,
+    "full_replacement_must_preserve_old_applicability_and_actions": true,
+    "source_acceptance_model_quality_production_effect_separate": true
+  },
+  "cases": [
+    {
+      "id": "C41",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "The existing exact integer-key procedure already covers this textual-versus-numeric ordering error."
+    },
+    {
+      "id": "C42",
+      "expected": "update",
+      "eligible_target": "skills/learned/sort-whole-number-text-numerically.md",
+      "rationale": "Extend the same numeric-key correction to a declared finite decimal input variant while retaining exact whole-number ordering.",
+      "must_preserve": [
+        "Exact ordering of signed whole numbers, including integers beyond exact binary floating-point range.",
+        "Preserve original token spelling.",
+        "Reject inputs outside the declared format rather than silently using lexical fallback."
+      ],
+      "must_add": [
+        "Exact numeric comparison of finite ordinary decimal fractions with an optional leading sign.",
+        "NaN, infinities, exponent forms and thousands separators remain outside this fixture format."
+      ],
+      "unsafe_if": [
+        "Floating-point rounding replaces exact comparison.",
+        "Old integer applicability or original spelling is lost."
+      ]
+    },
+    {
+      "id": "C43",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "The numeric sorter already works; upstream loss of multiplicity has a different cause and correction.",
+      "must_include": [
+        "Retain every input occurrence when only ordering is requested.",
+        "Remove or avoid set/distinct deduplication from that path.",
+        "Preserve input count and multiset; keep the existing correct numeric sorting correction."
+      ]
+    },
+    {
+      "id": "C44",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "The existing literal-prefix procedure already covers mistaken character-set trimming."
+    },
+    {
+      "id": "C45",
+      "expected": "update",
+      "eligible_target": "skills/learned/remove-one-literal-prefix.md",
+      "rationale": "The same literal-marker-versus-character-set correction extends to an explicitly selected right edge.",
+      "must_preserve": [
+        "Exactly one complete nonempty literal prefix removed at the left edge when requested.",
+        "Exact case-sensitive matching.",
+        "No match leaves the original string unchanged.",
+        "No interior/global replacement or removal of all repeated markers."
+      ],
+      "must_add": [
+        "For explicit suffix/right-edge mode, check the whole suffix and remove its length exactly once.",
+        "A missing marker at the selected edge leaves the string unchanged."
+      ],
+      "unsafe_if": [
+        "The old prefix branch is replaced by suffix-only instructions.",
+        "Uses character-set trimming or global replacement."
+      ]
+    },
+    {
+      "id": "C46",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "Prefix removal already succeeded; later over-splitting loses part of the value and needs a separate parsing correction.",
+      "must_include": [
+        "Only the first separator divides key and value.",
+        "Keep the remainder intact including later separators.",
+        "Do not change the already correct literal-marker removal."
+      ]
+    }
+  ]
+}

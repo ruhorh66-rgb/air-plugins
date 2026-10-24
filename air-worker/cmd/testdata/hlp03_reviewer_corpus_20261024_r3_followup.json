@@ -1,0 +1,43 @@
+{
+  "schema": "air-worker.hlp03-corpus-input/v1",
+  "cases": [
+    {
+      "id": "C37",
+      "procedures": [
+        {
+          "target": "skills/learned/group-mandatory-boolean-filter.md",
+          "body": "# Group alternatives under the mandatory boolean condition\n\n## When to apply\nWhen a boolean filter requires mandatory condition A and at least one positive alternative B or C. All boolean values have already been computed correctly. When an explicit mode negates the alternatives, apply the negation to the complete grouped alternatives while preserving A.\n\n## Procedure\n1. Group the alternatives as (B OR C).\n2. In positive mode, combine the group with the mandatory condition as A AND (B OR C).\n3. In explicitly negated mode, combine the mandatory condition with the negated group as A AND NOT (B OR C).\n4. Verify that A=false produces false regardless of the values of B and C.\n\n## Pitfalls\nDo not emit A AND B OR C without grouping. Do not negate only B or change the meaning of the already computed input values. Do not drop the mandatory condition.\n"
+        },
+        {
+          "target": "skills/learned/convert-one-based-selection-position.md",
+          "body": "# Convert one-based selection positions to zero-based indices\n\n## When to apply\nWhen a user selects one-based position p in a one-dimensional list of length N, and the interface and target collection use the same element ordering.\n\n## Procedure\n1. Validate that 1 <= p <= N; reject an invalid position explicitly.\n2. Subtract one exactly once and access index p-1.\n3. The first position maps to index 0 and the last position maps to N-1.\n\n## Pitfalls\nDo not use a one-based position directly as an index or subtract one twice. This arithmetic assumes the interface and target collection have the same ordering.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "boolean-filter",
+        "observed": "In positive mode, a record with A=false, B=true and C=true incorrectly passes the generated A AND B OR C expression.",
+        "outcome": "Using A AND (B OR C) makes the record fail as required while preserving the positive alternatives."
+      }
+    },
+    {
+      "id": "C38",
+      "procedures": [
+        {
+          "target": "skills/learned/group-mandatory-boolean-filter.md",
+          "body": "# Group alternatives under the mandatory boolean condition\n\n## When to apply\nWhen a boolean filter requires mandatory condition A and at least one positive alternative B or C. All boolean values have already been computed correctly.\n\n## Procedure\n1. Group the alternatives as (B OR C).\n2. Combine the group with the mandatory condition as A AND (B OR C).\n3. Verify that A=false produces false regardless of the values of B and C.\n\n## Pitfalls\nDo not emit A AND B OR C without grouping. Do not drop the mandatory condition or change the meaning of the already computed input values.\n"
+        },
+        {
+          "target": "skills/learned/convert-one-based-selection-position.md",
+          "body": "# Convert one-based selection positions to zero-based indices\n\n## When to apply\nWhen a user selects a one-based position p in a one-dimensional list of length N, or one-based row r and column c in a grid, and the interface and target collection use the same element ordering.\n\n## Procedure\n1. For a one-dimensional list, validate that 1 <= p <= N; reject an invalid position explicitly.\n2. For a grid, validate row and column bounds independently against their respective dimensions; reject an invalid coordinate explicitly.\n3. Subtract one exactly once from each supplied position or coordinate, then access index p-1 for a list or grid[r-1][c-1] for a grid.\n4. The first position maps to index 0 and the last position maps to N-1; for a grid, the first row and column map to index 0 in their respective dimensions.\n\n## Pitfalls\nDo not use a one-based position directly as an index or subtract one twice. For grids, do not convert only one coordinate. This arithmetic assumes the interface and target collection have the same ordering.\n"
+        }
+      ],
+      "event": {
+        "kind": "failure",
+        "class": "selection-index",
+        "observed": "In the one-dimensional list [A, B, C, D], displayed and stored in the same order, the last position 4 was used directly as index 4 and was outside the collection.",
+        "outcome": "Validating the position and converting 4-1=3 returned D; the position was converted only once."
+      }
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "schema": "air-worker.hlp03-r4-evaluation-protocol/v1",
+  "status": "FIXED_BEFORE_R4_LEARNING_REVIEWER_OUTPUTS",
+  "source_base_sha": "2524960bdb950bc075bb7cbebccbcf9bf933efb8",
+  "model": "gpt-5.6-luna",
+  "effort": "medium",
+  "candidate_frozen_for_all_series": true,
+  "reason": "Keep R3 semantic prompt; constrain choices through the existing JSON schema using trusted eligible identities and retain the exact pair validator. Repair resource enumeration and fatal-error child cleanup. R3 SHA typo and wrapper failure remain immutable.",
+  "series": [
+    {
+      "id": "HLP03_R4_DEVELOPMENT_20261024",
+      "kind": "known_development_regression",
+      "cases": 24,
+      "corpus": "cmd/testdata/hlp03_reviewer_corpus_20261024_r4_development.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R4_DEVELOPMENT.json",
+      "rule": "Union of the unchanged old twelve and R2 twelve cases/gold. These are known development data; one new candidate attempt each, no replacement of earlier outcomes."
+    },
+    {
+      "id": "HLP03_R4_HOLDOUT_20261024",
+      "kind": "fresh_topic_holdout",
+      "cases": 6,
+      "corpus": "cmd/testdata/hlp03_reviewer_corpus_20261024_r4_holdout.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R4_HOLDOUT.json",
+      "rule": "Fresh topics and labels frozen before any R4 reviewer call. No candidate/input/gold changes or retries after outputs."
+    },
+    {
+      "id": "HLP03_R4_FOLLOWUP_20261024",
+      "kind": "old_case_after_update",
+      "cases": 2,
+      "design": "docs/tasks/HLP03_FOLLOWUP_DESIGN_20261024_R4.json",
+      "gold": "docs/tasks/HLP03_REVIEWER_GOLD_20261024_R4_FOLLOWUP.json",
+      "rule": "Copy actual designated updates verbatim into fresh module seeds; freeze derived corpus before calls. Missing/wrong update fails prerequisite and remains in denominator."
+    }
+  ],
+  "attempts_per_case": 1,
+  "total_designated_attempts": 32,
+  "no_model_fallback": true,
+  "no_posthoc_label_changes": true,
+  "no_selective_reruns": true,
+  "metrics": {
+    "class_identity": "All designated cases in each series, including technical failures; no_candidate requires real successful canonical {}.",
+    "content": "Independent semantic review of complete replacement against frozen old/additional invariants. Equivalent wording/formulas accepted; literal keyword matching is insufficient.",
+    "followup": "Both frozen old events must yield no_candidate with their actual updated bodies; count failed prerequisites as failure.",
+    "usage": "Separate each series; only learning reviewer usage, authoring and independent review excluded. Missing usage null, never zero.",
+    "comparison": "Known development is the unchanged union of R1/R2 cases; descriptive regression only. Fresh R2/R3/R4 topics and sizes differ; scores are not a controlled estimate of improvement."
+  },
+  "acceptance": {
+    "source": "Targeted reviewer/evidence tests, vet/build, current harness real run, independent source review; separate from content quality.",
+    "model": "Each series passes only if every designated case has the required class/exact identity/content preservation, no unsafe scope loss/false merge/incomplete update or contamination and complete real provider evidence.",
+    "production_effect": "NOT_PROVEN by any synthetic series; installed delivery, natural use and useful effect remain separate."
+  },
+  "resources": {
+    "standard": "DEV-137 v1.1.0",
+    "working_estimate_bytes": 2147483648,
+    "hard_os_quota": false,
+    "max_concurrent_runs": 1,
+    "max_run_seconds": 1800,
+    "max_case_timeout_ms": 240000,
+    "sample_seconds": 15,
+    "full_DEV137_acceptance": "NOT_CLAIMED"
+  },
+  "constraints": {
+    "node": "SRVLM01",
+    "existing_checkout_only": true,
+    "installed_runtime_unchanged": true,
+    "native_PLAN_N_LEARN_unchanged": true,
+    "foreign_WIP_preserved": true,
+    "AIR_ENV_002_used": false
+  },
+  "prior_failures_preserved": {
+    "R1": "class11/12, complete8/12, initial cleanup instrumentation exit1",
+    "R2": "class10/12 development,10/12 holdout,4/4 followups; four false merges",
+    "R3": "class/identity11/12 development with C02 invalid SHA,6/6 holdout,2/2 followups; development wrapper sampling failure and missing OS exit retained"
+  },
+  "schema_limits": "Separate target and SHA enums constrain individual strings but do not establish pair correctness; final exact-pair validator and catalogue freshness remain mandatory.",
+  "resource_measurement": "Incomplete directory-enumeration samples must be marked. A sample is not a hard resource quota or proof of full DEV-137 compliance."
+}

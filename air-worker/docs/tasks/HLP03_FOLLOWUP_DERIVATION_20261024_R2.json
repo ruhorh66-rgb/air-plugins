@@ -1,0 +1,42 @@
+{
+  "schema": "air-worker.hlp03-followup-derivation/v1",
+  "series": "R2",
+  "designated_denominator": 4,
+  "runnable_count": 4,
+  "failed_prerequisites": 0,
+  "derivation": "Actual canonical candidate content copied verbatim into only its designated seed; other seeds and frozen events unchanged. No answers rewritten.",
+  "cases": [
+    {
+      "id": "C25",
+      "primary_case_id": "C14",
+      "target": "skills/learned/normalize-explicit-length-units.md",
+      "prerequisite": "PASS",
+      "primary_pre_sha256": "ff64b5d36c4c2d1a97710f9be50241b04b2da7b961f2330918e51aa22639ec75",
+      "actual_updated_sha256": "e43791e0e0a65b8fa06f6f995055d7ab76a22903a3c647d16248517964575dff"
+    },
+    {
+      "id": "C26",
+      "primary_case_id": "C17",
+      "target": "skills/learned/closed-interval-overlap.md",
+      "prerequisite": "PASS",
+      "primary_pre_sha256": "dcaea0dbabcd8c97f7c439d8c9e693486b4336fa89d6e5aa4cd207fd369d4bb2",
+      "actual_updated_sha256": "33ccddcd1fb1e0e4909a0a495a2164ae5fc7fd090ecf6e08ee789892f2d7eede"
+    },
+    {
+      "id": "C27",
+      "primary_case_id": "C20",
+      "target": "skills/learned/verify-complete-artifact-sha256.md",
+      "prerequisite": "PASS",
+      "primary_pre_sha256": "2a6a6e59a9639353f95e24065fd7dcb4372733af7240287435fe2b75f32343a6",
+      "actual_updated_sha256": "5a62653f2f1658e23deb3d724758b007eeabbc3f0156140de24f2520182a429a"
+    },
+    {
+      "id": "C28",
+      "primary_case_id": "C23",
+      "target": "skills/learned/compare-three-part-numeric-versions.md",
+      "prerequisite": "PASS",
+      "primary_pre_sha256": "082369e6e1ac60dbbdbdc8a3bed05f62790af80365f330a02cb326a6286909f8",
+      "actual_updated_sha256": "eed623a1649cb6a8978b5bcf393322717fa633b4638ec280e4a4474a6fcacb7e"
+    }
+  ]
+}
