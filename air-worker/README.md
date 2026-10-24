@@ -1,5 +1,9 @@
 # air-worker
 
+## Explicit GPT procedure delivery (source candidate)
+
+In GPT or AIR Commander, inspect `air-worker learn self status -json`, then discover the pinned owner's current procedures with `air-worker learn index -product <owner product_root> -json`. Load one exact entry with `air-worker learn self load -principal <p> -session-key <k> -run-id <r> -target <catalog target> -expected-sha256 <catalog sha256> -json`. Read the returned `context` before a suitable native action. Keep the principal, session key and run ID stable for that delivery; the response and current-context receipt identify exactly the requested target@SHA. Loaded means delivered to context, not used or shown to have a useful effect. This source capability is a candidate until installed; ChatGPT does not run these hooks automatically.
+
 ## 0.11.9 candidate — machine-verifiable shared learning (source accepted; release gated)
 
 The AirWorker executable and dual-host Claude/Codex plugin consume the published `air-modules/learning v0.1.0`, without duplicating its writer. The native CLI records a signed failure (`run_id` and source), applies only an independently reviewed safe Markdown procedure, then credits it **only after** exact-SHA `skill_loaded`, a real later `procedure_used` and independently verified outcome/effect. In the accepted example, missing `run-config.json` causes **deferred validation** and prevents one redundant retry; this **is not a validation PASS**. A proposal, loaded file or signed intent without a final result is not successful use.
