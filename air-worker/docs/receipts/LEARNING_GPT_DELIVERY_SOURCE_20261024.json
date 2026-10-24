@@ -1,0 +1,123 @@
+{
+  "schema": "air-worker.learning.gpt-delivery-source/v1",
+  "status": "PASS_FUNCTIONAL_SOURCE_SCOPE",
+  "observed_at_utc": "2026-10-24T02:54:26.5500729Z",
+  "base_source_sha": "ef86217c32f8c13c95bae17481c5b8aa8a379c82",
+  "reviewed_source_sha": "33f9b916fbabca4ddeef1e662e9855dcd8b93b46",
+  "branch": "dev/airworker-learning-loop-20261024",
+  "module_dependency": "github.com/ruhorh66-rgb/air-modules v0.1.1",
+  "command": "air-worker learn self load -principal <p> -session-key <k> -run-id <r> -target <catalog target> -expected-sha256 <catalog sha256> -json",
+  "changed_paths": [
+    "README.md",
+    "cmd/learn.go",
+    "cmd/self_learning.go",
+    "cmd/self_learning_load.go",
+    "cmd/self_learning_load_test.go"
+  ],
+  "file_sha256": {
+    "README.md": "73f395716c6582574368c81f10ca41e5731833845e485c6d32a11d0d95a5715b",
+    "cmd/learn.go": "8ba15da2d96a9020ef6d76715cc47206f2ee5ba440f496bdb0e892a8becc8e17",
+    "cmd/self_learning.go": "ef1a44e4400886f2075233045dec5eb15525adf803c0676b612e90e5294b99e2",
+    "cmd/self_learning_load.go": "b710fa6056eb9b5decc422fabbbcdec96650579deb0c7f635dbf4e47a1326537",
+    "cmd/self_learning_load_test.go": "012c2a764acc0065ab4fc016dc3d0c4585340e6a90744a5013adaf0a68f09588"
+  },
+  "behavior": [
+    "Selects exactly one requested target@SHA from the active pinned owner's verified current APPLIED catalog, without the hook's first-eight recency restriction.",
+    "Reuses the existing bounded SHA-checking file reader and module context event; writes the existing current-context receipt for the normalized principal/session/run identity.",
+    "Returns the actual procedure context, exact target/SHA/rule ID and receipt path as JSON. Invalid, untracked, stale, foreign, disabled-owner and no-fit requests fail closed.",
+    "A current-context refresh replaces the selected rule snapshot and does not retain earlier used/outcome claims.",
+    "Receipt or stdout write failure returns nonzero. Preparation/skill_loaded and possibly a context receipt can already exist before that failure; they are not proof of successful host transport.",
+    "No procedure_used, effect, permission grant, model review or Markdown execution is performed by this delivery command."
+  ],
+  "success_contract": [
+    "exit code 0",
+    "complete JSON actually received by the caller",
+    "requested body and exact target@SHA in that JSON",
+    "matching principal/session/run current-context receipt"
+  ],
+  "verification": {
+    "platform": "Windows",
+    "test_command": "go test . -run ^(TestSelfLoad|TestAirWorkerSelfLearning|TestShared.*Context|TestN093ActualNativeTypedUse|TestN093FreshProcess|TestN093ChangedModule|TestN093Finalization|TestN093TypedReceiptTamper|TestN093LateConfig) -count=1 -timeout 120s -json",
+    "test_exit_code": 0,
+    "passed_records": 65,
+    "failed_records": 0,
+    "skipped_records": 0,
+    "qa_raw_sha256": "70370c43ea7fc226932c0af1e88fa7598ec651cd49e4a825bc7d1562412840ee",
+    "qa_summary_sha256": "5cc4396ad6087453d7f998f0b6aa7fb06fde98fba629546b8d27c812dd3e0253",
+    "vet_exit_code": 0,
+    "build_exit_code": 0,
+    "binary_sha256": "2128143703c74d823a7bbcd47e07e389be2da7c39c07b8a359e32ab4af74fc47",
+    "release_artifact": false,
+    "diff_check_exit_code": 0,
+    "coverage": "Real cmdLearn/cmdLearnSelf delivery and current-context contracts, failure cases, refresh/idempotency, and existing independent N093 signed native use/result regression. No real model provider calls in tests."
+  },
+  "implementation_evidence": {
+    "route": "Two native executor tasks, coordinator correction/verification, then independent read-only Codex review",
+    "native_executor_models": [
+      {
+        "model": "gpt-6-sol",
+        "effort": "low",
+        "status": "DONE",
+        "exit_code": 0
+      },
+      {
+        "model": "gpt-6-sol",
+        "effort": "medium",
+        "status": "DONE",
+        "exit_code": 0
+      }
+    ],
+    "coordinator_corrections": [
+      "Normalize run ID consistently in output, events and receipt.",
+      "Return failure on JSON output error.",
+      "Exercise real rejection/receipt/output/no-fit/refresh contracts and prove requested skill is outside normal first eight."
+    ],
+    "native_orchestrate_or_autonomous_loop_proven": false
+  },
+  "independent_review": {
+    "model": "gpt-6-sol",
+    "effort": "medium",
+    "sandbox": "read-only",
+    "exit_code": 0,
+    "verdict_sha256": "538b6de144b4fa39878837247761e0b01e9111fbd94776b32d6f32ea4dfea925",
+    "verdict": {
+      "source_sha": "33f9b916fbabca4ddeef1e662e9855dcd8b93b46",
+      "decision": "PASS",
+      "p0_count": 0,
+      "p1_count": 0,
+      "findings": [],
+      "evidence": [
+        "Reviewed the five changed paths against ef86217c32f8c13c95bae17481c5b8aa8a379c82 and traced their direct production helper contracts.",
+        "cmd/self_learning_load.go validates identity, run ID, relative target and SHA; selects an exact entry from the shared verified APPLIED index; checks the body SHA through the bounded shared reader; writes the current-context receipt; and returns a JSON encoding error as a command failure.",
+        "cmd/self_learning_load_test.go exercises the CLI route and real shared-learning fixture, including selection beyond eight entries, stale and invalid inputs, receipt and stdout failures, no-fit delivery, and receipt refresh. Its assertions match the inspected helper contracts.",
+        "git diff --check was clean. The coordinator reported 65 passing Go test records, go vet and a source build on this commit; those executions were not repeated in this read-only review."
+      ],
+      "limitations": [
+        "PASS is a source-review verdict for the requested P0/P1 scope, not canonical semantic acceptance or proof of installed host delivery.",
+        "The review does not establish release or POSIX behavior, natural utility, continuous resource quota enforcement, or a cryptographic parent relation between this delivery and later typed preflight use. Successful host delivery still requires exit 0, complete received JSON and a matching receipt."
+      ]
+    }
+  },
+  "resources": {
+    "qa_temp_files_after": 0,
+    "reused_existing_worktree": true,
+    "reused_task_owned_cache": true,
+    "shared_cache_changed": false,
+    "continuous_peak_proven": false,
+    "hard_quota_enforcement_proven": false,
+    "full_resource_acceptance": "NOT_PROVEN"
+  },
+  "boundaries": {
+    "installed_product_changed": false,
+    "new_release_published": false,
+    "canonical_plan_or_learn_mutated": false,
+    "new_native_nodes": 0,
+    "whole_HLP04_accepted": false,
+    "primary_installed_GPT_delivery": "NOT_PROVEN",
+    "causal_GPT_delivery_to_native_use": "NOT_PROVEN",
+    "natural_use_or_effect": "NOT_PROVEN",
+    "POSIX_runtime_tested": false,
+    "existing_native_signed_use": "Regression verified independently; its air-worker/original-failure identity is not a cryptographic child of this GPT delivery receipt.",
+    "next_result": "Bind a specific delivered context to a subsequent allowed native action and its signed outcome, rejecting stale/foreign/replayed associations. Preserve separate real-opportunity and utility acceptance."
+  }
+}
