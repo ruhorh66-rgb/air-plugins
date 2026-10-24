@@ -1,0 +1,90 @@
+{
+  "schema": "air-worker.hlp03-independent-review/v1",
+  "reviewed_at_utc": "2026-10-24T06:08:15.6103527Z",
+  "reviewer": {"model": "gpt-6-astra", "effort": "medium", "mode": "independent_read_only_review"},
+  "source_harness_identities": {
+    "production_code_sha": "ca92aa4d2e6c1b8bf68954f1a3701611c3bfa632",
+    "source_head": "95a4377f35948f9396d59cfe86d1e1e5e29e2979",
+    "binary_sha256": "69343382ba477a74dddd5b86092e31281b45d5d0284d536d4a037fae0aa02021",
+    "harness_at_run_sha256": "2b0414a4aeaf713c74f8edcc1e1a1c90d3819a9967de4d36c37464ba30539091",
+    "harness_current_sha256": "3e41b440b7b5b2f68f45cae2dead810ea84dde16bc44216c6a4f74c7183d4add",
+    "corpus_sha256": "5bd30b95d7a31bcc6001c9ee828e2c797c7387e72766fa534021d605b28dea0e",
+    "gold_sha256": "5213e4bfc165e9bc560a9138230a8f0161def6279b6880ad469e92489cd98de5",
+    "freeze_sha256": "00225f480aa02b61e38054c058e5dc728f4eca11f7c9c23b639ff4f8239444fb",
+    "protocol_sha256": "ab2f04f9f2e192d54f5a2536d19c4173ca71767305e29a11df99028eff166f3b"
+  },
+  "source_review": {
+    "verdict": "CONDITIONAL_PASS_WITH_HARNESS_DEFECT",
+    "p0": [],
+    "p1": ["At-run harness registered its cleanup check after the first subtest t.TempDir. The check ran before Go removed the shared TempDir roots and failed all 12 subtests with cleanup_failed: <nil>. Current source moves registration before the first TempDir; that change was inspected but was not rerun."],
+    "p2": ["The command trace contamination check is heuristic; it cannot prove filesystem isolation or detect access outside the recorded native tool trace."],
+    "findings": [
+      "Frozen corpus and gold each contain 12 cases, four per expected class; hashes match freeze, launch, and run summary. Protocol was frozen before calls and fixes the all-12 denominator and no-retry rule.",
+      "Source HEAD, at-run harness, current harness, and pinned binary identities were checked independently. Production code remains at the stated reviewed SHA; the live harness is untracked source and changed only in cleanup registration order after the run.",
+      "At-run evaluator preserves raw adapter output, native JSONL, receipt, per-case fixture and lifecycle evidence. It records proposals and module results but does not itself adjudicate semantic content against gold; this receipt does so.",
+      "Launch and twelve native receipts specify gpt-5.6-luna at medium effort, runner codex, sandbox read-only. No stub, fallback, replay, retry, or second model attempt appears in the recorded run."
+    ]
+  },
+  "measurement_review": {
+    "verdict": "PROVIDER_MEASUREMENT_USABLE_WITH_RECORDED_HARNESS_FAILURE",
+    "limitations": [
+      "The original go test exit code is 1. It must not be reported as a passing harness run or treated as a model decision.",
+      "Native trace records one command execution in C08, which successfully read the vendor Ponytail SKILL.md; the other eleven show no tool calls. No recorded call accessed source, corpus, or gold. Trace heuristics do not establish complete filesystem isolation.",
+      "No provider rerun or full DEV-137 acceptance is claimed. Synthetic cases do not prove production effect.",
+      "Nine resource samples observe a 633697667-byte cache-plus-temp peak, below the 2147483648-byte working estimate; this is not a hard OS quota or a continuous peak measurement. Minimum sampled R: free space was 23097323520 bytes, above the 10 GiB and 10 percent shared-volume reserve."
+    ],
+    "baseline_go_exit_code": 1,
+    "cleanup_adjudication": "All twelve at-run result.json files record cleanup_failed: <nil> from the premature check. Original harness hash is retained; post-run audit and this review verified all twelve owned fixture roots absent after Go completed, and no provider PID remained. The current reordered cleanup registration was inspected without running another provider call.",
+    "provider_terminal": "12/12 turn.completed with native receipt status DONE; output model gpt-5.6-luna; reviewer usage observed in all twelve",
+    "attempts": "Exactly one first-attempt native response and adapter raw output per frozen case; no posthoc relabeling",
+    "duration_seconds": 118.5520027,
+    "module_lifecycle": "Four no_candidate cases left catalogues unchanged; five creates applied in separate fixtures; three updates applied with matching preSHA, verified backups, and successful rollback. Unrelated seed hashes remained unchanged. C02's extra skill is an incorrect duplicate despite successful module application.",
+    "protected_state": "Installed binary, native PLAN, release-slices, go.mod, and foreign learning-module pin matched launch, terminal, and current hashes; existing WIP was untouched.",
+    "full_DEV137_acceptance": "NOT_CLAIMED"
+  },
+  "quality_review": {
+    "verdict": "FAIL_THIS_CORPUS",
+    "total": 12,
+    "correct": 11,
+    "class_score": "11/12",
+    "identity_correct": 11,
+    "identity_score": "11/12",
+    "confusion": {
+      "rows_expected_columns_actual": ["no_candidate", "update", "create"],
+      "no_candidate": {"no_candidate": 4, "update": 0, "create": 0},
+      "update": {"no_candidate": 0, "update": 3, "create": 1},
+      "create": {"no_candidate": 0, "update": 0, "create": 4}
+    },
+    "boundary_group": {"ids": ["C02", "C05", "C08"], "class_correct": 2, "total": 3},
+    "other_group": {"class_correct": 9, "total": 9},
+    "per_case": [
+      {"id": "C01", "expected": "no_candidate", "actual": "no_candidate", "class_match": true, "identity_correct": true, "content_verdict": "CORRECT", "reason": "Exact main configuration path lesson already exists; raw provider declined and adapter returned {}."},
+      {"id": "C02", "expected": "update", "actual": "create", "class_match": false, "identity_correct": false, "content_verdict": "WRONG_CLASS_FALSE_SPLIT", "reason": "The new lesson correctly describes embedded relative paths but duplicates the existing configuration-path cause instead of updating the eligible target and retaining its main-file guidance. Raw provider set apply=true with empty update identity; adapter created a new target."},
+      {"id": "C03", "expected": "create", "actual": "create", "class_match": true, "identity_correct": true, "content_verdict": "CORRECT", "reason": "Distinct required-field schema repair after correct path resolution; seed guidance stays separate and unchanged."},
+      {"id": "C04", "expected": "no_candidate", "actual": "no_candidate", "class_match": true, "identity_correct": true, "content_verdict": "CORRECT", "reason": "Omitted cursor and exact transmission are already covered; raw provider declined and adapter returned {}."},
+      {"id": "C05", "expected": "update", "actual": "update", "class_match": true, "identity_correct": true, "content_verdict": "UNSAFE_SCOPE_LOSS", "reason": "Target and preSHA match, and serializer advice is useful, but the replacement narrows applicability to manual URL construction and drops the prior omitted-or-changed cursor case. Backup and rollback succeeded; a successful apply does not make the rewrite complete."},
+      {"id": "C06", "expected": "create", "actual": "create", "class_match": true, "identity_correct": true, "content_verdict": "CORRECT", "reason": "Separately handles server nonprogress after correct token transmission; terminates and marks partial output incomplete without merging client cursor guidance."},
+      {"id": "C07", "expected": "no_candidate", "actual": "no_candidate", "class_match": true, "identity_correct": true, "content_verdict": "CORRECT", "reason": "Confirmed UTF-8 single-decode failure is already covered; raw provider declined and adapter returned {}."},
+      {"id": "C08", "expected": "update", "actual": "update", "class_match": true, "identity_correct": true, "content_verdict": "UNSAFE_SCOPE_LOSS", "reason": "Target and preSHA match and leading-BOM handling preserves interior characters, but the replacement narrows applicability to BOM-related parser rejection and omits the earlier system-default-encoding corruption case. Backup and rollback succeeded."},
+      {"id": "C09", "expected": "create", "actual": "create", "class_match": true, "identity_correct": true, "content_verdict": "CORRECT", "reason": "Distinct producer double-serialization repair, with consumer single decode-and-parse retained; unrelated UTF-8 seed unchanged."},
+      {"id": "C10", "expected": "no_candidate", "actual": "no_candidate", "class_match": true, "identity_correct": true, "content_verdict": "CORRECT", "reason": "Terminal retryable upstream failure within existing bounded retry already covered; raw provider declined and adapter returned {}."},
+      {"id": "C11", "expected": "update", "actual": "update", "class_match": true, "identity_correct": true, "content_verdict": "INCOMPLETE_UPDATE", "reason": "Correct target, preSHA, and advertised-delay step, but replacement no longer states the three-total-attempt bound or explicitly requires the same input. It refers only to an unspecified existing limit and same job. Backup and rollback succeeded."},
+      {"id": "C12", "expected": "create", "actual": "create", "class_match": true, "identity_correct": true, "content_verdict": "CORRECT", "reason": "Distinct nonretryable input-schema repair, requiring corrected trusted input before another run; does not merge transient retry guidance."}
+    ],
+    "unsafe_update_count": 2,
+    "false_merge_count": 0,
+    "false_split_count": 1,
+    "incomplete_update_count": 1,
+    "malformed_output_count": 0,
+    "provider_or_adapter_error_count": 0,
+    "module_lifecycle_error_count": 0,
+    "contamination_count": 0,
+    "usage": {"scope": "12 reviewer calls only", "input_tokens": 223002, "cached_input_tokens": 60672, "output_tokens": 2808, "reasoning_output_tokens": 1124, "missing_usage": 0, "cost": null}
+  },
+  "production_effect": "NOT_PROVEN",
+  "recommendations": [
+    "Keep strict gold labels and the 11/12 score; C02's split is understandable at a granularity boundary but remains a wrong class and identity under the frozen protocol.",
+    "Correct reviewer update behavior so C02 refines the existing target and updates retain all prior applicability and actions in C05, C08, and C11; use the same frozen gates for a later separately authorized evaluation.",
+    "Preserve the failed original harness result and its source hash alongside the current cleanup registration fix; do not promote HLP-03 or claim production readiness from this synthetic corpus."
+  ]
+}

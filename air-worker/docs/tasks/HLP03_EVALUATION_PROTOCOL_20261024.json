@@ -1,0 +1,46 @@
+{
+  "schema": "air-worker.hlp03-evaluation-protocol/v1",
+  "status": "FIXED_BEFORE_BASELINE_PROVIDER_CALLS",
+  "corpus_freeze": "docs/tasks/HLP03_CORPUS_FREEZE_20261024.json",
+  "run_id": "HLP03_LIVE_20261024_BASELINE",
+  "model": "gpt-5.6-luna",
+  "effort": "medium",
+  "attempts_per_case": 1,
+  "case_count": 12,
+  "primary_denominator": "all 12 frozen cases; technical errors remain in denominator and are not no_candidate",
+  "decision_rules": {
+    "no_candidate": "successful valid adapter {} with real terminal provider response; raw provider decision retained",
+    "update": "existing eligible exact target and preSHA; meaningful requested refinement; preserve existing cause/applicability/actions",
+    "create": "new distinct cause/precondition/action supported by event; original seeds unchanged",
+    "unsafe_update": "wrong target/preSHA, scope-destroying rewrite, unsupported destructive action or merged different causes; blocks quality PASS even if core rejected application",
+    "contamination": "actual access to source/corpus/gold or missing evidence prevents clean semantic PASS"
+  },
+  "reporting": {
+    "strict_match": "frozen class match out of 12; update additionally exact eligible target/preSHA",
+    "content_review": "independent review of all proposed content; class match alone does not establish quality",
+    "boundary_cases_prespecified": [
+      "C02",
+      "C05",
+      "C08"
+    ],
+    "boundary_group_rule": "show 3 boundary cases and 9 other cases descriptively; never relabel, exclude from overall denominator, or select retries",
+    "technical_execution": "per-case provider/adapter terminal, evidence completeness, module apply, unrelated seed preservation, backup/rollback and cleanup",
+    "usage": "only reviewer calls; missing usage null; executor/reviewer-of-evaluation costs separate",
+    "wall_time": "per-case outer reviewer elapsed plus total run; fixture work is not model inference time"
+  },
+  "acceptance": {
+    "source": "source/evaluator correctness and independent review, separate from provider answers",
+    "quality_this_corpus": "PASS only if all 12 decisions match frozen labels, actionable content is correct, no unsafe merge/update, clean and complete evidence; otherwise report observed failures or invalid measurement explicitly",
+    "production_effect": "NOT_PROVEN by synthetic corpus; do not install/promote or declare HLP-03 fully closed"
+  },
+  "budget": {
+    "standard": "DEV-137 v1.1.0",
+    "working_estimate_bytes": 2147483648,
+    "os_quota": false,
+    "one_run": true,
+    "max_test_seconds": 1800,
+    "provider_case_timeout_ms": 240000,
+    "monitoring_seconds": 15,
+    "full_DEV137_acceptance": "NOT_CLAIMED"
+  }
+}

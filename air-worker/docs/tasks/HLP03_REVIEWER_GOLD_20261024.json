@@ -1,0 +1,93 @@
+{
+  "schema": "air-worker.hlp03-corpus-gold/v1",
+  "status": "FROZEN_BEFORE_MODEL_CALLS",
+  "source_sha": "95a4377f35948f9396d59cfe86d1e1e5e29e2979",
+  "scope": "12 synthetic cases, 4 per expected class; source corpus quality only; no production effect",
+  "rules": {
+    "no_retries": true,
+    "no_posthoc_label_changes": true,
+    "labels_excluded_from_provider_input": true,
+    "false_merge_or_unsafe_update_disallows_pass": true,
+    "malformed_refusal_timeout_not_no_candidate": true,
+    "tool_access_to_gold_or_source_invalidates_clean_semantic_score": true
+  },
+  "classes": {
+    "no_candidate": 4,
+    "update": 4,
+    "create": 4
+  },
+  "cases": [
+    {
+      "id": "C01",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "Same cause, applicability and corrective action as P1."
+    },
+    {
+      "id": "C02",
+      "expected": "update",
+      "eligible_target": "skills/learned/project-configuration-paths.md",
+      "rationale": "Refines the existing configuration-base procedure with the base of embedded relative references; retain project-root handling for the main file."
+    },
+    {
+      "id": "C03",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "Content-schema failure after correct path resolution; requires input validation/correction, not another path-base rule."
+    },
+    {
+      "id": "C04",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "Omitted continuation token and exact transmission are already covered by P2."
+    },
+    {
+      "id": "C05",
+      "expected": "update",
+      "eligible_target": "skills/learned/opaque-pagination-cursor.md",
+      "rationale": "Adds the concrete query serialization step for opaque tokens while retaining the same client transmission cause and pagination procedure."
+    },
+    {
+      "id": "C06",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "Server nonprogress despite correct token requires a separate no-progress termination procedure; it must not overwrite client token transmission guidance."
+    },
+    {
+      "id": "C07",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "Exactly the confirmed UTF-8 decoding failure already covered by P3."
+    },
+    {
+      "id": "C08",
+      "expected": "update",
+      "eligible_target": "skills/learned/decode-confirmed-utf8-once.md",
+      "rationale": "Refines the same single UTF-8 input decode with precise leading-BOM handling; preserve interior characters and original decoding discipline."
+    },
+    {
+      "id": "C09",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "Producer serialization failure with correct consumer decoding; separate procedure, not an encoding fix."
+    },
+    {
+      "id": "C10",
+      "expected": "no_candidate",
+      "eligible_target": null,
+      "rationale": "Terminal retryable upstream failure and bounded same-input retry are fully covered by P4."
+    },
+    {
+      "id": "C11",
+      "expected": "update",
+      "eligible_target": "skills/learned/bounded-retry-transient-read.md",
+      "rationale": "Refines the existing allowed retry with advertised delay; must retain attempt count and deadline and must not turn this into a general permission to retry."
+    },
+    {
+      "id": "C12",
+      "expected": "create",
+      "eligible_target": null,
+      "rationale": "Nonretryable input-schema error requires input repair, not transient-source retry or overwriting P4."
+    }
+  ]
+}

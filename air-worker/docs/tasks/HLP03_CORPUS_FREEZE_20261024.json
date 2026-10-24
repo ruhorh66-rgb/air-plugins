@@ -1,0 +1,41 @@
+{
+    "schema":  "air-worker.hlp03-corpus-freeze/v1",
+    "frozen_at_utc":  "2026-10-24T05:53:53.5763184Z",
+    "source_base_sha":  "95a4377f35948f9396d59cfe86d1e1e5e29e2979",
+    "corpus_path":  "cmd/testdata/hlp03_reviewer_corpus_20261024.json",
+    "corpus_sha256":  "5bd30b95d7a31bcc6001c9ee828e2c797c7387e72766fa534021d605b28dea0e",
+    "gold_path":  "docs/tasks/HLP03_REVIEWER_GOLD_20261024.json",
+    "gold_sha256":  "5213e4bfc165e9bc560a9138230a8f0161def6279b6880ad469e92489cd98de5",
+    "case_count":  12,
+    "classes":  {
+                    "no_candidate":  4,
+                    "update":  4,
+                    "create":  4
+                },
+    "seed_identities":  [
+                            {
+                                "target":  "skills/learned/project-configuration-paths.md",
+                                "sha256":  "ffacb0e9e0fd3f398be6e786b47444bc27064fb10d76ada64c0009866b8637af"
+                            },
+                            {
+                                "target":  "skills/learned/opaque-pagination-cursor.md",
+                                "sha256":  "84506cd45d97e26e038d20333812f7bf1fac1632866d6f6c9cc456e928f6a86f"
+                            },
+                            {
+                                "target":  "skills/learned/decode-confirmed-utf8-once.md",
+                                "sha256":  "341ffe5e7fa581868f93a1a8672e3f5059f8671080cc350ceac8940c5ba5e9bb"
+                            },
+                            {
+                                "target":  "skills/learned/bounded-retry-transient-read.md",
+                                "sha256":  "98fcd2868052396c07baa184f80bcc3a139e8ad107d3e83aed60cb25a72c5f38"
+                            }
+                        ],
+    "provider_calls_before_freeze":  0,
+    "model":  "gpt-5.6-luna",
+    "effort":  "medium",
+    "live_reviewer_config_sha256":  "c7d37b35b04acba02ddd2cb291c030c1a5a7a75e71bccf0babf9e7db42a2ab1d",
+    "labels_excluded_from_input":  true,
+    "posthoc_relabeling_allowed":  false,
+    "retry_policy":  "NONE_FOR_BASELINE",
+    "scope":  "synthetic corpus; model quality separate from source acceptance and production effect"
+}
