@@ -1,0 +1,68 @@
+{
+  "schema": "air-worker.n124-source-checkpoint/v1",
+  "status": "SOURCE_WIP_CHECKPOINT",
+  "node_id": "N-124_p1-detect-cross-branch-node-id-collision-and-sta",
+  "owner": "Dev Work / existing AirWorker development owner",
+  "observed_at_sgt": "2026-10-25T20:37:55+08:00",
+  "observed_at_utc": "2026-10-25T12:37:55Z",
+  "source": {
+    "worktree": "F:/-5-/011_Plugins/_worktrees/airworker-n124-rephase-20261025/air-worker",
+    "branch": "dev/airworker-n124-rephase-20261025",
+    "baseline_commit": "58bbca1b7ad568af31135e55d741496a2f764343",
+    "source_candidate_commit": "599e0bbeb7c78857cccfdf4b08bcdb1b61070a52",
+    "canonical_development_ref": "refs/heads/dev/airworker-learning-loop-20261024",
+    "canonical_development_ref_sha": "58bbca1b7ad568af31135e55d741496a2f764343",
+    "canonical_hlp03_wip_preserved": true
+  },
+  "files": [
+    {"path":"cmd/planner.go","sha256":"4708b96c98179fcb261468f7ea979816bc2d99fbd1a9d62b7b57dd26655e156c"},
+    {"path":"cmd/plan_rephase.go","sha256":"1706a2fcf522f0c4c308f2233522aeed050b6810c4afa0c1062db6875939b7b6"},
+    {"path":"cmd/plan_rephase_test.go","sha256":"4bedf1b24e0e28f5a9428e54bff2a60f3e8e0f7eeaeb128a58908d5f0477cfe0"},
+    {"path":"docs/tasks/N124_BOUNDED_NATIVE_REPHASE_SOURCE_20261025.md","sha256":"6fc64001b6aec929a1c3241bcd585822affcf220a38b451dd7aec0f0e8013882"},
+    {"path":"docs/tasks/N124_PRODUCTION_PLAN_CONTINUATION_20261025.md","sha256":"6c074b4d0440deea5a24fe0de7910baeb303def83a38ab893aa995361f706fa0"}
+  ],
+  "qa": {
+    "execution_recovery": "Recovered original EXECUTION_UNKNOWN process; no blind rerun",
+    "targeted_command": "go test ./... -run TestN124PlanRephase -count=1",
+    "targeted_result": "PASS",
+    "air_worker_package_time": "28.303s",
+    "tray": "PASS_NO_MATCHING_TESTS",
+    "go_vet": "PASS",
+    "git_diff_check": "PASS",
+    "scratch_removed_after_capture": true
+  },
+  "development_plan": {
+    "continuation_attachment": "docs/tasks/N124_BOUNDED_NATIVE_REPHASE_SOURCE_20261025.md",
+    "canonical_product_vault_plan_overwritten": false,
+    "reason": "Canonical AirWorker Wiki already contains pre-existing dirty HLP-03 strategy edits; preserving foreign/previous WIP takes precedence over blind merge."
+  },
+  "production_plan": {
+    "continuation_attachment": "docs/tasks/N124_PRODUCTION_PLAN_CONTINUATION_20261025.md",
+    "state": "HOLD_SOURCE_ONLY",
+    "installed_version_unchanged": "0.11.10",
+    "airvera_apply_executed": false,
+    "airworker_install_executed": false,
+    "release_or_publish_executed": false,
+    "trusted_vera_ref_actor_generation_selected": false,
+    "s3_stale_head_must_hold": true,
+    "canonical_product_vault_plan_overwritten": false
+  },
+  "not_done": [
+    "bounded full regression/build",
+    "final source freeze",
+    "independent exact-SHA review",
+    "final machine acceptance receipt",
+    "canonical dirty product-vault plan reconciliation",
+    "N124 native close"
+  ],
+  "handoff": "docs/HANDOFF_AIRWORKER_N124_NEXT_SESSION_20261025.md",
+  "result": "CHECKPOINT_READY_FOR_NEXT_SESSION",
+  "not_authorized": [
+    "AirWorker install/update",
+    "AirVera native apply/rephase",
+    "canonical Vera actor/ref/generation selection",
+    "Git A3 publication",
+    "release/promotion/install",
+    "third Vera judge"
+  ]
+}
