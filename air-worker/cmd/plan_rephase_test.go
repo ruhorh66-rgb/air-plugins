@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 type n124RephaseFixture struct {
@@ -109,6 +111,21 @@ func n124RephaseFixtureSetup(t *testing.T) n124RephaseFixture {
 	parentA := n112NativeNew(t, root, "N124 parent A", "Stage: supervised tests")
 	parentB := n112NativeNew(t, root, "N124 parent B", "Stage: supervised tests")
 	child := n112NativeNew(t, root, "N124 bounded child", parentA.ID)
+	// Seed metadata unknown to the node parser plus an existing receipt.
+	// A rephase may not rewrite or discard either.
+	childPathWithHistory := filepath.Join(root, "plan", child.ID+".md")
+	childBytes, err := os.ReadFile(childPathWithHistory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	historyNeedle := []byte("receipts:\n---\n")
+	if bytes.Count(childBytes, historyNeedle) != 1 {
+		t.Fatal("unexpected canonical node receipt header shape")
+	}
+	childBytes = bytes.Replace(childBytes, historyNeedle, []byte("extra_metadata: \"preserve-unknown-field\"\nreceipts:\n  - \"historic-receipt-must-survive\"\n---\n"), 1)
+	if err := os.WriteFile(childPathWithHistory, childBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	planPath := filepath.Join(root, "PLAN.md")
 	planRaw, err := os.ReadFile(planPath)
@@ -162,8 +179,8 @@ func n124RephaseFixtureSetup(t *testing.T) n124RephaseFixture {
 		ExpectedHead:           head,
 		AcceptedAncestor:       accepted,
 		Generation:             "n124-fixture-generation-2",
-		HistoryManifestSHA256:  strings.Repeat("a", 64),
-		SourceProvenanceRef:    "fixture/source",
+		HistoryManifestSHA256:  "",
+		SourceProvenanceRef:    "refs/heads/n124-fixture",
 		SourceProvenanceCommit: head,
 		Node: planRephaseNode{
 			ID: child.ID, ExpectedSHA256: learnSHA(nodeRaw), ExpectedOwner: child.Owner,
@@ -183,6 +200,12 @@ func n124RephaseFixtureSetup(t *testing.T) n124RephaseFixture {
 		},
 	}
 	evDir := t.TempDir()
+	history := planRephaseHistoryEvidence{
+		Schema: planRephaseHistorySchema, Repository: req.Repository, CanonicalRef: req.CanonicalRef,
+		ExpectedHead: req.ExpectedHead, Generation: req.Generation,
+		SourceProvenanceRef: req.SourceProvenanceRef, SourceProvenanceCommit: req.SourceProvenanceCommit,
+	}
+	req.HistoryManifestPath, req.HistoryManifestSHA256 = n124WriteEvidence(t, evDir, "history-manifest.json", history)
 	requestPath, requestSHA := n124WriteEvidence(t, evDir, "request.json", req)
 	auth := planRephaseAuthority{
 		Schema: planRephaseAuthoritySchema, Operation: "plan.rephase.apply", Approved: true,
@@ -260,6 +283,13 @@ func TestN124PlanRephaseAppliesOneNodeOneReleaseAndReplaysIdempotently(t *testin
 	}
 	if node.Status != "open" || node.Owner != f.child.Owner || node.Title != f.child.Title {
 		t.Fatalf("identity/status changed: %+v", node)
+	}
+	if len(node.Receipts) != 1 || node.Receipts[0] != "historic-receipt-must-survive" || node.UpdatedAt != f.child.UpdatedAt {
+		t.Fatalf("historical receipts or untouched timestamp drifted: %+v", node)
+	}
+	rawNode, _ := os.ReadFile(filepath.Join(f.root, "plan", f.child.ID+".md"))
+	if !bytes.Contains(rawNode, []byte("extra_metadata: \"preserve-unknown-field\"")) {
+		t.Fatal("unknown node metadata was lost or rewritten")
 	}
 	if node.Parent != f.parentB.ID || node.ReturnTo != f.parentB.ID ||
 		node.Trigger != "N124 rephase trigger after" || node.DoneWhen != "N124 bounded CAS done" {
@@ -499,7 +529,7 @@ func TestN124PlanRephaseRejectsWrongRepositoryMissingAuthorityAndUnicodeMismatch
 	t.Run("unicode-full-id-mismatch", func(t *testing.T) {
 		f := n124RephaseFixtureSetup(t)
 		args := f.args()
-		args[0] = f.child.ID + "?"
+		args[0] = f.child.ID + "\u0301"
 		if rc := n124Apply(args); rc == 0 {
 			t.Fatal("foreign Unicode full ID succeeded")
 		}
@@ -512,7 +542,17 @@ func TestN124PlanRephaseRequestIDCannotRebindAfterSuccess(t *testing.T) {
 		t.Fatalf("first apply rc=%d", rc)
 	}
 	n124RewriteEvidence(t, &f, func(r *planRephaseRequest) {
-		r.SourceProvenanceRef = "fixture/changed-provenance"
+		// Rebind a valid request to different evidence path with identical
+		// checked bytes so the request-id journal, not schema/CAS, rejects it.
+		oldPath := r.HistoryManifestPath
+		raw, err := os.ReadFile(oldPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.HistoryManifestPath = filepath.Join(filepath.Dir(oldPath), "history-copy.json")
+		if err := os.WriteFile(r.HistoryManifestPath, raw, 0o600); err != nil {
+			t.Fatal(err)
+		}
 	})
 	if rc := n124Apply(f.args()); rc != 3 {
 		t.Fatalf("rebound request rc=%d want 3", rc)
@@ -572,6 +612,514 @@ func TestN124PlanRephasePublishRollbackOnPartialWriteAndReadbackMismatch(t *test
 		if !bytes.Equal(got, f.Before) {
 			t.Fatalf("readback rollback failed for %s", f.Path)
 		}
+	}
+}
+
+func TestN124PlanRephaseWrongActorAndStaleAuthorityGenerationHold(t *testing.T) {
+	t.Run("unapproved-actor", func(t *testing.T) {
+		f := n124RephaseFixtureSetup(t)
+		before, _ := os.ReadFile(filepath.Join(f.root, "plan", f.child.ID+".md"))
+		args := f.args()
+		for i, arg := range args {
+			if arg == "n124-test-worker" {
+				args[i] = "foreign-actor"
+			}
+		}
+		if rc := n124Apply(args); rc == 0 {
+			t.Fatal("unapproved actor succeeded")
+		}
+		after, _ := os.ReadFile(filepath.Join(f.root, "plan", f.child.ID+".md"))
+		if !bytes.Equal(before, after) {
+			t.Fatal("unapproved actor mutated node")
+		}
+	})
+	t.Run("stale-authority-generation", func(t *testing.T) {
+		f := n124RephaseFixtureSetup(t)
+		raw, err := os.ReadFile(f.authorityPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var auth planRephaseAuthority
+		if err := json.Unmarshal(raw, &auth); err != nil {
+			t.Fatal(err)
+		}
+		auth.Generation = "stale-unselected-generation"
+		f.authorityPath, f.authoritySHA = n124WriteEvidence(t, filepath.Dir(f.authorityPath), "stale-authority.json", auth)
+		if rc := n124Apply(f.args()); rc != 3 {
+			t.Fatalf("stale authority generation rc=%d want 3/HOLD", rc)
+		}
+		if _, err := os.Stat(filepath.Join(f.root, ".air-worker", "plan-rephase", learnSHA([]byte(f.requestID)))); !os.IsNotExist(err) {
+			t.Fatalf("stale authority unexpectedly created transaction directory: %v", err)
+		}
+	})
+}
+
+func TestN124PlanRephaseInterruptedJournalRejectsBlindReplay(t *testing.T) {
+	for _, phase := range []string{"prepared", "event_pending"} {
+		t.Run(phase, func(t *testing.T) {
+			f := n124RephaseFixtureSetup(t)
+			tx := filepath.Join(f.root, ".air-worker", "plan-rephase", learnSHA([]byte(f.requestID)))
+			if phase == "event_pending" {
+				if rc := n124Apply(f.args()); rc != 0 {
+					t.Fatalf("fixture apply rc=%d", rc)
+				}
+			} else {
+				if err := os.MkdirAll(tx, 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			intentPath := filepath.Join(tx, "intent.json")
+			intent := planRephaseIntent{
+				Schema: planRephaseIntentSchema, RequestID: f.requestID,
+				RequestSHA256: f.requestSHA, AuthoritySHA256: f.authoritySHA,
+				Actor: "gpt-window:n124-test-worker", NodeID: f.child.ID,
+				Repository: f.request.Repository, CanonicalRef: f.request.CanonicalRef,
+				ExpectedHead: f.head, Generation: f.request.Generation, Phase: phase,
+			}
+			if err := persistPlanRephaseIntent(intentPath, intent); err != nil {
+				t.Fatal(err)
+			}
+			paths := []string{
+				filepath.Join(f.root, "plan", f.child.ID+".md"),
+				filepath.Join(f.root, "PLAN.md"),
+				filepath.Join(f.root, "plan", "release-slices.json"),
+				planNodeEventsPath(f.root),
+			}
+			baseline := make([][]byte, len(paths))
+			for i, path := range paths {
+				baseline[i], _ = os.ReadFile(path)
+			}
+			for attempt := 0; attempt < 2; attempt++ {
+				if rc := n124Apply(f.args()); rc != 3 {
+					t.Fatalf("interrupted journal replay attempt=%d rc=%d want HOLD/3", attempt, rc)
+				}
+				for i, path := range paths {
+					got, _ := os.ReadFile(path)
+					if !bytes.Equal(got, baseline[i]) {
+						t.Fatalf("interrupted replay mutated %s", path)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestN124PlanRephaseRollbackIncludesWriteThatFailedAfterReplace(t *testing.T) {
+	root := t.TempDir()
+	files := []planRephaseFile{}
+	for i, name := range []string{"node", "PLAN", "release"} {
+		path := filepath.Join(root, name)
+		before := []byte{byte('A' + i)}
+		after := []byte{byte('X' + i)}
+		if err := os.WriteFile(path, before, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		files = append(files, planRephaseFile{Path: path, Before: before, After: after})
+	}
+	failAfterReplace := true
+	ioLayer := planRephaseIO{
+		write: func(path string, raw []byte) error {
+			if err := os.WriteFile(path, raw, 0o600); err != nil {
+				return err
+			}
+			if filepath.Base(path) == "PLAN" && bytes.Equal(raw, files[1].After) && failAfterReplace {
+				failAfterReplace = false
+				return errors.New("simulated post-replace sync failure")
+			}
+			return nil
+		},
+		read: os.ReadFile,
+	}
+	err := publishPlanRephaseFiles(ioLayer, files)
+	if err == nil || !strings.Contains(err.Error(), "rollback verified") {
+		t.Fatalf("post-replace failure not identified with verified rollback: %v", err)
+	}
+	for _, file := range files {
+		raw, _ := os.ReadFile(file.Path)
+		if !bytes.Equal(raw, file.Before) {
+			t.Fatalf("failing write target not rolled back: %s", file.Path)
+		}
+	}
+}
+
+func TestN124PlanRephaseMalformedAndSymlinkEvidenceHold(t *testing.T) {
+	t.Run("trailing-json", func(t *testing.T) {
+		f := n124RephaseFixtureSetup(t)
+		raw, _ := os.ReadFile(f.requestPath)
+		bad := filepath.Join(t.TempDir(), "trailing.json")
+		raw = append(raw, []byte("{}")...)
+		if err := os.WriteFile(bad, raw, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		f.requestPath, f.requestSHA = bad, learnSHA(raw)
+		if rc := n124Apply(f.args()); rc != 2 {
+			t.Fatalf("trailing JSON rc=%d want 2", rc)
+		}
+	})
+	t.Run("symlink-authority", func(t *testing.T) {
+		f := n124RephaseFixtureSetup(t)
+		link := filepath.Join(t.TempDir(), "linked-authority.json")
+		if err := os.Symlink(f.authorityPath, link); err != nil {
+			t.Skipf("platform disallows fixture symlink: %v", err)
+		}
+		f.authorityPath = link
+		if rc := n124Apply(f.args()); rc != 2 {
+			t.Fatalf("symlink authority rc=%d want 2", rc)
+		}
+	})
+}
+
+func TestN124PlanRephaseCompletedReplayRejectsCorruptReceipt(t *testing.T) {
+	f := n124RephaseFixtureSetup(t)
+	if rc := n124Apply(f.args()); rc != 0 {
+		t.Fatalf("first apply rc=%d", rc)
+	}
+	tx := filepath.Join(f.root, ".air-worker", "plan-rephase", learnSHA([]byte(f.requestID)))
+	receiptPath := filepath.Join(tx, "receipt.json")
+	receiptRaw, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(receiptPath, bytes.Replace(receiptRaw, []byte("\"status\": \"PASS\""), []byte("\"status\": \"FAIL\""), 1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	eventsBefore, _ := os.ReadFile(planNodeEventsPath(f.root))
+	if rc := n124Apply(f.args()); rc != 3 {
+		t.Fatalf("corrupt receipt replay rc=%d want 3/HOLD", rc)
+	}
+	eventsAfter, _ := os.ReadFile(planNodeEventsPath(f.root))
+	if !bytes.Equal(eventsBefore, eventsAfter) {
+		t.Fatal("corrupt receipt replay generated another event")
+	}
+}
+
+func TestN124PlanRephaseReceiptFailureRestoresFilesAndHoldsEvent(t *testing.T) {
+	f := n124RephaseFixtureSetup(t)
+	nodePath := filepath.Join(f.root, "plan", f.child.ID+".md")
+	planPath := filepath.Join(f.root, "PLAN.md")
+	releasePath := filepath.Join(f.root, "plan", "release-slices.json")
+	paths := []string{nodePath, planPath, releasePath}
+	before := make([][]byte, len(paths))
+	for i, p := range paths {
+		before[i], _ = os.ReadFile(p)
+	}
+	tx := filepath.Join(f.root, ".air-worker", "plan-rephase", learnSHA([]byte(f.requestID)))
+	if err := os.MkdirAll(filepath.Join(tx, "receipt.json"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if rc := n124Apply(f.args()); rc == 0 {
+		t.Fatal("receipt write failure succeeded")
+	}
+	for i, p := range paths {
+		after, _ := os.ReadFile(p)
+		if !bytes.Equal(before[i], after) {
+			t.Fatalf("receipt failure did not restore %s", p)
+		}
+	}
+	raw, err := os.ReadFile(filepath.Join(tx, "intent.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var intent planRephaseIntent
+	if err := json.Unmarshal(raw, &intent); err != nil {
+		t.Fatal(err)
+	}
+	if intent.Phase != "receipt_failed_event_outcome_unknown" {
+		t.Fatalf("unexpected post-receipt failure phase=%s", intent.Phase)
+	}
+	if rc := n124Apply(f.args()); rc != 3 {
+		t.Fatalf("unsafe receipt failure replay rc=%d want HOLD/3", rc)
+	}
+}
+
+func TestN124PlanRephasePreparedCrashAfterEveryWriteReconcilesSnapshots(t *testing.T) {
+	for changed := 0; changed <= 3; changed++ {
+		t.Run(fmt.Sprintf("after-%d-writes", changed), func(t *testing.T) {
+			f := n124RephaseFixtureSetup(t)
+			paths := []string{
+				filepath.Join(f.root, "plan", f.child.ID+".md"),
+				filepath.Join(f.root, "PLAN.md"),
+				filepath.Join(f.root, "plan", "release-slices.json"),
+			}
+			before := make([][]byte, 3)
+			for i := range paths {
+				before[i], _ = os.ReadFile(paths[i])
+			}
+			node, err := parsePlanNode(paths[0], before[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			afterNode := node
+			afterNode.Parent, afterNode.ReturnTo = f.request.Node.AfterParent, f.request.Node.AfterReturnTo
+			afterNode.Trigger, afterNode.DoneWhen = f.request.Node.AfterTrigger, f.request.Node.AfterDoneWhen
+			nodeAfter, err := plannedRephaseNode(before[0], node, afterNode)
+			if err != nil {
+				t.Fatal(err)
+			}
+			planAfter, err := plannedRephasePlan(before[1], node, afterNode, f.request.Plan)
+			if err != nil {
+				t.Fatal(err)
+			}
+			releaseAfter, err := plannedRephaseRelease(f.root, before[2], f.request.Release)
+			if err != nil {
+				t.Fatal(err)
+			}
+			after := [][]byte{nodeAfter, planAfter, releaseAfter}
+			tx := filepath.Join(f.root, ".air-worker", "plan-rephase", learnSHA([]byte(f.requestID)))
+			metaPath := filepath.Join(tx, "snapshot.json")
+			intentPath := filepath.Join(tx, "intent.json")
+			meta := planRephaseSnapshot{
+				Schema: "air-worker.plan-rephase-snapshot/v1", RequestID: f.requestID,
+				NodeFile: "node.before", PlanFile: "PLAN.before", ReleaseFile: "release-slices.before",
+				NodeSHA256: learnSHA(before[0]), PlanSHA256: learnSHA(before[1]), ReleaseSHA256: learnSHA(before[2]),
+			}
+			metaRaw, _ := json.MarshalIndent(meta, "", "  ")
+			metaRaw = append(metaRaw, '\n')
+			if err := os.MkdirAll(tx, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := persistPlanRephaseSnapshot(tx, metaPath, metaRaw, before[0], before[1], before[2]); err != nil {
+				t.Fatal(err)
+			}
+			intent := planRephaseIntent{
+				Schema: planRephaseIntentSchema, RequestID: f.requestID,
+				RequestSHA256: f.requestSHA, AuthoritySHA256: f.authoritySHA,
+				Actor: "gpt-window:n124-test-worker", NodeID: f.child.ID,
+				Repository: f.request.Repository, CanonicalRef: f.request.CanonicalRef,
+				ExpectedHead: f.head, Generation: f.request.Generation,
+				BeforeNodeSHA256: learnSHA(before[0]), AfterNodeSHA256: learnSHA(after[0]),
+				BeforePlanSHA256: learnSHA(before[1]), AfterPlanSHA256: learnSHA(after[1]),
+				BeforeReleaseSHA256: learnSHA(before[2]), AfterReleaseSHA256: learnSHA(after[2]),
+				SnapshotSHA256: learnSHA(metaRaw), Phase: "prepared",
+			}
+			if err := persistPlanRephaseIntent(intentPath, intent); err != nil {
+				t.Fatal(err)
+			}
+			for i := 0; i < changed; i++ {
+				if err := os.WriteFile(paths[i], after[i], 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// Reconciliation must not depend on a remote ref remaining at
+			// its old SHA after the prepared-phase crash.
+			if changed == 2 {
+				c := exec.Command("git", "--git-dir", f.remote, "update-ref", "refs/heads/n124-fixture", f.accepted)
+				if out, err := c.CombinedOutput(); err != nil {
+					t.Fatalf("fixture remote ref advance failed: %v: %s", err, out)
+				}
+			}
+			eventsBefore, _ := os.ReadFile(planNodeEventsPath(f.root))
+			if rc := n124Apply(f.args()); rc != 3 {
+				t.Fatalf("crash recovery rc=%d want HOLD/3", rc)
+			}
+			for i := range paths {
+				now, _ := os.ReadFile(paths[i])
+				if !bytes.Equal(now, before[i]) {
+					t.Fatalf("crash recovery drift after %d writes: %s", changed, paths[i])
+				}
+			}
+			eventsAfter, _ := os.ReadFile(planNodeEventsPath(f.root))
+			if !bytes.Equal(eventsBefore, eventsAfter) {
+				t.Fatal("prepared-phase reconcile emitted native event")
+			}
+			if rc := n124Apply(f.args()); rc != 3 {
+				t.Fatalf("recovered request replay rc=%d want HOLD/3", rc)
+			}
+			raw, _ := os.ReadFile(intentPath)
+			var recovered planRephaseIntent
+			if json.Unmarshal(raw, &recovered) != nil || recovered.Phase != "recovered_rollback" {
+				t.Fatalf("recovery journal not durable: %+v", recovered)
+			}
+		})
+	}
+}
+
+func TestN124PlanRephaseLinkedControlledPlanDirectoryHold(t *testing.T) {
+	f := n124RephaseFixtureSetup(t)
+	originalPlanDir := filepath.Join(f.root, "plan")
+	outsidePlanDir := filepath.Join(t.TempDir(), "actual-plan")
+	if err := os.Rename(originalPlanDir, outsidePlanDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outsidePlanDir, originalPlanDir); err != nil {
+		t.Skipf("platform rejects symlink fixture: %v", err)
+	}
+	if rc := n124Apply(f.args()); rc == 0 {
+		t.Fatal("linked plan directory was accepted")
+	}
+	if _, err := os.Stat(filepath.Join(f.root, ".air-worker", "plan-rephase", learnSHA([]byte(f.requestID)))); !os.IsNotExist(err) {
+		t.Fatalf("linked controlled directory created journal: %v", err)
+	}
+}
+
+func TestN124PlanRephaseJournalLinkedAncestorHold(t *testing.T) {
+	f := n124RephaseFixtureSetup(t)
+	journal := filepath.Join(f.root, ".air-worker", "plan-rephase")
+	outside := t.TempDir()
+	if err := os.MkdirAll(filepath.Dir(journal), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, journal); err != nil {
+		t.Skipf("platform disallows directory symlink fixture: %v", err)
+	}
+	if rc := n124Apply(f.args()); rc != 3 {
+		t.Fatalf("linked journal root rc=%d want HOLD/3", rc)
+	}
+	if entries, err := os.ReadDir(outside); err != nil || len(entries) > 0 {
+		t.Fatalf("journal escaped into linked outside directory: %v %v", entries, err)
+	}
+}
+
+func TestN124PlanRephaseNativeEventReadbackFailClosed(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "learn"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	n := planNode{ID: "N-001_n124-fixture", Owner: "fixture-worker"}
+	ev := planNodeEventRowWithActor(n, "rephased", "exact-fixture#sha256=aaa", "plan-rephase", time.Now().UTC(), "gpt-window:fixture-worker")
+	if err := verifyPlanRephaseNativeEvent(root, sharedLearningSettings{}, false, ev); err == nil {
+		t.Fatal("missing event was claimed as readback PASS")
+	}
+	if err := appendPlanNodeEvents(root, []map[string]any{ev}); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyPlanRephaseNativeEvent(root, sharedLearningSettings{}, false, ev); err != nil {
+		t.Fatalf("exact native event not found: %v", err)
+	}
+	path := planNodeEventsPath(root)
+	raw, _ := os.ReadFile(path)
+	if err := os.WriteFile(path, bytes.Replace(raw, []byte("exact-fixture"), []byte("tampered-log!"), 1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyPlanRephaseNativeEvent(root, sharedLearningSettings{}, false, ev); err == nil {
+		t.Fatal("tampered native event was claimed as readback PASS")
+	}
+}
+
+func TestN124PlanRephaseSameParentRequiresUniqueNodeSpine(t *testing.T) {
+	f := n124RephaseFixtureSetup(t)
+	nodePath := filepath.Join(f.root, "plan", f.child.ID+".md")
+	nodeRaw, err := os.ReadFile(nodePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeNode, err := parsePlanNode(nodePath, nodeRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterNode := beforeNode
+	afterNode.Trigger = "only trigger rephased; parent unchanged"
+	planRaw, err := os.ReadFile(filepath.Join(f.root, "PLAN.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldLine := []byte(spineNodeLine(beforeNode))
+	if bytes.Count(planRaw, oldLine) != 1 {
+		t.Fatalf("fixture PLAN node line not unique")
+	}
+	withoutNode := bytes.Replace(planRaw, oldLine, nil, 1)
+	req := f.request.Plan
+	req.ExpectedSHA256 = learnSHA(withoutNode)
+	if _, err := plannedRephasePlan(withoutNode, beforeNode, afterNode, req); err == nil {
+		t.Fatal("PLAN missing the unchanged-parent node was accepted")
+	}
+	if _, err := plannedRephasePlan(planRaw, beforeNode, afterNode, f.request.Plan); err != nil {
+		t.Fatalf("valid unchanged-parent PLAN rephase should pass: %v", err)
+	}
+}
+
+func TestN124PlanRephaseLocalEventTimestampDriftHold(t *testing.T) {
+	root := t.TempDir()
+	node := planNode{ID: "N-001_rephase-time", Owner: "fixture-owner"}
+	ev := planNodeEventRowWithActor(node, "rephased", "fixture-time-evidence", "plan-rephase", time.Now().UTC(), "gpt-window:fixture")
+	if err := appendPlanNodeEvents(root, []map[string]any{ev}); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyPlanRephaseNativeEvent(root, sharedLearningSettings{}, false, ev); err != nil {
+		t.Fatalf("exact local event rejected: %v", err)
+	}
+	path := planNodeEventsPath(root)
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var row map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(raw), &row); err != nil {
+		t.Fatal(err)
+	}
+	row["created_at"] = "2020-01-01T00:00:00Z"
+	corrupt, _ := json.Marshal(row)
+	if err := os.WriteFile(path, append(corrupt, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyPlanRephaseNativeEvent(root, sharedLearningSettings{}, false, ev); err == nil {
+		t.Fatal("native event with changed created_at was accepted")
+	}
+}
+
+func TestN124PlanRephaseJournalSnapshotLinkedFileHold(t *testing.T) {
+	for _, name := range []string{"node.before", "PLAN.before", "release-slices.before"} {
+		t.Run(name, func(t *testing.T) {
+			f := n124RephaseFixtureSetup(t)
+			tx := filepath.Join(f.root, ".air-worker", "plan-rephase", learnSHA([]byte(f.requestID)))
+			if err := os.MkdirAll(tx, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			outside := filepath.Join(t.TempDir(), "untouchable.txt")
+			if err := os.WriteFile(outside, []byte("protected outside bytes"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(outside, filepath.Join(tx, name)); err != nil {
+				t.Skipf("platform disallows file link fixture: %v", err)
+			}
+			if rc := n124Apply(f.args()); rc != 3 {
+				t.Fatalf("linked snapshot %s rc=%d want HOLD/3", name, rc)
+			}
+			if bytes, err := os.ReadFile(outside); err != nil || string(bytes) != "protected outside bytes" {
+				t.Fatalf("linked snapshot %s changed foreign protected bytes: %q err=%v", name, bytes, err)
+			}
+			if _, err := os.Stat(filepath.Join(tx, "intent.json")); !os.IsNotExist(err) {
+				t.Fatalf("linked snapshot %s advanced journal intent: %v", name, err)
+			}
+		})
+	}
+}
+
+func TestN124PlanRephaseSharedModuleEventReadbackIdentity(t *testing.T) {
+	for _, badKey := range []string{"product_id", "event_id", "at", "malformed-event-id"} {
+		t.Run(badKey, func(t *testing.T) {
+			product, settings := sharedProductFixture(t, false)
+			node := planNode{ID: "N-001_shared-rephase-evidence", Owner: "fixture-owner"}
+			ev := planNodeEventRowWithActor(node, "rephased", "trusted-fixture-identity", "plan-rephase", time.Now().UTC(), "gpt-window:n124-test-worker")
+			handled, err := appendSharedPlanEvents(product, []map[string]any{ev})
+			if !handled || err != nil {
+				t.Fatalf("shared module did not record actual event: handled=%v err=%v", handled, err)
+			}
+			if err := verifyPlanRephaseNativeEvent(product, settings, true, ev); err != nil {
+				t.Fatalf("actual shared Module v0.1.1 event rejected: %v", err)
+			}
+			path := filepath.Join(settings.RuntimeRoot, "events.jsonl")
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var row map[string]any
+			if err := json.Unmarshal(bytes.TrimSpace(raw), &row); err != nil {
+				t.Fatal(err)
+			}
+			if badKey == "malformed-event-id" {
+				row["event_id"] = "EV-abcde"
+			} else {
+				delete(row, badKey)
+			}
+			modified, _ := json.Marshal(row)
+			if err := os.WriteFile(path, append(modified, '\n'), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := verifyPlanRephaseNativeEvent(product, settings, true, ev); err == nil {
+				t.Fatalf("shared Module event missing %s incorrectly accepted", badKey)
+			}
+		})
 	}
 }
 

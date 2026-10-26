@@ -17,6 +17,7 @@ import (
 
 const (
 	planRephaseRequestSchema   = "air-worker.plan-rephase-request/v1"
+	planRephaseHistorySchema   = "air-worker.plan-rephase-history-evidence/v1"
 	planRephaseAuthoritySchema = "air-worker.plan-rephase-authority/v1"
 	planRephaseIntentSchema    = "air-worker.plan-rephase-intent/v1"
 	planRephaseReceiptSchema   = "air-worker.plan-rephase-receipt/v1"
@@ -24,9 +25,10 @@ const (
 )
 
 var (
-	planRephaseSHA40  = regexp.MustCompile(`^[0-9a-f]{40}$`)
-	planRephaseSHA256 = regexp.MustCompile(`^[0-9a-f]{64}$`)
-	planRephaseRef    = regexp.MustCompile(`^refs/heads/[A-Za-z0-9][A-Za-z0-9._/-]{0,180}$`)
+	planRephaseSHA40   = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	planRephaseSHA256  = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	planRephaseEventID = regexp.MustCompile(`^EV-[0-9a-f]{24}$`)
+	planRephaseRef     = regexp.MustCompile(`^refs/heads/[A-Za-z0-9][A-Za-z0-9._/-]{0,180}$`)
 )
 
 type planRephaseRequest struct {
@@ -38,6 +40,7 @@ type planRephaseRequest struct {
 	AcceptedAncestor       string             `json:"accepted_ancestor"`
 	Generation             string             `json:"generation"`
 	HistoryManifestSHA256  string             `json:"history_manifest_sha256"`
+	HistoryManifestPath    string             `json:"history_manifest_path"`
 	SourceProvenanceRef    string             `json:"source_provenance_ref"`
 	SourceProvenanceCommit string             `json:"source_provenance_commit"`
 	Node                   planRephaseNode    `json:"node"`
@@ -76,6 +79,16 @@ type planRephaseRelease struct {
 	AfterDoneWhen  string `json:"after_done_when"`
 }
 
+type planRephaseHistoryEvidence struct {
+	Schema                 string `json:"schema"`
+	Repository             string `json:"repository"`
+	CanonicalRef           string `json:"canonical_ref"`
+	ExpectedHead           string `json:"expected_head"`
+	Generation             string `json:"generation"`
+	SourceProvenanceRef    string `json:"source_provenance_ref"`
+	SourceProvenanceCommit string `json:"source_provenance_commit"`
+}
+
 type planRephaseAuthority struct {
 	Schema         string `json:"schema"`
 	Operation      string `json:"operation"`
@@ -109,6 +122,7 @@ type planRephaseIntent struct {
 	BeforeReleaseSHA256 string `json:"before_release_sha256"`
 	AfterReleaseSHA256  string `json:"after_release_sha256"`
 	SnapshotSHA256      string `json:"snapshot_sha256"`
+	ReceiptSHA256       string `json:"receipt_sha256"`
 	ChangedAt           string `json:"changed_at"`
 	Phase               string `json:"phase"`
 }
@@ -138,6 +152,7 @@ type planRephaseReceipt struct {
 	AcceptedAncestor        string   `json:"accepted_ancestor"`
 	Generation              string   `json:"generation"`
 	HistoryManifestSHA256   string   `json:"history_manifest_sha256"`
+	HistoryManifestPath     string   `json:"history_manifest_path"`
 	SourceProvenanceRef     string   `json:"source_provenance_ref"`
 	SourceProvenanceCommit  string   `json:"source_provenance_commit"`
 	NodeID                  string   `json:"node_id"`
@@ -275,10 +290,9 @@ func cmdPlanRephaseApplyWithVerifier(argv []string, verifyAuthority planRephaseA
 	}
 	defer lock.release()
 
-	if err := verifyPlanRephaseGitCAS(root, req); err != nil {
-		return planRephaseError(*asJSON, "GIT_CAS_HOLD", err, 3)
-	}
-
+	// A prepared crash must recover from immutable local snapshots even if
+	// the remote changed or is temporarily unavailable. Fresh Git/provenance
+	// CAS is intentionally checked AFTER journal replay/recovery.
 	nodePath, err := planNodePathByID(root, id)
 	if err != nil {
 		return planRephaseError(*asJSON, "NODE_NOT_FOUND", err, 3)
@@ -288,6 +302,9 @@ func cmdPlanRephaseApplyWithVerifier(argv []string, verifyAuthority planRephaseA
 	}
 	planPath := filepath.Join(root, "PLAN.md")
 	releasePath := filepath.Join(root, "plan", "release-slices.json")
+	if err := verifyPlanRephaseControlledPaths(root, nodePath, planPath, releasePath); err != nil {
+		return planRephaseError(*asJSON, "CONTROLLED_PATH_LINK_HOLD", err, 3)
+	}
 	ioLayer := defaultPlanRephaseIO()
 
 	settings, shared, err := readSharedLearningSettings(root)
@@ -302,19 +319,43 @@ func cmdPlanRephaseApplyWithVerifier(argv []string, verifyAuthority planRephaseA
 	intentPath := filepath.Join(txDir, "intent.json")
 	receiptPath := filepath.Join(txDir, "receipt.json")
 	snapshotPath := filepath.Join(txDir, "snapshot.json")
+	if err := verifyPlanRephaseJournalPaths(journalRoot, txDir, intentPath, receiptPath, snapshotPath,
+		filepath.Join(txDir, "node.before"), filepath.Join(txDir, "PLAN.before"), filepath.Join(txDir, "release-slices.before")); err != nil {
+		return planRephaseError(*asJSON, "JOURNAL_LINK_HOLD", err, 3)
+	}
 	if priorRaw, readErr := os.ReadFile(intentPath); readErr == nil {
 		var prior planRephaseIntent
 		if json.Unmarshal(priorRaw, &prior) != nil || !samePlanRephaseIdentity(prior, strings.TrimSpace(*requestID), learnSHA(requestRaw), learnSHA(authorityRaw), eventActor, req) {
 			return planRephaseReject(*asJSON, "REQUEST_ID_REBOUND", 3)
 		}
 		if prior.Phase != "complete" {
+			if prior.Phase == "prepared" {
+				if err := reconcilePreparedPlanRephase(ioLayer, txDir, snapshotPath, intentPath, prior,
+					nodePath, planPath, releasePath); err != nil {
+					return planRephaseError(*asJSON, "PREPARED_RECONCILE_HOLD", err, 3)
+				}
+				return planRephaseReject(*asJSON, "INTERRUPTED_PREPARED_FILES_RESTORED_NO_BLIND_RETRY", 3)
+			}
 			return planRephaseReject(*asJSON, "INCOMPLETE_REPHASE_JOURNAL", 3)
 		}
 		if err := verifyPlanRephaseAfter(ioLayer, nodePath, planPath, releasePath, prior); err != nil {
 			return planRephaseError(*asJSON, "COMPLETED_RECEIPT_STATE_MISMATCH", err, 3)
 		}
-		if _, err := os.Stat(receiptPath); err != nil {
-			return planRephaseError(*asJSON, "COMPLETED_RECEIPT_MISSING", err, 3)
+		if err := verifyPlanRephaseCompletedReceipt(receiptPath, prior, req); err != nil {
+			return planRephaseError(*asJSON, "COMPLETED_RECEIPT_INVALID", err, 3)
+		}
+		afterNode, err := readPlanNode(nodePath)
+		if err != nil {
+			return planRephaseError(*asJSON, "COMPLETED_NODE_INVALID", err, 3)
+		}
+		eventAt, err := time.Parse(time.RFC3339Nano, prior.ChangedAt)
+		if err != nil {
+			return planRephaseError(*asJSON, "COMPLETED_EVENT_TIME_INVALID", err, 3)
+		}
+		evidence := requestAbs + "#sha256=" + learnSHA(requestRaw) + ";authority=" + authorityAbs + "#sha256=" + learnSHA(authorityRaw)
+		expectedEvent := planNodeEventRowWithActor(afterNode, "rephased", evidence, "plan-rephase", eventAt, eventActor)
+		if err := verifyPlanRephaseNativeEvent(root, settings, shared, expectedEvent); err != nil {
+			return planRephaseError(*asJSON, "COMPLETED_EVENT_READBACK_HOLD", err, 3)
 		}
 		if *asJSON {
 			_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"schema": planRephaseReceiptSchema, "status": "PASS", "action": "already_rephased", "request_id": prior.RequestID, "receipt": receiptPath})
@@ -322,6 +363,12 @@ func cmdPlanRephaseApplyWithVerifier(argv []string, verifyAuthority planRephaseA
 		return 0
 	} else if !errors.Is(readErr, os.ErrNotExist) {
 		return planRephaseError(*asJSON, "JOURNAL_READ_FAILED", readErr, 1)
+	}
+	if err := verifyPlanRephaseGitCAS(root, req); err != nil {
+		return planRephaseError(*asJSON, "GIT_CAS_HOLD", err, 3)
+	}
+	if err := verifyPlanRephaseProvenance(root, req); err != nil {
+		return planRephaseError(*asJSON, "PROVENANCE_CAS_HOLD", err, 3)
 	}
 	nodeBefore, err := ioLayer.read(nodePath)
 	if err != nil {
@@ -346,10 +393,6 @@ func cmdPlanRephaseApplyWithVerifier(argv []string, verifyAuthority planRephaseA
 	if err := validatePlanRephaseNodeBefore(node, req.Node); err != nil {
 		return planRephaseError(*asJSON, "NODE_CAS_HOLD", err, 3)
 	}
-	body, err := parsePlanNodeBody(nodePath, nodeBefore)
-	if err != nil {
-		return planRephaseError(*asJSON, "NODE_BODY_INVALID", err, 2)
-	}
 	if req.Node.AfterParent != req.Node.BeforeParent {
 		if err := validateExistingPlanParent(root, req.Node.AfterParent, node.ID); err != nil {
 			return planRephaseError(*asJSON, "REPARENT_TARGET_INVALID", err, 3)
@@ -361,11 +404,13 @@ func cmdPlanRephaseApplyWithVerifier(argv []string, verifyAuthority planRephaseA
 	afterNode.Trigger = req.Node.AfterTrigger
 	afterNode.DoneWhen = req.Node.AfterDoneWhen
 	changedAt := time.Now().UTC()
-	afterNode.UpdatedAt = changedAt.Format(time.RFC3339Nano)
 	if err := validatePlanNode(afterNode); err != nil {
 		return planRephaseError(*asJSON, "NODE_AFTER_INVALID", err, 2)
 	}
-	nodeAfter := renderPlanNodeWithBody(afterNode, body)
+	nodeAfter, err := plannedRephaseNode(nodeBefore, node, afterNode)
+	if err != nil {
+		return planRephaseError(*asJSON, "NODE_PATCH_INVALID", err, 3)
+	}
 	planAfter, err := plannedRephasePlan(planBefore, node, afterNode, req.Plan)
 	if err != nil {
 		return planRephaseError(*asJSON, "PLAN_REPHASE_INVALID", err, 3)
@@ -402,6 +447,10 @@ func cmdPlanRephaseApplyWithVerifier(argv []string, verifyAuthority planRephaseA
 	if err := os.MkdirAll(txDir, 0o700); err != nil {
 		return planRephaseError(*asJSON, "JOURNAL_CREATE_FAILED", err, 1)
 	}
+	if err := verifyPlanRephaseJournalPaths(journalRoot, txDir, intentPath, receiptPath, snapshotPath,
+		filepath.Join(txDir, "node.before"), filepath.Join(txDir, "PLAN.before"), filepath.Join(txDir, "release-slices.before")); err != nil {
+		return planRephaseError(*asJSON, "JOURNAL_LINK_AFTER_CREATE_HOLD", err, 3)
+	}
 	if err := persistPlanRephaseSnapshot(txDir, snapshotPath, snapshotRaw, nodeBefore, planBefore, releaseBefore); err != nil {
 		return planRephaseError(*asJSON, "SNAPSHOT_FAILED", err, 1)
 	}
@@ -415,21 +464,37 @@ func cmdPlanRephaseApplyWithVerifier(argv []string, verifyAuthority planRephaseA
 		{Path: releasePath, Before: releaseBefore, After: releaseAfter},
 	}
 	if err := publishPlanRephaseFiles(ioLayer, files); err != nil {
-		return planRephaseError(*asJSON, "PUBLISH_ROLLED_BACK", err, 1)
+		return planRephaseError(*asJSON, "PUBLISH_FAILED", err, 1)
 	}
 	intent.Phase = "event_pending"
 	if err := persistPlanRephaseIntent(intentPath, intent); err != nil {
-		_ = rollbackPlanRephaseFiles(ioLayer, files)
-		return planRephaseError(*asJSON, "JOURNAL_AFTER_PUBLISH_FAILED", err, 1)
+		if rollbackErr := rollbackPlanRephaseFiles(ioLayer, files); rollbackErr != nil {
+			return planRephaseError(*asJSON, "JOURNAL_AND_ROLLBACK_UNVERIFIED", fmt.Errorf("%w; rollback: %v", err, rollbackErr), 1)
+		}
+		return planRephaseError(*asJSON, "JOURNAL_AFTER_PUBLISH_FAILED_FILES_RESTORED", err, 1)
 	}
 
 	evidence := requestAbs + "#sha256=" + learnSHA(requestRaw) + ";authority=" + authorityAbs + "#sha256=" + learnSHA(authorityRaw)
 	event := planNodeEventRowWithActor(afterNode, "rephased", evidence, "plan-rephase", changedAt, eventActor)
 	if err := ioLayer.event(root, []map[string]any{event}); err != nil {
-		_ = rollbackPlanRephaseFiles(ioLayer, files)
-		intent.Phase = "event_failed_rolled_back"
-		_ = persistPlanRephaseIntent(intentPath, intent)
-		return planRephaseError(*asJSON, "EVENT_FAILED_ROLLED_BACK", err, 1)
+		rollbackErr := rollbackPlanRephaseFiles(ioLayer, files)
+		// An event append can partially succeed before reporting failure.
+		// Keep the request permanently HOLD for a separate reconcile; never retry blindly.
+		intent.Phase = "event_outcome_unknown"
+		journalErr := persistPlanRephaseIntent(intentPath, intent)
+		if rollbackErr != nil || journalErr != nil {
+			return planRephaseError(*asJSON, "EVENT_OUTCOME_AND_ROLLBACK_UNVERIFIED", fmt.Errorf("event: %w; rollback: %v; journal: %v", err, rollbackErr, journalErr), 1)
+		}
+		return planRephaseError(*asJSON, "EVENT_OUTCOME_UNKNOWN_FILES_RESTORED", err, 1)
+	}
+	if err := verifyPlanRephaseNativeEvent(root, settings, shared, event); err != nil {
+		rollbackErr := rollbackPlanRephaseFiles(ioLayer, files)
+		intent.Phase = "event_outcome_unknown"
+		journalErr := persistPlanRephaseIntent(intentPath, intent)
+		if rollbackErr != nil || journalErr != nil {
+			return planRephaseError(*asJSON, "EVENT_READBACK_AND_ROLLBACK_UNVERIFIED", fmt.Errorf("event readback: %w; rollback: %v; journal: %v", err, rollbackErr, journalErr), 1)
+		}
+		return planRephaseError(*asJSON, "EVENT_READBACK_HOLD_FILES_RESTORED", err, 1)
 	}
 	intent.Phase = "event_written"
 	if err := persistPlanRephaseIntent(intentPath, intent); err != nil {
@@ -442,8 +507,8 @@ func cmdPlanRephaseApplyWithVerifier(argv []string, verifyAuthority planRephaseA
 		Actor: eventActor, Repository: req.Repository, CanonicalRef: req.CanonicalRef,
 		ObservedHead: req.ExpectedHead, ObservedRemoteHead: req.ExpectedHead,
 		AcceptedAncestor: req.AcceptedAncestor, Generation: req.Generation,
-		HistoryManifestSHA256: req.HistoryManifestSHA256,
-		SourceProvenanceRef:   req.SourceProvenanceRef, SourceProvenanceCommit: req.SourceProvenanceCommit,
+		HistoryManifestSHA256: req.HistoryManifestSHA256, HistoryManifestPath: req.HistoryManifestPath,
+		SourceProvenanceRef: req.SourceProvenanceRef, SourceProvenanceCommit: req.SourceProvenanceCommit,
 		NodeID: id, StatusPreserved: true, ReceiptsPreserved: true, SilentClosure: false,
 		ImportedHistoricalNodes: 0, BeforeNodeSHA256: intent.BeforeNodeSHA256, AfterNodeSHA256: intent.AfterNodeSHA256,
 		BeforePlanSHA256: intent.BeforePlanSHA256, AfterPlanSHA256: intent.AfterPlanSHA256,
@@ -459,8 +524,18 @@ func cmdPlanRephaseApplyWithVerifier(argv []string, verifyAuthority planRephaseA
 		ChangedAt: changedAt.Format(time.RFC3339Nano),
 	}
 	if err := persistPlanRephaseReceipt(receiptPath, receipt); err != nil {
-		return planRephaseError(*asJSON, "RECEIPT_WRITE_FAILED", err, 1)
+		// The native event may be durable even when a receipt fails. Never claim
+		// success or silently replay; restore bounded files only when CAS permits.
+		rollbackErr := rollbackPlanRephaseFiles(ioLayer, files)
+		intent.Phase = "receipt_failed_event_outcome_unknown"
+		journalErr := persistPlanRephaseIntent(intentPath, intent)
+		if rollbackErr != nil || journalErr != nil {
+			return planRephaseError(*asJSON, "RECEIPT_AND_ROLLBACK_UNVERIFIED", fmt.Errorf("receipt: %w; rollback: %v; journal: %v", err, rollbackErr, journalErr), 1)
+		}
+		return planRephaseError(*asJSON, "RECEIPT_FAILED_EVENT_UNKNOWN_FILES_RESTORED", err, 1)
 	}
+	receiptEncoded, _ := json.MarshalIndent(receipt, "", "  ")
+	intent.ReceiptSHA256 = learnSHA(append(receiptEncoded, byte(10)))
 	intent.Phase = "complete"
 	if err := persistPlanRephaseIntent(intentPath, intent); err != nil {
 		return planRephaseError(*asJSON, "FINAL_JOURNAL_FAILED", err, 1)
@@ -479,6 +554,9 @@ func cmdPlanRephaseApplyWithVerifier(argv []string, verifyAuthority planRephaseA
 func readPlanRephaseEvidence(path string) (string, []byte, error) {
 	abs, err := filepath.Abs(strings.TrimSpace(path))
 	if err != nil {
+		return "", nil, err
+	}
+	if err := checkPlanRephaseNoLinkedAncestors(abs); err != nil {
 		return "", nil, err
 	}
 	info, err := os.Lstat(abs)
@@ -539,8 +617,10 @@ func validatePlanRephaseRequest(req planRephaseRequest, id string) error {
 			return fmt.Errorf("%s must be lowercase SHA256", name)
 		}
 	}
-	if strings.TrimSpace(req.Generation) == "" || len(req.Generation) > 128 || strings.TrimSpace(req.SourceProvenanceRef) == "" {
-		return fmt.Errorf("generation and source provenance ref are required")
+	if strings.TrimSpace(req.Generation) == "" || len(req.Generation) > 128 ||
+		strings.TrimSpace(req.HistoryManifestPath) == "" || len(req.HistoryManifestPath) > 1024 ||
+		!planRephaseRef.MatchString(req.SourceProvenanceRef) || strings.Contains(req.SourceProvenanceRef, "..") {
+		return fmt.Errorf("generation, history manifest path and exact source provenance ref are required")
 	}
 	for name, value := range map[string]string{
 		"expected_owner": req.Node.ExpectedOwner,
@@ -618,6 +698,244 @@ func planRephaseGit(root string, args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+// verifyPlanRephaseControlledPaths rejects linked/junction ancestors and target files.
+// A bounded node/PLAN/release mutation may never escape the selected product.
+func verifyPlanRephaseControlledPaths(root string, paths ...string) error {
+	product, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	for _, p := range append([]string{product}, paths...) {
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(product, abs)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return fmt.Errorf("controlled path outside product: %s", p)
+		}
+		if err := checkPlanRephaseNoLinkedAncestors(abs); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkPlanRephaseNoLinkedAncestors detects both file links and linked
+// intermediate directories (including Windows junctions exposed by Lstat).
+func checkPlanRephaseNoLinkedAncestors(path string) error {
+	for current := filepath.Clean(path); ; {
+		info, err := os.Lstat(current)
+		if err != nil {
+			return fmt.Errorf("path lstat %s: %w", current, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("linked ancestor or target: %s", current)
+		}
+		next := filepath.Dir(current)
+		if next == current {
+			break
+		}
+		current = next
+	}
+	return nil
+}
+
+// verifyPlanRephaseJournalPaths treats the dedicated durable journal as a
+// controlled write target. A shared-runtime journal is allowed only under the
+// explicit shared settings root selected by the caller, never via a link.
+func verifyPlanRephaseJournalPaths(journalRoot, txDir string, paths ...string) error {
+	base, err := filepath.Abs(journalRoot)
+	if err != nil {
+		return err
+	}
+	child, err := filepath.Abs(txDir)
+	if err != nil {
+		return err
+	}
+	rel, err := filepath.Rel(base, child)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("transaction path outside selected journal root")
+	}
+	for _, path := range append([]string{base, child}, paths...) {
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(child, abs)
+		if err != nil {
+			return err
+		}
+		if path != journalRoot && path != txDir &&
+			(rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator))) {
+			return fmt.Errorf("journal entry escapes transaction directory")
+		}
+		for current := abs; ; {
+			info, err := os.Lstat(current)
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("journal ancestor inspect %s: %w", current, err)
+			}
+			if err == nil {
+				if info.Mode()&os.ModeSymlink != 0 {
+					return fmt.Errorf("linked journal ancestor: %s", current)
+				}
+				// Windows junctions can expose a link target despite a regular
+				// mode; Readlink returning a target is always a hard HOLD.
+				if dest, readlinkErr := os.Readlink(current); readlinkErr == nil {
+					return fmt.Errorf("journal reparse ancestor: %s -> %s", current, dest)
+				}
+			}
+			parent := filepath.Dir(current)
+			if parent == current {
+				break
+			}
+			current = parent
+		}
+	}
+	return nil
+}
+
+// verifyPlanRephaseNativeEvent reads back the exact persisted native event
+// after the event writer returns. The bounded journal tail prevents whole-vault
+// scans; missing or ambiguous records are HOLD, never a claimed native PASS.
+func verifyPlanRephaseNativeEvent(root string, settings sharedLearningSettings, shared bool, expected map[string]any) error {
+	id, _ := expected["id"].(string)
+	observed, _ := expected["observed"].(string)
+	evidence, _ := expected["evidence"].(string)
+	actor, _ := expected["actor"].(string)
+	reference, _ := expected["reference"].(string)
+	if id == "" || observed == "" || actor == "" || reference == "" {
+		return fmt.Errorf("native event identity incomplete")
+	}
+	path := planNodeEventsPath(root)
+	if shared {
+		path = filepath.Join(settings.RuntimeRoot, "events.jsonl")
+	}
+	if err := checkPlanRephaseNoLinkedAncestors(path); err != nil {
+		return err
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		return fmt.Errorf("native event store not regular: %v", err)
+	}
+	const tailMax int64 = 4 * 1024 * 1024
+	length := info.Size()
+	if length == 0 {
+		return fmt.Errorf("native event journal is empty")
+	}
+	if length > tailMax {
+		length = tailMax
+	}
+	start := info.Size() - length
+	raw, err := io.ReadAll(io.NewSectionReader(f, start, length))
+	if err != nil {
+		return err
+	}
+	if start > 0 {
+		firstNewline := bytes.IndexByte(raw, '\n')
+		if firstNewline < 0 {
+			return fmt.Errorf("native event tail contains no complete records")
+		}
+		raw = raw[firstNewline+1:]
+	}
+	if len(raw) == 0 || raw[len(raw)-1] != '\n' {
+		return fmt.Errorf("native event journal has incomplete terminal record")
+	}
+	found := 0
+	for _, line := range bytes.Split(raw, []byte("\n")) {
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+		var row map[string]any
+		if err := json.Unmarshal(line, &row); err != nil {
+			return fmt.Errorf("native event tail contains invalid JSON: %w", err)
+		}
+		expectedAt, ok := expected["created_at"].(string)
+		if !ok || expectedAt == "" {
+			return fmt.Errorf("expected native event timestamp missing")
+		}
+		startedAt, err := time.Parse(time.RFC3339Nano, expectedAt)
+		if err != nil {
+			return fmt.Errorf("expected native event timestamp invalid: %w", err)
+		}
+		if shared {
+			if row["run_id"] != id {
+				continue
+			}
+			persistedID, idOK := row["event_id"].(string)
+			persistedAt, atOK := row["at"].(string)
+			eventAt, atErr := time.Parse(time.RFC3339Nano, persistedAt)
+			if row["schema"] == "air.learning.event/v1" && row["observed"] == observed &&
+				row["class"] == "plan-node" && row["source"] == "plan-node" &&
+				row["principal"] == actor && row["session"] == actor &&
+				row["outcome_ref"] == evidence && row["kind"] == "observation" &&
+				row["product_id"] == settings.ProductID && settings.ProductID != "" &&
+				idOK && planRephaseEventID.MatchString(persistedID) &&
+				atOK && atErr == nil && !eventAt.Before(startedAt) &&
+				!eventAt.After(startedAt.Add(5*time.Minute)) {
+				found++
+			} else {
+				return fmt.Errorf("shared native event identity, product or timestamp mismatch")
+			}
+		} else {
+			if row["id"] != id {
+				continue
+			}
+			if row["schema"] == learnSchemaVersion && row["observed"] == observed &&
+				row["class"] == "plan-node" && row["source"] == "plan-rephase" &&
+				row["actor"] == actor && row["reference"] == reference &&
+				row["evidence"] == evidence && row["kind"] == "check" &&
+				row["created_at"] == expectedAt {
+				found++
+			} else {
+				return fmt.Errorf("native event identity or timestamp mismatch")
+			}
+		}
+	}
+	if found != 1 {
+		return fmt.Errorf("expected exactly one bound native event, found %d", found)
+	}
+	return nil
+}
+
+func verifyPlanRephaseProvenance(root string, req planRephaseRequest) error {
+	_, raw, err := readPlanRephaseEvidence(req.HistoryManifestPath)
+	if err != nil {
+		return fmt.Errorf("history manifest unreadable: %w", err)
+	}
+	if learnSHA(raw) != req.HistoryManifestSHA256 {
+		return fmt.Errorf("history manifest exact bytes changed")
+	}
+	var h planRephaseHistoryEvidence
+	if err := decodePlanRephaseJSON(raw, &h); err != nil {
+		return fmt.Errorf("history manifest invalid: %w", err)
+	}
+	if h.Schema != planRephaseHistorySchema || h.Repository != req.Repository ||
+		h.CanonicalRef != req.CanonicalRef || h.ExpectedHead != req.ExpectedHead ||
+		h.Generation != req.Generation || h.SourceProvenanceRef != req.SourceProvenanceRef ||
+		h.SourceProvenanceCommit != req.SourceProvenanceCommit {
+		return fmt.Errorf("history manifest identity/generation/source mismatch")
+	}
+	commit, err := planRephaseGit(root, "rev-parse", "--verify", req.SourceProvenanceRef+"^{commit}")
+	if err != nil || commit != req.SourceProvenanceCommit {
+		return fmt.Errorf("source provenance local ref/commit mismatch")
+	}
+	remote, err := planRephaseGit(root, "ls-remote", req.RemoteName, req.SourceProvenanceRef)
+	if err != nil {
+		return fmt.Errorf("source provenance remote readback failed: %w", err)
+	}
+	fields := strings.Fields(remote)
+	if len(fields) != 2 || fields[0] != req.SourceProvenanceCommit || fields[1] != req.SourceProvenanceRef {
+		return fmt.Errorf("source provenance remote ref/commit mismatch")
+	}
+	return nil
+}
+
 func validatePlanRephaseNodeBefore(node planNode, want planRephaseNode) error {
 	if node.ID != want.ID || node.Status != "open" || node.Owner != want.ExpectedOwner ||
 		node.Parent != want.BeforeParent || node.ReturnTo != want.BeforeReturnTo ||
@@ -625,6 +943,59 @@ func validatePlanRephaseNodeBefore(node planNode, want planRephaseNode) error {
 		return fmt.Errorf("node identity/status/owner/original fields differ from expected CAS")
 	}
 	return nil
+}
+
+// plannedRephaseNode changes only the four allowed frontmatter scalars.
+// It deliberately preserves all other bytes, including unknown metadata and receipts.
+func plannedRephaseNode(before []byte, oldNode, newNode planNode) ([]byte, error) {
+	if !bytes.HasPrefix(before, []byte("---\n")) {
+		return nil, fmt.Errorf("node must start with canonical frontmatter")
+	}
+	fields := []struct {
+		key, was, now string
+		count         int
+	}{
+		{key: "parent", was: oldNode.Parent, now: newNode.Parent},
+		{key: "return_to", was: oldNode.ReturnTo, now: newNode.ReturnTo},
+		{key: "trigger", was: oldNode.Trigger, now: newNode.Trigger},
+		{key: "done_when", was: oldNode.DoneWhen, now: newNode.DoneWhen},
+	}
+	lines := bytes.SplitAfter(before, []byte("\n"))
+	closed, changed := false, false
+	for i := 1; i < len(lines); i++ {
+		raw := string(lines[i])
+		value := strings.TrimSuffix(strings.TrimSuffix(raw, "\n"), "\r")
+		if value == "---" {
+			closed = true
+			break
+		}
+		for j := range fields {
+			field := &fields[j]
+			if !strings.HasPrefix(value, field.key+":") {
+				continue
+			}
+			field.count++
+			expected := field.key + ": " + yamlScalar(field.was)
+			if value != expected {
+				return nil, fmt.Errorf("noncanonical or stale node field %s", field.key)
+			}
+			if field.was != field.now {
+				ending := raw[len(value):]
+				lines[i] = []byte(field.key + ": " + yamlScalar(field.now) + ending)
+				changed = true
+			}
+		}
+	}
+	if !closed || !changed {
+		return nil, fmt.Errorf("node header missing or no real bounded field change")
+	}
+	for _, field := range fields {
+		if field.count != 1 {
+			return nil, fmt.Errorf("node field %s must occur exactly once", field.key)
+		}
+	}
+	out := bytes.Join(lines, nil)
+	return out, nil
 }
 
 func plannedRephasePlan(before []byte, oldNode, newNode planNode, p planRephasePlan) ([]byte, error) {
@@ -640,10 +1011,10 @@ func plannedRephasePlan(before []byte, oldNode, newNode planNode, p planRephaseP
 		return nil, fmt.Errorf("header span overlaps native node spine")
 	}
 	out := append([]byte(nil), before...)
+	if bytes.Count(out, oldLine) != 1 {
+		return nil, fmt.Errorf("PLAN spine has no unique exact node link")
+	}
 	if !bytes.Equal(oldLine, newLine) {
-		if bytes.Count(out, oldLine) != 1 {
-			return nil, fmt.Errorf("PLAN spine has no unique exact node link")
-		}
 		out = bytes.Replace(out, oldLine, newLine, 1)
 	}
 	if bytes.Count(out, []byte(p.HeaderBefore)) != 1 {
@@ -787,34 +1158,54 @@ type planRephaseFile struct {
 }
 
 func publishPlanRephaseFiles(ioLayer planRephaseIO, files []planRephaseFile) error {
-	written := 0
 	for i := range files {
 		if err := ioLayer.write(files[i].Path, files[i].After); err != nil {
-			for j := written - 1; j >= 0; j-- {
-				_ = ioLayer.write(files[j].Path, files[j].Before)
+			// Even the failing durable write may have replaced its target before returning.
+			if rollbackErr := rollbackPlanRephaseFiles(ioLayer, files[:i+1]); rollbackErr != nil {
+				return fmt.Errorf("publish %s: %w; rollback UNVERIFIED: %v", filepath.Base(files[i].Path), err, rollbackErr)
 			}
-			return fmt.Errorf("publish %s: %w", filepath.Base(files[i].Path), err)
+			return fmt.Errorf("publish %s: %w; rollback verified", filepath.Base(files[i].Path), err)
 		}
-		written++
 	}
 	for i := range files {
 		got, err := ioLayer.read(files[i].Path)
 		if err != nil || !bytes.Equal(got, files[i].After) {
-			_ = rollbackPlanRephaseFiles(ioLayer, files)
-			if err != nil {
-				return fmt.Errorf("readback %s: %w", filepath.Base(files[i].Path), err)
+			if rollbackErr := rollbackPlanRephaseFiles(ioLayer, files); rollbackErr != nil {
+				return fmt.Errorf("readback %s failed; rollback UNVERIFIED: %v", filepath.Base(files[i].Path), rollbackErr)
 			}
-			return fmt.Errorf("readback mismatch for %s", filepath.Base(files[i].Path))
+			if err != nil {
+				return fmt.Errorf("readback %s: %w; rollback verified", filepath.Base(files[i].Path), err)
+			}
+			return fmt.Errorf("readback mismatch for %s; rollback verified", filepath.Base(files[i].Path))
 		}
 	}
 	return nil
 }
 
 func rollbackPlanRephaseFiles(ioLayer planRephaseIO, files []planRephaseFile) error {
+	// Fail without writing if any controlled file has drifted outside the
+	// exact before/after CAS generations (another writer or corrupt data).
+	for _, file := range files {
+		current, err := ioLayer.read(file.Path)
+		if err != nil {
+			return fmt.Errorf("rollback preflight %s: %w", filepath.Base(file.Path), err)
+		}
+		if !bytes.Equal(current, file.Before) && !bytes.Equal(current, file.After) {
+			return fmt.Errorf("rollback CAS drift %s", filepath.Base(file.Path))
+		}
+	}
 	var first error
-	for i := range files {
+	for i := len(files) - 1; i >= 0; i-- {
 		if err := ioLayer.write(files[i].Path, files[i].Before); err != nil && first == nil {
-			first = err
+			first = fmt.Errorf("rollback write %s: %w", filepath.Base(files[i].Path), err)
+		}
+	}
+	for _, f := range files {
+		raw, err := ioLayer.read(f.Path)
+		if err != nil && first == nil {
+			first = fmt.Errorf("rollback readback %s: %w", filepath.Base(f.Path), err)
+		} else if err == nil && !bytes.Equal(raw, f.Before) && first == nil {
+			first = fmt.Errorf("rollback readback mismatch %s", filepath.Base(f.Path))
 		}
 	}
 	return first
@@ -896,6 +1287,114 @@ func verifyPlanRephaseAfter(ioLayer planRephaseIO, nodePath, planPath, releasePa
 		if err != nil || learnSHA(raw) != item.sha {
 			return fmt.Errorf("after-generation differs: %s", filepath.Base(item.path))
 		}
+	}
+	return nil
+}
+
+// verifyPlanRephaseCompletedReceipt rejects missing, substituted, or corrupted
+// receipts before an idempotent replay may claim PASS.
+// reconcilePreparedPlanRephase handles only the pre-event phase. A process
+// can die between any two durable writes; every observed byte generation
+// must match the intent-bound before/after hashes before rollback begins.
+// Phases with possible native-event effects remain HOLD for manual reconcile.
+func reconcilePreparedPlanRephase(ioLayer planRephaseIO, txDir, snapshotPath, intentPath string,
+	intent planRephaseIntent, nodePath, planPath, releasePath string) error {
+	if err := verifyPlanRephaseJournalPaths(filepath.Dir(txDir), txDir, intentPath, snapshotPath,
+		filepath.Join(txDir, "node.before"), filepath.Join(txDir, "PLAN.before"), filepath.Join(txDir, "release-slices.before")); err != nil {
+		return err
+	}
+	raw, err := os.ReadFile(snapshotPath)
+	if err != nil {
+		return err
+	}
+	if learnSHA(raw) != intent.SnapshotSHA256 {
+		return fmt.Errorf("snapshot manifest SHA drift")
+	}
+	var meta planRephaseSnapshot
+	if err := decodePlanRephaseJSON(raw, &meta); err != nil {
+		return err
+	}
+	if meta.Schema != "air-worker.plan-rephase-snapshot/v1" ||
+		meta.RequestID != intent.RequestID ||
+		meta.NodeFile != "node.before" || meta.PlanFile != "PLAN.before" ||
+		meta.ReleaseFile != "release-slices.before" ||
+		meta.NodeSHA256 != intent.BeforeNodeSHA256 ||
+		meta.PlanSHA256 != intent.BeforePlanSHA256 ||
+		meta.ReleaseSHA256 != intent.BeforeReleaseSHA256 {
+		return fmt.Errorf("snapshot identity mismatch")
+	}
+	files := make([]planRephaseFile, 0, 3)
+	for _, item := range []struct {
+		path, beforeName, beforeHash, afterHash string
+	}{
+		{nodePath, meta.NodeFile, intent.BeforeNodeSHA256, intent.AfterNodeSHA256},
+		{planPath, meta.PlanFile, intent.BeforePlanSHA256, intent.AfterPlanSHA256},
+		{releasePath, meta.ReleaseFile, intent.BeforeReleaseSHA256, intent.AfterReleaseSHA256},
+	} {
+		if !planRephaseSHA256.MatchString(item.beforeHash) || !planRephaseSHA256.MatchString(item.afterHash) {
+			return fmt.Errorf("intent before/after hash absent")
+		}
+		before, err := os.ReadFile(filepath.Join(txDir, item.beforeName))
+		if err != nil {
+			return err
+		}
+		if learnSHA(before) != item.beforeHash {
+			return fmt.Errorf("before snapshot hash mismatch for %s", item.beforeName)
+		}
+		current, err := ioLayer.read(item.path)
+		if err != nil {
+			return err
+		}
+		if learnSHA(current) != item.beforeHash && learnSHA(current) != item.afterHash {
+			return fmt.Errorf("interrupted controlled file drift: %s", filepath.Base(item.path))
+		}
+		files = append(files, planRephaseFile{Path: item.path, Before: before, After: current})
+	}
+	// The preflight proved every current file is exactly an allowed generation.
+	// Restore the persisted original bytes under the existing product lock.
+	if err := rollbackPlanRephaseFiles(ioLayer, files); err != nil {
+		return fmt.Errorf("prepared rollback unverified: %w", err)
+	}
+	intent.Phase = "recovered_rollback"
+	if err := persistPlanRephaseIntent(intentPath, intent); err != nil {
+		return fmt.Errorf("files restored, journal recovery persistence failed: %w", err)
+	}
+	return nil
+}
+
+func verifyPlanRephaseCompletedReceipt(path string, intent planRephaseIntent, req planRephaseRequest) error {
+	_, raw, err := readPlanRephaseEvidence(path)
+	if err != nil {
+		return err
+	}
+	if !planRephaseSHA256.MatchString(intent.ReceiptSHA256) || learnSHA(raw) != intent.ReceiptSHA256 {
+		return fmt.Errorf("completed receipt exact SHA mismatch")
+	}
+	var receipt planRephaseReceipt
+	if err := decodePlanRephaseJSON(raw, &receipt); err != nil {
+		return err
+	}
+	if receipt.Schema != planRephaseReceiptSchema || receipt.Status != "PASS" ||
+		receipt.RequestID != intent.RequestID || receipt.RequestSHA256 != intent.RequestSHA256 ||
+		receipt.AuthorityReceiptSHA256 != intent.AuthoritySHA256 || receipt.Actor != intent.Actor ||
+		receipt.Repository != intent.Repository || receipt.CanonicalRef != intent.CanonicalRef ||
+		receipt.ObservedHead != intent.ExpectedHead || receipt.ObservedRemoteHead != intent.ExpectedHead ||
+		receipt.Generation != intent.Generation || receipt.NodeID != intent.NodeID ||
+		receipt.HistoryManifestSHA256 != req.HistoryManifestSHA256 ||
+		receipt.HistoryManifestPath != req.HistoryManifestPath ||
+		receipt.SourceProvenanceRef != req.SourceProvenanceRef ||
+		receipt.SourceProvenanceCommit != req.SourceProvenanceCommit ||
+		receipt.BeforeNodeSHA256 != intent.BeforeNodeSHA256 ||
+		receipt.AfterNodeSHA256 != intent.AfterNodeSHA256 ||
+		receipt.BeforePlanSHA256 != intent.BeforePlanSHA256 ||
+		receipt.AfterPlanSHA256 != intent.AfterPlanSHA256 ||
+		receipt.BeforeReleaseSHA256 != intent.BeforeReleaseSHA256 ||
+		receipt.AfterReleaseSHA256 != intent.AfterReleaseSHA256 ||
+		receipt.RollbackSnapshotSHA256 != intent.SnapshotSHA256 ||
+		!receipt.StatusPreserved || !receipt.ReceiptsPreserved || receipt.SilentClosure ||
+		receipt.ImportedHistoricalNodes != 0 ||
+		!receipt.NoReleaseEffect || !receipt.NoInstallEffect || !receipt.NoProviderEffect {
+		return fmt.Errorf("completed receipt identity or effect contract mismatch")
 	}
 	return nil
 }
