@@ -2,13 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Product SessionStart is the automatic trigger. A previously reviewed and
@@ -379,4 +382,163 @@ func TestHLP06LegacySignedNativeUseDoesNotMintGPTDelivery(t *testing.T) {
 		t.Fatalf("legacy signed native outcome was relabeled or blocked normal context: %v", err)
 	}
 	nativePreflightDeferred.Swap(false)
+}
+
+type hlp06ConcurrentChildResult struct {
+	output []byte
+	err    error
+}
+
+// This exact same (principal, session, run) is triggered by TWO independent
+// test processes, synchronized at the immediate SessionStart boundary.
+// The delivered signed context SHA is immutable for both consumers.
+func TestHLP06ConcurrentSessionStartChild(t *testing.T) {
+	if os.Getenv("AW_HLP06_CONCURRENT_CHILD") != "1" {
+		return
+	}
+	product := os.Getenv("AW_HLP06_CONCURRENT_PRODUCT")
+	state := os.Getenv("AW_HLP06_CONCURRENT_STATE")
+	ready := os.Getenv("AW_HLP06_CONCURRENT_READY")
+	gate := os.Getenv("AW_HLP06_CONCURRENT_GATE")
+	runID := os.Getenv("AW_HLP06_CONCURRENT_RUN")
+	if product == "" || state == "" || ready == "" || gate == "" || runID == "" {
+		t.Fatal("concurrent child missing trusted fixture arguments")
+	}
+	t.Setenv(hookStateDirEnv, state)
+	if err := os.WriteFile(ready, []byte("READY\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now()
+	for {
+		if _, err := os.Stat(gate); err == nil {
+			break
+		} else if !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+		if time.Since(started) > 20*time.Second {
+			t.Fatal("concurrent fixture start barrier did not open")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	in := hookInput{Principal: "gpt", SessionID: "hlp06-concurrent",
+		RunID: runID, HookEventName: "SessionStart"}
+	res, err := handleLearningContextWithReviewBatchStarter(in, nil)
+	if err != nil || !strings.Contains(res.Context, "VERIFIED AUTOMATIC DELIVERY") {
+		t.Fatalf("concurrent SessionStart did not deliver exact signed skill: %v", err)
+	}
+	receiptPath, err := selfLearningContextReceiptPath(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := n093ReadContextEvidence(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("HLP06_CONCURRENT_DELIVERY_SHA=%s\n", learnSHA(raw))
+}
+
+func TestHLP06ConcurrentSessionStartHasOneImmutableSignedDelivery(t *testing.T) {
+	product, settings, _, rule := n093NativeTypedFixture(t)
+	state := os.Getenv(hookStateDirEnv)
+	in := declareLearningTestSession(t, state, "gpt", "hlp06-concurrent", product)
+	in.HookEventName = "SessionStart"
+	if in.RunID == "" {
+		t.Fatal("source fixture run identity missing")
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	gate := filepath.Join(root, "release-children.signal")
+	ready := []string{
+		filepath.Join(root, "child-1.ready"),
+		filepath.Join(root, "child-2.ready"),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 75*time.Second)
+	defer cancel()
+	done := make(chan hlp06ConcurrentChildResult, 2)
+	for i := 0; i < 2; i++ {
+		child := exec.CommandContext(ctx, exe,
+			"-test.run=^TestHLP06ConcurrentSessionStartChild$", "-test.v")
+		child.Env = append(os.Environ(),
+			"AW_HLP06_CONCURRENT_CHILD=1",
+			"AW_HLP06_CONCURRENT_PRODUCT="+product,
+			"AW_HLP06_CONCURRENT_STATE="+state,
+			"AW_HLP06_CONCURRENT_READY="+ready[i],
+			"AW_HLP06_CONCURRENT_GATE="+gate,
+			"AW_HLP06_CONCURRENT_RUN="+in.RunID)
+		go func() {
+			output, err := child.CombinedOutput()
+			done <- hlp06ConcurrentChildResult{output: output, err: err}
+		}()
+	}
+	// Both new processes MUST reach this barrier before either may enter
+	// the SessionStart source. A sequential two-call test misses the P1 race.
+	readyCount := 0
+	started := time.Now()
+	for readyCount != 2 {
+		readyCount = 0
+		for _, path := range ready {
+			if _, err := os.Stat(path); err == nil {
+				readyCount++
+			} else if !os.IsNotExist(err) {
+				t.Fatal(err)
+			}
+		}
+		if time.Since(started) > 20*time.Second {
+			t.Fatalf("two distinct children did not reach barrier: ready=%d", readyCount)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if err := os.WriteFile(gate, []byte("GO\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var consumed []string
+	for i := 0; i < 2; i++ {
+		result := <-done
+		if result.err != nil {
+			t.Fatalf("concurrent child %d failed: %v output=%s", i, result.err, result.output)
+		}
+		for _, line := range strings.Split(string(result.output), "\n") {
+			if strings.HasPrefix(line, "HLP06_CONCURRENT_DELIVERY_SHA=") {
+				consumed = append(consumed, strings.TrimSpace(
+					strings.TrimPrefix(line, "HLP06_CONCURRENT_DELIVERY_SHA=")))
+			}
+		}
+	}
+	if len(consumed) != 2 || len(consumed[0]) != 64 || consumed[0] != consumed[1] {
+		t.Fatalf("simultaneous independent SessionStart writers changed an issued SHA: %v", consumed)
+	}
+	path, err := selfLearningContextReceiptPath(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := n093ReadContextEvidence(path)
+	if err != nil || learnSHA(raw) != consumed[0] {
+		t.Fatalf("published signed context differs from a child delivery: %v", err)
+	}
+	receipt, _, found, err := readSelfLearningContextReceipt(in)
+	if err != nil || !found || receipt.DeliveryMAC == "" || len(receipt.Loaded) != 1 ||
+		receipt.Loaded[0] != rule {
+		t.Fatalf("simultaneous delivery was not one signed rule: %+v %v", receipt, err)
+	}
+	owner, on, err := activeAirWorkerSelfLearningOwner()
+	if err != nil || !on {
+		t.Fatalf("owner unavailable: %v", err)
+	}
+	proof := learningDeliveryProof{
+		Principal: "gpt", Session: "hlp06-concurrent",
+		RunID: in.RunID, ContextSHA: consumed[0],
+	}
+	if err := verifyCurrentLearningDelivery(owner, proof, rule); err != nil {
+		t.Fatalf("concurrent signed delivery failed host readback: %v", err)
+	}
+	if got := n104Events(t, settings.RuntimeRoot, "skill_loaded"); got != 1 {
+		t.Fatalf("two writers double-credited skill_loaded: %d", got)
+	}
+	if got := n104Events(t, settings.RuntimeRoot, "procedure_used"); got != 0 {
+		t.Fatalf("SessionStart incorrectly credited actual native use: %d", got)
+	}
+	t.Logf("HLP06_TWO_INDEPENDENT_SESSION_STARTS_ONE_SHA_PASS=%s", consumed[0])
 }
