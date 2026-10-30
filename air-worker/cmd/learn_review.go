@@ -174,6 +174,12 @@ func handleUserPromptLearning(in hookInput) (hookResult, error) {
 	if !ok {
 		return handleLearningContext(in)
 	}
+	// N124 uses the same trusted UserPromptSubmit host lifecycle, but a
+	// separate exact request/generation/actor scope. No grant can be created
+	// by plan rephase apply flags or a user-supplied authority JSON.
+	if matched, err := capturePlanRephaseUserPromptGrant(product, in); matched && err != nil {
+		return hookResult{}, err
+	}
 	if _, on, err := readSharedLearningSettings(product); on || err != nil {
 		if err != nil {
 			return hookResult{Block: true, Reason: "shared-learning cutover refused: " + err.Error()}, nil

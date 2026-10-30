@@ -209,13 +209,19 @@ func cmdPlanRephase(argv []string) int {
 	return cmdPlanRephaseApply(argv[1:])
 }
 
-type planRephaseAuthorityVerifier func(root string, req planRephaseRequest, auth planRephaseAuthority, authorityRaw []byte, actor, requestSHA string) error
+type planRephaseAuthorityVerifier func(root string, req planRephaseRequest, auth planRephaseAuthority, authorityRaw []byte, actor, requestSHA, requestID string) error
 
-func defaultPlanRephaseAuthorityVerifier(root string, req planRephaseRequest, auth planRephaseAuthority, authorityRaw []byte, actor, requestSHA string) error {
+func defaultPlanRephaseAuthorityVerifier(root string, req planRephaseRequest, auth planRephaseAuthority, authorityRaw []byte, actor, requestSHA, requestID string) error {
 	if err := validatePlanRephaseAuthority(auth, req, actor, requestSHA); err != nil {
 		return err
 	}
-	return errors.New("trusted N124 authority verifier is not configured; source-only candidate must HOLD")
+	// Actor flags do not establish a trusted caller. Require the installed
+	// bridge-parent provenance again at the execution boundary, separately
+	// from the earlier exact human UserPromptSubmit grant.
+	if err := planRephaseHookSource(); err != nil {
+		return fmt.Errorf("trusted N124 apply host transport not attested: %w", err)
+	}
+	return verifyPlanRephaseTrustedGrant(root, req, auth, authorityRaw, actor, requestSHA, requestID)
 }
 
 func cmdPlanRephaseApply(argv []string) int {
@@ -286,7 +292,7 @@ func cmdPlanRephaseApplyWithVerifier(argv []string, verifyAuthority planRephaseA
 	if verifyAuthority == nil {
 		return planRephaseReject(*asJSON, "TRUSTED_AUTHORITY_VERIFIER_MISSING", 3)
 	}
-	if err := verifyAuthority(root, req, auth, authorityRaw, eventActor, learnSHA(requestRaw)); err != nil {
+	if err := verifyAuthority(root, req, auth, authorityRaw, eventActor, learnSHA(requestRaw), strings.TrimSpace(*requestID)); err != nil {
 		return planRephaseError(*asJSON, "AUTHORITY_NOT_ACCEPTED", err, 3)
 	}
 

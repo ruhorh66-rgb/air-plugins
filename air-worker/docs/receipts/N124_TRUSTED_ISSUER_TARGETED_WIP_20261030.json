@@ -1,0 +1,23 @@
+{
+    "schema":  "airworker.n124.trusted-issuer-source-wip/v1",
+    "status":  "TARGETED_GO_PASS__FULL_REGRESSION_AND_REVIEW_PENDING__NOT_INSTALLED",
+    "source_base_commit":  "35a2e2ae456b3497a7348387bd91cac319721452",
+    "accepted_n124_parent":  "7fe94f1ff4a2b5b6d8ff9063a9fc7b07bff555ef",
+    "accepted_hlp_parent":  "542f02a217c12e772a74139fb3cfe815223bd324",
+    "source_hashes":  {
+                          "plan_rephase_trust.go":  "c409b2c4ca6440b8807b49bc4b1551c6e76785a868548f746a44e6c76fb17a91",
+                          "plan_rephase.go":  "beafaca3b218e9b2d91a81b07e7e08bc477e09658603d8603596ad7b2a586731",
+                          "plan_rephase_trust_test.go":  "278cffe7401b9e800bdffe52a15ba79a5b9141fac4712dc3651e4a88c78cf85c",
+                          "plan_rephase_test.go":  "f824225f23594eb05bab42b0e09a8524d93b5961731bcf4d3bc231a2533894d1",
+                          "learn_review.go":  "0636942d4c6823c08f6a65dab8d16d69de4c4e31651bfc1850b4ebc0b2b86f86"
+                      },
+    "targeted_go_exit_code":  0,
+    "targeted_receipt_sha256":  "7dd3845af6b75922abadef1ec7a4df038f45ec084e05dd4ead3bf8d848013b59",
+    "targeted_stdout_sha256":  "de489e4948f82b4ac33165aa7d6c459f385a4084deadf981cc4f9c99c5b78eaf",
+    "source_mechanism":  "existing trusted UserPromptSubmit + host bridge marker + DPAPI-sealed existing per-product key + exact request/authority SHA, generation and actor/session; no new service",
+    "known_limit":  "installed host principal/bridge trust binding and exact LPR grant not exercised; no real AirVera CAS",
+    "no_install":  true,
+    "no_lpr_grant":  true,
+    "no_airvera_cas":  true,
+    "rollback_installed":  "air-worker 0.11.10"
+}

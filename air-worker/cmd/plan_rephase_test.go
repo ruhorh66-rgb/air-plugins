@@ -251,7 +251,7 @@ func n124RewriteEvidence(t *testing.T, f *n124RephaseFixture, mutate func(*planR
 	f.authorityPath, f.authoritySHA = n124WriteEvidence(t, evDir, "authority-updated.json", auth)
 }
 
-func n124FixtureAuthorityVerifier(root string, req planRephaseRequest, auth planRephaseAuthority, authorityRaw []byte, actor, requestSHA string) error {
+func n124FixtureAuthorityVerifier(root string, req planRephaseRequest, auth planRephaseAuthority, authorityRaw []byte, actor, requestSHA, requestID string) error {
 	return validatePlanRephaseAuthority(auth, req, actor, requestSHA)
 }
 
