@@ -8,7 +8,35 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+// lockAutoSelfLearningSessionDelivery serializes the ENTIRE read/select/sign/
+// publish/replay lifecycle of one (principal, session, run) context receipt.
+// Earlier code locked neither the absent-receipt read nor its later atomic
+// replacement, so two simultaneous SessionStart calls could each mint a
+// distinct nonce and replace one another's already-delivered signed SHA.
+// Use the existing Windows named cross-process mutex; no daemon, no new
+// persistent runtime lockfile and no relaxed fsync. The bounded waiter FAILS
+// closed if the original writer cannot publish and release its mutex.
+func lockAutoSelfLearningSessionDelivery(in hookInput) (func(), error) {
+	path, err := selfLearningContextReceiptPath(in)
+	if err != nil {
+		return nil, err
+	}
+	name := lockName("self-auto-delivery", path)
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		lock, ok := acquireLock(name)
+		if ok {
+			return lock.release, nil
+		}
+		if !time.Now().Before(deadline) {
+			return nil, errors.New("automatic SessionStart delivery already has an unfinished writer; do not issue a second signed context")
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+}
 
 // autoSelfLearningSessionDelivery is a narrow product-owned SessionStart action.
 // It prepares trusted context for the ONLY currently compiled safe validate
@@ -27,6 +55,14 @@ func autoSelfLearningSessionDelivery(owner selfLearningOwner, in hookInput) (str
 	if err != nil || checkedRun != runID {
 		return "", false, errors.New("automatic learning run identity is not canonical")
 	}
+	// Lock BEFORE reading the prior signed intent and the context receipt.
+	// Otherwise independent SessionStart processes can both observe absence
+	// and race to mint different MAC-bound nonces for one exact delivery.
+	unlock, err := lockAutoSelfLearningSessionDelivery(in)
+	if err != nil {
+		return "", false, err
+	}
+	defer unlock()
 	argv := []string{"validate", "-product", owner.Selector.ProductRoot, "-json"}
 	if ownCLITrustedFailureCause(argv, 2) != "validate-run-config-missing" {
 		return "", false, nil
