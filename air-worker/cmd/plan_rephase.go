@@ -221,6 +221,16 @@ func defaultPlanRephaseAuthorityVerifier(root string, req planRephaseRequest, au
 	if err := planRephaseHookSource(); err != nil {
 		return fmt.Errorf("trusted N124 apply host transport not attested: %w", err)
 	}
+	// The installed host verifier must establish the exact human-authorized
+	// apply caller independently of environment variables and hook JSON.
+	// Until this host-owned proof is wired by an authorized installation, the
+	// production entrypoint HOLDs even for a valid same-user HMAC fixture.
+	if planRephaseHostApplyProof == nil {
+		return errors.New("N124 installed independent host apply attestation is missing")
+	}
+	if err := planRephaseHostApplyProof(root, req, actor, requestID); err != nil {
+		return fmt.Errorf("N124 host apply attestation refused: %w", err)
+	}
 	return verifyPlanRephaseTrustedGrant(root, req, auth, authorityRaw, actor, requestSHA, requestID)
 }
 

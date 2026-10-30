@@ -22,9 +22,23 @@ func n124TrustedUserPrompt(t *testing.T, f n124RephaseFixture) hookInput {
 
 func n124StubTrustedIssuer(t *testing.T) {
 	t.Helper()
-	old := planRephaseHookSource
+	oldMarker := planRephaseHookSource
+	oldIssue := planRephaseHostIssueProof
+	oldApply := planRephaseHostApplyProof
+	// Fixture-only out-of-band attestations. Production callbacks remain nil
+	// until a separately installed trusted host adapter is admitted.
 	planRephaseHookSource = func() error { return nil }
-	t.Cleanup(func() { planRephaseHookSource = old })
+	planRephaseHostIssueProof = func(root string, in hookInput, requestID, requestSHA, authoritySHA, generation string) error {
+		return nil
+	}
+	planRephaseHostApplyProof = func(root string, req planRephaseRequest, actor, requestID string) error {
+		return nil
+	}
+	t.Cleanup(func() {
+		planRephaseHookSource = oldMarker
+		planRephaseHostIssueProof = oldIssue
+		planRephaseHostApplyProof = oldApply
+	})
 }
 
 func TestN124TrustedIssuerMissingUserPromptFailsClosed(t *testing.T) {
@@ -204,5 +218,52 @@ func TestN124TrustedGrantExpiryAndMalformedPromptFailClosed(t *testing.T) {
 	if err := verifyPlanRephaseTrustedGrant(f.root, f.request, planRephaseAuthority{}, raw,
 		"gpt-window:n124-test-worker", f.requestSHA, f.requestID); err == nil {
 		t.Fatal("expired human authorization revalidated")
+	}
+}
+
+// A self-created AIR_COMMANDER_HEALTH_MARKER and a model/CLI-supplied
+// host_trusted flag can never replace independently attested LPR intent.
+func TestN124SpoofedUserPromptMarkerCannotMintAuthority(t *testing.T) {
+	f := n124RephaseFixtureSetup(t)
+	in := n124TrustedUserPrompt(t, f)
+	oldMarker := planRephaseHookSource
+	oldIssue := planRephaseHostIssueProof
+	oldApply := planRephaseHostApplyProof
+	planRephaseHookSource = func() error { return nil } // forged marker accepted
+	planRephaseHostIssueProof = nil                     // no independent LPR proof
+	planRephaseHostApplyProof = nil
+	t.Cleanup(func() {
+		planRephaseHookSource = oldMarker
+		planRephaseHostIssueProof = oldIssue
+		planRephaseHostApplyProof = oldApply
+	})
+	matched, err := capturePlanRephaseUserPromptGrant(f.root, in)
+	if !matched || err == nil {
+		t.Fatal("caller-controlled UserPromptSubmit/marker minted LPR authority")
+	}
+	root, err := planRephaseGrantRuntime(f.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(planRephaseGrantPath(root, f.requestID)); !os.IsNotExist(err) {
+		t.Fatalf("forged prompt left LPR grant: %v", err)
+	}
+	if rc := cmdPlanRephaseApply(f.args()); rc != 3 {
+		t.Fatalf("unauthorized N124 public apply rc=%d want HOLD", rc)
+	}
+}
+
+// Even an exact valid same-user HMAC and a previously accepted test-only
+// host issue callback must NOT let an untrusted process perform the apply.
+func TestN124IssuerProofIsNotApplyProof(t *testing.T) {
+	f := n124RephaseFixtureSetup(t)
+	in := n124TrustedUserPrompt(t, f)
+	n124StubTrustedIssuer(t)
+	if matched, err := capturePlanRephaseUserPromptGrant(f.root, in); !matched || err != nil {
+		t.Fatalf("fixture issue failed: %v", err)
+	}
+	planRephaseHostApplyProof = nil
+	if rc := cmdPlanRephaseApply(f.args()); rc != 3 {
+		t.Fatalf("issuer grant without independent apply proof rc=%d", rc)
 	}
 }

@@ -14,10 +14,10 @@ import (
 	"time"
 )
 
-// The existing trusted UserPromptSubmit host hook is the ONLY issuer for a
-// native plan-rephase grant. A worker-supplied approved:true JSON is NOT proof.
-// No new service, privileged account or background daemon is created here.
-// The installed host attestation and exact user approval remain separate gates.
+// UserPromptSubmit is only a delivery surface for a possible exact LPR
+// decision, never proof of that decision. The binary must also receive an
+// independent, installed host-owned attestation unavailable to model/CLI
+// callers. Without that host binding, both issuing and applying HOLD.
 const planRephaseGrantSchema = "air-worker.plan-rephase-userprompt-grant/v1"
 const planRephaseGrantDomain = "air-worker.plan-rephase.userprompt-grant/v1\x00"
 
@@ -25,6 +25,14 @@ var (
 	planRephaseGrantIDRE  = regexp.MustCompile(`^[A-Za-z0-9._-]{3,96}$`)
 	planRephaseHookSource = verifyTrustedHostApprovalSource
 	planRephaseNow        = time.Now
+
+	// Fail closed until the installed, independently authenticated host
+	// supplies out-of-band proofs of the LPR's exact action and of the
+	// authorized apply caller. These callbacks MUST NOT be wired from
+	// host_trusted, prompt, CLI flags, AIR_COMMANDER_HEALTH_MARKER or any
+	// product-writable configuration. Test fixtures inject only in-process.
+	planRephaseHostIssueProof func(root string, in hookInput, requestID, requestSHA, authoritySHA, generation string) error
+	planRephaseHostApplyProof func(root string, req planRephaseRequest, actor, requestID string) error
 )
 
 type planRephaseTrustedGrant struct {
@@ -174,6 +182,15 @@ func capturePlanRephaseUserPromptGrant(root string, in hookInput) (bool, error) 
 	product, err := normalizePlanNodeProduct(root)
 	if err != nil {
 		return true, err
+	}
+	// The legacy bridge marker is caller-selectable and is not an LPR
+	// authority source. No prompt JSON can mint an issued grant unless the
+	// separately installed host attests this exact human action out of band.
+	if planRephaseHostIssueProof == nil {
+		return true, errors.New("N124 independent LPR host issuer is not installed; untrusted prompt cannot authorize CAS")
+	}
+	if err := planRephaseHostIssueProof(product, in, requestID, requestSHA, authoritySHA, generation); err != nil {
+		return true, fmt.Errorf("N124 independent host issuer rejected exact action: %w", err)
 	}
 	runtimeRoot, err := planRephaseGrantRuntime(product)
 	if err != nil {
