@@ -1,0 +1,70 @@
+{
+    "schema":  "air-worker.n124.scoped-rebind-source-targeted/v1",
+    "at_utc":  "2026-10-30T03:16:04.1440602Z",
+    "status":  "TARGETED_SOURCE_PASS__FULL_REGRESSION_NOT_PROVEN__INDEPENDENT_REVIEW_PENDING__NOT_INSTALLED",
+    "base_commit":  "625bdd8a1c9621d0ab974987018743742d61aaca",
+    "source_branch":  "dev/airworker-n124-scope-20261030",
+    "source_files":  [
+                         {
+                             "path":  "cmd/plan_rephase.go",
+                             "sha256":  "a5ec830f7e0790600b439dee1e35e00ea09f95a57a5777b06df490b27d220e25"
+                         },
+                         {
+                             "path":  "cmd/plan_rephase_test.go",
+                             "sha256":  "18ab373243d5fd0c955850f7f13356267a25eb090d12f6f96b882dfefb38150a"
+                         }
+                     ],
+    "airvera_packet_sha256":  "8fc2f0abecf3b1605d9a3d0223bf70ad11fd834db2d336ccdf418276749ce102",
+    "airvera_canonical_ref":  "refs/heads/dev/airvera-plan-airworker-policy-20261018",
+    "node_id":  "N-022_files-txn-public-prepare-approve-commit-reconcil",
+    "original_node_refs":  [
+                               "N-027"
+                           ],
+    "new_node_refs":  [
+                          "N-022_files-txn-public-prepare-approve-commit-reconcil"
+                      ],
+    "atomic_scopes":  [
+                          "active_release:0.2.9",
+                          "step:R0.2.9-01"
+                      ],
+    "preserves":  [
+                      "FILES-TXN/M3 original trigger/done_when",
+                      "owner/status/receipts/parent/return_to",
+                      "journal rollback/idempotent replay",
+                      "fail-closed public command without trusted verifier"
+                  ],
+    "scoped_qa":  [
+                      {
+                          "receipt":  "N124-pure-cas-20261030-r3.json",
+                          "sha256":  "32efb0c9f23c9cc15ecb10012e61fa03258295d5c868b207e0681ddda42d727b",
+                          "result":  "PASS_SOURCE_SCOPE",
+                          "go_rc":  0
+                      },
+                      {
+                          "receipt":  "N124-native-atomic-20261030-r4.json",
+                          "sha256":  "20344d1ad6fb5555d4e5ea6c88e9fbd33e6798d4655998266372ba0b2bab4364",
+                          "result":  "PASS_NATIVE_FIXTURE",
+                          "go_rc":  0
+                      },
+                      {
+                          "receipt":  "N124-native-negatives-20261030-r5.json",
+                          "sha256":  "db57072e40f9165c88065ec13075f91f54f97b43d1d72d9d3c8839554cc66f90",
+                          "result":  "PASS_NATIVE_NEGATIVES",
+                          "go_rc":  0
+                      },
+                      {
+                          "receipt":  "N124-final-vet-build-20261030-r2.json",
+                          "sha256":  "33367ab08d871891bc6ad87f57902e85eaf3b12e98d47ff99e47078fb3b46872",
+                          "result":  "VET_BUILD_GO_RC0",
+                          "go_rc":  null
+                      }
+                  ],
+    "qa_limit":  "New tests and vet/build only; full Go regression and installed verifier NOT PROVEN",
+    "hlp06_dependency":  "HLP06 full r3 Go RC1 / D physical disk saturated; separate source acceptance HOLD",
+    "installed_baseline":  "air-worker 0.11.10",
+    "no_install":  true,
+    "no_actor_grant":  true,
+    "no_airvera_cas":  true,
+    "no_native_plan_edit":  true,
+    "next_gate":  "one independent exact-SHA source review; then release QA + separately LPR-approved installed trusted verifier and exact AirVera CAS authority"
+}

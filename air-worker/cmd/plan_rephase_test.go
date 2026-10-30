@@ -55,10 +55,11 @@ func n124WriteReleaseFixture(t *testing.T, root string) {
 			"state": "fixture-extra-field-must-survive",
 		},
 		"releases": []any{map[string]any{
-			"version": "0.2.9",
-			"status":  "active",
-			"stage":   "source",
-			"owner":   "gpt-window:n124-test-worker",
+			"version":   "0.2.9",
+			"status":    "active",
+			"stage":     "source",
+			"owner":     "gpt-window:n124-test-worker",
+			"node_refs": []string{"N-027"},
 			"steps": []any{map[string]any{
 				"id":             "R0.2.9-01",
 				"status":         "open",
@@ -71,7 +72,7 @@ func n124WriteReleaseFixture(t *testing.T, root string) {
 				"budget_minutes": 5,
 				"title":          "fixture step",
 				"kind":           "source",
-				"node_refs":      []any{},
+				"node_refs":      []string{"N-027"},
 			}},
 		}},
 	}
@@ -1142,5 +1143,269 @@ func TestN124PlanRephaseEvidenceBoundsAndExactFullID(t *testing.T) {
 	args[0] = strings.SplitN(f.child.ID, "_", 2)[0]
 	if rc := n124Apply(args); rc != 2 {
 		t.Fatalf("numeric-only id rc=%d want 2", rc)
+	}
+}
+
+// One native request binds the same exact node_refs transition to the active
+// release and R0.2.9-01, without losing the original owned FILES-TXN/M3 goal.
+func TestN124ScopedNodeRefsAtomicRebindAndIdempotentReadback(t *testing.T) {
+	f := n124RephaseFixtureSetup(t)
+	originalDone := f.request.Node.BeforeDoneWhen
+	n124RewriteEvidence(t, &f, func(req *planRephaseRequest) {
+		req.Node.AfterParent = req.Node.BeforeParent
+		req.Node.AfterReturnTo = req.Node.BeforeReturnTo
+		req.Node.AfterTrigger = req.Node.BeforeTrigger + "; limited CalDAV/CardDAV issuer scope"
+		req.Node.AfterDoneWhen = originalDone + "; bounded CalDAV/CardDAV issuer scope, exact one-use approval, read-only ETag preflight, no provider write"
+		req.Release.BeforeNodeRefs = []string{"N-027"}
+		req.Release.AfterNodeRefs = []string{req.Node.ID}
+	})
+	if rc := n124Apply(f.args()); rc != 0 {
+		t.Fatalf("scoped native rephase rc=%d", rc)
+	}
+	node, err := readPlanNode(filepath.Join(f.root, "plan", f.child.ID+".md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if node.Status != "open" || node.Owner != f.child.Owner ||
+		node.Parent != f.child.Parent || node.ReturnTo != f.child.ReturnTo ||
+		!strings.Contains(node.DoneWhen, originalDone) ||
+		len(node.Receipts) != 1 || node.Receipts[0] != "historic-receipt-must-survive" {
+		t.Fatalf("scoped rebind lost original node/M3 identity: %+v", node)
+	}
+	releaseAfter, err := os.ReadFile(filepath.Join(f.root, "plan", "release-slices.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	activeRelease, _, err := findPlanRephaseReleaseObject(releaseAfter, "0.2.9")
+	if err != nil {
+		t.Fatal(err)
+	}
+	activeStep, stepView, err := findPlanRephaseStep(releaseAfter, "0.2.9", "R0.2.9-01")
+	if err != nil || stepView.Status != "open" {
+		t.Fatalf("step: %v", err)
+	}
+	for name, raw := range map[string][]byte{"release": activeRelease, "R0.2.9-01": activeStep} {
+		refs, refErr := readPlanRephaseNodeRefs(raw)
+		if refErr != nil || len(refs) != 1 || refs[0] != f.child.ID {
+			t.Fatalf("%s node_refs not atomically rebound: refs=%v err=%v", name, refs, refErr)
+		}
+	}
+	if rc := n124Apply(f.args()); rc != 0 {
+		t.Fatalf("same generation native replay rc=%d", rc)
+	}
+	second, err := os.ReadFile(filepath.Join(f.root, "plan", "release-slices.json"))
+	if err != nil || !bytes.Equal(releaseAfter, second) {
+		t.Fatal("replay rewrote node_refs or changed release bytes")
+	}
+	tx := filepath.Join(f.root, ".air-worker", "plan-rephase", learnSHA([]byte(f.requestID)))
+	receiptBytes, err := os.ReadFile(filepath.Join(tx, "receipt.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var receipt planRephaseReceipt
+	if err := json.Unmarshal(receiptBytes, &receipt); err != nil {
+		t.Fatal(err)
+	}
+	if !receipt.StatusPreserved || !receipt.ReceiptsPreserved || receipt.SilentClosure ||
+		!samePlanRephaseRefPair(receipt.BeforeNodeRefs, []string{"N-027"}) ||
+		!samePlanRephaseRefPair(receipt.AfterNodeRefs, []string{f.child.ID}) {
+		t.Fatalf("native rebind receipt incomplete: %+v", receipt)
+	}
+}
+
+func TestN124ScopedNodeRefsRejectPartialStaleAndLostM3(t *testing.T) {
+	f := n124RephaseFixtureSetup(t)
+	good := f.request
+	good.Node.AfterParent = good.Node.BeforeParent
+	good.Node.AfterReturnTo = good.Node.BeforeReturnTo
+	good.Node.AfterTrigger = good.Node.BeforeTrigger + "; bounded issuer scope"
+	good.Node.AfterDoneWhen = good.Node.BeforeDoneWhen + "; bounded issuer scope"
+	good.Release.BeforeNodeRefs = []string{"N-027"}
+	good.Release.AfterNodeRefs = []string{good.Node.ID}
+	if err := validatePlanRephaseRequest(good, good.Node.ID); err != nil {
+		t.Fatalf("valid scoped node_refs contract rejected: %v", err)
+	}
+	for name, change := range map[string]func(*planRephaseRequest){
+		"missing-after":  func(r *planRephaseRequest) { r.Release.AfterNodeRefs = nil },
+		"foreign-target": func(r *planRephaseRequest) { r.Release.AfterNodeRefs[0] = "N-998_foreign" },
+		"lost-M3":        func(r *planRephaseRequest) { r.Node.AfterDoneWhen = "only new issuer" },
+		"lost-trigger":   func(r *planRephaseRequest) { r.Node.AfterTrigger = "only new issuer" },
+		"changed-parent": func(r *planRephaseRequest) { r.Node.AfterParent = f.parentB.ID },
+	} {
+		r := good
+		r.Release.BeforeNodeRefs = append([]string(nil), good.Release.BeforeNodeRefs...)
+		r.Release.AfterNodeRefs = append([]string(nil), good.Release.AfterNodeRefs...)
+		change(&r)
+		if err := validatePlanRephaseRequest(r, r.Node.ID); err == nil {
+			t.Fatalf("%s scoped authority was accepted", name)
+		}
+	}
+	original, err := os.ReadFile(filepath.Join(f.root, "plan", "release-slices.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range []string{"release", "step"} {
+		var doc map[string]any
+		if err := json.Unmarshal(original, &doc); err != nil {
+			t.Fatal(err)
+		}
+		release := doc["releases"].([]any)[0].(map[string]any)
+		step := release["steps"].([]any)[0].(map[string]any)
+		if target == "release" {
+			release["node_refs"] = []string{"N-999"}
+		} else {
+			step["node_refs"] = []string{"N-999"}
+		}
+		stale, err := json.MarshalIndent(doc, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		stale = append(stale, '\n')
+		r := good.Release
+		r.ExpectedSHA256 = learnSHA(stale)
+		if _, err := plannedRephaseRelease(f.root, stale, r); err == nil {
+			t.Fatalf("%s-only stale node_refs would allow partial rebind", target)
+		}
+	}
+}
+
+func TestN124AirVera029ExactN022ReleaseAndStepBinding(t *testing.T) {
+	root := t.TempDir()
+	n124WriteReleaseFixture(t, root)
+	before, err := os.ReadFile(filepath.Join(root, "plan", "release-slices.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const n022 = "N-022_files-txn-public-prepare-approve-commit-reconcil"
+	req := planRephaseRelease{
+		ExpectedSHA256: learnSHA(before), Version: "0.2.9", StepID: "R0.2.9-01",
+		BeforeTrigger: "release trigger before", AfterTrigger: "R0.2.9-01 scoped issuer after",
+		BeforeDoneWhen: "release done before", AfterDoneWhen: "release done before; caldav.create/carddav.create/update/merge issuer after read-only ETag preflight",
+		BeforeNodeRefs: []string{"N-027"}, AfterNodeRefs: []string{n022},
+	}
+	after, err := plannedRephaseRelease(root, before, req)
+	if err != nil {
+		t.Fatalf("exact N-022 scoped rebind: %v", err)
+	}
+	releaseRaw, _, err := findPlanRephaseReleaseObject(after, "0.2.9")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stepRaw, step, err := findPlanRephaseStep(after, "0.2.9", "R0.2.9-01")
+	if err != nil || step.Status != "open" {
+		t.Fatalf("release step: %v", err)
+	}
+	for name, raw := range map[string][]byte{"0.2.9": releaseRaw, "R0.2.9-01": stepRaw} {
+		refs, err := readPlanRephaseNodeRefs(raw)
+		if err != nil || len(refs) != 1 || refs[0] != n022 {
+			t.Fatalf("%s stale/mixed exact ID refs: %v %v", name, refs, err)
+		}
+	}
+	if !bytes.Contains(after, []byte("fixture-extra-field-must-survive")) {
+		t.Fatal("unrelated release metadata disappeared")
+	}
+}
+
+// This check is intentionally IO-light. It covers the exact AirVera N-022
+// atomic release/step CAS and negative contracts without seeding a Git repo.
+// The separate native integration test must still pass before source acceptance.
+func TestN124ScopedNodeRefsPureNativeContract(t *testing.T) {
+	root := t.TempDir()
+	n124WriteReleaseFixture(t, root)
+	before, err := os.ReadFile(filepath.Join(root, "plan", "release-slices.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const n022 = "N-022_files-txn-public-prepare-approve-commit-reconcil"
+	const oldDone = "Expose public typed DAV write transaction with immutable preview, exact target/payload digest/authority/TTL/idempotency, single-use approval, exactly-once commit, UNKNOWN reconcile and provider readback; normal host path never invokes internal protocol-grant or hand-builds envelopes."
+	const oldTrigger = "After machine routing/authority source exists"
+	req := planRephaseRequest{
+		Schema:     planRephaseRequestSchema,
+		Repository: "fixture-repo", RemoteName: "origin",
+		CanonicalRef: "refs/heads/airvera-plan", ExpectedHead: strings.Repeat("a", 40),
+		AcceptedAncestor:       strings.Repeat("a", 40),
+		Generation:             "fixture-generation-1",
+		HistoryManifestSHA256:  strings.Repeat("b", 64),
+		HistoryManifestPath:    "fixture-manifest.json",
+		SourceProvenanceRef:    "refs/heads/airvera-source",
+		SourceProvenanceCommit: strings.Repeat("c", 40),
+		Node: planRephaseNode{
+			ID: n022, ExpectedSHA256: strings.Repeat("d", 64),
+			ExpectedOwner:  "AC-DEV-AirVera",
+			BeforeParent:   "M3 Owner workflows and fast path - beta.3",
+			AfterParent:    "M3 Owner workflows and fast path - beta.3",
+			BeforeReturnTo: "PLAN.md", AfterReturnTo: "PLAN.md",
+			BeforeTrigger: oldTrigger, AfterTrigger: oldTrigger + "; bounded 0.2.9 issuer",
+			BeforeDoneWhen: oldDone, AfterDoneWhen: oldDone + "; CalDAV/CardDAV scoped issuer, exact one-use grant, read-only ETag preflight, no provider write",
+		},
+		Plan: planRephasePlan{
+			ExpectedSHA256: strings.Repeat("e", 64),
+			HeaderBefore:   "plan generation old", HeaderBeforeSHA256: learnSHA([]byte("plan generation old")),
+			HeaderAfter: "plan generation new",
+		},
+		Release: planRephaseRelease{
+			ExpectedSHA256: learnSHA(before), Version: "0.2.9", StepID: "R0.2.9-01",
+			BeforeTrigger: "release trigger before", AfterTrigger: "release trigger after",
+			BeforeDoneWhen: "release done before", AfterDoneWhen: "release done after",
+			BeforeNodeRefs: []string{"N-027"}, AfterNodeRefs: []string{n022},
+		},
+	}
+	if err := validatePlanRephaseRequest(req, n022); err != nil {
+		t.Fatalf("valid exact AirVera scoped contract rejected: %v", err)
+	}
+	after, err := plannedRephaseRelease(root, before, req.Release)
+	if err != nil {
+		t.Fatalf("bounded release/step rebind: %v", err)
+	}
+	release, _, err := findPlanRephaseReleaseObject(after, "0.2.9")
+	if err != nil {
+		t.Fatal(err)
+	}
+	step, _, err := findPlanRephaseStep(after, "0.2.9", "R0.2.9-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, raw := range map[string][]byte{"0.2.9": release, "R0.2.9-01": step} {
+		refs, err := readPlanRephaseNodeRefs(raw)
+		if err != nil || len(refs) != 1 || refs[0] != n022 {
+			t.Fatalf("%s stale/ambiguous node refs %v %v", name, refs, err)
+		}
+	}
+	for name, mutate := range map[string]func(*planRephaseRequest){
+		"half-pair":      func(r *planRephaseRequest) { r.Release.AfterNodeRefs = nil },
+		"foreign-target": func(r *planRephaseRequest) { r.Release.AfterNodeRefs = []string{"N-999_other"} },
+		"lost-M3":        func(r *planRephaseRequest) { r.Node.AfterDoneWhen = "new issuer only" },
+		"lost-trigger":   func(r *planRephaseRequest) { r.Node.AfterTrigger = "new issuer only" },
+		"changed-parent": func(r *planRephaseRequest) { r.Node.AfterParent = "foreign" },
+	} {
+		copy := req
+		copy.Release.BeforeNodeRefs = append([]string(nil), req.Release.BeforeNodeRefs...)
+		copy.Release.AfterNodeRefs = append([]string(nil), req.Release.AfterNodeRefs...)
+		mutate(&copy)
+		if err := validatePlanRephaseRequest(copy, n022); err == nil {
+			t.Fatalf("%s crossed scoped contract", name)
+		}
+	}
+	for name, drift := range map[string]func(map[string]any){
+		"release": func(rel map[string]any) { rel["node_refs"] = []string{"N-998"} },
+		"step": func(rel map[string]any) {
+			rel["steps"].([]any)[0].(map[string]any)["node_refs"] = []string{"N-998"}
+		},
+	} {
+		var doc map[string]any
+		if err := json.Unmarshal(before, &doc); err != nil {
+			t.Fatal(err)
+		}
+		drift(doc["releases"].([]any)[0].(map[string]any))
+		stale, err := json.MarshalIndent(doc, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		stale = append(stale, '\n')
+		rev := req.Release
+		rev.ExpectedSHA256 = learnSHA(stale)
+		if _, err := plannedRephaseRelease(root, stale, rev); err == nil {
+			t.Fatalf("%s-only stale references allowed partial transition", name)
+		}
 	}
 }

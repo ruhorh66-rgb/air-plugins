@@ -77,6 +77,10 @@ type planRephaseRelease struct {
 	AfterTrigger   string `json:"after_trigger"`
 	BeforeDoneWhen string `json:"before_done_when"`
 	AfterDoneWhen  string `json:"after_done_when"`
+	// One scoped pair is applied to BOTH the release and its selected step.
+	// Old requests without this pair retain the existing rephase behavior.
+	BeforeNodeRefs []string `json:"before_node_refs,omitempty"`
+	AfterNodeRefs  []string `json:"after_node_refs,omitempty"`
 }
 
 type planRephaseHistoryEvidence struct {
@@ -176,6 +180,8 @@ type planRephaseReceipt struct {
 	AfterDoneWhen           string   `json:"after_done_when"`
 	ReleaseVersion          string   `json:"release_version"`
 	ReleaseStepID           string   `json:"release_step_id"`
+	BeforeNodeRefs          []string `json:"before_node_refs,omitempty"`
+	AfterNodeRefs           []string `json:"after_node_refs,omitempty"`
 	RollbackSnapshot        string   `json:"rollback_snapshot"`
 	RollbackSnapshotSHA256  string   `json:"rollback_snapshot_sha256"`
 	ReadbackChecks          []string `json:"readback_checks"`
@@ -518,6 +524,7 @@ func cmdPlanRephaseApplyWithVerifier(argv []string, verifyAuthority planRephaseA
 		BeforeTrigger: req.Node.BeforeTrigger, AfterTrigger: req.Node.AfterTrigger,
 		BeforeDoneWhen: req.Node.BeforeDoneWhen, AfterDoneWhen: req.Node.AfterDoneWhen,
 		ReleaseVersion: req.Release.Version, ReleaseStepID: req.Release.StepID,
+		BeforeNodeRefs: req.Release.BeforeNodeRefs, AfterNodeRefs: req.Release.AfterNodeRefs,
 		RollbackSnapshot: snapshotPath, RollbackSnapshotSHA256: snapshotSHA,
 		ReadbackChecks:  []string{"node_sha", "plan_sha", "release_slices_sha", "native_event"},
 		NoReleaseEffect: true, NoInstallEffect: true, NoProviderEffect: true,
@@ -642,6 +649,26 @@ func validatePlanRephaseRequest(req planRephaseRequest, id string) error {
 	}
 	if learnSHA([]byte(req.Plan.HeaderBefore)) != req.Plan.HeaderBeforeSHA256 {
 		return fmt.Errorf("header before sha mismatch")
+	}
+	// One-node scoped rebind is an all-or-nothing request, never an implicit
+	// side-effect of changing trigger/done_when. The same pair must be checked
+	// and applied at the active release AND selected step.
+	refs := req.Release
+	if len(refs.BeforeNodeRefs) != 0 || len(refs.AfterNodeRefs) != 0 {
+		if len(refs.BeforeNodeRefs) != 1 || len(refs.AfterNodeRefs) != 1 {
+			return fmt.Errorf("scoped rebind requires one old and one new full node reference")
+		}
+		oldID, newID := refs.BeforeNodeRefs[0], refs.AfterNodeRefs[0]
+		if len(oldID) > 128 || !regexp.MustCompile(`^N-[0-9]{3}(?:_[A-Za-z0-9-]+)?$`).MatchString(oldID) ||
+			!planNodeIDRE.MatchString(newID) || newID != req.Node.ID || oldID == newID {
+			return fmt.Errorf("scoped rebind identity must target exactly the amended OPEN full node")
+		}
+		if req.Node.BeforeParent != req.Node.AfterParent ||
+			req.Node.BeforeReturnTo != req.Node.AfterReturnTo ||
+			!strings.Contains(req.Node.AfterTrigger, req.Node.BeforeTrigger) ||
+			!strings.Contains(req.Node.AfterDoneWhen, req.Node.BeforeDoneWhen) {
+			return fmt.Errorf("scoped rebind may not remove prior node trigger/obligations or move its M3 authority")
+		}
 	}
 	return nil
 }
@@ -1047,6 +1074,36 @@ func plannedRephaseRelease(_ string, before []byte, r planRephaseRelease) ([]byt
 		return nil, fmt.Errorf("target release step bytes are absent or ambiguous")
 	}
 	out := bytes.Replace(before, targetRaw, afterStep, 1)
+	if len(r.BeforeNodeRefs) == 1 && len(r.AfterNodeRefs) == 1 {
+		// The active release and the selected OPEN step MUST both carry the
+		// exact prior reference. Patch both inside the same three-file native
+		// transaction; no intermediate release/step mixed generation is written.
+		afterStep, err = replacePlanRephaseJSONRefArray(afterStep, r.BeforeNodeRefs, r.AfterNodeRefs)
+		if err != nil {
+			return nil, fmt.Errorf("step node_refs: %w", err)
+		}
+		releaseRaw, stepsRaw, err := findPlanRephaseReleaseObject(before, r.Version)
+		if err != nil {
+			return nil, err
+		}
+		if bytes.Count(before, releaseRaw) != 1 || bytes.Count(stepsRaw, targetRaw) != 1 {
+			return nil, fmt.Errorf("release or selected step is ambiguous")
+		}
+		afterSteps := bytes.Replace(stepsRaw, targetRaw, afterStep, 1)
+		// Temporarily mask the ENTIRE steps array so the release-level field
+		// cannot be confused with a nested step's identically named field.
+		marker := []byte{0, 1, 2, 3}
+		if bytes.Contains(releaseRaw, marker) || bytes.Count(releaseRaw, stepsRaw) != 1 {
+			return nil, fmt.Errorf("release steps location is ambiguous")
+		}
+		masked := bytes.Replace(releaseRaw, stepsRaw, marker, 1)
+		masked, err = replacePlanRephaseJSONRefArray(masked, r.BeforeNodeRefs, r.AfterNodeRefs)
+		if err != nil {
+			return nil, fmt.Errorf("release node_refs: %w", err)
+		}
+		afterRelease := bytes.Replace(masked, marker, afterSteps, 1)
+		out = bytes.Replace(before, releaseRaw, afterRelease, 1)
+	}
 	_, afterView, err := findPlanRephaseStep(out, r.Version, r.StepID)
 	if err != nil {
 		return nil, fmt.Errorf("after release-slices validation: %w", err)
@@ -1054,6 +1111,97 @@ func plannedRephaseRelease(_ string, before []byte, r planRephaseRelease) ([]byt
 	if afterView.Status != "open" || afterView.Trigger != r.AfterTrigger || afterView.DoneWhen != r.AfterDoneWhen {
 		return nil, fmt.Errorf("after release step does not match requested rephase")
 	}
+	if len(r.AfterNodeRefs) == 1 {
+		releaseAfter, _, err := findPlanRephaseReleaseObject(out, r.Version)
+		if err != nil {
+			return nil, err
+		}
+		stepAfter, _, err := findPlanRephaseStep(out, r.Version, r.StepID)
+		if err != nil {
+			return nil, err
+		}
+		for _, scope := range [][]byte{releaseAfter, stepAfter} {
+			refs, refErr := readPlanRephaseNodeRefs(scope)
+			if refErr != nil || len(refs) != 1 || refs[0] != r.AfterNodeRefs[0] {
+				return nil, fmt.Errorf("atomic node_refs readback mismatch")
+			}
+		}
+	}
+	return out, nil
+}
+
+// The scope helpers preserve unrelated JSON bytes, reject ambiguous keys and
+// fail closed on absent/stale references. They never create a new node.
+func findPlanRephaseReleaseObject(raw []byte, version string) ([]byte, []byte, error) {
+	var doc struct {
+		Releases []json.RawMessage `json:"releases"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, nil, err
+	}
+	var found []byte
+	var steps []byte
+	for _, release := range doc.Releases {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(release, &fields); err != nil {
+			return nil, nil, err
+		}
+		var v string
+		if err := json.Unmarshal(fields["version"], &v); err != nil {
+			return nil, nil, err
+		}
+		if v != version {
+			continue
+		}
+		if found != nil {
+			return nil, nil, fmt.Errorf("duplicate release version")
+		}
+		found = release
+		steps = fields["steps"]
+	}
+	if found == nil || len(steps) == 0 || bytes.Count(found, steps) != 1 {
+		return nil, nil, fmt.Errorf("target release steps absent or ambiguous")
+	}
+	return found, steps, nil
+}
+
+func readPlanRephaseNodeRefs(raw []byte) ([]string, error) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return nil, err
+	}
+	if len(fields["node_refs"]) == 0 {
+		return nil, fmt.Errorf("node_refs missing")
+	}
+	var refs []string
+	if err := json.Unmarshal(fields["node_refs"], &refs); err != nil {
+		return nil, err
+	}
+	return refs, nil
+}
+
+func replacePlanRephaseJSONRefArray(raw []byte, before, after []string) ([]byte, error) {
+	// After the steps array is masked this must match exactly ONE field at the
+	// current object scope. Nested/duplicate ambiguities HOLD before writing.
+	pattern := regexp.MustCompile(`"node_refs"\s*:\s*(\[[^\[\]]*\])`)
+	matches := pattern.FindAllSubmatchIndex(raw, -1)
+	if len(matches) != 1 || len(matches[0]) < 4 {
+		return nil, fmt.Errorf("node_refs absent or ambiguous")
+	}
+	m := matches[0]
+	var current []string
+	if err := json.Unmarshal(raw[m[2]:m[3]], &current); err != nil ||
+		len(current) != 1 || len(before) != 1 || len(after) != 1 || current[0] != before[0] {
+		return nil, fmt.Errorf("stale node_refs CAS")
+	}
+	encoded, err := json.Marshal(after)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]byte, 0, len(raw)+len(encoded)-(m[3]-m[2]))
+	out = append(out, raw[:m[2]]...)
+	out = append(out, encoded...)
+	out = append(out, raw[m[3]:]...)
 	return out, nil
 }
 
@@ -1362,6 +1510,18 @@ func reconcilePreparedPlanRephase(ioLayer planRephaseIO, txDir, snapshotPath, in
 	return nil
 }
 
+func samePlanRephaseRefPair(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func verifyPlanRephaseCompletedReceipt(path string, intent planRephaseIntent, req planRephaseRequest) error {
 	_, raw, err := readPlanRephaseEvidence(path)
 	if err != nil {
@@ -1390,6 +1550,8 @@ func verifyPlanRephaseCompletedReceipt(path string, intent planRephaseIntent, re
 		receipt.AfterPlanSHA256 != intent.AfterPlanSHA256 ||
 		receipt.BeforeReleaseSHA256 != intent.BeforeReleaseSHA256 ||
 		receipt.AfterReleaseSHA256 != intent.AfterReleaseSHA256 ||
+		!samePlanRephaseRefPair(receipt.BeforeNodeRefs, req.Release.BeforeNodeRefs) ||
+		!samePlanRephaseRefPair(receipt.AfterNodeRefs, req.Release.AfterNodeRefs) ||
 		receipt.RollbackSnapshotSHA256 != intent.SnapshotSHA256 ||
 		!receipt.StatusPreserved || !receipt.ReceiptsPreserved || receipt.SilentClosure ||
 		receipt.ImportedHistoricalNodes != 0 ||
