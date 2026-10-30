@@ -100,7 +100,7 @@ func n044HistoricalR03R04PositiveOnly(t *testing.T) bool {
 	if version == "0.11.9" && learning.Version == "0.1.0" {
 		return true
 	}
-	if version != "0.11.10" || learning.Version != "0.1.1" {
+	if version != "0.11.11-rc.1" || learning.Version != "0.1.1" {
 		t.Fatalf("historical R03/R04 test has unknown version pair: air-worker=%s learning=%s", version, learning.Version)
 	}
 	for _, step := range []struct {
@@ -115,7 +115,7 @@ func n044HistoricalR03R04PositiveOnly(t *testing.T) bool {
 			NextStep: step.id, ActiveStep: releaseStep{ID: step.id, Status: "open", Kind: step.kind},
 		}
 		if err := releaseSliceLoopSupported(state, version); err == nil {
-			t.Fatalf("0.11.10 executed historical %s despite wrong binary identity", step.id)
+			t.Fatalf("0.11.11-rc.1 executed historical %s despite wrong binary identity", step.id)
 		}
 	}
 	t.Log("N044 exact-version gate PASS; historical signed positive suite must separately PASS on 0.11.9/v0.1.0")

@@ -1,5 +1,9 @@
 # air-worker
 
+## 0.11.11-rc.1 — scoped HLP06 / N124 prerelease candidate
+
+This GitHub-sourced prerelease is **not installed or approved for installation**. HLP06 has signed native delivery, replay protection and its read-only preflight in source. N124 preserves the prior accepted CAS capability, but grant issuance and apply remain fail-closed until a separately trusted installed host attests both the exact LPR decision and the exact actor/generation. Source/test evidence is not production efficacy. Installation, host trust assignment and live AirVera CAS each require separate explicit LPR authorization and verified rollback to installed 0.11.10.
+
 ## Explicit GPT procedure delivery (source candidate)
 
 The discovery and explicit-load workflow follows [Hermes progressive disclosure](https://github.com/NousResearch/hermes-agent/blob/0e427d788d253630d38a3a51cd76849e73cd6925/tools/skills_tool.py). Action and outcome proof reuse AirWorker's existing signed native receipts; Hermes view/use counters are not treated as measured production benefit.

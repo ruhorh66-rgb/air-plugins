@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.11.10",
-  "description": "AirWorker 0.11.10 candidate: Module Learning v0.1.1 dependency pin; preserves verified shared-learning safety.",
+  "version": "0.11.11-rc.1",
+  "description": "AirWorker 0.11.11-rc.1 HLP06 signed delivery prerelease; N124 authority remains fail-closed until installed host attestations and LPR gates.",
   "author": {
     "name": "AIR OS"
   },

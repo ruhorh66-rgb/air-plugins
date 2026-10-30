@@ -1,5 +1,12 @@
 # CHANGELOG — air-worker
 
+## 0.11.11-rc.1 — HLP06 signed SessionStart + N124 scoped source candidate · 31.10.2026 SGT · RELEASE CANDIDATE / NOT INSTALLED
+
+- Based on accepted narrow N124 CAS source `7fe94f1` and HLP06 concurrency fix `236cab8`, integrated at `f6b8987` before release-identity-only changes. HLP06 serializes one signed delivery per principal/session/run with a real Windows OS mutex; invalid handles and unsupported non-Windows lock paths fail closed, with no weakened fsync.
+- The scoped AirVera N124 transaction can amend existing OPEN `N-022` while preserving FILES-TXN/M3 and atomically rebind both release `0.2.9` and step `R0.2.9-01` under the prior CAS/rollback and signed receipts. The new trust issuer **cannot** infer human permission from hook JSON, environment-selected health markers or a same-user HMAC: issue and apply both require independently attested installed host callbacks, which are absent by default. Thus live mutation remains HOLD.
+- A separate SemVer prerelease identity avoids publishing changed bytes under installed `0.11.10`. The stable `0.11.11` Nous Sonnet milestone is not closed by this prerelease. Runtime source canary, installed GPT/Claude lifecycle, real utility/effect and AirVera CAS remain separate explicit LPR gates.
+- Exact source/test, Go child exit receipts, release artifact digests, GitHub readback and verified rollback to existing installed `0.11.10` must precede any installation. No installation, UAC, restart, foreign service stop, or grant assignment is authorized by this source change.
+
 ## 0.11.10 — Module Learning v0.1.1 consumer candidate · 21.10.2026 SGT · SOURCE-ONLY / NOT RELEASED OR INSTALLED
 
 - Based on exact released AirWorker 0.11.9 Git source `b6721f26262960c2d6cc12107cf7aeac9296bcad`; only this isolated consumer worktree is edited. No change to live AirWorker 0.11.9/Module v0.1.0 or active self-learning runtime.
