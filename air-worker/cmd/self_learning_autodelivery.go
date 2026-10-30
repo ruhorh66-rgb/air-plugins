@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+// Dedicated test seam for the existing native cross-process lock. The
+// production default is never an in-process mutex or a lease file.
+var autoSelfDeliveryAcquire = acquireLock
+
 // lockAutoSelfLearningSessionDelivery serializes the ENTIRE read/select/sign/
 // publish/replay lifecycle of one (principal, session, run) context receipt.
 // Earlier code locked neither the absent-receipt read nor its later atomic
@@ -27,8 +31,14 @@ func lockAutoSelfLearningSessionDelivery(in hookInput) (func(), error) {
 	name := lockName("self-auto-delivery", path)
 	deadline := time.Now().Add(30 * time.Second)
 	for {
-		lock, ok := acquireLock(name)
+		lock, ok := autoSelfDeliveryAcquire(name)
 		if ok {
+			if !validAutoSelfDeliveryLock(lock) {
+				if lock != nil {
+					lock.release()
+				}
+				return nil, errors.New("automatic SessionStart cross-process mutex returned no valid OS lock handle; fail closed")
+			}
 			return lock.release, nil
 		}
 		if !time.Now().Before(deadline) {

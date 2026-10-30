@@ -542,3 +542,24 @@ func TestHLP06ConcurrentSessionStartHasOneImmutableSignedDelivery(t *testing.T) 
 	}
 	t.Logf("HLP06_TWO_INDEPENDENT_SESSION_STARTS_ONE_SHA_PASS=%s", consumed[0])
 }
+
+// A failed Windows CreateMutexW historically yielded (&osLock{}, true).
+// Such a sentinel must never turn a cross-process SessionStart into a
+// caller-local/no-op lock. Linux/macOS source also must fail closed.
+func TestHLP06InvalidNativeMutexHandleCannotMintDelivery(t *testing.T) {
+	old := autoSelfDeliveryAcquire
+	t.Cleanup(func() { autoSelfDeliveryAcquire = old })
+	t.Setenv(hookStateDirEnv, t.TempDir())
+	in := hookInput{Principal: "gpt", SessionID: "mutex-invalid",
+		RunID: "run-mutex-invalid", HookEventName: "SessionStart"}
+	for name, fake := range map[string]func(string) (*osLock, bool){
+		"zero-handle": func(string) (*osLock, bool) { return &osLock{}, true },
+		"nil-handle":  func(string) (*osLock, bool) { return nil, true },
+	} {
+		autoSelfDeliveryAcquire = fake
+		unlock, err := lockAutoSelfLearningSessionDelivery(in)
+		if err == nil || unlock != nil {
+			t.Fatalf("%s acquired fake exclusive lock: err=%v", name, err)
+		}
+	}
+}
