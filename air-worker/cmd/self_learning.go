@@ -435,6 +435,32 @@ func airWorkerSelfLearningContext(in hookInput) (string, string, bool, error) {
 	if !on {
 		return "", "", false, nil
 	}
+	// SessionStart delivered the signed procedure to the host BEFORE this
+	// subsequent normal lifecycle event. The product, not a human issuing a
+	// special validate command, now runs only the previously authorized
+	// native read-only preflight and independently reads its signed outcome.
+	if in.HookEventName == "UserPromptSubmit" {
+		result, acted, actionErr := autoSelfLearningNativePromptPreflight(owner, in)
+		if actionErr != nil {
+			return owner.Selector.ProductRoot, "", true,
+				sharedHookFailure("self-auto-native-preflight", selfLearningRunID(in), actionErr)
+		}
+		if acted {
+			return owner.Selector.ProductRoot, result, true, nil
+		}
+	}
+	// The native trusted SessionStart trigger precedes broad catalog loading.
+	// A relevant signed native failure selects exactly one current reviewed
+	// APPLIED safe action, avoiding a duplicate generic skill_loaded event.
+	if in.HookEventName == "SessionStart" {
+		context, delivered, deliveryErr := autoSelfLearningSessionDelivery(owner, in)
+		if deliveryErr != nil {
+			return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-auto-delivery", selfLearningRunID(in), deliveryErr)
+		}
+		if delivered {
+			return owner.Selector.ProductRoot, "AIRWORKER SELF-LEARNING (procedures, not permissions):\n" + context, true, nil
+		}
+	}
 	handled, res, err := sharedLearningContext(owner.Selector.ProductRoot, in)
 	if err != nil {
 		return owner.Selector.ProductRoot, "", true, err
