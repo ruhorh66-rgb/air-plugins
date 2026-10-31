@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.11.11-rc.1",
-  "description": "AirWorker 0.11.11-rc.1 HLP06 signed delivery prerelease; N124 authority remains fail-closed until installed host attestations and LPR gates.",
+  "version": "0.11.11-rc.2",
+  "description": "AirWorker 0.11.11-rc.2 Codex junction-alias selfcheck correction; HLP06 installed pilot; N124 host trust remains fail-closed.",
   "author": {
     "name": "AIR OS"
   },

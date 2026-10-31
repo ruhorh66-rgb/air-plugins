@@ -1,5 +1,12 @@
 # CHANGELOG — air-worker
 
+## 0.11.11-rc.2 — Codex physical alias selfcheck correction, 31.10.2026 SGT (release candidate)
+
+- Reuses accepted source-only change 05a688cf. Only selfcheck Codex root deduplication and its Windows junction regression test were added after 0.11.11-rc.1.
+- The recognized USERPROFILE/.codex junction and active CODEX_HOME share one physical profile. os.Stat/os.SameFile dedup only when proven; real distinct profiles, failed stat, and original curator skill root validation remain strict.
+- Source receipts: 3 targeted Go tests PASS, vet/build PASS, staged selfcheck VIOLATIONS=0 WARNINGS=0 with all three AirCurator skills PASS; independent gpt-6-sol/medium PASS_SOURCE_ONLY P0/P1=0.
+- This prerelease does not implement a new N124 issuer, modify trust, mutate AirVera, or prove HLP06 natural benefit. Installed 0.11.11-rc.1 is the rollback baseline; publishing/installing rc.2 requires an exact LPR grant.
+
 ## 0.11.11-rc.1 — HLP06 signed SessionStart + N124 scoped source candidate · 31.10.2026 SGT · RELEASE CANDIDATE / NOT INSTALLED
 
 - Based on accepted narrow N124 CAS source `7fe94f1` and HLP06 concurrency fix `236cab8`, integrated at `f6b8987` before release-identity-only changes. HLP06 serializes one signed delivery per principal/session/run with a real Windows OS mutex; invalid handles and unsupported non-Windows lock paths fail closed, with no weakened fsync.

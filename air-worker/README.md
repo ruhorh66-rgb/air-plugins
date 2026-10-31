@@ -1,5 +1,21 @@
 # air-worker
 
+## 0.11.11-rc.2 â€” Codex junction alias correction (release candidate)
+
+This bounded prerelease adds exactly the accepted source correction from commit
+05a688cf: the selfcheck reads physically identical Codex config directories
+once, recognizing verified Windows junction aliases via os.Stat + os.SameFile.
+Distinct profiles and inaccessible/unsafe roots remain visible to the existing
+fail-closed skill validation. The installed 0.11.11-rc.1 remains the rollback
+baseline until a separate exact LPR release/install approval. Three unrelated
+missing embedded vcs.revision diagnostics remain NOT_PROVEN if build provenance
+cannot be embedded and verified; they are not silently suppressed.
+
+HLP06 delivery/source safety and the previously accepted N124 CAS are unchanged.
+N124 installed issuer/apply callbacks remain nil/fail-closed; no new trust, host
+protocol, AirVera CAS or broader platform is included. HLP06 natural use/effect
+will be verified after an authorized installation; source acceptance is not that
+effect.
 ## 0.11.11-rc.1 — scoped HLP06 / N124 prerelease candidate
 
 This GitHub-sourced prerelease is **not installed or approved for installation**. HLP06 has signed native delivery, replay protection and its read-only preflight in source. N124 preserves the prior accepted CAS capability, but grant issuance and apply remain fail-closed until a separately trusted installed host attests both the exact LPR decision and the exact actor/generation. Source/test evidence is not production efficacy. Installation, host trust assignment and live AirVera CAS each require separate explicit LPR authorization and verified rollback to installed 0.11.10.
