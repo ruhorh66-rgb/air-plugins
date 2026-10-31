@@ -236,12 +236,31 @@ func uniqueConfigRoots(active, fallback string) []string {
 		if err != nil {
 			abs = filepath.Clean(value)
 		}
-		key := strings.ToLower(filepath.Clean(abs))
+		abs = filepath.Clean(abs)
+		key := strings.ToLower(abs)
 		if seen[key] {
 			continue
 		}
+		// A default profile can be an NTFS junction to the active profile.
+		// Inspecting the alias twice can falsely report an unsafe skill root
+		// when Windows EvalSymlinks resolves a descendant of that junction
+		// differently. Suppress only a proven SAME physical directory.
+		// If either stat fails, retain both roots for fail-closed inspection.
+		if candidate, statErr := os.Stat(abs); statErr == nil {
+			duplicate := false
+			for _, prior := range out {
+				if existing, priorErr := os.Stat(prior); priorErr == nil && os.SameFile(existing, candidate) {
+					duplicate = true
+					break
+				}
+			}
+			if duplicate {
+				seen[key] = true
+				continue
+			}
+		}
 		seen[key] = true
-		out = append(out, filepath.Clean(abs))
+		out = append(out, abs)
 	}
 	return out
 }
