@@ -350,9 +350,15 @@ type codexEvent struct {
 	ThreadID string `json:"thread_id"`
 	Message  string `json:"message"`
 	Item     *struct {
-		Type    string `json:"type"`
-		Message string `json:"message"`
-		Text    string `json:"text"`
+		Type             string          `json:"type"`
+		Message          string          `json:"message"`
+		Text             string          `json:"text"`
+		Status           string          `json:"status"`
+		Command          string          `json:"command"`
+		ExitCode         *int            `json:"exit_code"`
+		AggregatedOutput string          `json:"aggregated_output"`
+		Error            json.RawMessage `json:"error"`
+		Result           json.RawMessage `json:"result"`
 	} `json:"item"`
 	Error *struct {
 		Message string `json:"message"`

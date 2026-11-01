@@ -1,0 +1,135 @@
+{
+  "schema": "airworker.devwork23.codex-p1-success-contract-source/v1",
+  "owner": "Dev Work 23, AirWorker",
+  "trigger": "LPR AirWorker false positive task success + curator Vega sm_97f0d1cb remediation of independent DRIFT major at 4ea50595",
+  "done_when": "separate process DONE, model turn and factual task proof; never dispatch OK on turn.completed; fail-closed structured denial and Windows roots, scoped QA, exact independent Anthropic code review",
+  "judge": "native scoped Go RC/vet/build; existing real Vera/Vega logs; exact one native two-root sandboxed task and machine 13-check factual judge; independent Anthropic source review on frozen commit",
+  "receipt_path": "air-worker/docs/receipts/AIRWORKER_DEVWORK23_CODEX_P1_SUCCESS_CONTRACT_SOURCE_20261102.json",
+  "date_utc": "2026-11-01T17:41:33.973530+00:00",
+  "date_sgt": "2026-11-02 01:41:33 +08:00",
+  "source": {
+    "branch": "dev/airworker-codex-safeoutcome-20261101",
+    "parent": "4ea50595d3788618874ba6aa8252b5fa278d57d1",
+    "commit": "PENDING_FREEZE",
+    "changed_scopes": [
+      "cmd/executor.go",
+      "cmd/executor_test.go",
+      "cmd/runner.go",
+      "cmd/runner_codex.go",
+      "cmd/runner_codex_contract_v2_test.go",
+      "cmd/executor_dispatch_rc_v2_test.go",
+      "cmd/main.go"
+    ],
+    "native_PLAN_N_LEARN_changed": false,
+    "ebd85a6c_frozen_unmerged": true
+  },
+  "contract": {
+    "dispatch_schema": "air-worker.executor-dispatch/v2",
+    "model_turn_completed": true,
+    "dispatch_ok": false,
+    "dispatch_rc": 2,
+    "model_turn_task_outcome": "MODEL_TURN_COMPLETED_TASK_NOT_VERIFIED",
+    "task_proof": "separate native air-worker judge with task-specific machine check, then independent Anthropic semantic",
+    "denied_access": "structured failing command/mcp errors and unreadable task return executor failure, no vendor fallback",
+    "vendor_limit_fallback": "only genuine runner_error with vendor-limit and approved in-provider model; active config has no fallback"
+  },
+  "windows": {
+    "sandbox": "workspace-write unelevated",
+    "extra_flags": [
+      "sandbox_workspace_write.exclude_slash_tmp=true"
+    ],
+    "verified_add_dirs": 2,
+    "volumes": "D: only",
+    "foreign_volumes": "prelaunch rejection",
+    "parent_root": "prelaunch rejection",
+    "same_volume_live_model_probe": "PASS",
+    "sandbox_bypass": false,
+    "model_call_count_for_new_multi_add_dirs": 1
+  },
+  "qa": {
+    "initial_new_scope": {
+      "top_run": 25,
+      "top_pass": 25,
+      "fail": 0,
+      "skip": 0
+    },
+    "native_dispatch_rc2": {
+      "top_run": 1,
+      "top_pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "last_delta": {
+      "top_run": 7,
+      "top_pass": 7,
+      "fail": 0,
+      "skip": 0
+    },
+    "replay_original_denial_logs": [
+      {
+        "top_run": 1,
+        "top_pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      {
+        "top_run": 1,
+        "top_pass": 1,
+        "fail": 0,
+        "skip": 0
+      }
+    ],
+    "vet_rc": 0,
+    "build_rc": 0,
+    "final_cli": "D:\\Devbox\\AirWorker\\evidence\\AWLRN03_CATALOG_20261031\\devwork23-629ed2e0e24425a2\\air-worker-QA-ONLY-p1-final.exe",
+    "final_cli_sha256": "d49f84ef9b6e5375b0aed1f49f6f58a0711cbb52b803e649333372cb18c3e367",
+    "final_cli_bytes": 14923776,
+    "final_embedded_version": "0.11.11-rc.2, QA-only not released",
+    "live_probe_binary_sha256": "83a701e8dbb294a32d6a484c69d5bc2933bb18e705119816320d2be2bb20d032",
+    "live_probe_executed_before_final_vendor_limit_priority_patch": true,
+    "frozen_ebd_89_rerun": false,
+    "frozen_ebd_full900_rerun": false
+  },
+  "native_probe": {
+    "expected": "AIRWORKER_MULTIROOT_OK",
+    "actual": "AIRWORKER_MULTIROOT_OK",
+    "factual_check_count": 13,
+    "all_checks_pass": true,
+    "factual_receipt_sha256": "03ac53aabdee1aaac4e8be67bdd01b310e0c5b458b8434b44c87bfff0a445a56",
+    "process_rc": 0,
+    "model_task_outcome": "NOT_VERIFIED",
+    "dispatch_rc": 2,
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "add_dirs": [
+      "extra-a",
+      "extra-b"
+    ]
+  },
+  "model_roles": {
+    "openai_executor": "gpt-6-sol/low proven, Luna/Astra and older fallback NOT_PROVEN",
+    "anthropic_reviewer": "claude-sonnet-5-5/low proven on prior native isolated semantic, new source code review PENDING",
+    "fallback_config": "empty until model IDs/entitlements confirmed",
+    "subagents_config": 1,
+    "subagent_e2e": "NOT_PROVEN"
+  },
+  "risk": {
+    "full_go_integration": "NOT_RUN, separate release gate",
+    "independent_source_semantic": "PENDING_FROZEN_REVIEW",
+    "other_products": "NO QA-only install or live shared use until exact LPR gate",
+    "ebd85a6c": "separate 4 symlink SKIP and 625 excluded, prior full900 FAIL",
+    "real_selflearning_effect": "NOT_PROVEN"
+  },
+  "rollback": {
+    "installed_version": "0.11.11-rc.2 unchanged",
+    "installed_cli_sha256": "495d1d274c04aae41189579e368356c9a15bcb1c057227db538c93aa41acefbe",
+    "snapshot": "D:/Devbox/AirWorker/evidence/AWLRN03_CATALOG_20261031/rollback-installed-rc2/receipt.json; 3/3 pinned SHA",
+    "source": "revert only new source commit to 4ea50595",
+    "release_install_requires_exact_LPR_yes": true
+  },
+  "vendor_references": [
+    "https://developers.openai.com/codex/config-reference",
+    "https://github.com/openai/codex/issues/30712",
+    "https://github.com/openai/codex/issues/34993"
+  ]
+}

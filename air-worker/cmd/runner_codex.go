@@ -72,6 +72,60 @@ func validateCodexAddDirs(paths []string) error {
 	return nil
 }
 
+// A conservative Windows unelevated sandbox profile: the product root and
+// extra writable directories must be explicit, accessible and on the same
+// volume. We do not silently permit cross-volume or linked writable roots.
+// A different permitted volume/topology needs its own proven host policy.
+func validateCodexWorkspaceRoots(root string, dirs []string) error {
+	if err := validateCodexAddDirs(dirs); err != nil {
+		return err
+	}
+	if runtime.GOOS != "windows" || len(dirs) == 0 {
+		return nil
+	}
+	if !filepath.IsAbs(root) || isCodexVolumeRoot(root) {
+		return fmt.Errorf("Windows Codex workspace root must be an explicit non-volume directory: %q", root)
+	}
+	info, err := os.Stat(root)
+	if err != nil || !info.IsDir() {
+		return fmt.Errorf("Windows Codex workspace root unavailable: %q: %v", root, err)
+	}
+	canonicalRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return fmt.Errorf("Windows Codex workspace root cannot be canonicalized: %q: %w", root, err)
+	}
+	volume := filepath.VolumeName(canonicalRoot)
+	if volume == "" {
+		return fmt.Errorf("Windows Codex workspace volume unavailable: %q", root)
+	}
+	seen := map[string]bool{}
+	for index, dir := range dirs {
+		canonical, err := filepath.EvalSymlinks(dir)
+		if err != nil {
+			return fmt.Errorf("Windows Codex add_dir %d cannot be canonicalized: %w", index+1, err)
+		}
+		if !strings.EqualFold(filepath.VolumeName(canonical), volume) {
+			return fmt.Errorf("Windows Codex add_dir %d is on a different volume; unelevated multi-volume writable roots NOT_PROVEN", index+1)
+		}
+		if !strings.EqualFold(filepath.Clean(dir), filepath.Clean(canonical)) {
+			return fmt.Errorf("Windows Codex add_dir %d traverses a reparse/link root; refuse unverified writable alias", index+1)
+		}
+		key := strings.ToLower(filepath.Clean(canonical))
+		if seen[key] {
+			return fmt.Errorf("Windows Codex add_dir %d repeats a writable root", index+1)
+		}
+		seen[key] = true
+		// An ancestor of the product would silently extend the writable
+		// scope beyond the intended workspace.
+		relative, relErr := filepath.Rel(canonical, canonicalRoot)
+		if relErr == nil && relative != "." && relative != ".." &&
+			!strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("Windows Codex add_dir %d contains the entire workspace and would broaden writable scope", index+1)
+		}
+	}
+	return nil
+}
+
 func codexArgsForSandbox(root string, runner runnerSpec, sandbox string) []string {
 	args := []string{"exec", "--json", "--skip-git-repo-check", "-s", sandbox, "-C", root}
 	if runtime.GOOS == "windows" && sandbox == "workspace-write" {
@@ -107,7 +161,7 @@ func codexReceiptMeta(runner runnerSpec, role, sandbox string) jobReceiptMeta {
 }
 
 func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
-	if err := validateCodexAddDirs(runner.AddDirs); err != nil {
+	if err := validateCodexWorkspaceRoots(c.Root, runner.AddDirs); err != nil {
 		return stepResult{Subtype: "invalid_runner_config", Detail: "codex add_dirs: " + err.Error()}
 	}
 	if err := requirePonytailSkill(); err != nil {
@@ -132,7 +186,7 @@ type codexSubagentRun struct {
 }
 
 func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
-	if err := validateCodexAddDirs(runner.AddDirs); err != nil {
+	if err := validateCodexWorkspaceRoots(c.Root, runner.AddDirs); err != nil {
 		return stepResult{Subtype: "invalid_runner_config", Detail: "codex add_dirs: " + err.Error()}
 	}
 	if err := requirePonytailSkill(); err != nil {
@@ -231,13 +285,70 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 	return applyAgentLifecycle(leader, stats)
 }
 
+func codexPermissionRefused(text string) bool {
+	lower := strings.ToLower(text)
+	for _, marker := range []string{
+		"access is denied", "access denied", "permission denied",
+		"required privilege is not held", "operation not permitted",
+		"not authorized", "unauthorized", "eacces", "eperm",
+		"read-only file system", "restricted-token sandbox",
+		"refusing to run unsandboxed", "sandbox denied",
+		"permission was denied", "security policy denied",
+		"access to the path", "access to path",
+		"отказано в доступе", "доступ запрещ", "недостаточно прав",
+	} {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// Only structured failed tool events count as tool access refusals. A model
+// quoting a Windows error in a successful source-review tool is NOT a denial.
+func codexToolFailure(e codexEvent) (string, string) {
+	if e.Item == nil {
+		return "", ""
+	}
+	i := e.Item
+	if i.Type != "command_execution" && i.Type != "mcp_tool_call" {
+		return "", ""
+	}
+	toolFailed := (i.ExitCode != nil && *i.ExitCode != 0) ||
+		strings.EqualFold(i.Status, "failed") ||
+		(len(i.Error) > 0 && strings.TrimSpace(string(i.Error)) != "null")
+	if !toolFailed {
+		return "", ""
+	}
+	diagnostic := strings.Join([]string{i.Message, i.AggregatedOutput,
+		string(i.Error), string(i.Result)}, "\n")
+	if codexPermissionRefused(diagnostic) {
+		return "tool_access_denied", "Codex tool returned an access/security denial; task NOT_PROVEN"
+	}
+	if strings.Contains(strings.ToLower(i.Command), "task.md") &&
+		i.ExitCode != nil && *i.ExitCode != 0 {
+		return "task_input_unavailable", "Codex tool failed reading TASK.md; task NOT_PROVEN"
+	}
+	return "", ""
+}
+
 func codexReportedUnreadableTask(detail []string) bool {
 	for _, part := range detail {
 		line := strings.ToLower(strings.TrimSpace(part))
-		if strings.HasPrefix(line, "i couldn't read") || strings.HasPrefix(line, "i could not read") ||
-			strings.HasPrefix(line, "i couldn’t read") || strings.HasPrefix(line, "i can't read") ||
-			strings.HasPrefix(line, "i cannot read") {
-			if strings.Contains(line, "task.md") || strings.Contains(line, "task file") {
+		task := strings.Contains(line, "task.md") ||
+			strings.Contains(line, "task file") || strings.Contains(line, "input file")
+		if !task {
+			continue
+		}
+		for _, phrase := range []string{
+			"i couldn't read", "i could not read", "i couldn’t read",
+			"i can't read", "i cannot read", "i didn't read", "i did not read",
+			"i was unable to read", "unable to read", "unable to open",
+			"cannot open", "could not open", "failed to read",
+			"access is denied", "access denied", "permission denied",
+			"not readable", "was not read",
+		} {
+			if strings.Contains(line, phrase) {
 				return true
 			}
 		}
@@ -270,8 +381,17 @@ func parseCodexResult(raw string, runErr error) stepResult {
 			if e.Item == nil {
 				continue
 			}
+			if reason, diagnostic := codexToolFailure(e); reason != "" {
+				failed, subtype = true, reason
+				detail = append(detail, diagnostic)
+			}
 			if e.Item.Type == "error" && strings.TrimSpace(e.Item.Message) != "" {
-				detail = append(detail, "warning: "+strings.TrimSpace(e.Item.Message))
+				if codexPermissionRefused(e.Item.Message) {
+					failed, subtype = true, "tool_access_denied"
+					detail = append(detail, "Codex error event denied access; task NOT_PROVEN")
+				} else {
+					detail = append(detail, "warning: "+strings.TrimSpace(e.Item.Message))
+				}
 			}
 			if e.Item.Type == "agent_message" && strings.TrimSpace(e.Item.Text) != "" {
 				detail = append(detail, strings.TrimSpace(e.Item.Text))
@@ -285,12 +405,18 @@ func parseCodexResult(raw string, runErr error) stepResult {
 				cost = e.Usage.CostUSD
 			}
 		case "turn.failed":
-			failed, subtype = true, "runner_error"
+			failed = true
+			if subtype != "tool_access_denied" && subtype != "task_input_unavailable" {
+				subtype = "runner_error"
+			}
 			if e.Error != nil && strings.TrimSpace(e.Error.Message) != "" {
 				detail = append(detail, "turn.failed: "+strings.TrimSpace(e.Error.Message))
 			}
 		case "error":
-			failed, subtype = true, "runner_error"
+			failed = true
+			if subtype != "tool_access_denied" && subtype != "task_input_unavailable" {
+				subtype = "runner_error"
+			}
 			if strings.TrimSpace(e.Message) != "" {
 				detail = append(detail, "error: "+strings.TrimSpace(e.Message))
 			}
@@ -298,7 +424,10 @@ func parseCodexResult(raw string, runErr error) stepResult {
 	}
 	// Process error is fatal even if turn.completed was emitted.
 	if runErr != nil {
-		failed, subtype = true, "runner_error"
+		failed = true
+		if subtype != "tool_access_denied" && subtype != "task_input_unavailable" {
+			subtype = "runner_error"
+		}
 		detail = append(detail, "codex process: "+runErr.Error())
 	}
 	// Vera and Vega: Windows sandbox refused file access but Codex emitted
@@ -315,7 +444,7 @@ func parseCodexResult(raw string, runErr error) stepResult {
 		subtype = "unparsed"
 		detail = append(detail, "codex stream ended without terminal event")
 	}
-	if failed && subtype != "sandbox_unavailable" && subtype != "task_input_unavailable" && isVendorLimit(raw+"\n"+strings.Join(detail, "\n")) {
+	if failed && subtype == "runner_error" && isVendorLimit(raw+"\n"+strings.Join(detail, "\n")) {
 		subtype = "vendor_limit"
 	}
 	return stepResult{

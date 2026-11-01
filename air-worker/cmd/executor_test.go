@@ -109,18 +109,26 @@ func TestExecutorDispatchLoadsPonytailAndWalksVendorFallbacks(t *testing.T) {
 	cfg := executorTestConfig()
 	scope := newScope(root, sessionIdentity{Principal: "chatgpt", SessionKey: "executor-smoke"})
 	doc := runExecutorDispatch(root, cfg, scope, "standard", "gpt6-sol:low", task)
-	if !doc.OK || doc.SelectedTier != "fb2:low" || len(doc.Attempts) != 3 {
-		t.Fatalf("dispatch=%+v", doc)
+	// A successful model turn is deliberately NOT an accepted task. The
+	// executor endpoint cannot infer the correctness of EXECUTOR_OK.
+	if doc.OK || !doc.ModelTurnCompleted || doc.TaskOutcome != "MODEL_TURN_COMPLETED_TASK_NOT_VERIFIED" ||
+		doc.Schema != executorDispatchSchemaV2 || doc.SelectedTier != "fb2:low" || len(doc.Attempts) != 3 {
+		t.Fatalf("dispatch falsely accepted task: %+v", doc)
 	}
-	if doc.Attempts[0].Subtype != "vendor_limit" || doc.Attempts[1].Subtype != "vendor_limit" || !doc.Attempts[2].OK {
-		t.Fatalf("attempts=%+v", doc.Attempts)
+	if doc.Attempts[0].Subtype != "vendor_limit" || doc.Attempts[1].Subtype != "vendor_limit" ||
+		doc.Attempts[2].OK || !doc.Attempts[2].ModelTurnCompleted ||
+		doc.Attempts[2].TaskOutcome != "MODEL_TURN_COMPLETED_TASK_NOT_VERIFIED" ||
+		doc.Attempts[2].Subtype != "task_not_verified" {
+		t.Fatalf("attempts conflated model and task result: %+v", doc.Attempts)
 	}
 	receipt, err := readJobReceipt(doc.Attempts[2].Receipt)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Principal != "chatgpt" || receipt.Session != "executor-smoke" || receipt.Role != "executor/leader" {
-		t.Fatalf("receipt=%+v", receipt)
+	if receipt.Principal != "chatgpt" || receipt.Session != "executor-smoke" ||
+		receipt.Role != "executor/leader" || receipt.Status != jobStatusDone ||
+		receipt.TaskOutcome != "MODEL_TURN_COMPLETED_TASK_NOT_VERIFIED" {
+		t.Fatalf("receipt must distinguish model completion and factual task proof: %+v", receipt)
 	}
 }
 

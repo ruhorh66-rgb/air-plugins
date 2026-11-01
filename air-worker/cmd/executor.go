@@ -10,6 +10,7 @@ import (
 )
 
 const executorSchemaV1 = "air-worker.executor/v1"
+const executorDispatchSchemaV2 = "air-worker.executor-dispatch/v2"
 
 type executorTierDoc struct {
 	Tier   string `json:"tier"`
@@ -31,27 +32,31 @@ type executorListDoc struct {
 }
 
 type executorAttemptDoc struct {
-	Tier    string `json:"tier"`
-	Model   string `json:"model"`
-	Effort  string `json:"effort"`
-	OK      bool   `json:"ok"`
-	Subtype string `json:"subtype"`
-	Detail  string `json:"detail,omitempty"`
-	Session string `json:"session_id,omitempty"`
-	Receipt string `json:"receipt,omitempty"`
+	Tier               string `json:"tier"`
+	Model              string `json:"model"`
+	Effort             string `json:"effort"`
+	OK                 bool   `json:"ok"` // factual task acceptance, never model turn only
+	ModelTurnCompleted bool   `json:"model_turn_completed,omitempty"`
+	TaskOutcome        string `json:"task_outcome,omitempty"`
+	Subtype            string `json:"subtype"`
+	Detail             string `json:"detail,omitempty"`
+	Session            string `json:"session_id,omitempty"`
+	Receipt            string `json:"receipt,omitempty"`
 }
 
 type executorDispatchDoc struct {
-	Schema        string               `json:"schema"`
-	Product       string               `json:"product"`
-	Principal     string               `json:"principal"`
-	SessionKey    string               `json:"session_key"`
-	Class         string               `json:"class,omitempty"`
-	RequestedTier string               `json:"requested_tier"`
-	SelectedTier  string               `json:"selected_tier"`
-	TaskFile      string               `json:"task_file"`
-	Attempts      []executorAttemptDoc `json:"attempts"`
-	OK            bool                 `json:"ok"`
+	Schema             string               `json:"schema"`
+	Product            string               `json:"product"`
+	Principal          string               `json:"principal"`
+	SessionKey         string               `json:"session_key"`
+	Class              string               `json:"class,omitempty"`
+	RequestedTier      string               `json:"requested_tier"`
+	SelectedTier       string               `json:"selected_tier"`
+	TaskFile           string               `json:"task_file"`
+	Attempts           []executorAttemptDoc `json:"attempts"`
+	OK                 bool                 `json:"ok"` // factual result, not model completion
+	ModelTurnCompleted bool                 `json:"model_turn_completed,omitempty"`
+	TaskOutcome        string               `json:"task_outcome"`
 }
 
 func cmdExecutor(argv []string) int {
@@ -279,8 +284,8 @@ func startTierForClass(cfg runConfig, class string) (string, error) {
 
 func runExecutorDispatch(root string, cfg runConfig, scope sessionScope, class, tier, taskFile string) executorDispatchDoc {
 	doc := executorDispatchDoc{
-		Schema: executorSchemaV1, Product: root, Principal: scope.ID.Principal, SessionKey: scope.ID.SessionKey,
-		Class: class, RequestedTier: tier, TaskFile: taskFile,
+		Schema: executorDispatchSchemaV2, Product: root, Principal: scope.ID.Principal, SessionKey: scope.ID.SessionKey,
+		Class: class, RequestedTier: tier, TaskFile: taskFile, TaskOutcome: "NOT_VERIFIED",
 	}
 	ctx := loopCtx{Root: root, Cfg: cfg, Principal: scope.ID.Principal, SessionKey: scope.ID.SessionKey}
 	stepID := "executor-" + filepath.Base(taskFile)
@@ -297,15 +302,25 @@ func runExecutorDispatch(root string, cfg runConfig, scope sessionScope, class, 
 		result := ctx.invokeCodex("codex", prompt, runner, stepID)
 		operation := runnerReceiptOperation("executor-codex", runner, ctx.iter)
 		receipt, _ := jobReceiptPaths(scope, stepID, operation)
-		doc.Attempts = append(doc.Attempts, executorAttemptDoc{
-			Tier: attemptTier, Model: item.Model, Effort: item.Effort, OK: result.Ok,
+		attempt := executorAttemptDoc{
+			Tier: attemptTier, Model: item.Model, Effort: item.Effort,
 			Subtype: result.Subtype, Detail: result.Detail, Session: result.Session, Receipt: receipt,
-		})
+		}
 		doc.SelectedTier = attemptTier
 		if result.Ok {
-			doc.OK = true
+			// turn.completed proves only model lifecycle, not TASK.md read or
+			// task criteria. Never convert it to a task OK or try fallback.
+			attempt.ModelTurnCompleted = true
+			attempt.TaskOutcome = "MODEL_TURN_COMPLETED_TASK_NOT_VERIFIED"
+			attempt.Subtype = "task_not_verified"
+			doc.ModelTurnCompleted = true
+			doc.TaskOutcome = attempt.TaskOutcome
+			doc.Attempts = append(doc.Attempts, attempt)
 			return doc
 		}
+		attempt.TaskOutcome = "EXECUTOR_FAILED"
+		doc.TaskOutcome = attempt.TaskOutcome
+		doc.Attempts = append(doc.Attempts, attempt)
 		if result.Subtype != "vendor_limit" {
 			return doc
 		}
@@ -362,8 +377,18 @@ func cmdExecutorDispatch(argv []string) int {
 			fmt.Printf("%s model=%s effort=%s ok=%t subtype=%s receipt=%s"+lineEnding, a.Tier, a.Model, a.Effort, a.OK, a.Subtype, a.Receipt)
 		}
 	}
-	if doc.OK {
-		return 0
+	// The dispatch endpoint is not a factual judge. RC2 denotes a completed
+	// but unverified model turn. RC1 means the model/process could not execute.
+	// RC0 is reserved for separately proven task acceptance.
+	return executorDispatchExitCode(doc)
+}
+
+// Only explicit independent factual acceptance can eventually yield RC0.
+// This endpoint dispatches a model; it has no task-specific factual proof,
+// so its successful model turn must return 2 (not proven), never 0.
+func executorDispatchExitCode(doc executorDispatchDoc) int {
+	if doc.ModelTurnCompleted && doc.TaskOutcome == "MODEL_TURN_COMPLETED_TASK_NOT_VERIFIED" && !doc.OK {
+		return 2
 	}
 	return 1
 }

@@ -67,6 +67,9 @@ func usage() {
         -principal <p> -session-key <k> [-tier <approved-tier>] [-json]
         GPT-safe вход к утверждённой OpenAI/Codex лестнице. Dispatch требует объявленную
         активную сессию и durable receipt; vendor-limit использует только зарегистрированные fallback.
+        RC1 — исполнитель/доступ отказал; RC2 — модельный ход завершён, задача НЕ ДОКАЗАНА.
+        Статус DONE относится только к процессу. Отдельный factual judge принимает результат;
+        непроверенные Windows add_dirs отклоняются без отключения sandbox.
 
   air-worker semantic -product <корень> -step <N> [-executor claude|codex|chatgpt|router] [-claim "..."]
         Независимый read-only Semantic Judge текущего шага без запуска executor loop.
