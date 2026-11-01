@@ -1,0 +1,131 @@
+{
+  "schema": "airworker.devwork23.codex-safeoutcome-source/v1",
+  "owner": "Dev Work 23 / AirWorker",
+  "trigger": "LPR 2026-11-01 source-only correction for Windows sandbox and DONE/turn.completed false-positive, plus model roles",
+  "done_when": "one real native Codex executor reads task and returns exact AIRWORKER_OPENAI_OK, machine judge PASS, independent Anthropic reviews substantive result, access denied never accepted",
+  "judge": "native scoped Go, go vet, QA-only build/hash, native factual judge, independent Anthropic Sonnet 5.5 via AirWorker Headroom",
+  "at_utc": "2026-11-01T16:21:17.820198+00:00",
+  "at_sgt": "2026-11-02 00:21:17 +08:00",
+  "source": {
+    "repo": "https://github.com/ruhorh66-rgb/air-plugins",
+    "branch": "dev/airworker-codex-safeoutcome-20261101",
+    "base_commit": "0befb40e246b091916c7f321db2b3c56b36c3ade",
+    "files_sha256": {
+      "cmd/runner_codex.go": "0921f7afced2820f87f972af94004eae49c61e9c9e44d092bb4db1224a0d8ad4",
+      "cmd/job_receipt.go": "5868658cdc3cfde8493d3c6e648250ac9c68337521bbe9ff2142c2b34226c562",
+      "cmd/runner_codex_sandbox_gate_test.go": "bec830943a3a281c0b83310b0738590644988a4571fcdc6855f1d5f1d771f69b",
+      "run-config.json": "3f336a748e87f79964c8ba9b0a2656b064393a693abca6c31acb091393b303e4"
+    },
+    "protected_plan_nodes_learn_modified": false,
+    "frozen_awlrn03_ebd_commit": "ebd85a6c89a04ddc8d5f51dea9a277a6bb005823",
+    "frozen_awlrn03_candidate_not_merged_into_this_branch": true
+  },
+  "functional": {
+    "bug_reproductions": [
+      "D:/DevBox/AirVera/scratch/aw-native-openai-probe-20261101",
+      "D:/DevBox/AirCurator/scratch/vega-aw-probe-20261101-1543"
+    ],
+    "before": "Codex model turn.completed and exit0 were accepted as dispatch OK despite sandbox denial and unread TASK.md",
+    "fix": "Windows process-local workspace-write exclude_slash_tmp=true; unchanged unelevated sandbox; fail-closed on sandbox error/unreadable task/nonzero process exit; durable process_exit_code distinguished from task_outcome; no hidden fallback",
+    "safe_sandbox_reference": "https://developers.openai.com/codex/config-reference",
+    "upstream_issue": "https://github.com/openai/codex/issues/30712",
+    "process_rc0_is_not_factual_completion": true,
+    "new_real_native_executor": true,
+    "native_dispatch_rc": 0,
+    "executor_model": "gpt-6-sol",
+    "executor_effort": "low",
+    "executor_provider": "OpenAI",
+    "input_sha256": "4fcd08c811460bfb204d4db278af2ca5be53a1e57036c8a410e1f55c090bd369",
+    "actual_output_sha256": "85c4544232b9e205fa548f7ff225d8c56def5ab1017ed94ed6a794a9570c0a00",
+    "exact_terminal_output": "AIRWORKER_OPENAI_OK",
+    "actual_task_read_in_sandbox": true,
+    "native_factual_judge_rc": 0,
+    "factual_checks_passed": 9,
+    "independent_reviewer_model": "claude-sonnet-5-5",
+    "independent_reviewer_effort": "low",
+    "independent_reviewer_vendor": "Anthropic",
+    "independent_reviewer_2nd_attempt_reason": "First semantic answer misstated claim label as output; second checked exact task/output/marker",
+    "independent_semantic_verdict": {
+      "verdict": "PASS",
+      "step_done": "yes",
+      "drift": "none",
+      "evidence": [
+        "The executor .out file has a command output line containing DW23_READ_629ed2e0e24425a2. The command was `Get-Content -LiteralPath TASK.md`, so TASK.md was actually read. The final agent_message is exactly AIRWORKER_OPENAI_OK.",
+        "judge-evidence.json status is PASS. Its checks actual_task_read, sandbox_no_denial, terminal_event, exact_final, one_receipt and process_finished are all true.",
+        "git_status and diff are empty, so no files were modified."
+      ],
+      "next": "Advance to the next step or close the probe."
+    },
+    "independent_semantic_sha256": "79e9aae0670dca572e09d2693004d667f5fd267cc839ce064974b6b596650bd0",
+    "model_task_count": 1,
+    "subagent_orchestration_proven": false,
+    "subagent_limit_in_dev_config": 1
+  },
+  "quality": {
+    "focused_tests_run": 16,
+    "focused_tests_pass": 16,
+    "focused_tests_fail": 0,
+    "replayed_preserved_vera_and_vega_denial_streams": true,
+    "go_vet_cmd_rc": 0,
+    "qa_only_build_rc": 0,
+    "qa_only_cli_path": "D:\\Devbox\\AirWorker\\evidence\\AWLRN03_CATALOG_20261031\\devwork23-629ed2e0e24425a2\\qa-only-air-worker-safeoutcome.exe",
+    "qa_only_cli_sha256": "4fa014c57240f33c0360541c5479f8824de0a8194f0a70bc1870b3550a91d076",
+    "qa_only_embedded_version": "0.11.11-rc.2 (not a new release)",
+    "source_plan_spine_rc": 0,
+    "source_plan_lint_rc": 0,
+    "source_config_validate_rc": 0,
+    "source_config_validate_problems": 0,
+    "old_ebd_89_reexecuted": false,
+    "old_full900_rerun": false,
+    "old_625_reexecuted": false
+  },
+  "model_policy": {
+    "executor_models_official": [
+      "gpt-6-luna",
+      "gpt-6-sol",
+      "gpt-6-astra",
+      "gpt-6.1-sol"
+    ],
+    "live_executor_verified": [
+      "gpt-6-sol low (native workspace-write task)",
+      "gpt-6-sol medium (frozen artifact read-only review)"
+    ],
+    "unverified_models": [
+      "gpt-6-luna",
+      "gpt-6-astra",
+      "gpt-6.1-sol",
+      "gpt-5.5/5.6 fallback IDs",
+      "claude-opus-5-5"
+    ],
+    "reviewer_default": "claude-sonnet-5-5",
+    "reviewer_effort": "low",
+    "live_reviewer_route": "native air-worker semantic via installed Headroom 127.0.0.1:8787 Anthropic upstream",
+    "fallbacks_in_dev_config": "none (not activated until local model/entitlement verification)",
+    "permitted_efforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "hidden_provider_switch": false,
+    "documentation": [
+      "https://developers.openai.com/api/docs/models",
+      "https://platform.claude.com/docs/en/models/overview",
+      "https://platform.claude.com/docs/en/build-with-claude/effort"
+    ]
+  },
+  "release": {
+    "status": "SOURCE_ONLY_QA_PROVEN_NATIVE_EFFECT_PROVEN__RELEASE_HOLD",
+    "installation_prohibited": true,
+    "new_release_prohibited": true,
+    "frozen_awlrn03_risk": "4 file-symlink-negative SKIP, 625 unrerun, historical full900 FAIL",
+    "new_delta_risk": "no full integrated regression; frozen ebd catalogue change not merged; independent source code review beyond task semantic NOT_PROVEN; release rephase/N124 host issuer absent",
+    "actual_product_self_learning_effect": "NOT_PROVEN",
+    "rollback": "installed rc.2 preserved, 3/3 pinned snapshots; source branch revert only before separate install authorization"
+  },
+  "receipt_paths": {
+    "old_artifact_independent_judge": "D:\\Devbox\\AirWorker\\evidence\\AWLRN03_CATALOG_20261031\\devwork23-629ed2e0e24425a2\\artifact-judge\\review.final.txt",
+    "new_source_qa": "D:\\Devbox\\AirWorker\\evidence\\AWLRN03_CATALOG_20261031\\devwork23-629ed2e0e24425a2\\receipts\\safeoutcome-final-qa.json",
+    "new_native_probe_factual": "D:\\Devbox\\AirWorker\\evidence\\AWLRN03_CATALOG_20261031\\devwork23-629ed2e0e24425a2\\native-probe\\judge-evidence.json",
+    "new_native_semantic": "D:\\Devbox\\AirWorker\\evidence\\AWLRN03_CATALOG_20261031\\devwork23-629ed2e0e24425a2\\native-probe\\.woody\\semantic-verdict.json"
+  }
+}

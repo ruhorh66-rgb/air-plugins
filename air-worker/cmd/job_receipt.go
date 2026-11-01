@@ -25,25 +25,27 @@ const (
 // jobReceipt — durable запись о долгой команде: всё необходимое, чтобы прочитать финал по
 // output_path, не удерживая сам процесс/сессию, которая её запустила.
 type jobReceipt struct {
-	JobID          string    `json:"job_id"`
-	PID            int       `json:"pid"`
-	StartedAt      time.Time `json:"started_at"`
-	Status         string    `json:"status"`
-	OutputPath     string    `json:"output_path"`
-	Product        string    `json:"product"`
-	Principal      string    `json:"principal"`
-	Session        string    `json:"session"`
-	Step           string    `json:"step"`
-	Operation      string    `json:"operation"`
-	Runner         string    `json:"runner,omitempty"`
-	Provider       string    `json:"provider,omitempty"`
-	Model          string    `json:"model,omitempty"`
-	Effort         string    `json:"effort,omitempty"`
-	Role           string    `json:"role,omitempty"`
-	Sandbox        string    `json:"sandbox,omitempty"`
-	ProcessStarted bool      `json:"process_started"`
-	RequestStarted bool      `json:"request_started,omitempty"`
-	Cost           *float64  `json:"cost,omitempty"`
+	JobID           string    `json:"job_id"`
+	PID             int       `json:"pid"`
+	StartedAt       time.Time `json:"started_at"`
+	Status          string    `json:"status"`
+	OutputPath      string    `json:"output_path"`
+	Product         string    `json:"product"`
+	Principal       string    `json:"principal"`
+	Session         string    `json:"session"`
+	Step            string    `json:"step"`
+	Operation       string    `json:"operation"`
+	Runner          string    `json:"runner,omitempty"`
+	Provider        string    `json:"provider,omitempty"`
+	Model           string    `json:"model,omitempty"`
+	Effort          string    `json:"effort,omitempty"`
+	Role            string    `json:"role,omitempty"`
+	Sandbox         string    `json:"sandbox,omitempty"`
+	ProcessStarted  bool      `json:"process_started"`
+	ProcessExitCode *int      `json:"process_exit_code,omitempty"`
+	TaskOutcome     string    `json:"task_outcome,omitempty"`
+	RequestStarted  bool      `json:"request_started,omitempty"`
+	Cost            *float64  `json:"cost,omitempty"`
 }
 
 // jobLockKind — duplicate-start guard именует замок по (step, operation) внутри scope: тот
@@ -67,16 +69,17 @@ func startJobReceipt(scope sessionScope, step, operation, receiptPath, outputPat
 	}
 
 	r := &jobReceipt{
-		JobID:      newJobID(scope),
-		PID:        os.Getpid(),
-		StartedAt:  time.Now().UTC(),
-		Status:     jobStatusRunning,
-		OutputPath: outputPath,
-		Product:    scope.Root,
-		Principal:  scope.ID.Principal,
-		Session:    scope.ID.SessionKey,
-		Step:       step,
-		Operation:  operation,
+		JobID:       newJobID(scope),
+		PID:         os.Getpid(),
+		StartedAt:   time.Now().UTC(),
+		Status:      jobStatusRunning,
+		TaskOutcome: "NOT_VERIFIED",
+		OutputPath:  outputPath,
+		Product:     scope.Root,
+		Principal:   scope.ID.Principal,
+		Session:     scope.ID.SessionKey,
+		Step:        step,
+		Operation:   operation,
 	}
 	if err := writeJobReceiptFunc(receiptPath, r); err != nil {
 		lock.release()
@@ -220,11 +223,22 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 	go func() {
 		waitErr := cmd.Wait()
 		outFile.Close()
+		if cmd.ProcessState != nil {
+			exitCode := cmd.ProcessState.ExitCode()
+			r.ProcessExitCode = &exitCode
+		}
 		status := jobStatusDone
 		if waitErr != nil {
 			status = jobStatusFailed
 		}
-		_ = finishJobReceipt(receiptPath, status)
+		// Process lifecycle remains separate from task outcome.
+		if disk, err := readJobReceipt(receiptPath); err == nil {
+			disk.Status = status
+			disk.ProcessExitCode = r.ProcessExitCode
+			_ = writeJobReceiptFunc(receiptPath, disk)
+		} else {
+			_ = finishJobReceipt(receiptPath, status)
+		}
 		lock.release()
 		data, _ := os.ReadFile(outputPath)
 		resultCh <- jobCmdResult{data: data, err: waitErr}
@@ -236,4 +250,23 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 	case <-ctx.Done():
 		return nil, errJobStillRunning
 	}
+}
+
+// This is not the factual product judge: a successful model turn remains
+// unverified until exact task criteria are checked separately.
+func recordCodexModelOutcome(receiptPath string, result stepResult) error {
+	r, err := readJobReceipt(receiptPath)
+	if err != nil {
+		return err
+	}
+	if r.Status != jobStatusDone && r.Status != jobStatusFailed {
+		return fmt.Errorf("job lacks terminal process status: %s", r.Status)
+	}
+	if result.Ok {
+		r.TaskOutcome = "MODEL_TURN_COMPLETED_TASK_NOT_VERIFIED"
+	} else {
+		r.TaskOutcome = "EXECUTOR_FAILED"
+		r.Status = jobStatusFailed
+	}
+	return writeJobReceiptFunc(receiptPath, r)
 }

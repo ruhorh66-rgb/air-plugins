@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -73,6 +74,10 @@ func validateCodexAddDirs(paths []string) error {
 
 func codexArgsForSandbox(root string, runner runnerSpec, sandbox string) []string {
 	args := []string{"exec", "--json", "--skip-git-repo-check", "-s", sandbox, "-C", root}
+	if runtime.GOOS == "windows" && sandbox == "workspace-write" {
+		// Windows restricted-token split vs legacy slash-tmp roots. Restrict, never bypass sandbox.
+		args = append(args, "-c", "sandbox_workspace_write.exclude_slash_tmp=true")
+	}
 	if runner.Model != "" {
 		args = append(args, "-m", runner.Model)
 	}
@@ -112,7 +117,12 @@ func (c *loopCtx) invokeCodex(exePath, prompt string, runner runnerSpec, stepID 
 	// К42 — durable job receipt пишется RUNNING ДО запуска исполнителя Codex.
 	operation := runnerReceiptOperation("executor-codex", runner, c.iter)
 	out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), stepID, operation, cmd, codexReceiptMeta(runner, "executor/leader", "workspace-write"))
-	return parseCodexResult(decodeOutput(out), runErr)
+	result := parseCodexResult(decodeOutput(out), runErr)
+	receiptPath, _ := jobReceiptPaths(c.scope(), stepID, operation)
+	if err := recordCodexModelOutcome(receiptPath, result); err != nil {
+		return stepResult{Subtype: "outcome_receipt_error", Detail: err.Error()}
+	}
+	return result
 }
 
 type codexSubagentRun struct {
@@ -154,8 +164,12 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 			operation := runnerReceiptOperation("executor-codex-subagent", runner, c.iter)
 			out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), agentStep, operation, cmd, codexReceiptMeta(runner, "orchestration-subagent", "read-only"))
 			receiptPath, _ := jobReceiptPaths(c.scope(), agentStep, operation)
+			result := parseCodexResult(decodeOutput(out), runErr)
+			if err := recordCodexModelOutcome(receiptPath, result); err != nil {
+				result = stepResult{Subtype: "outcome_receipt_error", Detail: err.Error()}
+			}
 			receipt, _ := readJobReceipt(receiptPath)
-			results <- codexSubagentRun{index: index, started: receipt != nil && receipt.ProcessStarted, result: parseCodexResult(decodeOutput(out), runErr)}
+			results <- codexSubagentRun{index: index, started: receipt != nil && receipt.ProcessStarted, result: result}
 		}(i)
 	}
 	wg.Wait()
@@ -217,6 +231,20 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 	return applyAgentLifecycle(leader, stats)
 }
 
+func codexReportedUnreadableTask(detail []string) bool {
+	for _, part := range detail {
+		line := strings.ToLower(strings.TrimSpace(part))
+		if strings.HasPrefix(line, "i couldn't read") || strings.HasPrefix(line, "i could not read") ||
+			strings.HasPrefix(line, "i couldn’t read") || strings.HasPrefix(line, "i can't read") ||
+			strings.HasPrefix(line, "i cannot read") {
+			if strings.Contains(line, "task.md") || strings.Contains(line, "task file") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func parseCodexResult(raw string, runErr error) stepResult {
 	turns := 0
 	completed, failed := false, false
@@ -268,15 +296,26 @@ func parseCodexResult(raw string, runErr error) stepResult {
 			}
 		}
 	}
-	if runErr != nil && !completed && !failed {
+	// Process error is fatal even if turn.completed was emitted.
+	if runErr != nil {
 		failed, subtype = true, "runner_error"
 		detail = append(detail, "codex process: "+runErr.Error())
+	}
+	// Vera and Vega: Windows sandbox refused file access but Codex emitted
+	// a final agent message and turn.completed. Neither proves task execution.
+	if strings.Contains(strings.ToLower(raw), "windows unelevated restricted-token sandbox cannot enforce split writable root sets directly") {
+		failed, subtype = true, "sandbox_unavailable"
+		detail = append(detail, "Codex sandbox denied executable file access; TASK.md read NOT_PROVEN")
+	}
+	if !failed && completed && codexReportedUnreadableTask(detail) {
+		failed, subtype = true, "task_input_unavailable"
+		detail = append(detail, "Codex reported unreadable task input; task NOT_PROVEN")
 	}
 	if !completed && !failed {
 		subtype = "unparsed"
 		detail = append(detail, "codex stream ended without terminal event")
 	}
-	if failed && isVendorLimit(raw+"\n"+strings.Join(detail, "\n")) {
+	if failed && subtype != "sandbox_unavailable" && subtype != "task_input_unavailable" && isVendorLimit(raw+"\n"+strings.Join(detail, "\n")) {
 		subtype = "vendor_limit"
 	}
 	return stepResult{

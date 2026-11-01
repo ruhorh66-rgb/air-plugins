@@ -93,7 +93,7 @@
     "usd": 20,
     "turns_per_iteration": 60
   },
-  "_ladder": "ЛПР 29.09.2026: штатные исполнители только OpenAI/Codex; внутри модели low -> medium -> high, max/xhigh/ultra запрещены. GPT-5.5/5.6 зарегистрированы как vendor-limit fallbacks и не участвуют в обычном росте цены.",
+  "_ladder": "ЛПР 29.09.2026: штатные исполнители только OpenAI/Codex; внутри модели low -> medium -> high, max/xhigh/ultra запрещены. Vendor-limit fallbacks 5.5/5.6 временно НЕ ВКЛЮЧЕНЫ: официальные IDs недостаточны без фактической проверки доступа. Ступени low/medium/high, OpenAI executor и Anthropic independent reviewer. ЛПР 01.11.2026: один субагент.",
   "ladder": [
     "script",
     "gpt6-luna:low",
@@ -108,35 +108,31 @@
   ],
   "model_policy": {
     "schema": "air-worker.model-policy/v1",
-    "executor_fallbacks": {
-      "gpt6-luna": ["gpt56-luna"],
-      "gpt6-sol": ["gpt56-terra", "gpt56-sol", "gpt55"],
-      "gpt6-astra": ["gpt56-sol", "gpt55"]
-    },
+    "executor_fallbacks": {},
     "judges": {
       "default": {
         "model": "claude-sonnet-5-5",
         "efforts": ["low", "medium", "high"],
-        "fallbacks": ["claude-sonnet-5", "claude-sonnet-4-6"]
+        "fallbacks": []
       },
       "complex": {
         "model": "claude-opus-5-5",
         "efforts": ["low", "medium", "high"],
-        "fallbacks": ["claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6"]
+        "fallbacks": []
       },
       "arbitration": {
         "model": "claude-fable-5-1",
         "efforts": ["low", "medium", "high"],
-        "fallbacks": ["claude-fable-5"]
+        "fallbacks": []
       }
     }
   },
   "semantic_judge": {
     "_": "Release-scoped override: use only when goal/goal.json release_version matches; later releases retain the default independent cross-vendor reviewer.",
     "release_version": "0.11.9",
-    "kind": "codex",
-    "model": "gpt-6-sol",
-    "effort": "medium"
+    "kind": "claude",
+    "model": "claude-sonnet-5-5",
+    "effort": "low"
   },
   "openai": {
     "_": "Прямой Responses API transport только текстовый: локальные файлы и команды остаются у Codex CLI. Ключ читается по имени переменной и не пишется в config/receipt.",
@@ -183,6 +179,6 @@
   "orchestration": {
     "_": "Шаги 3, 4 и 6 независимы между собой — их можно вести параллельно. Шаги 1-2 и 7-8 последовательны и упираются в судью.",
     "enabled": true,
-    "subagents": 2
+    "subagents": 1
   }
 }
