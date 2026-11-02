@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -17,10 +19,9 @@ import (
 const semanticNodeSourceSchema = "air-worker.semantic-native-node/v1"
 const semanticNodeMaxArtifact = 48 * 1024
 
-var semanticSourceLineCitation = regexp.MustCompile(`(?i)[[:alnum:]_./\\-]+\.(go|ts|tsx|js|jsx|py|md|json|ps1)(:[0-9]+|#L[0-9]+|[[:space:]]+line[[:space:]]+[0-9]+)`)
-
 type semanticNodeSourceScope struct {
 	Node           planNode `json:"node"`
+	ReviewID       string   `json:"review_id"`
 	SourceCommit   string   `json:"source_commit"`
 	ArtifactPath   string   `json:"artifact_path"`
 	ArtifactSHA256 string   `json:"artifact_sha256"`
@@ -39,28 +40,54 @@ type semanticNodeSourceRequest struct {
 }
 
 type semanticNodeMachineResult struct {
-	Schema                string `json:"schema"`
-	Phase                 string `json:"phase"`
-	Code                  int    `json:"code"`
-	NodeID                string `json:"node_id"`
-	SourceCommit          string `json:"source_commit"`
-	ArtifactPath          string `json:"artifact_path"`
-	ArtifactSHA256        string `json:"artifact_sha256"`
-	ReviewerVendor        string `json:"reviewer_vendor"`
-	ReviewerModel         string `json:"reviewer_model"`
-	ReviewerEffort        string `json:"reviewer_effort"`
-	ReviewScope           string `json:"review_scope"`
-	ModelInvoked          bool   `json:"model_invoked"`
-	FactualChecksExecuted bool   `json:"factual_checks_executed"`
-	TaskPassed            bool   `json:"task_passed"`
-	Verdict               string `json:"verdict,omitempty"`
-	Detail                string `json:"detail,omitempty"`
+	Schema                  string `json:"schema"`
+	Phase                   string `json:"phase"`
+	Code                    int    `json:"code"`
+	NodeID                  string `json:"node_id"`
+	SourceCommit            string `json:"source_commit"`
+	ArtifactPath            string `json:"artifact_path"`
+	ArtifactSHA256          string `json:"artifact_sha256"`
+	ReviewerVendor          string `json:"reviewer_vendor"`
+	ReviewerModel           string `json:"reviewer_model"`
+	ReviewerEffort          string `json:"reviewer_effort"`
+	ReviewScope             string `json:"review_scope"`
+	ModelInvoked            bool   `json:"model_invoked"`
+	ModelRequestAttempted   bool   `json:"model_request_attempted"`
+	FactualChecksExecuted   bool   `json:"factual_checks_executed"`
+	TaskPassed              bool   `json:"task_passed"`
+	ReviewID                string `json:"review_id,omitempty"`
+	SemanticReceiptVerified bool   `json:"semantic_receipt_verified"`
+	Verdict                 string `json:"verdict,omitempty"`
+	Detail                  string `json:"detail,omitempty"`
 }
 
-func semanticSourceCited(verdict semanticVerdict) bool {
+// semanticSourceCited requires a citation to the EXACT verified artifact and
+// a literal nontrivial source line from its pinned bytes. A fabricated
+// "file.go:3" is not evidence that the reviewer examined the supplied input.
+// This is a content-grounding check, not a claim about Claude tool-call traces.
+func semanticSourceCited(verdict semanticVerdict, source *semanticNodeSourceScope) bool {
+	if source == nil || source.ArtifactPath == "" {
+		return false
+	}
+	lines := strings.Split(strings.ReplaceAll(source.ArtifactText, "\r\n", "\n"), "\n")
+	pattern := regexp.MustCompile(regexp.QuoteMeta(source.ArtifactPath) + `:(\d+)(?:\b|$)`)
 	for _, evidence := range verdict.Evidence {
-		if semanticSourceLineCitation.MatchString(evidence) {
-			return true
+		for _, match := range pattern.FindAllStringSubmatch(evidence, -1) {
+			lineNum, err := strconv.Atoi(match[1])
+			if err != nil || lineNum < 1 || lineNum > len(lines) {
+				continue
+			}
+			line := strings.TrimSpace(lines[lineNum-1])
+			runes := []rune(line)
+			if len(runes) < 12 {
+				continue
+			}
+			if len(runes) > 96 {
+				line = string(runes[:96])
+			}
+			if strings.Contains(evidence, line) {
+				return true
+			}
 		}
 	}
 	return false
@@ -206,6 +233,14 @@ func cmdSemanticNativeNode(root string, cfg runConfig, request semanticNodeSourc
 		emitSemanticNodeMachine(doc)
 		return 2
 	}
+	idBytes := make([]byte, 16)
+	if _, err := rand.Read(idBytes); err != nil {
+		doc.Detail = "source review identity unavailable: " + err.Error()
+		emitSemanticNodeMachine(doc)
+		return 2
+	}
+	source.ReviewID = hex.EncodeToString(idBytes)
+	doc.ReviewID = source.ReviewID
 	step := workStep{Num: source.Node.ID, Title: source.Node.Title, Tier: "source-only"}
 	ctx := &loopCtx{
 		Root: root, Cfg: cfg, goals: readPlanGoals(filepath.Join(root, "PLAN.md")),
@@ -222,9 +257,12 @@ func cmdSemanticNativeNode(root string, cfg runConfig, request semanticNodeSourc
 	run := ctx.semanticJudge(step, executor, factual,
 		"Review only this exact native node source and pinned artifact; do not run QA or claim task completion")
 	doc.ModelInvoked = run.ModelInvoked
+	doc.ModelRequestAttempted = run.ModelRequestAttempted
 	if run.Error != "" {
 		if run.ModelInvoked {
 			doc.Phase = "MODEL_INVOKED_SOURCE_NOT_PROVEN"
+		} else if run.ModelRequestAttempted {
+			doc.Phase = "MODEL_ATTEMPTED_NOT_PROVEN"
 		} else {
 			doc.Phase = "REJECTED_PRE_MODEL"
 		}
@@ -232,6 +270,17 @@ func cmdSemanticNativeNode(root string, cfg runConfig, request semanticNodeSourc
 		emitSemanticNodeMachine(doc)
 		return 2
 	}
+	// The generic semantic writer historically ignored disk errors. Source-only
+	// acceptance requires readback of THIS invocation's unique ID and exact
+	// pinned reviewer, verdict and source, not a stale .woody PASS.
+	if err := verifySemanticNodeReceipt(root, source, request, run.Verdict); err != nil {
+		doc.Phase = "SOURCE_REVIEW_RECEIPT_NOT_VERIFIED"
+		doc.Detail = err.Error()
+		doc.Code = 2
+		emitSemanticNodeMachine(doc)
+		return 2
+	}
+	doc.SemanticReceiptVerified = true
 	doc.Verdict = run.Verdict.Verdict
 	doc.Phase = "MODEL_INVOKED_SOURCE_NOT_PROVEN"
 	doc.Code = 2
@@ -245,4 +294,30 @@ func cmdSemanticNativeNode(root string, cfg runConfig, request semanticNodeSourc
 	doc.ArtifactPath = source.ArtifactPath
 	emitSemanticNodeMachine(doc)
 	return doc.Code
+}
+
+func verifySemanticNodeReceipt(root string, source *semanticNodeSourceScope, request semanticNodeSourceRequest, verdict semanticVerdict) error {
+	if source == nil || source.ReviewID == "" {
+		return fmt.Errorf("source-only reviewer receipt requires a fresh review ID")
+	}
+	var saved semanticRecord
+	if err := readJSON(filepath.Join(root, ".woody", "semantic-verdict.json"), &saved); err != nil {
+		return fmt.Errorf("source-only reviewer verdict not durably readable: %w", err)
+	}
+	if saved.ReviewID != source.ReviewID || saved.NodeID != source.Node.ID ||
+		saved.SourceCommit != source.SourceCommit || saved.ArtifactSHA256 != source.ArtifactSHA256 ||
+		saved.ReviewMode != "source-only" || !saved.ModelInvoked ||
+		!saved.ModelRequestAttempted || saved.FactualChecksExecuted == nil ||
+		*saved.FactualChecksExecuted ||
+		saved.ReviewerVendor != "claude" || saved.ReviewerModel != request.ExpectedReviewer ||
+		saved.ReviewerEffort != request.ExpectedEffort ||
+		saved.Verdict == nil || saved.Verdict.Verdict != verdict.Verdict ||
+		saved.Verdict.StepDone != verdict.StepDone || saved.Verdict.Drift != verdict.Drift {
+		return fmt.Errorf("source-only reviewer receipt mismatch or stale PASS; do not accept task/source completion")
+	}
+	if verdict.Verdict == "PASS" && (saved.ReviewStage != "SUBSTANTIVE_SOURCE_REVIEW" ||
+		!semanticSourceCited(*saved.Verdict, source)) {
+		return fmt.Errorf("source-only PASS lacks current artifact-grounded source evidence")
+	}
+	return nil
 }

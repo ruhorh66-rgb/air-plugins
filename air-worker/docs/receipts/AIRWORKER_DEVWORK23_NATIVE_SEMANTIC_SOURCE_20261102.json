@@ -49,7 +49,12 @@
     "source_drift_exit_code": 1,
     "unverified_or_refusal_exit_code": 2,
     "task_pass_from_source_review": false,
-    "source_citation_claim_does_not_authenticate_model_tool_read": true
+    "source_citation_claim_does_not_authenticate_model_tool_read": true,
+    "unique_review_id": true,
+    "durable_receipt_readback_required_for_pass": true,
+    "source_citation_exact_artifact_line_and_content": true,
+    "actual_claude_tool_use_trace": "NOT_PROVEN_BY_INLINE_CONTENT",
+    "failed_provider_start": "MODEL_ATTEMPTED_NOT_PROVEN and model_invoked=false"
   },
   "bounded_quality": {
     "existing_semantic_compatibility": {
@@ -71,7 +76,20 @@
     "live_asw_semantic_call": "NOT_EXECUTED",
     "independent_source_review": "PENDING_EXACT_FROZEN_SOURCE",
     "cli_tray_exact_candidate_build": "PENDING_CLEAN_COMMIT",
-    "full900_and_awlrn03_security": "NOT_RERUN"
+    "full900_and_awlrn03_security": "NOT_RERUN",
+    "grounded_review_and_receipt_test": {
+      "run": 39,
+      "pass": 39,
+      "fail": 0,
+      "skip": 0
+    },
+    "grounded_review_go_vet_rc": 0,
+    "prior_build_cli_tray_sha256_missing_vcs_revision": {
+      "cli_sha256": "a9c0da39ce0fbe6842bd78a7efe07abccfa16959f1daa948f9d7db1fdd890dd0",
+      "tray_sha256": "1ec8f55e2a98219023e24356a312ce2500ad70a6a6723b0b528314b29ba0f983",
+      "status": "QA_BUILD_NOT_RELEASE_PROVENANCE; vcs.revision absent; rebuild after frozen source with -buildvcs=true"
+    },
+    "final_clean_candidate_build": "PENDING_FROZEN_FINAL_SHA"
   },
   "files": {
     "cmd/semantic_native_node.go": {

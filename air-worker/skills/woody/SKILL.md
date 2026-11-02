@@ -57,9 +57,14 @@ are in `.woody/semantic-verdict.json`, `.woody/semantic-history.jsonl` and
 reports phase and model invocation. RC0 means **source-only semantic PASS with
 concrete file/line evidence, not task PASS**; RC1 means source DRIFT; RC2 means
 pre-model refusal or source NOT_PROVEN. The receipt declares
-`factual_checks_executed=false`; a model that never read code must return
-NOT_PROVEN. Model-claimed file citations are not independent proof of tool
-read events; verify source-read evidence before accepting the review.
+`factual_checks_executed=false`. RC0 additionally requires a source
+citation with the **exact tracked artifact path, line number and literal content**
+matched against the SHA-pinned bytes; an invented `file.go:3` is NOT_PROVEN.
+The receipt must be read back with a fresh unique `review_id`, matching the
+node, SHA, provider, outcome and the present invocation. A failed reviewer
+launch is `MODEL_ATTEMPTED_NOT_PROVEN`, not proof of model invocation.
+This confirms content-grounding, **not** separate Claude filesystem tool-use
+events; if actual tool-read provenance is required, that remains NOT_PROVEN.
 
 The legacy form `semantic -step <numeric PLAN step>` remains available but
 **runs the configured factual judge and may execute QA**; it must never be

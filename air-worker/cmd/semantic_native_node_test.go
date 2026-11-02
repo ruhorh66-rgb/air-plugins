@@ -228,9 +228,12 @@ func TestNativeSemanticHelperProcess(t *testing.T) {
 		fmt.Fprintln(os.Stderr, "source-only packet missing verified native node/artifact bytes or QA boundary")
 		os.Exit(5)
 	}
-	answer := `{"verdict":"PASS","step_done":"yes","drift":"none","evidence":["source.go:3 confirms declared source function and safety guard"],"next":"save source-only acceptance evidence"}`
+	answer := `{"verdict":"PASS","step_done":"yes","drift":"none","evidence":["source.go:3 | func SourceProof() bool { return true }"],"next":"save source-only acceptance evidence"}`
 	if mode == "NOT_PROVEN" {
 		answer = `{"verdict":"NOT_PROVEN","step_done":"partial","drift":"none","evidence":["Source could not be read by reviewer"],"next":"retry only after source availability is resolved"}`
+	}
+	if mode == "FABRICATED" {
+		answer = `{"verdict":"PASS","step_done":"yes","drift":"none","evidence":["source.go:3 seems okay"],"next":"accept without source text"}`
 	}
 	result := map[string]any{
 		"type": "result", "is_error": false, "session_id": "native-node-review-helper",
@@ -333,5 +336,128 @@ func TestNativeSemanticRejectsReleaseScopedReviewerOverrideBeforeModel(t *testin
 	out, rc := captureStdout(t, func() int { return cmdSemantic(nativeSemanticArgs(root, commit, sha)) })
 	if rc != 2 || started || !strings.Contains(out, "reviewer policy mismatch") {
 		t.Fatalf("silently changed reviewer route rc=%d started=%v out=%s", rc, started, out)
+	}
+}
+
+func TestNativeSemanticRejectsFabricatedSourceCitation(t *testing.T) {
+	root, commit, sha := makeNativeSemanticFixture(t)
+	old := semanticCommand
+	t.Cleanup(func() { semanticCommand = old })
+	semanticCommand = func(_ string, _ ...string) *exec.Cmd {
+		return exec.Command(os.Args[0], "-test.run=TestNativeSemanticHelperProcess", "--", "FABRICATED")
+	}
+	out, rc := captureStdout(t, func() int { return cmdSemantic(nativeSemanticArgs(root, commit, sha)) })
+	if rc != 2 || !strings.Contains(out, "\"phase\":\"MODEL_INVOKED_SOURCE_NOT_PROVEN\"") {
+		t.Fatalf("fabricated source.go:3 passed without exact source text: rc=%d out=%s", rc, out)
+	}
+	var result semanticRecord
+	if err := readJSON(filepath.Join(root, ".woody", "semantic-verdict.json"), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Verdict == nil || result.Verdict.Verdict != "NOT_PROVEN" ||
+		!result.ModelInvoked || result.FactualChecksExecuted == nil || *result.FactualChecksExecuted {
+		t.Fatalf("fabricated reviewer evidence incorrectly accepted: %+v", result)
+	}
+}
+
+func TestNativeSemanticReviewerFailedToStartCannotClaimModelInvoked(t *testing.T) {
+	root, commit, sha := makeNativeSemanticFixture(t)
+	old := semanticCommand
+	t.Cleanup(func() { semanticCommand = old })
+	semanticCommand = func(_ string, _ ...string) *exec.Cmd {
+		return exec.Command(filepath.Join(root, "no-such-reviewer-binary.exe"))
+	}
+	out, rc := captureStdout(t, func() int { return cmdSemantic(nativeSemanticArgs(root, commit, sha)) })
+	if rc != 2 || !strings.Contains(out, "\"phase\":\"MODEL_ATTEMPTED_NOT_PROVEN\"") {
+		t.Fatalf("failed reviewer process was reported as successful: rc=%d out=%s", rc, out)
+	}
+	var result semanticRecord
+	if err := readJSON(filepath.Join(root, ".woody", "semantic-verdict.json"), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.ModelInvoked || !result.ModelRequestAttempted ||
+		result.ReviewStage != "MODEL_ATTEMPTED_NOT_PROVEN" ||
+		result.FactualChecksExecuted == nil || *result.FactualChecksExecuted {
+		t.Fatalf("failed model start confused with model invocation: %+v", result)
+	}
+}
+
+func TestNativeSemanticEvidenceMustMatchExactArtifactLine(t *testing.T) {
+	s := &semanticNodeSourceScope{
+		ArtifactPath: "internal/source.go",
+		ArtifactText: "package main\n// Human explanation\nfunc SourceProof() bool { return true }\n",
+	}
+	for _, tc := range []struct {
+		name     string
+		evidence string
+		pass     bool
+	}{
+		{"real_line", "internal/source.go:3 | func SourceProof() bool { return true }", true},
+		{"fake_claim", "internal/source.go:3 source was reviewed", false},
+		{"wrong_path", "other/source.go:3 | func SourceProof() bool { return true }", false},
+		{"wrong_line", "internal/source.go:2 | func SourceProof() bool { return true }", false},
+		{"line_suffix", "internal/source.go:31 | func SourceProof() bool { return true }", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := semanticSourceCited(semanticVerdict{Evidence: []string{tc.evidence}}, s)
+			if got != tc.pass {
+				t.Fatalf("source evidence grounding mismatch got=%v want=%v", got, tc.pass)
+			}
+		})
+	}
+}
+
+func TestNativeSemanticReceiptReadbackRejectsMissingAndStalePass(t *testing.T) {
+	root := t.TempDir()
+	scope := &semanticNodeSourceScope{
+		Node:           planNode{ID: nodeFixtureID},
+		ReviewID:       "fresh-current-id",
+		SourceCommit:   strings.Repeat("a", 40),
+		ArtifactPath:   "source.go",
+		ArtifactSHA256: strings.Repeat("b", 64),
+		ArtifactText:   "package main\n// Source test\nfunc SourceProof() bool { return true }\n",
+	}
+	request := semanticNodeSourceRequest{ExpectedReviewer: "claude-sonnet-5-5", ExpectedEffort: "low"}
+	passed := semanticVerdict{
+		Verdict: "PASS", StepDone: "yes", Drift: "none",
+		Evidence: []string{"source.go:3 | func SourceProof() bool { return true }"},
+		Next:     "source review complete",
+	}
+	if err := verifySemanticNodeReceipt(root, scope, request, passed); err == nil {
+		t.Fatal("missing native semantic receipt incorrectly accepted")
+	}
+	dir := filepath.Join(root, ".woody")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	factualRan := false
+	stale := semanticRecord{
+		ReviewID: "stale-previous-id", NodeID: scope.Node.ID,
+		SourceCommit: scope.SourceCommit, ArtifactSHA256: scope.ArtifactSHA256,
+		ReviewMode: "source-only", ModelInvoked: true,
+		ModelRequestAttempted: true, FactualChecksExecuted: &factualRan,
+		ReviewerVendor: "claude", ReviewerModel: "claude-sonnet-5-5",
+		ReviewerEffort: "low", ReviewStage: "SUBSTANTIVE_SOURCE_REVIEW",
+		Verdict: &passed,
+	}
+	if err := writeStateJSON(filepath.Join(dir, "semantic-verdict.json"), stale); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifySemanticNodeReceipt(root, scope, request, passed); err == nil {
+		t.Fatal("stale source PASS incorrectly accepted")
+	}
+	stale.ReviewID = scope.ReviewID
+	if err := writeStateJSON(filepath.Join(dir, "semantic-verdict.json"), stale); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifySemanticNodeReceipt(root, scope, request, passed); err != nil {
+		t.Fatalf("fresh exact grounded native receipt rejected: %v", err)
+	}
+	stale.FactualChecksExecuted = nil
+	if err := writeStateJSON(filepath.Join(dir, "semantic-verdict.json"), stale); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifySemanticNodeReceipt(root, scope, request, passed); err == nil {
+		t.Fatal("missing factual-check execution flag incorrectly accepted")
 	}
 }
