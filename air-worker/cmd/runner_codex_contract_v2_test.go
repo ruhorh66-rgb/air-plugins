@@ -134,6 +134,10 @@ func TestWindowsCodexAddDirsRejectDuplicateAndParentScope(t *testing.T) {
 		!strings.Contains(err.Error(), "broaden") {
 		t.Fatalf("writable ancestor would broaden product root, got %v", err)
 	}
+	if err := validateCodexWorkspaceRoots(root, []string{root}); err == nil ||
+		!strings.Contains(err.Error(), "duplicates the workspace root") {
+		t.Fatalf("redundant root must fail closed before launch, got %v", err)
+	}
 }
 
 func TestWindowsCodexCrossVolumeRefusesBeforeProcessStart(t *testing.T) {

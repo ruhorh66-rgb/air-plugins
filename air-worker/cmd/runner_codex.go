@@ -110,6 +110,9 @@ func validateCodexWorkspaceRoots(root string, dirs []string) error {
 		if !strings.EqualFold(filepath.Clean(dir), filepath.Clean(canonical)) {
 			return fmt.Errorf("Windows Codex add_dir %d traverses a reparse/link root; refuse unverified writable alias", index+1)
 		}
+		if strings.EqualFold(filepath.Clean(canonical), filepath.Clean(canonicalRoot)) {
+			return fmt.Errorf("Windows Codex add_dir %d duplicates the workspace root; refuse redundant writable root", index+1)
+		}
 		key := strings.ToLower(filepath.Clean(canonical))
 		if seen[key] {
 			return fmt.Errorf("Windows Codex add_dir %d repeats a writable root", index+1)
