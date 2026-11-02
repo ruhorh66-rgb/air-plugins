@@ -10,7 +10,14 @@ import (
 	"strings"
 )
 
-const nativePreflightMaxFailureFiles = 256
+// Retain a complete, bounded inventory: truncated scans could miss a second
+// matching signed receipt and falsely credit an ambiguous older action.
+// Production has already accumulated >256 genuine CLI receipts; use both
+// count and aggregate byte limits instead of silently dropping old records.
+const (
+	nativePreflightMaxFailureFiles       = 4096
+	nativePreflightMaxFailureBytes int64 = 8 << 20
+)
 
 // findPriorSignedPreflightFailure is a read-only candidate selector for a
 // later native validate operation. An immutable CLI failure receipt is
@@ -21,7 +28,14 @@ const nativePreflightMaxFailureFiles = 256
 // newly supplied native argv is matched against the per-user DPAPI-keyed HMAC.
 // Unknown/tampered or ambiguous source records fail closed.
 func findPriorSignedPreflightFailure(owner selfLearningOwner, argv []string) (ownCLIFailureReceipt, bool, error) {
+	return findPriorSignedPreflightFailureBounded(owner, argv, nativePreflightMaxFailureFiles, nativePreflightMaxFailureBytes)
+}
+
+func findPriorSignedPreflightFailureBounded(owner selfLearningOwner, argv []string, maxFiles int, maxBytes int64) (ownCLIFailureReceipt, bool, error) {
 	var empty ownCLIFailureReceipt
+	if maxFiles <= 0 || maxBytes <= 0 {
+		return empty, false, errors.New("own CLI failure scan requires positive bounds")
+	}
 	if len(argv) == 0 || argv[0] != "validate" {
 		return empty, false, nil
 	}
@@ -47,7 +61,7 @@ func findPriorSignedPreflightFailure(owner selfLearningOwner, argv []string) (ow
 	if err != nil {
 		return empty, false, err
 	}
-	if len(entries) > nativePreflightMaxFailureFiles {
+	if len(entries) > maxFiles {
 		return empty, false, errors.New("owned CLI failures exceed bounded preflight inventory")
 	}
 	hasJSON := false
@@ -72,6 +86,7 @@ func findPriorSignedPreflightFailure(owner selfLearningOwner, argv []string) (ow
 	want := ownCLIInvocationMAC(key, argv)
 	var matched ownCLIFailureReceipt
 	count := 0
+	var scannedBytes int64
 	for _, entry := range entries {
 		if !strings.HasSuffix(strings.ToLower(entry.Name()), ".json") {
 			continue
@@ -87,6 +102,10 @@ func findPriorSignedPreflightFailure(owner selfLearningOwner, argv []string) (ow
 		if _, err := os.Readlink(path); err == nil {
 			return empty, false, errors.New("own CLI failure receipt is a link or reparse file")
 		}
+		if info.Size() < 0 || info.Size() > maxBytes-scannedBytes {
+			return empty, false, errors.New("owned CLI failures exceed aggregate byte budget")
+		}
+		scannedBytes += info.Size()
 		raw, err := n093ReadRuntimeEvidence(root, "cli-failures/"+entry.Name(), 32*1024)
 		if err != nil {
 			return empty, false, err
