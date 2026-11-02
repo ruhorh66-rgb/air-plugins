@@ -74,7 +74,7 @@
     {
       "id": "air-curator-review-worker-result",
       "path": "skills/air-curator-review-worker-result/SKILL.md",
-      "sha256": "A781F1D8E45B4AABE0FEC1E973EA0449D90B3CC411FD75F68486854357A304B6",
+      "sha256": "70A0BC89F2CF30A1497B11BBDB89F55D04D8774A899B5C5B28FD05F49B319BC3",
       "role": "review-worker-result",
       "load": "on_trigger",
       "triggers": [

@@ -1,0 +1,48 @@
+{
+  "schema": "airworker.devwork23.rc3-curator-registry-remediation-source/v1",
+  "owner": "Dev Work 23 AirWorker",
+  "trigger": "Candidate dfd1ef4 clean-clone release health RC1: one registered curator skill SHA stale",
+  "done_when": "exact accepted air-curator-review-worker-result body SHA bound in authoritative registry, 3/3 native health PASS, missing-skill negative RC1 FAIL, new source SHA and fresh provenance-bound CLI/tray release candidate",
+  "judge": "real native AirWorker curator skills health on candidate plugin, negative isolated missing registered skill, payload SHA, clean-clone source/binary VCS readback and independent release review",
+  "receipt": "air-worker/docs/receipts/AIRWORKER_DEVWORK23_RC3_SKILL_REGISTRY_REPAIR_20261102.json and D task QA evidence",
+  "at_sgt": "2026-11-02T20:13:00.615070+08:00",
+  "source_parent": "dfd1ef4ff7b4936256acbe1702dd9cdc725d01a1",
+  "source_new_sha": "PENDING_FROZEN_COMMIT",
+  "modified_only": "air-worker/skills/air-curator/registry.json",
+  "skill_id": "air-curator-review-worker-result",
+  "skill_text_unmodified": true,
+  "registry_old_sha256": "a781f1d8e45b4aabe0fec1e973ea0449d90b3cc411fd75f68486854357a304b6",
+  "registry_new_sha256": "70a0bc89f2cf30a1497b11bbdb89f55d04d8774a899b5c5b28fd05f49b319bc3",
+  "skill_body_sha256": "70a0bc89f2cf30a1497b11bbdb89f55d04d8774a899b5c5b28fd05f49b319bc3",
+  "new_registry_file_sha256": "8e92281ffaa78a2b96342c217c8f32bde3793474c1ddb8e445e1ae1f23a7458d",
+  "native_health_positive": {
+    "rc": 0,
+    "status": "PASS",
+    "registered_count": 3,
+    "evidence_sha256": "451f63ba32798d465000f211d3f73ef8bcfd5b74b2f5f634e5867878de396143"
+  },
+  "native_health_missing_skill_negative": {
+    "rc": 1,
+    "status": "FAIL",
+    "violations": [
+      "air-curator-review-worker-result: registered skill source missing: skills/air-curator-review-worker-result/SKILL.md"
+    ],
+    "evidence_sha256": "4f77c6745bd78f02a2737f5c5e24ca507e8b2a58b35bbbe5c0bcd37d8448766b"
+  },
+  "native_fixture_baseline": {
+    "rc": 0,
+    "status": "PASS"
+  },
+  "machine_qa_receipt_sha256": "d2a273c746ce40d93c9d6037a037fd44ce5f9f1633f95a061832fab474ecff5e",
+  "payload_snapshot_before_new_source_doc": {
+    "sha256": "eb0400013901044533416619acaa5ea101abad087b2f3e5ca1e67ba81dc594e8",
+    "file_count": 879,
+    "pre_source_commit": true
+  },
+  "installed_version": "0.11.11-rc.2 untouched",
+  "rollback_cli_sha256": "495d1d274c04aae41189579e368356c9a15bcb1c057227db538c93aa41acefbe",
+  "separate_AW_LRN_03": "ebd85a6c frozen, privilege security HOLD and useful effect NOT_PROVEN",
+  "next_gate": "frozen source+clean-clone CLI/tray VCS stamp, native health on final bytes, version/tag identity and independent source/release acceptance; separate LPR yes for release/install",
+  "installed_release_or_tag": false,
+  "native_PLAN_N_LEARN_mutated": false
+}
