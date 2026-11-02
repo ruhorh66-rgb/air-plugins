@@ -37,6 +37,12 @@
       "name": "air-coder",
       "source": "./air-coder",
       "description": "Thin executor selector for AIR coding work: choose ChatGPT+RDC, Ruflo, or native Codex/Claude by task size and execution economics; no second orchestration engine."
+    },
+    {
+      "name": "air-vera",
+      "source": "./air-vera",
+      "version": "0.2.10",
+      "description": "AirVera 0.2.10 signed Claude/Codex host adapter and Hermes Agent Plugin v1. Requires native product installation; no host grants or provider writes."
     }
   ]
 }

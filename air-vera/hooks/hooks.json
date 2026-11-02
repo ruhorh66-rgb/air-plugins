@@ -1,0 +1,38 @@
+{
+  "description": "Thin AirVera transport hooks. The native binary owns policy. Host activation and prompt events fail closed when the resident AirVera tray is absent.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "air-vera hook session-start --require-resident",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "air-vera hook turn-stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "air-vera hook user-prompt --require-resident",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
