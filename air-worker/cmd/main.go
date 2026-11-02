@@ -38,7 +38,7 @@ import (
 // именно посчитан результат. Без этого две реализации рядом неразличимы в журнале.
 const (
 	appName = "air-worker"
-	version = "0.11.11-rc.2"
+	version = "0.11.11-rc.3"
 )
 
 func usage() {
@@ -71,9 +71,16 @@ func usage() {
         Статус DONE относится только к процессу. Отдельный factual judge принимает результат;
         непроверенные Windows add_dirs отклоняются без отключения sandbox.
 
-  air-worker semantic -product <корень> -step <N> [-executor claude|codex|chatgpt|router] [-claim "..."]
-        Независимый read-only Semantic Judge текущего шага без запуска executor loop.
-        Factual scope ограничен критериями шага; общий verdict продукта показывается отдельно.
+  air-worker semantic -product <корень> -step <legacy-numeric> [-executor claude|codex|chatgpt] [-claim "..."]
+        LEGACY: сначала исполняет configured factual judge/QA, затем Semantic Judge.
+        Штатный native N-ID НЕ передаётся в -step: это отдельная нить plan/N-*.
+  air-worker semantic -product <корень> -node <exact N-ID> -scope source-only
+        -source-commit <40-hex Git HEAD> -artifact <tracked-relative-file> -artifact-sha256 <64-hex>
+        -executor codex -reviewer claude-sonnet-5-5 -effort low
+        NATIVE: SHA-pinned static code review Anthropic Read/Glob/Grep, без runJudge/QA и без executor.
+        RC0 — source-review PASS, НЕ задача PASS; RC1 — DRIFT; RC2 — отказ до модели или NOT_PROVEN.
+        Квитанция .woody/semantic-verdict.json имеет model_invoked и factual_checks_executed=false.
+        Installed rc.2 не поддерживает -node; это dev-контракт кандидата rc.3, без установки.
   air-worker plan-review -product <корень> [-executor auto|claude|codex|chatgpt|router] [-force] [-json]
         Read-only Semantic Plan Review текущей разбивки. Повторный model-call делается только
         при изменении composition (добавление/удаление/порядок/ступень), не при text/done edit.

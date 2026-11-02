@@ -5,6 +5,10 @@ description: Оценить результат AIR-воркера по план�
 
 # Оценка результата воркера
 
+## Штатный независимый судья native-узла (source-only)
+
+Для plan/N-* не подставляй N-ID в legacy `air-worker semantic -step`: установленная rc.2 ищет только числовой шаг PLAN и возвращает RC2 до модели. Старый `-step` также запускает factual QA, поэтому не является статической проверкой. В Source-only кандидате rc.3 точный native ID выбирается `semantic -product <root> -node <N-ID> -scope source-only -source-commit <40-hex> -artifact <tracked-relative> -artifact-sha256 <64-hex> -executor codex -reviewer claude-sonnet-5-5 -effort low`; полный контракт и SHA-проверенный N015 пример находятся в `skills/woody/SKILL.md` и README. Требуй статус pre-model/model-invoked/source-review, отсутствие выполненных QA (`factual_checks_executed=false`), конкретные цитаты кода и отличие RC0 source-only от task PASS. Не называй эту возможность установленной до релиза/установки. Заблокированные тесты ChatLink не перезапускай.
+
 Применяй, когда воркер сообщил о завершении шага, кандидате релиза, блокере или запросил решение ЛПР.
 
 Если куратор работает в нативном Codex на SRVLM01, проверяй серверные доказательства локальными инструментами Codex. AIR Commander / R Commander используй только для действительно удалённого узла или GPT-чата без прямого доступа. Сначала проверь host сессии и цель; не дублируй мутации через два канала.

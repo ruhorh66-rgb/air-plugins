@@ -1,5 +1,15 @@
 # CHANGELOG — air-worker
 
+## 0.11.11-rc.3 — source-only Codex task-outcome correction (preparation)
+
+- OpenAI Codex executor: distinguish model-turn completion from factual task acceptance. Dispatch schema `air-worker.executor-dispatch/v2`, `ok=false` and RC2 on a completed but unverified task; RC1 on executor/tool access failure. The separate native factual judge owns task PASS.
+- Reject structured tool access-denial and unreadable-task failures despite model `turn.completed`; do not reinterpret access denial as an eligible provider fallback.
+- Windows Codex `workspace-write`: process-local slash-tmp exclusion, safe same-volume `add_dirs`; reject cross-volume, duplicate, linked/reparse, ancestor and root-equal write roots before starting the model.
+- Independently reviewed source base `a8f6f66`; one actual isolated D: two-add-dir task with machine 13/13 PASS and model-dispatch RC2. QA-only executable is **not** an installed or released artifact.
+- Release candidate preparation requires a new clean source SHA, aligned versioned CLI/Claude/Codex manifests, exact CLI/tray build hashes, public RC1/RC2 consumer contract check and independent candidate review. No GitHub tag, prerelease feed advancement, installation or rollback authorized yet.
+- Preserve installed `0.11.11-rc.2` and keep AW-LRN-03 `ebd85a6c` security HOLD separate.
+
+
 ## 0.11.11-rc.2 — Codex physical alias selfcheck correction, 31.10.2026 SGT (release candidate)
 
 - Reuses accepted source-only change 05a688cf. Only selfcheck Codex root deduplication and its Windows junction regression test were added after 0.11.11-rc.1.

@@ -46,24 +46,25 @@ func nextTierAfterVendorLimit(ladder []string, current int) (int, string, bool) 
 }
 
 type loopCtx struct {
-	Root        string
-	Cfg         runConfig
-	CfgPath     string
-	Ladder      []string
-	MaxIter     int
-	MaxUSD      float64
-	MaxTurns    int
-	StallLimit  int
-	Orchestrate bool
-	Subagents   int
-	StepsPath   string
-	WhatIf      bool
-	JudgePath   string
-	JudgeArgs   []string
-	Permission  string
-	Tools       string
-	Principal   string
-	SessionKey  string
+	Root           string
+	Cfg            runConfig
+	CfgPath        string
+	Ladder         []string
+	MaxIter        int
+	MaxUSD         float64
+	MaxTurns       int
+	StallLimit     int
+	Orchestrate    bool
+	Subagents      int
+	StepsPath      string
+	WhatIf         bool
+	JudgePath      string
+	JudgeArgs      []string
+	Permission     string
+	Tools          string
+	Principal      string
+	SessionKey     string
+	SemanticSource *semanticNodeSourceScope
 
 	treeBefore  string
 	spent       float64

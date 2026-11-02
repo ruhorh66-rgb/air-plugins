@@ -17,6 +17,56 @@ description: 'Дятел Вуди — дешёвая петля разработ
 
 # Дятел Вуди
 
+## Native independent source review of a plan/N node (0.11.11-rc.3 candidate)
+
+This is the **one official route**, not a second plan or executor. The installed
+0.11.11-rc.2 does **not** support the native `-node` form. First verify the
+candidate version/hash and the product's pinned Git HEAD; use this only after
+the owner authorizes source-only review. It must not execute blocked ChatLink
+tests or use their live service.
+
+```powershell
+$node = "N-015_n011-scheduled-identity-trace-and-source-only-bi"
+$root = "D:\DevBox\AIRChatLink\worktrees\asw"
+$source = "1f1e6a2d402533f0f4d85145b6a766ca36d7840f"
+$artifact = "docs/receipts/AIRWORKER_NATIVE_SEMANTIC_N015_GAP_20261102.json"
+$sha = "9f545766e83bfa26fc22d0f70b0e26ce52a7d91b6f9369cb2cdd63965d05c65d"
+& $candidateAirWorker semantic -product $root -node $node -scope source-only -source-commit $source -artifact $artifact -artifact-sha256 $sha -executor codex -reviewer claude-sonnet-5-5 -effort low
+$semanticRC = $LASTEXITCODE
+```
+
+Here `$candidateAirWorker` is **only** an explicitly authorized exact SHA-pinned
+0.11.11-rc.3 QA/development binary, never the installed rc.2 path. The example
+names frozen N015 data solely to make the contract concrete; it has **not** been
+executed against the ASW product and does **not** authorize doing so.
+
+`-node` requires the **full** canonical ID in `plan/N-*.md` with exactly one
+`[[N-ID]]` link in tracked `PLAN.md`, matching the exact Git HEAD. The single
+tracked UTF-8 artifact is bounded to 48 KiB and must match both the literal
+SHA256 and the pinned Git blob. A missing/stale/foreign/closed node, mismatched
+SHA, unapproved provider/effort or accidental legacy `-step N-ID` fails RC2
+**before any model**. The request pins the independent opposite-vendor route:
+OpenAI executor identity `-executor codex` → `claude-sonnet-5-5 / low`;
+a release override or another model is refused rather than silently selected.
+
+`-scope source-only` **never calls product `runJudge`, shell/QA, executor,
+or model fallback**. Claude's existing semantic reviewer permits only
+`Read,Glob,Grep`, without Bash/Write/Edit. The actual native result and receipt
+are in `.woody/semantic-verdict.json`, `.woody/semantic-history.jsonl` and
+`.woody/jobs/*semantic-reviewer*.{receipt.json,out}`. The final JSON line
+reports phase and model invocation. RC0 means **source-only semantic PASS with
+concrete file/line evidence, not task PASS**; RC1 means source DRIFT; RC2 means
+pre-model refusal or source NOT_PROVEN. The receipt declares
+`factual_checks_executed=false`; a model that never read code must return
+NOT_PROVEN. Model-claimed file citations are not independent proof of tool
+read events; verify source-read evidence before accepting the review.
+
+The legacy form `semantic -step <numeric PLAN step>` remains available but
+**runs the configured factual judge and may execute QA**; it must never be
+substituted for a native `-node` review. The source-only result does not close
+native plan nodes, install a binary, authorize production, or replace separate
+functional tests when those are permitted.
+
 Петля, которая двигает разработку к машинно проверяемой цели.
 
 ## Явная загрузка плагина

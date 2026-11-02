@@ -1,0 +1,132 @@
+{
+  "schema": "airworker.devwork23.native-semantic-source-contract/v1",
+  "owner": "Dev Work 23 / AirWorker",
+  "trigger": "LPR via Vega ChatLink sm_f365febc; preserved ASW N015 AirWorker semantic -step RC2 before Anthropic",
+  "done_when": "single native semantic -node source-only reviewer: exact native node + source Git commit + tracked artifact SHA, explicit Anthropic model route, no runJudge/QA, premodel failure and distinct model/semantic receipts; legacy -step unchanged",
+  "judge": "bounded Go tests with fake Claude source-only helper and pre-model negatives, independent semantic source review of final SHA, build/vet/version provenance",
+  "receipt": "air-worker/docs/receipts/AIRWORKER_DEVWORK23_NATIVE_SEMANTIC_SOURCE_20261102.json",
+  "source_branch": "dev/airworker-safeoutcome-rc3-prep-20261102",
+  "source_parent": "a8f6f66a134c5b6dbebb943b4087f8efd7a09c92",
+  "source_commit": "PENDING_FREEZE",
+  "candidate_version": "0.11.11-rc.3",
+  "installed_version": "0.11.11-rc.2",
+  "installed_cli_sha256": "495d1d274c04aae41189579e368356c9a15bcb1c057227db538c93aa41acefbe",
+  "date_sgt": "2026-11-02T10:05:00.513707+08:00",
+  "asw_incident": {
+    "product": "D:\\DevBox\\AIRChatLink\\worktrees\\asw",
+    "frozen_git_head": "1f1e6a2d402533f0f4d85145b6a766ca36d7840f",
+    "native_node_id": "N-015_n011-scheduled-identity-trace-and-source-only-bi",
+    "artifact_path": "docs/receipts/AIRWORKER_NATIVE_SEMANTIC_N015_GAP_20261102.json",
+    "artifact_sha256": "9f545766e83bfa26fc22d0f70b0e26ce52a7d91b6f9369cb2cdd63965d05c65d",
+    "original_semantic_step_exit": 2,
+    "original_model_invoked": false,
+    "original_blocked_tests_executed": false,
+    "original_static_config_executable_checks": "SKIPPED_ONLY_BECAUSE_STEP_NOT_RESOLVED",
+    "root_cause": "native node listed by plan spine but cmdSemantic -step uses only legacy workStepByNum; valid legacy -step would execute runJudge and is not static",
+    "asw_owned_files_mutated": false,
+    "blocked_tests_retried": false
+  },
+  "native_public_contract": {
+    "command": "air-worker semantic -product <root> -node <exact N-ID> -scope source-only -source-commit <40-hex HEAD> -artifact <tracked-relative-file> -artifact-sha256 <64-hex> -executor codex -reviewer claude-sonnet-5-5 -effort low",
+    "reviewer_kind": "claude",
+    "model": "claude-sonnet-5-5",
+    "effort": "low",
+    "allowed_tools": [
+      "Read",
+      "Glob",
+      "Grep"
+    ],
+    "different_provider_rejected_before_model": true,
+    "factual_code_zero": "SHA identity only; NOT functional QA",
+    "factual_checks_executed": false,
+    "model_executor_called": false,
+    "legacy_step_preserved": true,
+    "legacy_step_factual_warning": "FACTUAL QA WILL_EXECUTE",
+    "node_unknown_stale_short_foreign_closed": "REJECTED_PRE_MODEL",
+    "model_invoked_no_read": "MODEL_INVOKED_SOURCE_NOT_PROVEN",
+    "review_with_source_citation": "SUBSTANTIVE_SOURCE_REVIEW",
+    "source_pass_exit_code": 0,
+    "source_drift_exit_code": 1,
+    "unverified_or_refusal_exit_code": 2,
+    "task_pass_from_source_review": false,
+    "source_citation_claim_does_not_authenticate_model_tool_read": true
+  },
+  "bounded_quality": {
+    "existing_semantic_compatibility": {
+      "run": 36,
+      "pass": 36,
+      "fail": 0,
+      "skip": 0
+    },
+    "new_native_negatives": {
+      "run": 7,
+      "pass": 7,
+      "fail": 0,
+      "skip": 0
+    },
+    "go_vet_rc": 0,
+    "model_api_calls_in_unit_tests": 0,
+    "source_only_fixture_does_not_invoke_runJudge": true,
+    "blocked_asw_functional_tests": "NOT_RUN_BY_THIS_WORK",
+    "live_asw_semantic_call": "NOT_EXECUTED",
+    "independent_source_review": "PENDING_EXACT_FROZEN_SOURCE",
+    "cli_tray_exact_candidate_build": "PENDING_CLEAN_COMMIT",
+    "full900_and_awlrn03_security": "NOT_RERUN"
+  },
+  "files": {
+    "cmd/semantic_native_node.go": {
+      "sha256": "2522d8ad70da747114d971517204a29c9cd4aaf3c16d1200696f574b1eb85953",
+      "bytes": 10336
+    },
+    "cmd/semantic_native_node_test.go": {
+      "sha256": "4a5c536d020255d6545b773831ab7a47250c14d27e1236e7832bc265aacde666",
+      "bytes": 12945
+    },
+    "cmd/semantic.go": {
+      "sha256": "759e6e6119748f2d4b8d2c86b48a3397c6f2eaec995441f3ae2c8e977094652d",
+      "bytes": 27889
+    },
+    "cmd/semantic_cmd.go": {
+      "sha256": "be99518ba3c7e2542dbbad440363766d768e8e70fa1d453a8583f095005bfe79",
+      "bytes": 6068
+    },
+    "cmd/loop.go": {
+      "sha256": "30ac6fde530707ffa55d23efa6773e7ea51af9183acfb8ed324e3bb9ff7373cb",
+      "bytes": 70756
+    },
+    "cmd/main.go": {
+      "sha256": "1fc604b725f7ad52793cdb92f95b5999a41d18a20b826f114d8846ea4b7abd96",
+      "bytes": 25061
+    },
+    "README.md": {
+      "sha256": "6de636734dd5ac5262922b07d1254bdd1267a054db29cbcc6cf683080df6ed7a",
+      "bytes": 17103
+    },
+    "skills/woody/SKILL.md": {
+      "sha256": "2d0481da21f92ddd091827a8300a6008de775afe1f2bab3edf7741a42844ad8b",
+      "bytes": 75689
+    },
+    "skills/air-curator-review-worker-result/SKILL.md": {
+      "sha256": "70a0bc89f2cf30a1497b11bbdb89f55d04d8774a899b5c5b28fd05f49b319bc3",
+      "bytes": 9386
+    },
+    ".claude-plugin/plugin.json": {
+      "sha256": "4755abb6b1deb6216cc6eda47f140d25481d3fbd5b6c28cbb15c08801109168c",
+      "bytes": 560
+    },
+    ".codex-plugin/plugin.json": {
+      "sha256": "4edd0e1fb3cffd81c970c60e114bb90e12ae560970e03e36069d05a6af86558b",
+      "bytes": 856
+    }
+  },
+  "release_install": "HOLD_REQUIRES_SEPARATE_EXACT_LPR_YES",
+  "rollback": {
+    "installed_rc2_cli": "495d1d274c04aae41189579e368356c9a15bcb1c057227db538c93aa41acefbe",
+    "installed_snapshot_cli_tray_bridge": "3/3 verified previous receipt, no restore performed"
+  },
+  "learning_effect": "NOT_PROVEN",
+  "external_docs": [
+    "https://github.com/ruhorh66-rgb/air-plugins",
+    "https://github.com/ruhorh66-rgb/AirWorker_Wiki"
+  ]
+}

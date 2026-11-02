@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.11.11-rc.2",
-  "description": "AirWorker 0.11.11-rc.2 Codex junction-alias selfcheck correction; HLP06 installed pilot; N124 host trust remains fail-closed.",
+  "version": "0.11.11-rc.3",
+  "description": "AirWorker 0.11.11-rc.3 candidate: Codex Windows workspace-write with bounded same-volume add_dirs, structured access denial and explicit model-turn RC2 versus factual task acceptance. Source-only; N124 issuer fail-closed, AW-LRN-03 security HOLD.",
   "author": {
     "name": "AIR OS"
   },
