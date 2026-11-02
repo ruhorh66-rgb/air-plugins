@@ -1,0 +1,16 @@
+{
+  "name": "air-vera",
+  "version": "0.2.10",
+  "description": "Thin Claude host adapter for the native AirVera control plane. Host events are transported to air-vera; policy and decisions remain in the binary.",
+  "author": {
+    "name": "AIR OS"
+  },
+  "license": "MIT",
+  "keywords": [
+    "air-os",
+    "control-plane",
+    "verification",
+    "native"
+  ],
+  "defaultEnabled": false
+}
