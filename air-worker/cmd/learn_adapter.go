@@ -51,6 +51,11 @@ type reviewerSkill struct {
 	Body string
 }
 
+// Preserve complete APPLIED context for the current real catalogue (37 items).
+// The byte budget below remains unchanged and both guards fail closed; do not
+// silently truncate the catalogue and mistake incomplete context for a lesson.
+const reviewerMaxAppliedProcedures = 64
+
 func reviewerCatalog(root string, settings sharedLearningSettings, classTarget string) ([]reviewerSkill, error) {
 	index, err := executeSharedLearning(root, settings, "index", nil)
 	if err != nil {
@@ -62,7 +67,7 @@ func reviewerCatalog(root string, settings sharedLearningSettings, classTarget s
 	if err := json.Unmarshal(index.Data, &catalog); err != nil {
 		return nil, err
 	}
-	if len(catalog.Skills) > 32 {
+	if len(catalog.Skills) > reviewerMaxAppliedProcedures {
 		return nil, errors.New("applied catalogue exceeds reviewer procedure limit")
 	}
 	family := strings.TrimSuffix(classTarget, ".md")
