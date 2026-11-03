@@ -457,6 +457,38 @@ func TestLearningReviewerRejectsMachineEnabledRefinements(t *testing.T) {
 
 func stringMustJSON(v any) string { b, _ := json.Marshal(v); return string(b) }
 
+// A production owner currently has 37 verified APPLIED skills. All their
+// exact bodies must reach the reviewer, rather than hard-failing at the old 32
+// or silently trimming the catalogue to make a model call possible.
+func TestLearningReviewerCatalogueAllowsCompleteCurrent37(t *testing.T) {
+	product, s := sharedProductFixture(t, false)
+	classTarget := learningProcedureTarget(s.ManagedSkillPrefix, "bounded-family")
+	prefix := strings.TrimSuffix(classTarget, ".md")
+	want := map[string]bool{}
+	for i := 0; i < 37; i++ {
+		target := fmt.Sprintf("%s-%02d.md", prefix, i)
+		reuseSeed(t, product, s, fmt.Sprintf("LP-current37-%02d", i), target, n102PriorCLI)
+		want[target] = true
+	}
+	actual, err := reviewerCatalog(product, s, classTarget)
+	if err != nil {
+		t.Fatalf("37 complete APPLIED procedures wrongly rejected: %v", err)
+	}
+	if len(actual) != len(want) {
+		t.Fatalf("reviewer silently lost catalogue entries: got %d want %d", len(actual), len(want))
+	}
+	for _, skill := range actual {
+		if !want[skill.Target] || skill.Body != n102PriorCLI ||
+			skill.SHA256 != learnSHA([]byte(n102PriorCLI)) {
+			t.Fatalf("unverified or wrong procedure reached reviewer: target=%q", skill.Target)
+		}
+		delete(want, skill.Target)
+	}
+	if len(want) != 0 {
+		t.Fatalf("reviewer omitted %d exact APPLIED identities", len(want))
+	}
+}
+
 func TestLearningReviewerCatalogueFailsBeforeProvider(t *testing.T) {
 	for _, mode := range []string{"count", "bytes", "changed", "unsafe"} {
 		t.Run(mode, func(t *testing.T) {
@@ -464,7 +496,7 @@ func TestLearningReviewerCatalogueFailsBeforeProvider(t *testing.T) {
 			count, body := 1, n102PriorCLI
 			switch mode {
 			case "count":
-				count = 33
+				count = reviewerMaxAppliedProcedures + 1
 			case "bytes":
 				count, body = 3, n102PriorCLI+strings.Repeat("safe detail ", 4000)
 			}
