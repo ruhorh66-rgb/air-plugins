@@ -1,5 +1,14 @@
 # CHANGELOG — air-worker
 
+## 0.11.11-rc.3 — minimal reviewer catalogue unblock · 04.11.2026 SGT · SOURCE-ONLY / NOT RELEASED
+
+- Based directly on the **installed 0.11.11-rc.2 source** `0befb40`, not the broader rc.3 development branch. The only reviewer behavior change is the already-written, SHA-identical catalogue count guard 32 → 64; existing 128 KiB aggregate body bound and full SHA validation are unchanged.
+- Two accepted regression test files are carried byte-identically from `f5572446`. Separate release identity updates keep CLI version, Claude/Codex manifests, version-contract tests and these notes aligned; `air-modules v0.1.1` stays pinned.
+- The live 40 APPLIED procedures were independently read by native index and file hash: 44,079 total bytes, zero missing or SHA mismatches; this is a **static capacity check**, not successful automatic reviewer execution or proof of model result.
+- Exact Go tests / vet, independent source-review, package/consumer/security acceptance and signed artifact provenance remain **NOT_RUN / NOT_PROVEN**. No binary, GitHub release or marketplace update has been published or installed by this source change.
+- Rollback target is the currently installed `0.11.11-rc.2`; its cached CLI/tray and distribution ZIP SHA were independently checked against current installed bytes. Release publication and installation need separate explicit LPR authorizations.
+- Hermes-parity P0 remains **OPEN** until a real ordinary event automatically reviews, creates/refines a safe skill and a later relevant session loads it. Post-P0 relevance selection `719b0c8` and wider `f5572446` are **not** included in this minimal release.
+
 ## 0.11.11-rc.2 — Codex physical alias selfcheck correction, 31.10.2026 SGT (release candidate)
 
 - Reuses accepted source-only change 05a688cf. Only selfcheck Codex root deduplication and its Windows junction regression test were added after 0.11.11-rc.1.

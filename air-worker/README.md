@@ -1,5 +1,22 @@
 # air-worker
 
+## 0.11.11-rc.3 — minimal Hermes-parity reviewer unblock (SOURCE-ONLY, NOT INSTALLED)
+
+This prerelease **source candidate** is based directly on the installed rc.2 source commit
+`0befb40`. It reuses the existing reviewer catalogue fix from `f5572446`
+without rewriting it: 32 → 64 APPLIED procedures, with the existing 128 KiB
+and exact-SHA bounds unchanged. The deployed owner currently has 40 APPLIED
+procedures totaling 44,079 bytes. Two catalogue regression test files were
+reused without modification. Version identity and both plugin manifests are
+adjusted to `0.11.11-rc.3` to avoid confusing a newly built binary with rc.2.
+
+**No QA PASS or release install is implied.** The exact new source SHA still
+needs permitted targeted Go tests/vet, independent release judgment, package
+and consumer/security acceptance. The cached and installed rc.2 binaries and
+rollback package are hash-verified. Publishing and installing a new release
+require separate explicit LPR decisions; no system services or privilege gates
+are changed. The real next-session Hermes-parity effect remains unproven.
+
 ## 0.11.11-rc.2 â€” Codex junction alias correction (release candidate)
 
 This bounded prerelease adds exactly the accepted source correction from commit

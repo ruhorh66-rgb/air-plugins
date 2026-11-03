@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.11.11-rc.2",
-  "description": "AirWorker 0.11.11-rc.2 Codex junction-alias selfcheck correction; HLP06 installed pilot; N124 host trust remains fail-closed.",
+  "version": "0.11.11-rc.3",
+  "description": "AirWorker 0.11.11-rc.3 source-only minimal Hermes reviewer capacity 64 on rc.2 base; HLP06 and N124 trust unchanged.",
   "author": {
     "name": "AIR OS"
   },
