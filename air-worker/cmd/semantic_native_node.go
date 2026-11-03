@@ -108,7 +108,24 @@ func readGitPinnedSource(root, commit, relative string) ([]byte, error) {
 	if relative == "" || filepath.IsAbs(relative) || filepath.IsLocal(relative) == false {
 		return nil, fmt.Errorf("source artifact must be a file within the product root")
 	}
-	return gitReadOnly(root, "show", commit+":"+filepath.ToSlash(relative))
+	// Git show <commit>:<path> resolves the path from the repository root,
+	// not from git -C's current working directory. Real air-plugins products
+	// live below the repository root (air-worker/), unlike the old flat test
+	// fixture. Include Git's read-only subdirectory prefix without relaxing
+	// the product-local, SHA-pinned artifact and node checks.
+	rawPrefix, err := gitReadOnly(root, "rev-parse", "--show-prefix")
+	if err != nil {
+		return nil, fmt.Errorf("source Git prefix readback: %w", err)
+	}
+	prefix := filepath.Clean(filepath.FromSlash(strings.TrimSpace(string(rawPrefix))))
+	if prefix != "." && !filepath.IsLocal(prefix) {
+		return nil, fmt.Errorf("source Git prefix escaped product repository")
+	}
+	if prefix == "." {
+		prefix = ""
+	}
+	repositoryRelative := filepath.ToSlash(filepath.Join(prefix, relative))
+	return gitReadOnly(root, "show", commit+":"+repositoryRelative)
 }
 
 func verifySemanticNodeSource(root string, request semanticNodeSourceRequest) (*semanticNodeSourceScope, runnerSpec, error) {
