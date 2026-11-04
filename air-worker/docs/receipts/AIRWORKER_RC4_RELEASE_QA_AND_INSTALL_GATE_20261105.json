@@ -1,0 +1,124 @@
+{
+  "schema": "air-worker.release-candidate-qa/v1",
+  "observed_sgt_date": "2026-11-05",
+  "owner": "Dev Work 26 / AirWorker SRVLM01",
+  "trigger": "LPR: finish AirWorker 0.11.11-rc.4 release first, including Codex, Anthropic/Claude Code and Hermes; afterward continue Hermes self-learning; install/reboot/UAC are separate exact LPR gates",
+  "release_version": "0.11.11-rc.4",
+  "release_state": "SOURCE_CANDIDATE_FROZEN__STAGED__NOT_PUBLISHED__NOT_INSTALLED",
+  "native_nodes": {
+    "n126": "OPEN; 2 concurrent Codex+leader+independent Claude not proven; R0.11.9-05 held",
+    "n128": "OPEN until installed hooks and native auth preflight accepted",
+    "n129": "OPEN until installed hook delivery and consumer/semantic acceptance"
+  },
+  "source": {
+    "repo": "ruhorh66-rgb/air-plugins",
+    "branch": "dev/airworker-native-orch-pilot-20261104",
+    "frozen_code_sha": "b659d8684b96662567cc53290019af8ca92c3b98",
+    "git_local_remote_equal": true,
+    "clean_at_freeze": true,
+    "source_changes": "native SessionStart and PreToolUse guards; 2 native parallel Codex + independent Anthropic policy; Hermes native loop accepts canonical 2-subagent config; Codex and Claude plugin startup manifests; Hermes tool and two registered skills",
+    "last_receipt_before_qa": "b2f29b606ecaa8b2ad559abbfa6a371675083447"
+  },
+  "portable_package": {
+    "path": "D:/Devbox/AirWorker/release_candidates/rc4-n129-b659d86/air-worker-v0.11.11-rc.4-N129-final-candidate.zip",
+    "sha256": "9AB3D225C5D1290DAC8CD298D44F4ACA3DFFEF5D1FD7D9CFC01FDF0B6149AA4A",
+    "bytes": 72393095,
+    "zip_entries": 689,
+    "manifest_count": 688,
+    "missing_from_extract": 0,
+    "sha_mismatches": 0,
+    "invalid_zip_paths": 0,
+    "private_runtime_files_excluded": true,
+    "source_commit_from_manifest": "b659d8684b96662567cc53290019af8ca92c3b98",
+    "bundled_cli_sha256": "7F2C0E94938FD7BE1FE7269A6D2BE421371AB363037DDDD95CE166154A060E90",
+    "bundled_tray_sha256": "C8A12B362975349C3C376E830B61F5858ED3C3439650374DC56F53F40442F67B",
+    "bundled_cli_version": "0.11.11-rc.4",
+    "package_plugin_check_rc": 0
+  },
+  "three_plugins": {
+    "claude": {
+      "manifest_version": "0.11.11-rc.4",
+      "vendor_plugin_validate_strict_rc": 0,
+      "errors": 0,
+      "warnings": 0,
+      "installed_hook_delivery": "NOT_TESTED"
+    },
+    "codex": {
+      "manifest_version": "0.11.11-rc.4",
+      "startup_prompt_native_orchestrate": true,
+      "bundled_woody_skill": true,
+      "common_plugin_check_rc": 0,
+      "installed_host_delivery": "NOT_TESTED"
+    },
+    "hermes": {
+      "manifest_version": "0.11.11-rc.4",
+      "native_register_tool": "air_worker",
+      "registered_skills": [
+        "operate-air-worker",
+        "air-curator"
+      ],
+      "registered_hooks": 9,
+      "python_unittest": "31/31 PASS",
+      "python_unittest_rc": 0,
+      "profile_static": "4 PASS 0 FAIL",
+      "profile_static_rc": 0,
+      "embedded_skill_uses_native_loop": true,
+      "installed_runtime_e2e": "NOT_TESTED"
+    }
+  },
+  "qa": {
+    "full_go_baseline_source_sha": "9e53ebc551c5299a3e05e2b9462acac70d06e882",
+    "full_go_test_rc": 0,
+    "full_go_test_core_seconds": 921.19,
+    "full_go_test_tray": "PASS",
+    "full_go_log_sha256": "C351DF6F7A533672F70EF3DD8CE6E50C5D9E636D23404878B40367CADF99D7A3",
+    "final_go_delta": "b659d8684b96662567cc53290019af8ca92c3b98",
+    "final_targeted_go_rc": 0,
+    "final_targeted_cases": "TestN129, TestN044, semantic judge policy, Hook/Executor/PlanReview/CodexOrchestration",
+    "final_go_vet_rc": 0,
+    "full_suite_on_final_sha": "NOT_RUN; accepted prior SHA full suite plus final narrow delta",
+    "gofmt_diff": "0",
+    "independent_plan_review": {
+      "tool": "native air-worker plan-review -executor codex -force",
+      "provider": "Anthropic",
+      "model": "claude-sonnet-5-5",
+      "effort": "low",
+      "completion_rc": 0,
+      "verdict": "COMMENTS",
+      "findings_count": 3,
+      "scope": "Historical 0.11.9 PLAN, first 212 of 811 lines; not independent code review of rc.4",
+      "plan_sha256": "d8abb1c3a5521339c712bc2cd2daf3c742931b8a6fb4165db1963efdba7274fe",
+      "composition_sha256": "039c006bed8e5ab1cb0916aa4105003bdeab442fa908029e03925bb7d8d1ab4c",
+      "receipt_sha256": "E14F37638D6663F7CE0AEE73E60645ABEB9417B09D396FF00A7DBCA0D347EC87"
+    },
+    "independent_code_review": "NOT_PROVEN; cannot claim native plan review as source-review PASS",
+    "native_plan_lint_rc": 0,
+    "release_slices": "R0.11.9-05 OPEN; native orchestrate -subagents 2 RC2 by existing guard, not bypassed"
+  },
+  "rollback": {
+    "installed_version": "0.11.11-rc.2",
+    "installed_cli_sha256": "495D1D274C04AAE41189579E368356C9A15BCB1C057227DB538C93AA41ACEFBE",
+    "installed_tray_sha256": "C8A12B362975349C3C376E830B61F5858ED3C3439650374DC56F53F40442F67B",
+    "claude_cache_version": "0.11.11-rc.2",
+    "codex_cache_version": "0.11.11-rc.2",
+    "cache_both_match_installed_binaries": true,
+    "separate_selected_assets_snapshot": "D:/Devbox/AirWorker/release_candidates/rc4-n129-b659d86/rollback-rc2-assets-verified",
+    "selected_assets_count": 7,
+    "selected_assets_copy_readback_pass": true,
+    "full_transactional_restore": "NOT_TESTED; requires separate installation approval",
+    "release_rollback_zip": "NOT_LOCATED"
+  },
+  "gates": {
+    "ready_for_install": false,
+    "blocking": [
+      "Independently assess rc.4 code/source security and final consumer acceptance on frozen SHA",
+      "Official signed publication/channel manifest not prepared; no tag or marketplace promotion approved",
+      "Separate LPR exact yes to install package sha256",
+      "Post-install native hook delivery and rollback smoke verification",
+      "N126 and Hermes P0 actual runtime 2/2 remains separate OPEN"
+    ],
+    "no_payg_api_used": true,
+    "no_reboot_uac_stop_foreign_service": true,
+    "no_release_install": true
+  }
+}
