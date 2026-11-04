@@ -803,3 +803,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] N-110_p0-auto-capture-persist-every-real-airworker-ses · owner:gpt-airworker-retro-curriculum-20261011 · [[N-124_p1-detect-cross-branch-node-id-collision-and-sta]] · P1 detect cross-branch node ID collision and stale authority before merge
 - [open] N-093_p0-self-use-verifiable-outcome-for-newly-learned · owner:gpt-airworker-retro-curriculum-20261011 · [[N-125_p0-causal-learned-use-effect-and-recurrence-prev]] · P0 causal learned-use effect and recurrence prevention benchmark
 - [open] N-031_learn-2-события-ядра-и-автомат · owner:Dev Work 25 / AirWorker · [[N-126_native-two-codex-and-anthropic-reviewer-orchestr]] · Native two-Codex and Anthropic reviewer orchestration pilot
+- [open] PLAN.md · owner:Dev Work 26 / AirWorker SRVLM01 · [[N-127_devwork26-subscription-model-ladder-weekly-refre]] · DevWork26 subscription model ladder weekly refresh

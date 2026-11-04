@@ -134,21 +134,24 @@ func firstPolicyTier(cfg runConfig, alias, effort string) (string, error) {
 
 func executorClasses(cfg runConfig) ([]executorClassDoc, error) {
 	specs := []struct {
-		Class string
-		Alias string
+		Class       string
+		Alias       string
+		StartEffort string
+		MaxEffort   string
 	}{
-		{"bulk", "gpt6-luna"},
-		{"standard", "gpt6-sol"},
-		{"complex", "gpt6-astra"},
-		{"hardest", "gpt6-astra"},
+		{"bulk", "gpt6-luna", "low", "medium"},
+		{"standard", "gpt6-sol", "low", "medium"},
+		// Sol handles complex tasks first; Astra is reserved for an explicit hardest task.
+		{"complex", "gpt6-sol", "medium", "high"},
+		{"hardest", "gpt6-astra", "low", "high"},
 	}
 	out := make([]executorClassDoc, 0, len(specs))
 	for _, spec := range specs {
-		start, err := firstPolicyTier(cfg, spec.Alias, "low")
+		start, err := firstPolicyTier(cfg, spec.Alias, spec.StartEffort)
 		if err != nil {
 			return nil, err
 		}
-		max, err := firstPolicyTier(cfg, spec.Alias, "high")
+		max, err := firstPolicyTier(cfg, spec.Alias, spec.MaxEffort)
 		if err != nil {
 			return nil, err
 		}
@@ -319,6 +322,7 @@ func cmdExecutorDispatch(argv []string) int {
 	configPath := fs.String("config", "", "run-config.json path")
 	class := fs.String("class", "standard", "bulk|standard|complex|hardest")
 	tier := fs.String("tier", "", "explicit approved tier override")
+	reason := fs.String("reason", "", "required justification when requesting Astra")
 	taskFile := fs.String("task-file", "", "task file inside product root")
 	principal := fs.String("principal", "", "session principal")
 	sessionKey := fs.String("session-key", "", "session key")
@@ -353,6 +357,11 @@ func cmdExecutorDispatch(argv []string) int {
 	if _, err := approvedExecutorTier(cfg, selected); err != nil {
 		fmt.Fprint(os.Stderr, "ОТКАЗ: "+err.Error()+lineEnding)
 		return 1
+	}
+	// Astra is exceptional: neither hardest nor a tier override may use it silently.
+	if tierName(selected) == "gpt6-astra" && len(strings.TrimSpace(*reason)) < 16 {
+		fmt.Fprint(os.Stderr, "ОТКАЗ: Astra requires -reason (at least 16 characters)"+lineEnding)
+		return 2
 	}
 	doc := runExecutorDispatch(root, cfg, scope, strings.ToLower(strings.TrimSpace(*class)), selected, task)
 	if *asJSON {

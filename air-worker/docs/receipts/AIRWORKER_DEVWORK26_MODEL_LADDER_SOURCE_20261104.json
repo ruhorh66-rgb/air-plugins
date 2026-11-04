@@ -1,0 +1,113 @@
+{
+  "schema": "air-worker.devwork26.model-ladder-source-checkpoint/v1",
+  "date_sgt": "2026-11-04",
+  "owner": "Dev Work 26 / SRVLM01",
+  "node": "N-127_devwork26-subscription-model-ladder-weekly-refre",
+  "trigger": "LPR: subscription model ladder first; weekly native check; no PAYG; Hermes P0 without N126 prerequisite; Astra exceptional",
+  "source_base": "a1cc4f0fbd78302a2a8118719834af135b280852",
+  "status": "SOURCE_ONLY_PARTIAL__RELEASE_HOLD",
+  "installed": {
+    "version": "0.11.11-rc.2",
+    "sha256": "495d1d274c04aae41189579e368356c9a15bcb1c057227db538c93aa41acefbe",
+    "modified": false
+  },
+  "subscriptions": {
+    "codex": {
+      "version": "0.158.0",
+      "login": "ChatGPT subscription",
+      "login_rc": 0,
+      "model_list_status": "LIST_RETURNED",
+      "model_list_count": 7,
+      "model_list": [
+        "gpt-6-astra",
+        "gpt-6-sol",
+        "gpt-6-luna",
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-5.6-luna",
+        "gpt-5.5"
+      ],
+      "catalog_is_not_entitlement": true,
+      "completed_probe": {
+        "model": "gpt-6-sol",
+        "sandbox": "read-only",
+        "turn_status": "completed",
+        "reply": "SUBSCRIPTION_PROBE_OK",
+        "source": "SRVLM01 native Codex app-server, observed in ChatLink-connected Dev Work26 tool output; no persistent thread receipt"
+      }
+    },
+    "anthropic": {
+      "claude_cli": "2.1.274",
+      "auth_status": "loggedIn=false",
+      "rc": 1,
+      "model_completed_calls": 0,
+      "independent_review": "NOT_PROVEN"
+    },
+    "payg_calls": 0
+  },
+  "policy_source": {
+    "go_file": "air-worker/cmd/executor.go",
+    "classes": {
+      "bulk": "gpt6-luna:low to medium",
+      "standard": "gpt6-sol:low to medium",
+      "complex": "gpt6-sol:medium to high",
+      "hardest": "gpt6-astra:low to high, requires explicit -reason >=16 characters"
+    },
+    "installed_effect": "NOT_INSTALLED_NOT_EXECUTED",
+    "gpt61_summaries": "Terra/Sol vendor-documented; NOT_LISTED in subscribed Codex catalog; NOT_PROVEN for this account"
+  },
+  "weekly": {
+    "catalog_script": "air-worker/tools/model-catalog-native.ps1",
+    "catalog_rc": 0,
+    "checker_script": "air-worker/tools/model-ladder-weekly.ps1",
+    "parser_errors": 0,
+    "first_run_rc": 2,
+    "first_run_status": "HOLD_NOT_PROVEN",
+    "seven_day_idempotence_rc": 0,
+    "next_due_utc": "2026-11-11T08:35:26Z",
+    "history": "air-worker/.air-worker/model-ladder-weekly/history/",
+    "scheduler_match_count": 0,
+    "schedule_status": "NOT_INSTALLED_NOT_PROVEN",
+    "auto_reconfiguration": "DISABLED_UNTIL_VERIFIED",
+    "denial": "AIR Commander Test edit_block refused adding catalog fields to weekly receipt; did not retry or use other tool; checker retains conservative NOT_PROVEN catalog field",
+    "needed": "product-owned durable scheduler binding and accepted build/install of source; Anthropic subscription auth; exact live model availability and safe switch guard"
+  },
+  "hermes": {
+    "source_candidate": "c43b0e3168e9a41c8358b229aa0cd2b61a02930e",
+    "candidate_git_local_remote": "match clean",
+    "candidate_qa": "NOT_RUN_AND_PREVIOUS_DENIAL_NOT_RETRIED",
+    "installed_review_cap": 32,
+    "candidate_cap": 64,
+    "installed_self_selector": "R:/-4-/air-worker/worktrees/airworker-0119-n093-worker-b-20261018/air-worker",
+    "learn_status_cli_rc": 2,
+    "hermes_natural_cycle": "NOT_PROVEN",
+    "release_install": "REQUIRES_DISTINCT_LPR_YES"
+  },
+  "n126": {
+    "status": "OPEN",
+    "parallel_subagents_done": 0,
+    "independent_anthropic": "NOT_INVOKED",
+    "denied_write": "cmd/orchestration_node.go; no retry"
+  },
+  "static_checks": {
+    "plan_lint_rc": 0,
+    "gofmt_diff_lines": 0,
+    "git_diff_check_rc": 0,
+    "go_test": "NOT_RUN",
+    "go_vet": "NOT_RUN",
+    "independent_semantic_review": "NOT_RUN"
+  },
+  "chatlink": {
+    "source_session_ref": "4d5b6e0668e9eefa",
+    "recipient": "Vega",
+    "message_id": "sm_fc7c5acf-e682-4424-a8b5-65ab1485b869",
+    "send_status": "pending",
+    "chat_url": "not_exposed"
+  },
+  "rollback": {
+    "source_prechange_git": "a1cc4f0fbd78302a2a8118719834af135b280852",
+    "installed_version": "0.11.11-rc.2",
+    "installation_unchanged": true
+  },
+  "decision": "Keep N127 OPEN; no PASS until actual weekly invocation provenance, live routes, blocked safety gate and independent tests are resolved"
+}
