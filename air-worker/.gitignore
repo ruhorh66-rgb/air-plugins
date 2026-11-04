@@ -13,6 +13,7 @@
 steps.jsonl
 .tools/
 .air-worker/learn/
+.air-worker/model-ladder-weekly/
 .campaign/
 /.air-learning-owner.json
 /learning-module.json
