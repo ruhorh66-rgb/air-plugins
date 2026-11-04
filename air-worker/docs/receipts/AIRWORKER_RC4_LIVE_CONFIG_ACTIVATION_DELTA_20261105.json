@@ -1,0 +1,40 @@
+{
+  "schema": "air-worker.rc4.live-config-activation-delta/v1",
+  "observed_sgt_date": "2026-11-05",
+  "owner": "Dev Work 26 / SRVLM01",
+  "trigger": "LPR: continue release 0.11.11-rc.4 with PLAN and native role guards; live canonical root must activate existing candidate guards without changing unrelated configuration",
+  "canonical_live_product_root": "F:/-7-/air-worker",
+  "source_candidate_commit": "b659d8684b96662567cc53290019af8ca92c3b98",
+  "portable_candidate_sha256": "9AB3D225C5D1290DAC8CD298D44F4ACA3DFFEF5D1FD7D9CFC01FDF0B6149AA4A",
+  "live_config_path": "F:/-7-/air-worker/run-config.json",
+  "live_original_sha256": "3C7A9D7D3D6C4B7E9D90326C8AEA6CF52137A1F65A4D6D57E11AF72CFE051182",
+  "live_original_flags": {
+    "orchestration_enabled": true,
+    "subagents": 2,
+    "require_native_subagents": false,
+    "require_anthropic_reviewer": false
+  },
+  "stage_preview_path": "D:/Devbox/AirWorker/release_candidates/rc4-n129-b659d86/activation-delta-run-config.preview.json",
+  "stage_preview_sha256": "DFF61492E06D83713014A632776D2D63AB8557FD56FB271411AAAFE6EF61DBFC",
+  "stage_delta_only": {
+    "orchestration_require_native_subagents": true,
+    "orchestration_require_anthropic_reviewer": true
+  },
+  "zero_unrelated_json_key_changes": true,
+  "live_readback_before_after_sha_equal": true,
+  "stage_result": "PASS_PREVIEW_ONLY",
+  "activate_during": "authorized product release transaction after exact separate LPR approval, with backup of live original and post-apply verification; never hot-change without release",
+  "rollback": "restore byte-exact original config SHA and installed 0.11.11-rc.2 CLI + Claude/Codex plugin caches, verify native selfcheck, no reboot/foreign services",
+  "remaining_blocks": [
+    "independent source-code/security review not proven",
+    "official signed channel/release publication not prepared",
+    "post-install hooks/host delivery not tested",
+    "historical R0.11.9-05 still gates actual 2/2 orchestration",
+    "full transactional rollback under live release not tested"
+  ],
+  "node_status": {
+    "n126": "OPEN",
+    "n128": "OPEN",
+    "n129": "OPEN"
+  }
+}
