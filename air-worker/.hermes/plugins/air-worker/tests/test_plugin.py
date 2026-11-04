@@ -72,8 +72,14 @@ class Tests(unittest.TestCase):
         self.assertIn("config", schema["properties"])
         self.assertEqual(["action", "product"], schema["required"])
         self.assertFalse(schema["additionalProperties"])
-        self.assertEqual(["operate-air-worker"], [item[0] for item in ctx.skills])
-        self.assertTrue(ctx.skills[0][1].is_file())
+        # Both skills are explicitly registered by the production plugin:
+        # operator route plus the embedded AirCurator role (not a second runtime).
+        self.assertEqual(
+            ["operate-air-worker", "air-curator"],
+            [item[0] for item in ctx.skills],
+        )
+        self.assertTrue(all(path.is_file() for _, path in ctx.skills))
+        self.assertEqual(len({path.resolve() for _, path in ctx.skills}), 2)
         self.assertEqual(9, len(ctx.hooks))
         self.assertIn("transform_llm_output", [name for name, _ in ctx.hooks])
         for _, callback in ctx.hooks:
