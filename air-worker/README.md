@@ -1,5 +1,38 @@
 # air-worker
 
+## Dev Work 26 · native Codex/Anthropic route and session boot contract (SOURCE ONLY)
+
+AirWorker already owns the executor and reviewer runtime. Use the installed `air-worker version`,
+`air-worker tool -which codex`, `air-worker tool -which headroom`,
+`air-worker executor list -product <root> -json`, and native session/plan commands.
+For two **parallel** Codex read-only subagents followed by the leader, use
+`air-worker orchestrate -product <root> -subagents 2`. Two separate
+`executor dispatch` runs are **not** orchestration. The independent
+Anthropic reviewer uses the native `semantic` or `plan-review -executor codex`
+entrypoint, not a manually launched Claude process or Codex App Server.
+
+A direct `claude auth status` from a PowerShell window does **not** test the
+AirWorker Claude path. The core's `runnerEnv` resolves the existing OAuth token
+from the process or user environment without logging it, pins the active Claude
+profile, and uses the existing local Headroom. The source-only
+`air-worker tool -which claude -preflight -json` is a redacted diagnostic: it can
+return `READY_TO_TRY_NATIVE_REVIEW`, never model success. The latter requires
+an actual terminal native semantic receipt and judge verdict.
+
+Live SRVLM01 evidence 2026-11-04: native `air-worker plan-review -executor codex`
+ran `claude-sonnet-5-5` at low effort through the existing route and returned
+`COMMENTS`, RC0, with matching plan/composition hashes. The annual subscription
+credential was not read into logs. This proves native reviewer connectivity, not
+acceptance of the entire PLAN or Hermes P0. The earlier `auth status` conclusion
+was false; native feedback `FB-20261104T091608Z-7e3cbe07` was recorded.
+
+The existing `SessionStart` hook has source changes to deliver the concise native
+operating contract to active sessions. This is **not installed** in rc.2; installation
+still requires a separate exact LPR grant after bounded QA and rollback proof.
+Existing historical release-slice R0.11.9-05 must not be deleted or bypassed to
+make orchestration appear to work; N-126 remains OPEN while the useful
+Hermes-parity P0 is the product objective. No PAYG API, new bridge or service.
+
 ## 0.11.11-rc.3 — minimal Hermes-parity reviewer unblock (SOURCE-ONLY, NOT INSTALLED)
 
 This prerelease **source candidate** is based directly on the installed rc.2 source commit

@@ -127,6 +127,28 @@ type hookResult struct {
 	LoadedSkills []sharedLearningCatalogSkill
 }
 
+// The installed SessionStart hook delivers this from the kernel itself.
+// The next session must not have to remember a chat-specific correction.
+const nativeAirWorkerStartupGuidance = "AIRWORKER NATIVE START: Use air-worker tool/executor/orchestrate/semantic only. " +
+	"Claude reviewer uses user-env OAuth and local Headroom; bare 'claude auth status' " +
+	"is NOT proof of AirWorker authorization. Check 'air-worker tool -which headroom'; " +
+	"on a release supporting it, use 'air-worker tool -which claude -preflight -json'. " +
+	"Prove Anthropic with a terminal native reviewer receipt, not a token or health alone. " +
+	"Two parallel Codex subagents require 'air-worker orchestrate -subagents 2', " +
+	"not two sequential dispatch calls. No Codex App Server, paid API, or release-slice bypass."
+
+func withNativeRouteStartupContext(res hookResult, startup hookResult) hookResult {
+	if strings.TrimSpace(res.Context) == "" {
+		res.Context = nativeAirWorkerStartupGuidance
+	} else {
+		res.Context = nativeAirWorkerStartupGuidance + lineEnding + res.Context
+	}
+	if strings.TrimSpace(startup.Context) != "" {
+		res.Context = startup.Context + lineEnding + res.Context
+	}
+	return res
+}
+
 // hookHandler — обработчик одного события. Ошибка ИЛИ паника здесь — это «решение получить
 // не удалось»: дальше её разбирает finishHook по классу события, самому обработчику это
 // решать незачем.
@@ -472,12 +494,8 @@ func cmdHook(argv []string) (code int) {
 		}
 		return finishHook(class, event, sessionID, err.Error())
 	}
-	if event == "SessionStart" && strings.TrimSpace(startup.Context) != "" {
-		if strings.TrimSpace(res.Context) == "" {
-			res.Context = startup.Context
-		} else {
-			res.Context = startup.Context + lineEnding + res.Context
-		}
+	if event == "SessionStart" {
+		res = withNativeRouteStartupContext(res, startup)
 	}
 	if res.Block {
 		fmt.Fprint(os.Stderr, "air-worker hook "+event+": "+res.Reason+lineEnding)

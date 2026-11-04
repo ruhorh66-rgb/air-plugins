@@ -94,9 +94,13 @@ func usage() {
   air-worker adapter -action status -product <root> [-config <path>]
         Emit compact read-only air-worker.tool/v1 campaign status JSON.
 
-  air-worker tool   [-which claude|codex|opencode|router]
+  air-worker tool   [-which claude|codex|opencode|router|headroom]
         Каким исполнителем пойдёт петля и каким правилом он найден. Ничего не
         запускает и не стоит ни копейки.
+  air-worker tool -which claude -preflight [-json]
+        Проверка установленного Claude, user-env OAuth и Headroom БЕЗ чтения токена
+        в вывод и без модели. READY_TO_TRY не означает успешную авторизацию:
+        настоящий факт — только терминальная квитанция native Anthropic judge.
 
   air-worker encoding -path <файл|каталог> [-fix] [-quiet]
         Правило о BOM одним местом: .ps1 обязан его иметь, .md/.json/.go — не имеют

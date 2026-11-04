@@ -180,8 +180,17 @@ func cmdTool(argv []string) int {
 	fs := flag.NewFlagSet("tool", flag.ContinueOnError)
 	which := fs.String("which", "", "какой исполнитель: claude, codex, opencode, router, headroom, ponytail")
 	product := fs.String("product", ".", "корень продукта для активной ladder")
+	preflight := fs.Bool("preflight", false, "безопасная проверка нативного Claude/Headroom без вызова модели")
+	asJSON := fs.Bool("json", false, "машинная квитанция проверки маршрута")
 	if err := fs.Parse(argv); err != nil {
 		return 2
+	}
+	if *preflight {
+		if *which != "claude" {
+			fmt.Fprint(os.Stderr, "ОТКАЗ: -preflight доступен только с -which claude"+lineEnding)
+			return 2
+		}
+		return cmdClaudeRoutePreflight(*asJSON)
 	}
 	if *which == "router" {
 		for _, line := range routerToolDiagnosticLines() {

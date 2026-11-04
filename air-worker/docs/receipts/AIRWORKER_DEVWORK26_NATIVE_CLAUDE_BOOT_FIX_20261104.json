@@ -1,0 +1,92 @@
+{
+  "schema": "air-worker.devwork26.native-claude-boot-fix/v1",
+  "owner": "Dev Work 26 / SRVLM01",
+  "trigger": "LPR 2026-11-04 SGT: existing yearly Claude token works; stop false auth denials; bake native Codex/Anthropic work route into AirWorker plugin/hook and avoid explaining it each session",
+  "status": "SOURCE_ONLY_TARGETED_PASS__INSTALLED_RC2_UNCHANGED__N128_OPEN",
+  "previous_source_head": "3b6e3e989824645d7c8162703699feeea4b8678e",
+  "native_plan_node": "N-128_n128-native-claude-subscription-preflight-and-ho",
+  "native_feedback": "FB-20261104T091608Z-7e3cbe07",
+  "diagnosis": {
+    "incorrect_check": "bare claude auth status in Windows admin_loc shell returned loggedIn=false RC1, but it does not inject user-env OAuth or canonical Headroom runner environment",
+    "existing_core": "runnerEnv reads process or user-env CLAUDE_CODE_OAUTH_TOKEN; applyClaudeRunnerEnv pins CLAUDE_CONFIG_DIR and forces local Headroom",
+    "secret_read_to_output": false,
+    "user_env_oauth_present": true,
+    "headroom_service": "headroom-proxy",
+    "headroom_version": "0.39.0",
+    "native_headroom_preflight_rc": 0,
+    "native_headroom_ready": true,
+    "momentary_health_timeout": "earlier read-only Headroom check had RC2; repeat health succeeded without service mutation",
+    "inherited_go_temp": "GOTMPDIR referenced missing AirVera path; only this AirWorker process GOTMPDIR redirected to existing D:/Devbox/AirWorker/scratch, global env unchanged"
+  },
+  "verified_native_reviewer": {
+    "entrypoint": "air-worker plan-review -product <AirWorker root> -executor codex -json",
+    "invokes_claude_via_existing_core": true,
+    "job_id": "legacy__default__1793783494491515600__d87f700b",
+    "process_started": true,
+    "status": "DONE",
+    "runner": "claude",
+    "provider": "claude",
+    "model": "claude-sonnet-5-5",
+    "effort": "low",
+    "role": "semantic-reviewer",
+    "sandbox": "read-only",
+    "exit_code": 0,
+    "semantic_verdict": "COMMENTS",
+    "findings_count": 3,
+    "source_review_receipt": ".woody/plan-semantic-verdict.json",
+    "source_review_receipt_sha256": "2D9EA750071B1A920E49DD7ED5807257F1E88A552492930A7E05E06834DF2D64",
+    "plan_sha256": "1206fd0dcd24d08c5fae32a67596aea11121e8e7fc7ad5a00e82214cfaeb85ec",
+    "composition_sha256": "039c006bed8e5ab1cb0916aa4105003bdeab442fa908029e03925bb7d8d1ab4c",
+    "verdict_qualification": "RC0 is successful independent Claude connection; COMMENTS not PASS for plan content; reviewer only read part of PLAN"
+  },
+  "installed_plugin_hooks": {
+    "cache_path": "R:/-4-/claude-home/plugins/cache/air-plugins/air-worker/0.11.11-rc.2/hooks/hooks.json",
+    "confirmed_events": [
+      "Stop",
+      "SubagentStart",
+      "SubagentStop",
+      "PreToolUse",
+      "PostToolUse",
+      "SessionStart",
+      "UserPromptSubmit"
+    ],
+    "active_gpt_host_hook_delivery": "NOT_PROVEN; must not infer from installed manifest"
+  },
+  "source_changes": [
+    "cmd/claude_route_preflight.go: redacted native route check via existing tool command",
+    "cmd/claude_route_preflight_test.go: dedicated unit tests for no false auth outcome and startup hints",
+    "cmd/tool.go: new -preflight -json for -which claude; does not call model",
+    "cmd/hook.go: existing SessionStart core delivers native route context to active sessions without new hook/service",
+    "cmd/main.go: command usage",
+    "skills/woody/SKILL.md: compulsory native Codex/Anthropic steps and token-check rule",
+    "README.md: operational source candidate entrypoint",
+    "PLAN.md, plan/N-128, learn/events.jsonl: native AirWorker plan mutation",
+    ".gitignore: keep private native feedback evidence without deleting it"
+  ],
+  "source_check": {
+    "gofmt_rc": 0,
+    "targeted_go_tests": [
+      "TestClaudeRoutePreflightReadinessIsNotModelSuccess",
+      "TestNativeSessionStartGuidancePreservesExistingContext",
+      "TestToolPreflightCannotRunOnCodex"
+    ],
+    "targeted_go_test_rc": 0,
+    "source_preflight_rc": 0,
+    "source_preflight_status": "READY_TO_TRY_NATIVE_REVIEW",
+    "source_preflight_oauth_source": "user_env",
+    "source_preflight_headroom_ready": true,
+    "source_preflight_model_call": "NOT_RUN (read-only health; model success proven separately by native plan-review)",
+    "installed_preflight_command": "NOT_AVAILABLE_UNTIL_RELEASE"
+  },
+  "lifecycle": {
+    "installed_version": "0.11.11-rc.2",
+    "installed_binary_sha256": "495D1D274C04AAE41189579E368356C9A15BCB1C057227DB538C93AA41ACEFBE",
+    "release_install": "HOLD_NEEDS_DISTINCT_EXPLICIT_LPR_YES",
+    "rollback": "previously installed and checksum-verified rc.2",
+    "full_product_qa": "NOT_RUN",
+    "independent_review_of_new_source": "NOT_RUN",
+    "natural_hermes_learning_cycle": "NOT_PROVEN",
+    "two_parallel_codex_subagents": "NOT_PROVEN",
+    "n126": "OPEN; historical release-slices R0.11.9-05 guard, no bypass"
+  }
+}
