@@ -93,8 +93,10 @@ type runnerAuth struct {
 }
 
 type orchestrationSpec struct {
-	Enabled   bool `json:"enabled"`
-	Subagents int  `json:"subagents"`
+	Enabled                  bool `json:"enabled"`
+	Subagents                int  `json:"subagents"`
+	RequireNativeSubagents   bool `json:"require_native_subagents,omitempty"`
+	RequireAnthropicReviewer bool `json:"require_anthropic_reviewer,omitempty"`
 }
 
 type learningSpec struct {

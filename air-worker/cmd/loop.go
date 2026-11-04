@@ -225,6 +225,10 @@ func cmdLoopWithReleaseSliceRunner(argv []string, releaseRunner func(string, run
 	if cfgPath == "" {
 		cfgPath = filepath.Join(root, "run-config.json")
 	}
+	if err := enforceCanonicalNativeRouteConfig(root, cfgPath); err != nil {
+		line("ОТКАЗ: " + err.Error())
+		return 2
+	}
 	var cfg runConfig
 	if err := readJSON(cfgPath, &cfg); err != nil {
 		line("ОТКАЗ: нет " + cfgPath + ". Образец — run-config.example.json в скиле.")
@@ -236,6 +240,10 @@ func cmdLoopWithReleaseSliceRunner(argv []string, releaseRunner func(string, run
 	}
 	if err := validateModelPolicy(cfg); err != nil {
 		line("ОТКАЗ: model_policy: " + err.Error())
+		return 2
+	}
+	if err := requireNativeLoopInvocation(cfg, *orchestrateOverride, *subagentsOverride); err != nil {
+		line("ОТКАЗ: " + err.Error())
 		return 2
 	}
 

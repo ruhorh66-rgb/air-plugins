@@ -56,6 +56,10 @@ func cmdSemantic(argv []string) int {
 	} else if !filepath.IsAbs(cfgPath) {
 		cfgPath = filepath.Join(root, cfgPath)
 	}
+	if err := enforceCanonicalNativeRouteConfig(root, cfgPath); err != nil {
+		line("ОТКАЗ: " + err.Error())
+		return 2
+	}
 	var cfg runConfig
 	if err := readJSON(cfgPath, &cfg); err != nil {
 		line("ОТКАЗ: нет конфигурации " + cfgPath)

@@ -675,6 +675,9 @@ func (c *loopCtx) semanticJudge(step workStep, executor runnerSpec, factual sema
 		ReviewerRole:     "semantic-reviewer",
 		FactualCode:      factual.Code,
 	}
+	if err == nil {
+		err = enforceIndependentAnthropicReviewer(c.Cfg, executor, reviewer)
+	}
 	if err != nil {
 		run.Error = err.Error()
 		rec.Error = run.Error

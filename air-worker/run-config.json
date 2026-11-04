@@ -174,8 +174,10 @@
     "auto_apply": false
   },
   "orchestration": {
-    "_": "Шаги 3, 4 и 6 независимы между собой — их можно вести параллельно. Шаги 1-2 и 7-8 последовательны и упираются в судью.",
+    "_": "ЛПР 04.11.2026: AirWorker native 2 parallel Codex subagents -> leader -> independent Anthropic reviewer. A single dispatch cannot stand in for orchestration.",
     "enabled": true,
-    "subagents": 2
+    "subagents": 2,
+    "require_native_subagents": true,
+    "require_anthropic_reviewer": true
   }
 }

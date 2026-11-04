@@ -333,6 +333,9 @@ func runPlanReview(root, planPath string, steps []workStep, scope sessionScope, 
 	if reviewerErr != nil {
 		return fail(reviewerErr)
 	}
+	if err := enforceIndependentAnthropicReviewer(cfg, executor, reviewer); err != nil {
+		return fail(err)
+	}
 	if reviewer.Kind == executor.Kind && !explicitOverride || reviewer.Kind == "" {
 		return fail(fmt.Errorf("plan reviewer must be opposite vendor unless explicitly configured: executor=%s reviewer=%s", executor.Kind, reviewer.Kind))
 	}
@@ -458,6 +461,10 @@ func cmdPlanReview(argv []string) int {
 	} else if !filepath.IsAbs(cfgPath) {
 		cfgPath = filepath.Join(root, cfgPath)
 	}
+	if err := enforceCanonicalNativeRouteConfig(root, cfgPath); err != nil {
+		fmt.Fprintln(os.Stderr, "plan-review:", err)
+		return 2
+	}
 	var cfg runConfig
 	if err := readJSON(cfgPath, &cfg); err != nil {
 		fmt.Fprintln(os.Stderr, "plan-review:", err)
@@ -501,6 +508,10 @@ func cmdPlanReview(argv []string) int {
 	}
 	reviewer, explicitOverride, err := cfg.SemanticJudge.Resolve(executor, activeProductReleaseVersion(root))
 	if err != nil {
+		fmt.Fprintln(os.Stderr, "plan-review:", err)
+		return 2
+	}
+	if err := enforceIndependentAnthropicReviewer(cfg, executor, reviewer); err != nil {
 		fmt.Fprintln(os.Stderr, "plan-review:", err)
 		return 2
 	}

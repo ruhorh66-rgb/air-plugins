@@ -135,7 +135,10 @@ const nativeAirWorkerStartupGuidance = "AIRWORKER NATIVE START: Use air-worker t
 	"on a release supporting it, use 'air-worker tool -which claude -preflight -json'. " +
 	"Prove Anthropic with a terminal native reviewer receipt, not a token or health alone. " +
 	"Two parallel Codex subagents require 'air-worker orchestrate -subagents 2', " +
-	"not two sequential dispatch calls. No Codex App Server, paid API, or release-slice bypass."
+	"not two sequential dispatch calls. This product rejects single executor dispatch, " +
+	"wrong reviewer vendor and noncanonical -config. If release-slice R05 blocks, " +
+	"report exact RC2; never delete the sidecar or use an alternative root. " +
+	"No Codex App Server, direct provider CLI, paid API, or release-slice bypass."
 
 func withNativeRouteStartupContext(res hookResult, startup hookResult) hookResult {
 	if strings.TrimSpace(res.Context) == "" {
@@ -232,7 +235,14 @@ func handlePreToolUseBypassGuard(in hookInput) (hookResult, error) {
 	if strings.EqualFold(in.ToolName, "Agent") {
 		return hookResult{Block: true, Reason: "прямой Agent обходит ядро AirWorker и не создаёт проверяемую квитанцию model/effort/count; запусти air-worker orchestrate"}, nil
 	}
-	if !strings.EqualFold(in.ToolName, "Bash") && !strings.EqualFold(in.ToolName, "PowerShell") {
+	// The same installed hook observes native shell tools and AIR Commander
+	// process commands when Claude Code exposes them as MCP PreToolUse events.
+	// A ChatGPT host lacking hook delivery is NOT covered by this hook alone.
+	shellTool := strings.EqualFold(in.ToolName, "Bash") ||
+		strings.EqualFold(in.ToolName, "PowerShell")
+	commanderProcess := strings.HasPrefix(in.ToolName, "mcp__AIR_Commander") &&
+		strings.HasSuffix(in.ToolName, "__start_process")
+	if !shellTool && !commanderProcess {
 		return hookResult{}, nil
 	}
 	var params struct {
@@ -469,11 +479,11 @@ func cmdHook(argv []string) (code int) {
 	}
 
 	if !sessionActiveInput(in) {
-		// AirCurator skill discovery is plugin-level and must exist even before a
-		// product session is declared. Other lifecycle/control behavior remains
-		// the established no-op for inactive AirWorker sessions.
+		// A newly started session cannot know to declare itself until the plugin
+		// tells it the native route. Deliver the same source-owned bootstrap
+		// guidance before declaration; keep control hooks inactive until declare.
 		if event == "SessionStart" {
-			emitHookContext(event, startup.Context)
+			emitHookContext(event, withNativeRouteStartupContext(hookResult{}, startup).Context)
 		}
 		return 0
 	}

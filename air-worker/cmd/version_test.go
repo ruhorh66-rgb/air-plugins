@@ -10,7 +10,7 @@ func TestVersionCommandMatchesReleaseTarget(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("version exit code=%d, want 0", code)
 	}
-	if got, want := strings.TrimSpace(out), "air-worker 0.11.11-rc.3"; got != want {
+	if got, want := strings.TrimSpace(out), "air-worker 0.11.11-rc.4"; got != want {
 		t.Fatalf("version output=%q, want %q", got, want)
 	}
 }

@@ -78,6 +78,9 @@ func loadExecutorConfig(product, configPath string) (string, runConfig, error) {
 	if strings.TrimSpace(configPath) == "" {
 		configPath = filepath.Join(root, "run-config.json")
 	}
+	if err := enforceCanonicalNativeRouteConfig(root, configPath); err != nil {
+		return "", runConfig{}, err
+	}
 	var cfg runConfig
 	if err := readJSON(configPath, &cfg); err != nil {
 		return "", runConfig{}, fmt.Errorf("read config: %w", err)
@@ -335,6 +338,12 @@ func cmdExecutorDispatch(argv []string) int {
 	if err != nil {
 		fmt.Fprint(os.Stderr, "ОТКАЗ: "+err.Error()+lineEnding)
 		return 1
+	}
+	// Product-scoped, binary-enforced policy: two sequential dispatch calls
+	// cannot masquerade as two concurrently observed native subagents.
+	if cfg.Orchestration.RequireNativeSubagents {
+		fmt.Fprint(os.Stderr, "ОТКАЗ: this product requires native parallel subagents; 'executor dispatch' is single-executor only. Use 'air-worker orchestrate -product <root> -subagents 2'."+lineEnding)
+		return 2
 	}
 	scope, err := executorScopeForSession(root, *principal, *sessionKey, *stateDir)
 	if err != nil {

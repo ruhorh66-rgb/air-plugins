@@ -35,6 +35,9 @@ var (
 	reOwnerRepo      = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 	reCopyVerb       = regexp.MustCompile(`(?i)(^|[\s|&;])(copy|xcopy|robocopy|move|copy-item|move-item|cp|mv)([\s]|$)`)
 	reAWInstall      = regexp.MustCompile(`(?i)("[^"]*air-worker\.exe"|\S*air-worker\.exe|air-worker)\s+install\b`)
+	// Only an actual shell command position, not quoted documentation or grep
+	// pattern text. Active product sessions must call native AirWorker routes.
+	reDirectNativeModel = regexp.MustCompile(`(?im)(?:^|[\r\n;&|])\s*(?:&\s*)?(?:(?:"[^"\r\n]*[\\/]|'[^'\r\n]*[\\/])|(?:[^\s"';&|\r\n]*[\\/]))?(codex(?:\.(?:cmd|exe|ps1))?|claude(?:\.(?:cmd|exe|ps1))?)(?:["'])?\s+([^\r\n;&|]+)`)
 )
 
 // classifyBypass возвращает (обход, причина). Причина непустая только при обходе.
@@ -80,6 +83,30 @@ func classifyBypass(cmdText string, installDirs []string) (bool, string) {
 		}
 	}
 
+	// 4) An active AirWorker session must not start a model or infer Claude
+	// availability through a naked vendor CLI. These patterns are scoped to
+	// shell-command positions; they do not scan documentation or ordinary text.
+	for _, m := range reDirectNativeModel.FindAllStringSubmatch(s, -1) {
+		tool := strings.ToLower(m[1])
+		args := strings.Fields(strings.ToLower(m[2]))
+		if len(args) == 0 {
+			continue
+		}
+		if strings.HasPrefix(tool, "codex") && (args[0] == "exec" || args[0] == "app-server") {
+			return true, "прямой Codex исполняет модель вне AirWorker: используй air-worker orchestrate для двух субагентов или штатный executor для строго одиночного задания"
+		}
+		if !strings.HasPrefix(tool, "claude") {
+			continue
+		}
+		if len(args) > 1 && args[0] == "auth" && args[1] == "status" {
+			return true, "голый claude auth status не проверяет user-env OAuth и Headroom AirWorker: используй air-worker tool -which claude -preflight -json; реальный вызов подтверждай native judge receipt"
+		}
+		for _, arg := range args {
+			if arg == "-p" || arg == "--print" {
+				return true, "прямой Claude reviewer обходит native AirWorker и квитанцию независимого судьи: используй air-worker semantic или plan-review"
+			}
+		}
+	}
 	return false, ""
 }
 

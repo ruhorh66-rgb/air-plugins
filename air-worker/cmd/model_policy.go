@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -85,8 +87,84 @@ func judgeLaneRunner(cfg runConfig, class string) (runnerSpec, error) {
 	return runnerSpec{Kind: "claude", Model: lane.Model, Effort: lane.Efforts[0]}, nil
 }
 
+// A managed product cannot silently drop its role/subagent contract by
+// passing a different -config path to an otherwise native CLI command.
+// Other products (without this canonical opt-in) retain their config override.
+func enforceCanonicalNativeRouteConfig(root, selected string) error {
+	canonical := filepath.Join(root, "run-config.json")
+	var pinned runConfig
+	if err := readJSON(canonical, &pinned); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("canonical native route policy unreadable: %w", err)
+	}
+	if !pinned.Orchestration.RequireNativeSubagents && !pinned.Orchestration.RequireAnthropicReviewer {
+		return nil
+	}
+	chosen := strings.TrimSpace(selected)
+	if chosen == "" {
+		chosen = canonical
+	}
+	full, err := filepath.Abs(chosen)
+	if err != nil {
+		return err
+	}
+	if !strings.EqualFold(filepath.Clean(full), filepath.Clean(canonical)) {
+		return fmt.Errorf("managed AirWorker route cannot replace canonical run-config.json with -config; native subagent/reviewer contract is pinned")
+	}
+	return nil
+}
+
+// These guarantees are opt-in per product, not a global rewrite of other
+// products' accepted single-executor workflows.
+func requireNativeOrchestration(cfg runConfig) error {
+	if !cfg.Orchestration.RequireNativeSubagents {
+		return nil
+	}
+	if !cfg.Orchestration.Enabled || cfg.Orchestration.Subagents != 2 {
+		return fmt.Errorf("native orchestration contract requires enabled=true and exactly two subagents")
+	}
+	return nil
+}
+
+// A product which mandates native subagents must never launch an ordinary
+// single-executor loop under the appearance of orchestrated work. The real
+// release-slice guard still runs afterward, unchanged.
+func requireNativeLoopInvocation(cfg runConfig, orchestrate bool, requested int) error {
+	if !cfg.Orchestration.RequireNativeSubagents {
+		return nil
+	}
+	if requested != 0 && requested != cfg.Orchestration.Subagents {
+		return fmt.Errorf("native orchestration requires exactly %d parallel subagents; requested %d", cfg.Orchestration.Subagents, requested)
+	}
+	if !orchestrate && requested == 0 {
+		return fmt.Errorf("native orchestration required: use air-worker orchestrate -subagents %d, not a single-executor loop", cfg.Orchestration.Subagents)
+	}
+	return nil
+}
+
+func enforceIndependentAnthropicReviewer(cfg runConfig, executor, reviewer runnerSpec) error {
+	if !cfg.Orchestration.RequireAnthropicReviewer {
+		return nil
+	}
+	if executor.Kind != "codex" {
+		return fmt.Errorf("AirWorker reviewer contract requires a Codex executor, got %q", executor.Kind)
+	}
+	if reviewer.Kind != "claude" || !strings.HasPrefix(strings.ToLower(reviewer.Model), "claude-") {
+		return fmt.Errorf("AirWorker reviewer contract requires an independent Anthropic Claude model, got %q/%q", reviewer.Kind, reviewer.Model)
+	}
+	if !allowedModelEffort(reviewer.Effort) {
+		return fmt.Errorf("AirWorker reviewer effort must be low, medium or high, got %q", reviewer.Effort)
+	}
+	return nil
+}
+
 func validateModelPolicy(cfg runConfig) error {
 	if err := cfg.SemanticJudge.Validate(); err != nil {
+		return err
+	}
+	if err := requireNativeOrchestration(cfg); err != nil {
 		return err
 	}
 	p := cfg.ModelPolicy

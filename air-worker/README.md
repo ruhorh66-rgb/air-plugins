@@ -1,5 +1,40 @@
 # air-worker
 
+## 0.11.11-rc.4 · native route enforcement candidate (SOURCE ONLY)
+
+**Owner:** AirWorker / Dev Work 26, SRVLM01. **Goal:** eliminate the recurring
+new-session mistake of bypassing the built-in Codex/Anthropic ladder and treating
+a shell `claude auth status` as proof the annual Claude subscription has failed.
+
+The **existing** `SessionStart` hook injects a short native operating contract
+before and after `session declare`. An active AirWorker session's `PreToolUse`
+rejects direct `codex exec` / `codex app-server`, direct `claude -p` and the
+misleading bare `claude auth status`; Claude-hosted AIR Commander process calls
+are included by the plugin matcher. Safe `air-worker` commands and ordinary
+diagnostics remain allowed. The product's canonical `run-config.json` now
+requires **two** parallel native Codex read-only subagents, one leader, and an
+independent Anthropic reviewer. The source CLI rejects a sequential
+`executor dispatch` substitute, a one-agent request, a wrong judge vendor, and
+a `-config` override attempting to drop the route requirements **before a
+model is launched**. Other products are unaffected unless they opt in.
+
+The existing binary remains the sole scheduler, executor and judge; no new
+daemon, Codex App Server or paid API is introduced. The existing Headroom and
+user-environment OAuth are consumed through `runnerEnv` without printing secrets.
+`air-worker tool -which claude -preflight -json` is a readiness check, not
+proof of model success; that requires a native terminal Claude reviewer receipt.
+
+**Important scope:** a Claude Code plugin hook can enforce only sessions/events
+which the host actually delivers to the installed plugin; an unrelated ordinary
+ChatGPT conversation with no host hook cannot be blocked by a file in this
+repository. The binary's role and configuration guards apply whenever that
+AirWorker binary is invoked. Historical `R0.11.9-05` still fails closed before
+the existing orchestrated runner; **actual 2/2 production orchestration and
+Hermes-parity P0 remain NOT_PROVEN** until the separate route acceptance.
+The installer and cached rc.2 are untouched. Release approval, package
+attestation and installation are distinct LPR gates, with rollback to
+`0.11.11-rc.2`.
+
 ## Dev Work 26 · native Codex/Anthropic route and session boot contract (SOURCE ONLY)
 
 AirWorker already owns the executor and reviewer runtime. Use the installed `air-worker version`,

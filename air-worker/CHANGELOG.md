@@ -1,5 +1,13 @@
 # CHANGELOG — air-worker
 
+## 0.11.11-rc.4 — native model route enforcement · 04.11.2026 SGT · SOURCE CANDIDATE / NOT INSTALLED
+
+- The existing SessionStart hook now emits a native Codex/Claude runbook **before** session declaration. Active PreToolUse detects direct Codex exec/app-server, direct Claude model calls and misleading bare Claude auth checks; it also handles AIR Commander start_process events when delivered by the Claude plugin. Legacy hooks and non-AirWorker products remain unchanged unless their own config opts in.
+- The AirWorker product's canonical run-config now pins two native parallel Codex subagents and an independent Anthropic reviewer. Its binary refuses single `executor dispatch` substitution, wrong subagent counts, wrong reviewer vendor and noncanonical `-config` downgrades. R0.11.9-05 continues to fail closed; this candidate **does not** create a second runner or claim real 2/2 orchestration.
+- The existing user's Claude OAuth and local Headroom are used without reauthorization, PAYG or secret logging. Native Claude Sonnet 5.5 review previously completed DONE/RC0 with COMMENTS, demonstrating transport, not blanket semantic PASS. `air-worker tool -which claude -preflight -json` reports only readiness.
+- The obsolete DevWork26 App Server catalog/weekly scripts were removed from the active source; their Git history and local machine receipts were retained. Model weekly review and tray polish remain after Hermes-parity P0.
+- Source-only negative/positive contract tests and QA are recorded at exact source SHA; installed 0.11.11-rc.2 remains the rollback target. Official tag, marketplace publication and installation require independent acceptance and separate explicit LPR approval; the user asked for automatic enforcement, **not a bypass of release gates**.
+
 ## 0.11.11-rc.3 — minimal reviewer catalogue unblock · 04.11.2026 SGT · SOURCE-ONLY / NOT RELEASED
 
 - Based directly on the **installed 0.11.11-rc.2 source** `0befb40`, not the broader rc.3 development branch. The only reviewer behavior change is the already-written, SHA-identical catalogue count guard 32 → 64; existing 128 KiB aggregate body bound and full SHA validation are unchanged.

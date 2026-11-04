@@ -56,6 +56,16 @@
         ]
       },
       {
+        "matcher": "mcp__AIR_Commander.*start_process",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/air-worker.exe\" hook PreToolUse",
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "Agent",
         "hooks": [
           {
