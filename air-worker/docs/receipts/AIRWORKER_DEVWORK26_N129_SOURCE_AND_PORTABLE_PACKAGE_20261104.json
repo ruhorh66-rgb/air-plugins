@@ -1,0 +1,133 @@
+{
+  "schema": "air-worker.devwork26.n129-native-route-source-and-portable-package/v1",
+  "observed_date_sgt": "2026-11-04",
+  "owner": "Dev Work 26 / AirWorker SRVLM01",
+  "decision_trigger": "LPR: installable plugin must keep future LLM sessions on the existing native Codex two-parallel-subagent -> leader -> Anthropic reviewer route through hooks and binary; no App Server or duplicate engine",
+  "native_node_id": "N-129_native-route-enforcement-at-hook-and-cli-boundar",
+  "status": "SOURCE_IMPLEMENTED_TESTED_PORTABLE_CANDIDATE__RELEASE_HOLD__N129_OPEN",
+  "source": {
+    "repo": "ruhorh66-rgb/air-plugins",
+    "branch": "dev/airworker-native-orch-pilot-20261104",
+    "frozen_commit": "dcf61ffbce667bc8852f29ac62a26e03a5bbc2ae",
+    "git_push_rc": 0,
+    "local_upstream_remote_match": true,
+    "tree_clean_at_freeze": true,
+    "product_version": "0.11.11-rc.4",
+    "learning_reviewer_cap": 64,
+    "historical_scripts_removed_from_active_source": [
+      "tools/model-catalog-native.ps1",
+      "tools/model-ladder-weekly.ps1"
+    ],
+    "historical_scripts_preserved_in_git": true
+  },
+  "enforcement": {
+    "source_only": true,
+    "product_opt_in": "run-config.json orchestration enabled=true, subagents=2, require_native_subagents=true, require_anthropic_reviewer=true",
+    "native_startup": "existing SessionStart emits native route before session declare",
+    "installed_hook_manifest": "existing plugin hooks plus PreToolUse matcher for mcp__AIR_Commander.*start_process",
+    "active_pretool_deny": [
+      "direct codex exec",
+      "direct codex app-server",
+      "direct claude -p/--print",
+      "bare claude auth status",
+      "direct host Agent",
+      "known install/LEARN bypasses"
+    ],
+    "native_cli_deny": [
+      "single executor dispatch for managed AirWorker",
+      "one/three subagents",
+      "non-Anthropic semantic reviewer",
+      "-config overriding canonical orchestration policy"
+    ],
+    "safe_commands_preserved": [
+      "air-worker orchestrate",
+      "air-worker plan-review -executor codex",
+      "air-worker tool -which claude -preflight -json",
+      "diagnostic versions"
+    ],
+    "single_runtime": "existing air-worker executable/runner, no Codex app-server, no new daemon",
+    "limitations": "Claude plugin hooks only apply when its host delivers the matching lifecycle events; cannot enforce unrelated ordinary ChatGPT sessions lacking hook transport; native CLI guards enforce whenever this AirWorker executable is called",
+    "historical_release_slice": "R0.11.9-05 remains and fails closed RC2, not modified, 2/2 production orchestration NOT_PROVEN"
+  },
+  "tests": {
+    "n129_tests": "7/7 PASS RC0",
+    "tested_cases": [
+      "shell guard wrong-model deny and allowed cases",
+      "AIR Commander Test start_process hook allow/deny",
+      "binary sequential/wrong reviewer/wrong count",
+      "single dispatch denied before session/child spawn",
+      "active real cmdHook denies wrong AIR Commander command RC2",
+      "inactive SessionStart receives guidance before declare",
+      "canonical config override rejected and foreign product unaffected"
+    ],
+    "targeted_hooks_executor_planreview_version_go_test_rc": 0,
+    "source_gofmt_rc": 0,
+    "source_gofmt_diff_lines": 0,
+    "git_diff_check_rc": 0,
+    "native_plan_lint_rc": 0,
+    "hermes_static_check": "4 PASS 0 FAIL RC0",
+    "hermes_profile_check_rc": 0,
+    "independent_source_code_review": "NOT_RUN",
+    "full_go_test_vet_build_acceptance": "NOT_CLAIMED",
+    "installed_runtime_hook_delivery": "NOT_TESTED",
+    "natural_learning_cycle": "NOT_PROVEN"
+  },
+  "portable_candidate": {
+    "location": "D:/Devbox/AirWorker/release_candidates/rc4-n129-dcf61ff/air-worker-v0.11.11-rc.4-n129-portable-candidate.zip",
+    "source_git_commit": "dcf61ffbce667bc8852f29ac62a26e03a5bbc2ae",
+    "portable_zip_sha256": "46bc966e3f760d5746968c82040b77edca7daf00db66adb432b6b8b943a84914",
+    "bytes": 72497227,
+    "entries": 689,
+    "included_git_marketplace": true,
+    "zip_integrity": "CRC_PASS_UNIQUE_NAMES_POSIX_PATHS",
+    "private_runtime_included": false,
+    "packaged_exe_version": "0.11.11-rc.4",
+    "packaged_cli_sha256": "727fdd37ab1fa0981dc4381fdb310f6f30cb2765d17907601c37e05159e4ac3d",
+    "packaged_tray_sha256": "c8a12b362975349c3c376e830b61f5858ed3c3439650374dc56f53f40442f67b",
+    "portable_manifest_sha256": "f27f77302c25e8d740a901e1ae766512da1cbdfd9b6961c49a4ee2f0c34a417c",
+    "extracted_package_plugin_check_rc": 0,
+    "extracted_marketplace_present": true,
+    "extracted_private_runtime_absent": true,
+    "rejected_earlier_archive": "INVALID_nonportable_unfiltered_archive_DO_NOT_INSTALL.bin; not for installation"
+  },
+  "packaged_binary_live_preflight": {
+    "native_oauth_source": "user_env",
+    "previously_source_headroom_check": "READY_TO_TRY_NATIVE_REVIEW RC0 with headroom v0.39.0",
+    "extracted_binary_preflight": "HOLD_NOT_PROVEN RC2 (Headroom health timeout/transient on this run); no authentication loss conclusion",
+    "extracted_cli_single_dispatch_rc": 2,
+    "extracted_cli_wrong_subagent_count_rc": 2,
+    "extracted_cli_original_r05_guard_rc": 2,
+    "note": "The packaged binary has been read-only smoke tested, but not installed; a health preflight warning is not a successful model inference"
+  },
+  "native_anthropic_existing_route": {
+    "reviewer_job_id": "legacy__default__1793783494491515600__d87f700b",
+    "model": "claude-sonnet-5-5",
+    "effort": "low",
+    "role": "semantic-reviewer",
+    "terminal_status": "DONE",
+    "run_exit_code": 0,
+    "verdict": "COMMENTS (3 findings, not semantic plan PASS)",
+    "verdict_receipt_sha256": "2d9ea750071b1a920e49dd7ed5807257f1e88a552492930a7e05e06834df2d64",
+    "no_oauth_secret_logged": true
+  },
+  "lifecycle": {
+    "installed_version": "0.11.11-rc.2",
+    "installed_binary_sha256": "495d1d274c04aae41189579e368356c9a15bcb1c057227db538c93aa41acefbe",
+    "installed_changed": false,
+    "release_tag_or_promotion": false,
+    "install_requires": "separate explicit YES from LPR after source/security/consumer acceptance, exact ZIP SHA and rollback readback",
+    "rollback_to": "0.11.11-rc.2 existing installed and cached ZIP; verify matching SHA before switch",
+    "reboot_uac_foreign_service_actions": false
+  },
+  "native_learning": {
+    "oauth_misdiagnosis_feedback": "FB-20261104T091608Z-7e3cbe07",
+    "sequential_dispatch_feedback": "FB-20261104T100924Z-1cb4c376",
+    "native_nodes": [
+      "N-126 OPEN",
+      "N-127 OPEN",
+      "N-128 OPEN",
+      "N-129 OPEN"
+    ]
+  },
+  "next_safe_step": "Finish independent source review on frozen commit if permitted; do not install until exact LPR yes. Native R05 remains separate route blocker; truthful 2/2 receipts and Hermes P0 must be demonstrated after accepted route and install."
+}
