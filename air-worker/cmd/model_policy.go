@@ -131,15 +131,19 @@ func requireNativeOrchestration(cfg runConfig) error {
 // A product which mandates native subagents must never launch an ordinary
 // single-executor loop under the appearance of orchestrated work. The real
 // release-slice guard still runs afterward, unchanged.
-func requireNativeLoopInvocation(cfg runConfig, orchestrate bool, requested int) error {
+func requireNativeLoopInvocation(cfg runConfig, _ bool, requested int) error {
 	if !cfg.Orchestration.RequireNativeSubagents {
 		return nil
 	}
+	// The canonical run-config is authoritative: Hermes' structured 'run'
+	// action invokes the SAME AirWorker loop without separate orchestration
+	// flags. With enabled=true and subagents=2 this is already native,
+	// parallel orchestration, not a single-executor bypass.
+	if err := requireNativeOrchestration(cfg); err != nil {
+		return err
+	}
 	if requested != 0 && requested != cfg.Orchestration.Subagents {
 		return fmt.Errorf("native orchestration requires exactly %d parallel subagents; requested %d", cfg.Orchestration.Subagents, requested)
-	}
-	if !orchestrate && requested == 0 {
-		return fmt.Errorf("native orchestration required: use air-worker orchestrate -subagents %d, not a single-executor loop", cfg.Orchestration.Subagents)
 	}
 	return nil
 }

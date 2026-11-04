@@ -87,7 +87,10 @@ func TestN129BinaryPolicyBlocksSequentialAndWrongReviewer(t *testing.T) {
 		denied      bool
 	}{
 		{true, 2, false}, {true, 0, false},
-		{false, 0, true}, {true, 1, true}, {true, 3, true},
+		// Hermes calls native loop without CLI overrides, using canonical
+		// enabled=true/subagents=2; this must be accepted.
+		{false, 0, false}, {false, 2, false},
+		{true, 1, true}, {true, 3, true},
 		{false, 1, true},
 	} {
 		e := requireNativeLoopInvocation(cfg, tc.orchestrate, tc.count)
@@ -216,5 +219,62 @@ func TestN129CanonicalPolicyCannotBeDowngradedViaConfigOverride(t *testing.T) {
 	otherRoot := t.TempDir()
 	if err := enforceCanonicalNativeRouteConfig(otherRoot, override); err != nil {
 		t.Fatalf("foreign product config overridden: %v", err)
+	}
+}
+
+func TestN129HermesStructuredRunRespectsCanonicalNativeTwoAgentPolicy(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "run-config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg runConfig
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Orchestration.Enabled || cfg.Orchestration.Subagents != 2 ||
+		!cfg.Orchestration.RequireNativeSubagents || !cfg.Orchestration.RequireAnthropicReviewer {
+		t.Fatalf("canonical AirWorker Hermes core policy drifted: %+v", cfg.Orchestration)
+	}
+	// Hermes register(ctx) -> air_worker(action=run) -> native air-worker loop.
+	// No flags are needed because the canonical policy already owns orchestration.
+	if err := requireNativeLoopInvocation(cfg, false, 0); err != nil {
+		t.Fatalf("Hermes structured native run rejected despite 2-agent canonical config: %v", err)
+	}
+	executor := runnerSpec{Kind: "codex", Model: "gpt-6-sol"}
+	reviewer, _, err := cfg.SemanticJudge.Resolve(executor, activeProductReleaseVersion(".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := enforceIndependentAnthropicReviewer(cfg, executor, reviewer); err != nil {
+		t.Fatalf("Hermes structured run lost independent Claude reviewer: %v", err)
+	}
+}
+
+func TestN129CodexAndHermesPluginStartupGuidanceUsesNativeKernel(t *testing.T) {
+	codexManifest, err := os.ReadFile(filepath.Join("..", ".codex-plugin", "plugin.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Interface struct {
+			DefaultPrompt string `json:"defaultPrompt"`
+		} `json:"interface"`
+	}
+	if err := json.Unmarshal(codexManifest, &doc); err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{"air-worker orchestrate", "-subagents 2", "Anthropic reviewer", "not a direct Codex"} {
+		if !strings.Contains(doc.Interface.DefaultPrompt, required) {
+			t.Fatalf("Codex plugin startup missing native route %q", required)
+		}
+	}
+	hermesSkill, err := os.ReadFile(filepath.Join("..", ".hermes", "plugins", "air-worker", "skills", "operate-air-worker", "SKILL.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{"action: run", "air-worker loop", "two parallel read-only Codex", "independent Claude"} {
+		if !strings.Contains(string(hermesSkill), required) {
+			t.Fatalf("Hermes skill missing native route %q", required)
+		}
 	}
 }
