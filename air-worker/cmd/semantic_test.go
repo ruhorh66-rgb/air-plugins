@@ -508,12 +508,28 @@ func TestExplicitSemanticJudgePolicySelectsCodexSolMedium(t *testing.T) {
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		t.Fatalf("unmarshal active run-config.json: %v", err)
 	}
-	got, explicit, err := cfg.SemanticJudge.Resolve(runnerSpec{Kind: "codex", Model: "gpt-6-luna"}, "0.11.9")
+	executor := runnerSpec{Kind: "codex", Model: "gpt-6-luna"}
+	got, explicit, err := cfg.SemanticJudge.Resolve(executor, "0.11.9")
 	if err != nil {
-		t.Fatalf("resolve semantic reviewer: %v", err)
+		t.Fatalf("resolve production semantic reviewer: %v", err)
 	}
-	if got.Kind != "codex" || got.Model != "gpt-6-sol" || got.Effort != "medium" || !explicit {
-		t.Fatalf("explicit semantic reviewer = %+v (explicit=%v), want Codex gpt-6-sol medium", got, explicit)
+	// AirWorker's current product policy requires cross-vendor Anthropic,
+	// not the former explicit same-vendor Codex judge.
+	if got.Kind != "claude" || got.Model != "claude-sonnet-5-5" || got.Effort != "low" || explicit {
+		t.Fatalf("production reviewer = %+v (explicit=%v), want default Claude Sonnet 5.5 low", got, explicit)
+	}
+	if err := enforceIndependentAnthropicReviewer(cfg, executor, got); err != nil {
+		t.Fatalf("valid production Anthropic reviewer refused: %v", err)
+	}
+	// Keep scoped override functionality tested, but the current product
+	// must reject it if it would replace the independent Anthropic reviewer.
+	legacyOverride := semanticJudgePolicy{ReleaseVersion: "0.11.9", Kind: "codex", Model: "gpt-6-sol", Effort: "medium"}
+	oldReviewer, oldExplicit, err := legacyOverride.Resolve(executor, "0.11.9")
+	if err != nil || oldReviewer.Kind != "codex" || oldReviewer.Model != "gpt-6-sol" || oldReviewer.Effort != "medium" || !oldExplicit {
+		t.Fatalf("scoped legacy override contract changed: %+v explicit=%v err=%v", oldReviewer, oldExplicit, err)
+	}
+	if err := enforceIndependentAnthropicReviewer(cfg, executor, oldReviewer); err == nil {
+		t.Fatal("managed AirWorker incorrectly accepted same-vendor reviewer")
 	}
 	if err := (semanticJudgePolicy{}).Validate(); err != nil {
 		t.Fatalf("empty semantic_judge should preserve the default opposite-vendor policy: %v", err)
@@ -522,7 +538,7 @@ func TestExplicitSemanticJudgePolicySelectsCodexSolMedium(t *testing.T) {
 	if err != nil || defaultReviewer.Kind != "claude" || defaultOverride {
 		t.Fatalf("default semantic reviewer = %+v (override=%v), %v", defaultReviewer, defaultOverride, err)
 	}
-	futureReviewer, futureOverride, err := cfg.SemanticJudge.Resolve(runnerSpec{Kind: "codex", Model: "gpt-6-luna"}, "0.11.10")
+	futureReviewer, futureOverride, err := legacyOverride.Resolve(executor, "0.11.10")
 	if err != nil || futureReviewer.Kind != "claude" || futureOverride {
 		t.Fatalf("release-specific reviewer leaked to later release: %+v (override=%v), %v", futureReviewer, futureOverride, err)
 	}
