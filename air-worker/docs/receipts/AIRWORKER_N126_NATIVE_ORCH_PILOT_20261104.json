@@ -1,0 +1,124 @@
+{
+  "schema": "airworker.native-orchestration-pilot-20261104/v1",
+  "owner": "Dev Work 25 / AirWorker",
+  "trigger": "Explicit LPR authorization 2026-11-04 SGT: exactly two sequential OpenAI/Codex executor units and independent Anthropic reviewer, via installed native AirWorker runtime on next planned nodes; no release/install permission",
+  "product_root": "D:/Devbox/AirWorker/worktrees/awlrn-orch-pilot-20261104/air-worker/",
+  "source_parent": "c43b0e3168e9a41c8358b229aa0cd2b61a02930e",
+  "installed_version": "0.11.11-rc.2",
+  "native_ladder": {
+    "installed_cli_sha256": "495d1d274c04aae41189579e368356c9a15bcb1c057227db538c93aa41acefbe",
+    "executor1_requested": {
+      "class": "complex",
+      "native_tier": "gpt6-astra:low",
+      "model": "gpt-6-astra",
+      "provider": "openai"
+    },
+    "executor2_requested": {
+      "class": "bulk",
+      "native_tier": "gpt6-luna:low",
+      "model": "gpt-6-luna",
+      "provider": "openai",
+      "actual_model_invocation": false
+    },
+    "reviewer_requested": {
+      "provider": "anthropic",
+      "default_model": "claude-sonnet-5-5",
+      "complex_model": "claude-opus-5-5",
+      "actual_model_invocation": false
+    },
+    "external_docs": [
+      "https://developers.openai.com/api/docs/models",
+      "https://platform.claude.com/docs/en/models/overview"
+    ],
+    "model_entitlements": "Not inferred from subscription renewal; first Codex runtime actually launched, Claude CLI found via core but Anthropic model inference NOT_PROVEN"
+  },
+  "native_plan": {
+    "node_new_command": "air-worker plan node new -product <isolated root> -request-id AW-ORCH-2CODEX-ANTHROPIC-20261104-DEVWORK25 -parent N-031_learn-2-события-ядра-и-автомат -title <pilot> ...",
+    "node_create_exit_code": 0,
+    "node_id": "N-126_native-two-codex-and-anthropic-reviewer-orchestr",
+    "parent": "N-031_learn-2-события-ядра-и-автомат",
+    "status": "OPEN",
+    "open_nodes_after": 39,
+    "plan_spine_exit_code": 0,
+    "plan_lint_exit_code": 0,
+    "native_edits": "PLAN.md, plan/N-126... and learn/events.jsonl were written by native plan node new, never by direct file edits",
+    "potential_external_nid_collision": "N-126 also appears in historical OmniRouter planning outside this source worktree. Do not merge into canonical node registry without native cross-branch identity reconciliation.",
+    "legacy_release_slice": {
+      "active_release": "0.11.9",
+      "active_step": "R0.11.9-05",
+      "kind": "qa_submit",
+      "native_loop_readonly_dryrun_rc": 2,
+      "cause": "installed core supports R02-R04 only and refuses numeric PLAN fallback; do not force R05 under candidate rc3"
+    }
+  },
+  "session": {
+    "declared_via_native": true,
+    "declare_rc": 0,
+    "status_rc": 0,
+    "principal": "gpt",
+    "session_key": "DevWork25NativeOrch20261104",
+    "status": "ENABLED"
+  },
+  "first_executor": {
+    "native_invocation": "air-worker executor dispatch -product <isolated> -class complex -task-file docs/tasks/N126_ORCH_EXEC1_R05_SOURCE_AUDIT_20261104.md -principal gpt -session-key DevWork25NativeOrch20261104 -json",
+    "transport_result": "EXECUTION_UNKNOWN, no process PID/external CLI exit code returned",
+    "job_id": "gpt__DevWork25NativeOrch20261104__1793758563116920500__2cd29123",
+    "receipt_status_final": "DONE",
+    "process_started": true,
+    "native_job_receipt": "air-worker/.woody/jobs/gpt-DevWork25NativeOrch20261104-executor-N126-ORCH-EXEC1-R05-SOURCE-AUDIT-20261104-md-executor-codex-gpt-6-astra-low.receipt.json",
+    "model": "gpt-6-astra",
+    "effort": "low",
+    "role": "executor/leader",
+    "sandbox": "workspace-write",
+    "source_artifact": "docs/receipts/N126_ORCH_EXEC1_R05_SOURCE_AUDIT_20261104.md",
+    "artifact_bytes": 10079,
+    "artifact_sha256": "674D4A07BA160CAFF8ADCA0D810B3DBF30A83A8B7F94712EDD135AB40B37827A",
+    "terminal_model_event": "turn.completed observed in actual .out JSONL tail",
+    "source_files_examined": 7,
+    "source_hashes_verified_at_readback": "7/7 matched on 2026-11-04 SGT before subsequent isolated run-config modification",
+    "factual_audit_findings": [
+      "R05 is active QA submit, but native release loop R02-R04-only guard returns RC2",
+      "Current source candidate has version 0.11.11-rc.3, while historical active release-slice is 0.11.9; loosening allowlist would be unsafe",
+      "N-070 module publication/pin and N-071 native acceptance remain prerequisites, not established by this audit",
+      "Do not reopen R02 or auto-advance R05; deferred completed-turn review lives in separate shared module path"
+    ],
+    "claimed_outcome": "SOURCE_ANALYSIS_COMPLETE only; no release/Go QA/judge PASS"
+  },
+  "second_executor": {
+    "native_invocation_requested": "air-worker executor dispatch -product <isolated> -class bulk -task-file docs/tasks/N126_ORCH_EXEC2_LEARN_REVIEW_AUDIT_20261104.md -principal gpt -session-key DevWork25NativeOrch20261104 -json",
+    "tool_result": "OPENAI_PLATFORM_TOOL_SECURITY_BLOCKED",
+    "native_child_pid": "NOT_RETURNED",
+    "native_child_rc": "NOT_RETURNED",
+    "native_receipt_count_checked": 0,
+    "native_model_started": false,
+    "retry_attempted": false,
+    "alternate_provider_transport_attempted": false,
+    "blocked_work": "Do not substitute second task with another model/tool/account/CI path"
+  },
+  "reviewer": {
+    "claude_tool_path_resolution_native_rc": 0,
+    "claude_tool_path": "C:/Users/admin_loc/.local/bin/claude.exe",
+    "native_model_policy_default": "claude-sonnet-5-5",
+    "native_model_policy_complex": "claude-opus-5-5",
+    "pilot_config_change": "Only isolated source-worktree run-config.json: remove obsolete release-scoped semantic_judge Codex override so default independent Anthropic model policy is selected; no installed config changed",
+    "native_model_policy_list_rc": 0,
+    "anthropic_live_model_invocation": "NOT_STARTED",
+    "anthropic_verdict": "NOT_PROVEN",
+    "reason": "Native semantic calls run factual judge; native plan-review calls validateProduct, which may execute go test -list through goListSelectors before review. Integrated Go QA previously explicitly denied by platform. No alternative test or runner bypass used. Also second executor has no accepted result to review."
+  },
+  "current_status": {
+    "first_executor": "NATIVE_RUNNING_TO_DONE_RECEIPT_AND_EXACT_SOURCE_READBACK_PASS",
+    "second_executor": "TOOL_SECURITY_BLOCKED_NO_NATIVE_PROCESS",
+    "anthropic_reviewer": "NATIVE_CLI_RESOLVED_NOT_INVOKED",
+    "native_node": "OPEN",
+    "full_two_executor_pilot": "PARTIAL",
+    "native_release": "UNCHANGED",
+    "installed_product": "UNCHANGED",
+    "privileged_operations": false,
+    "go_tests_vet_build": "NOT_RUN",
+    "no_manual_native_PLAN_N_LEARN_edits": true,
+    "no_curator_micromanagement": true
+  },
+  "next_approved_path": "Resume only through installed AirWorker native tool when platform instrument owner authorizes second Codex dispatch; do not retry rejected operation or bypass Go test policy. Keep N-126 OPEN, preserve branch evidence. Then independent Anthropic semantic reviewer only when native preflight can run legally under exact source and result.",
+  "receipt": "docs/receipts/AIRWORKER_N126_NATIVE_ORCH_PILOT_20261104.json"
+}
