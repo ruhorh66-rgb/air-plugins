@@ -1,0 +1,149 @@
+{
+  "schema": "airworker.devwork25.session-close-handoff/v1",
+  "owner": "Dev Work 25 / AirWorker SRVLM01",
+  "trigger": "LPR 2026-11-04 15:45 SGT: save existing work, update existing development/production plans, commit+push, clean only own product worktrees, prepare handoff to new session",
+  "done_when": "Product-side handoff and signed/existing factual receipts preserved and Git-committed/pushed; Wiki dev/prod/index updated with verified live status; own six worktrees CLEAN and local=origin SHA readback. No foreign changes or release install. N126 and P0 stay OPEN.",
+  "judge": "Installed native air-worker plan spine/node list/plan-lint and model/sess status; Git staged diff --check, exact local remote refs, handoff SHA/readback, tool-denial evidence, no fake QA PASS",
+  "receipt": "docs/receipts/AIRWORKER_DEVWORK25_SESSION_CLOSE_20261104.json",
+  "handoff": {
+    "path": "docs/handoff/HANDOFF_DEVWORK25_TO_NEXT_SESSION_20261104.md",
+    "sha256": "0818F332A339B7923285E4B44922C3126C55CA6A3834CBD1754CD5A2CB2C9501",
+    "bytes": 15147,
+    "source_before_handoff_commit": "55d7b0b91cec722b367f6bcaaa51636fe6df9bf2",
+    "source_after_handoff_commit": "TO_BE_PINNED_BY_WIKI_AFTER_GIT_PUSH",
+    "owner_branch": "dev/airworker-native-orch-pilot-20261104",
+    "source_git_root": "D:/Devbox/AirWorker/worktrees/awlrn-orch-pilot-20261104",
+    "source_repo": "https://github.com/ruhorh66-rgb/air-plugins"
+  },
+  "native_owner": {
+    "node": "SRVLM01",
+    "installed_version": "0.11.11-rc.2",
+    "installed_cli_sha256": "495d1d274c04aae41189579e368356c9a15bcb1c057227db538c93aa41acefbe",
+    "session": "gpt__DevWork25NativeOrch20261104",
+    "open_nodes": 39,
+    "node_id": "N-126_native-two-codex-and-anthropic-reviewer-orchestr",
+    "node_status": "OPEN",
+    "native_plan_lint_rc": 0,
+    "node_mismatch": "Current N126 done_when incorrectly describes two sequential executor dispatch units; LPR requires two PARALLEL native subagents then leader then Anthropic reviewer. Repair only with authorized native plan-rephase; never manual edit managed PLAN/N/LEARN.",
+    "node_collision": "N126 is also used in historical OmniRouter owner worktree; verify full ID, owner, and provenance before merging branches.",
+    "managed_nodes_manual_edits": false
+  },
+  "pilot": {
+    "status": "PARTIAL_NOT_ORCHESTRATION_ACCEPTED",
+    "first_executor": {
+      "model": "gpt-6-astra",
+      "effort": "low",
+      "native_receipt_status": "DONE",
+      "job_id": "gpt__DevWork25NativeOrch20261104__1793758563116920500__2cd29123",
+      "artifact": "docs/receipts/N126_ORCH_EXEC1_R05_SOURCE_AUDIT_20261104.md",
+      "artifact_sha256": "674D4A07BA160CAFF8ADCA0D810B3DBF30A83A8B7F94712EDD135AB40B37827A",
+      "read_source_sha_matches": "7/7",
+      "repeat": false
+    },
+    "second_sequential_executor": {
+      "tool_security": "BLOCKED_BEFORE_PID",
+      "native_receipts": 0,
+      "do_not_retry_or_reroute": true
+    },
+    "actual_native_orchestrated_subagents_done": 0,
+    "actual_native_orchestrated_leaders_done": 0,
+    "anthropic_model_review": "NOT_INVOKED",
+    "negative_cli_guard": {
+      "commit": "55d7b0b91cec722b367f6bcaaa51636fe6df9bf2",
+      "test": "TestOrchestrateCLIRefusesHistoricalR05WithoutAgentOrPlanMutation",
+      "static_gofmt": "PASS",
+      "git_diff_check_rc": 0,
+      "go_test_child_rc": "NOT_RUN"
+    },
+    "positive_user_cli_e2e": "NOT_IMPLEMENTED_NOT_RUN",
+    "actual_installed_change": false
+  },
+  "routing": {
+    "historical_active_release": "0.11.9",
+    "historical_step": "R0.11.9-05",
+    "step_kind": "qa_submit",
+    "goal_release_version": "0.11.9",
+    "new_source_candidate_version": "0.11.11-rc.3",
+    "legacy_loop_rc": 2,
+    "root_cause": "cmdOrchestrate → cmdLoop → releaseSliceLoopSupported accepts only R02/R03/R04 and blocks R05 before invoking existing Codex parallel orchestration",
+    "historical_orchestration_tag": "air-worker--v0.10.7",
+    "historical_tag_receipt": "air-worker/docs/receipts/AIRWORKER_RELEASE_0.10.7_ACCEPTANCE_2026-09-17.md",
+    "historical_runner": "cmd/runner_codex.go::invokeCodexOrchestrated",
+    "historical_acceptance": "2 read-only Codex + leader DONE in v0.10.7; historical Anthropic semantic transport reached provider but weekly-limit was NOT_PROVEN",
+    "legacy_sidecar_mutated": false,
+    "guard_required": "No deleting/replacing active release-slices; no numeric PLAN fallback; no unsafe version override. Explicit native current-node route only with trusted actor/goal/session and a positive end-to-end test."
+  },
+  "exact_tool_denial": {
+    "action": "mcp__AIR_Commander_Test__write_file",
+    "node": "SRVLM01",
+    "mode": "rewrite",
+    "target": "D:/Devbox/AirWorker/worktrees/awlrn-orch-pilot-20261104/air-worker/cmd/orchestration_node.go",
+    "error": "Этот вызов инструмента был заблокирован системами безопасности OpenAI. Внимательно проверьте отправляемые данные.",
+    "request_id": "NOT_RETURNED",
+    "rule_id": "NOT_RETURNED",
+    "child_pid": "NOT_RETURNED",
+    "child_rc": "NOT_RETURNED",
+    "file_absent_confirmed": true,
+    "alternate_retry": false,
+    "evidence_wiki": "03_REVIEW/AIRWORKER_DEVWORK25_N126_EXACT_PLATFORM_TOOL_DENIAL_20261104.json",
+    "evidence_wiki_commit": "52e719919a6b174c6002547bf7e3edbb5bd145fd",
+    "evidence_sha256": "A27CCA97CE2D5BC3842574D6279A1D0E4D550FD492370A6F1C492E64E18B6457",
+    "needed_authority": "Platform instrument/security owner must approve exactly this one source-only write via same named native channel. Curator cannot override tool-policy refusals.",
+    "denied_go_qa": "No alternate tool/model/CI to evade earlier Go test/vet policy refusal."
+  },
+  "self_learning": {
+    "architecture": "Common code air-modules/learning; one product-scoped instance/runtime+catalog per product; many class-level skills; prefer revise existing.",
+    "current_index_applied": 40,
+    "current_installed_reviewer_limit": 32,
+    "candidate_limit": 64,
+    "candidate": "c43b0e3168e9a41c8358b229aa0cd2b61a02930e",
+    "candidate_branch": "dev/airworker-hermes-rc3-release-prep-20261104",
+    "module_pin": "v0.1.1",
+    "candidate_qa": "NOT_RUN",
+    "candidate_independent_review": "NOT_PROVEN",
+    "candidate_binary": "NOT_BUILT",
+    "hermes_parity_live_cycle": "NOT_PROVEN",
+    "release_install": "HOLD_NEEDS_DISTINCT_EXPLICIT_LPR_YES",
+    "rollback": "Previously verified installed 0.11.11-rc.2 CLI/tray and cached distribution ZIP"
+  },
+  "next_session_order": [
+    "Read handoff and machine receipt. Verify product + Wiki HEAD, native plan spine/node list/lint, actual active R05, no new model runs/foreign worktree changes.",
+    "While exact routing file write remains blocked, implement independently assigned model-ladder refresh via existing native AirWorker automation; verify actual GPT-6.1 Terra/Sol subscription access and Anthropic reviewer through native interface; avoid PAYG and repetitive Astra run, maintain rollback/history. Vega sm_e6c956b4-e3f5-4b05-a533-445f773aacd4.",
+    "When instrument owner authorizes exact source write, implement smallest current-native-node route reusing existing invokeCodexOrchestrated; preserve release slice; positive user CLI E2E and negative guards under permitted QA; 2 subagents+leader+real independent Anthropic receipts.",
+    "After native orchestration restoration, resume minimally scoped Hermes-parity P0 release QA, separate LPR install gate, natural auto-review/refinement/load; do not broaden to N110/N125 hardening first.",
+    "Tray status clarity/old cards comes after main P0 and model ladder; never delete history to clean UI."
+  ],
+  "owned_source_worktrees": [
+    {
+      "branch": "dev/airworker-native-orch-pilot-20261104",
+      "head_before_handoff": "55d7b0b91cec722b367f6bcaaa51636fe6df9bf2",
+      "role": "active pilot+handoff"
+    },
+    {
+      "branch": "dev/airworker-hermes-rc3-release-prep-20261104",
+      "head": "c43b0e3168e9a41c8358b229aa0cd2b61a02930e",
+      "role": "minimal release-prep frozen"
+    },
+    {
+      "branch": "dev/airworker-hermes-minimal-rc2-20261104",
+      "head": "01eb7779157191691f4d07bdda3b5f35a5ec82c4",
+      "role": "base minimal source frozen"
+    },
+    {
+      "branch": "dev/airworker-hermes-relevance-20261104",
+      "head": "719b0c849db30d5c37547636305dd75c2006ec63",
+      "role": "later relevance source-only"
+    },
+    {
+      "branch": "dev/airworker-awlrn-curator-convergence-20261103",
+      "head": "f5572446b01be46c08c16f57c294927f161e9cac",
+      "role": "wide frozen source"
+    }
+  ],
+  "wiki_branch": "dev/airworker-curator-0.10.14",
+  "no_foreign_worktree_cleanup": true,
+  "no_native_managed_plan_direct_edit": true,
+  "no_native_LEARN_direct_edit": true,
+  "no_release_install_or_privileged_ops": true,
+  "status": "HANDOFF_SOURCE_READY__N126_OPEN__NO_TRUE_2SUBAGENT_PASS__TOOL_SECURITY_WRITE_BLOCK__MODEL_LADDER_NEXT__HERMES_P0_OPEN"
+}
