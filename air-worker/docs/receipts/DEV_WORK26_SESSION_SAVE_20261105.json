@@ -3,12 +3,15 @@
   "at_sgt": "2026-11-05",
   "owner": "Dev Work 26 / SRVLM01",
   "purpose": "LPR instructed preserve coding-session source, native training database lessons, clean git trees and handoff to new session",
-  "status": "SOURCE_ONLY_SESSION_SAVE__RELEASE_HOLD__N130_OPEN",
+  "status": "SOURCE_ONLY_SESSION_SAVE_CLOSED__RELEASE_HOLD__N130_OPEN",
   "source": {
     "root": "D:/Devbox/AirWorker/worktrees/awlrn-orch-pilot-20261104/air-worker",
     "repo": "ruhorh66-rgb/air-plugins",
     "branch": "dev/airworker-native-orch-pilot-20261104",
     "before_session_save_commit": "771a4df1c3e5a52e63823cde1a354f44448c215b",
+    "first_session_save_source_commit": "0ed6477cf8d29c621534a6031c6bb576ff8ce659",
+    "first_session_save_wiki_commit": "b0391aa12f106d4ddeac961eba9c3785d12417bf",
+    "source_and_wiki_remote_readback_before_n131_close": "PASS_LOCAL_UPSTREAM_REMOTE_CLEAN",
     "installed_version": "0.11.11-rc.2",
     "installed_sha256": "495D1D274C04AAE41189579E368356C9A15BCB1C057227DB538C93AA41ACEFBE",
     "code_baseline_frozen": "b659d8684b96662567cc53290019af8ca92c3b98",
@@ -18,7 +21,7 @@
   },
   "plan": {
     "save_node": "N-131_dev-work-26-session-save-learning-and-handoff",
-    "save_node_status": "OPEN_UNTIL_GIT_READBACK",
+    "save_node_status": "CLOSED_NATIVE_RC0_AFTER_BOTH_GIT_READBACK",
     "release_node": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
     "release_node_status": "OPEN",
     "other_open": [
