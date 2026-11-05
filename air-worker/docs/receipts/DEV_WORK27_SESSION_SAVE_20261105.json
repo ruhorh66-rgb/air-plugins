@@ -1,0 +1,114 @@
+{
+  "schema": "air-worker.dev-work27.session-save/v1",
+  "product": "AirWorker",
+  "node": "SRVLM01",
+  "date_sgt": "2026-11-05",
+  "owner": "Dev Work 27 / SRVLM01",
+  "trigger": "LPR instructed save current coding WIP, check source tree, teach AirWorker learning base with coding lessons, commit/push, reconcile plans, prepare next-session handoff",
+  "done_when": "Native 4 LEARN events recorded with IDs, N130 RED WIP accurately preserved without release PASS, source/Wiki commit/push and local=remote=CLEAN readback, handoff and factual receipt, then close only N132 via native core after accepted judge",
+  "judge": "Native plan-lint, log SHA and real exit codes, verified LEARN JSONL, Git source/Wiki SHA readback, N132 closure receipt",
+  "source": {
+    "repo": "https://github.com/ruhorh66-rgb/air-plugins",
+    "branch": "dev/airworker-native-orch-pilot-20261104",
+    "baseline": "fcebbcdc3d241c06427da5621e998c5db9f553c8",
+    "source_only_wip_commit": "ac1a8f74fe281158f07ad0272404cfff4c74fb93",
+    "wip_commit_remote_matches": true,
+    "wip_commit_clean": true,
+    "changed_code": [
+      "air-worker/cmd/bypassguard.go",
+      "air-worker/cmd/bypassguard_test.go"
+    ],
+    "native_managed_files": [
+      "air-worker/PLAN.md",
+      "air-worker/plan/N-132_dev-work-27-session-save-coding-lessons-and-new-s.md",
+      "air-worker/learn/events.jsonl"
+    ],
+    "native_plan_node": "N-132_dev-work-27-session-save-coding-lessons-and-new-s",
+    "n130_status": "OPEN",
+    "n129_status": "OPEN",
+    "n126_status": "OPEN",
+    "n131_status": "CLOSED",
+    "n132_closure": "PENDING_SOURCE_AND_WIKI_READBACK"
+  },
+  "qa": {
+    "last_targeted_log": "D:/Devbox/AirWorker/temp/DevWork27/guard-p1-20261105/path-guard-targeted.log",
+    "last_targeted_log_sha256": "b3677726febee555a5639656c93849fcae6dc69f1c84c7bdfa3c0fdc77cfc3a3",
+    "last_targeted_exit_code": 1,
+    "pass_test": "TestN130AnthropicP1PathQualifiedAndOpaqueShellLaunchers",
+    "red_test": "TestN130PathShellOptionsFailClosedWithoutDiagnosticFalseDenials",
+    "remaining_failures": [
+      "/usr/bin/bash -o pipefail -c 'claude --print review'",
+      "/usr/bin/bash -O extglob -ec 'codex exec --json'"
+    ],
+    "previous_unchanged_scoped_n130_rc": 0,
+    "previous_windows_symlink": "SKIP_NOT_PASS",
+    "go_vet_rc": 0,
+    "git_diff_check_rc": 0,
+    "plan_lint_rc": 0,
+    "full_go_current_sha": "NOT_RUN",
+    "independent_anthropic_current_sha": "NOT_RUN"
+  },
+  "learn": {
+    "journal": "air-worker/learn/events.jsonl",
+    "native_events": [
+      {
+        "id": "LR-20261105T130704Z-cbe8e9e6",
+        "class": "shell-launcher-path-identity-and-quoted-argv",
+        "recorded_rc": 0
+      },
+      {
+        "id": "LR-20261105T130705Z-50f118cf",
+        "class": "bash-option-arity-and-explicit-red-gate",
+        "recorded_rc": 0
+      },
+      {
+        "id": "LR-20261105T130705Z-24783bb1",
+        "class": "fail-closed-powershell-opaque-with-diagnostic-fidelity",
+        "recorded_rc": 0
+      },
+      {
+        "id": "LR-20261105T130705Z-d561dea9",
+        "class": "source-only-handoff-preserve-red-and-exact-sha",
+        "recorded_rc": 0
+      }
+    ],
+    "journal_readback_verified": true,
+    "native_review": {
+      "receipt": ".air-worker/learn/reviews/RV-20261105T130958Z-56fb4586.json",
+      "review_id": "RV-20261105T130958Z-56fb4586",
+      "reviewer": "codex:gpt-5.6-luna:medium",
+      "outcome": "review_error",
+      "error": "reviewer did not return a successful agent_message",
+      "external_wrapper_exit_code": 1,
+      "native_result_exit_code": "UNKNOWN_FROM_SHELL_ABORT",
+      "transcript_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "proposal_applied": false,
+      "reviewed_successfully": false,
+      "retry": "NOT_ATTEMPTED"
+    },
+    "self_learning": {
+      "status": "enabled",
+      "selector_product_root": "R:/-4-/air-worker/worktrees/airworker-0119-n093-worker-b-20261018/air-worker",
+      "owner_transfer": "NOT_PERFORMED",
+      "live_skill_loaded": "NOT_PROVEN"
+    }
+  },
+  "runtime": {
+    "installed_air_worker": "0.11.11-rc.2",
+    "claude_code": "2.1.311",
+    "rc4_published": false,
+    "rc4_installed": false,
+    "rollback_to": "0.11.11-rc.2",
+    "uac": false,
+    "reboot": false,
+    "foreign_services_stopped": false
+  },
+  "handoff": "docs/receipts/HANDOFF_DEV_WORK27_TO_NEXT_SESSION_20261105.md",
+  "next_step": "Fix Bash -o/-O consuming option values under native N130, make exact RED test GREEN, preserve harmless diagnostics, freeze clean SHA; independent Claude reviewer+full applicable QA+VCS-stamped CLI/Tray+signed official release and 3-plugin installed readback only after gates.",
+  "standards": [
+    "DEV-135 S0-first, atomic resumable plan and source-only vs installed separation",
+    "DEV-070 release/readback and rollback",
+    "DEV-137 temp/cache lifecycle"
+  ],
+  "status": "SOURCE_ONLY_WIP_HANDOFF_NOT_RELEASED"
+}
