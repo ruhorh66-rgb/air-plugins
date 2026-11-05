@@ -118,11 +118,49 @@ func verifyUpdateLiveIdentity(m updateManifest, livePath string) error {
 	return verifyUpdateCachesForManifest(m)
 }
 
-func syncKnownPluginCaches(m updateManifest) ([]updateCacheSyncResult, error) {
+// A native update must never discover and mutate another host profile after
+// the cache snapshot. The exact profile set is fixed before any vendor command.
+func validatePinnedUpdateProfiles(expected, actual []distributionProfile) error {
+	if len(expected) == 0 || len(expected) != len(actual) {
+		return fmt.Errorf("host profile set changed since rollback snapshot: expected %d actual %d", len(expected), len(actual))
+	}
+	byKey := make(map[string]distributionProfile, len(actual))
+	for _, p := range actual {
+		key := profileKey(p)
+		if _, exists := byKey[key]; exists {
+			return fmt.Errorf("duplicate live host profile before update: %s", p.Host)
+		}
+		byKey[key] = p
+	}
+	seen := make(map[string]bool, len(expected))
+	for _, pinned := range expected {
+		key := profileKey(pinned)
+		if seen[key] {
+			return fmt.Errorf("duplicate snapshotted host profile: %s", pinned.Host)
+		}
+		seen[key] = true
+		live, ok := byKey[key]
+		if !ok || !pinned.Canonical || !pinned.PluginEnabled ||
+			!live.Canonical || !live.PluginEnabled || !live.HasState ||
+			!samePath(live.InstallPath, pinned.InstallPath) ||
+			live.Version != pinned.Version ||
+			!strings.EqualFold(live.CacheBinary.SHA256, pinned.CacheBinary.SHA256) ||
+			!strings.EqualFold(live.Revision, pinned.Revision) ||
+			!strings.EqualFold(live.PayloadSHA256, pinned.PayloadSHA256) {
+			return fmt.Errorf("snapshotted host profile identity changed: %s", pinned.Host)
+		}
+	}
+	return nil
+}
+
+func syncKnownPluginCaches(m updateManifest, pinnedProfiles []distributionProfile) ([]updateCacheSyncResult, error) {
 	if strings.TrimSpace(os.Getenv("CLAUDE_CONFIG_DIR")) == "" && strings.TrimSpace(userEnvVar("CLAUDE_CONFIG_DIR")) == "" {
 		return nil, fmt.Errorf("active Claude profile is not explicit; set CLAUDE_CONFIG_DIR before plugin update")
 	}
-	profiles := knownUpdateProfiles()
+	if err := validatePinnedUpdateProfiles(pinnedProfiles, knownUpdateProfiles()); err != nil {
+		return nil, fmt.Errorf("host plugin profile preflight: %w", err)
+	}
+	profiles := pinnedProfiles
 	active, err := activeClaudeConfigDir()
 	if err != nil {
 		return nil, err

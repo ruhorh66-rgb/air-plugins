@@ -282,7 +282,8 @@ func cmdUpdateApply(argv []string) int {
 	// Snapshot only own canonical host-plugin metadata and the target version
 	// absence before invoking any vendor update. This runs under the same
 	// native installer lock as the binary replacement and rollback.
-	cacheSnapshot, cacheErr := snapshotManagedUpdateCaches(snapshotDir, m, knownUpdateProfiles())
+	pinnedProfiles := knownUpdateProfiles()
+	cacheSnapshot, cacheErr := snapshotManagedUpdateCaches(snapshotDir, m, pinnedProfiles)
 	if cacheErr != nil {
 		fmt.Fprintln(os.Stderr, "plugin cache preflight:", cacheErr)
 		if !trayDisabled() {
@@ -290,6 +291,17 @@ func cmdUpdateApply(argv []string) int {
 		}
 		return 2
 	}
+	// Parent handles remain open across both vendor commands, any failure,
+	// and restoration. A later junction/rename cannot redirect the cache tree.
+	releaseCachePins, pinErr := cacheSnapshot.holdCanonicalParentsDuringUpdate()
+	if pinErr != nil {
+		fmt.Fprintln(os.Stderr, "plugin cache ancestor hold:", pinErr)
+		if !trayDisabled() {
+			_ = startTrayDetached(dstTray)
+		}
+		return 2
+	}
+	defer releaseCachePins()
 
 	rollback := func(cause error) int {
 		restoreErr := restoreUpdateSnapshot(snapshotDir, *home)
@@ -329,7 +341,7 @@ func cmdUpdateApply(argv []string) int {
 		func(liveCLI string) error {
 			// Vendor updates now run under the install lock and are covered by
 			// the rollback snapshot of *both* AirWorker host cache identities.
-			if _, err := syncKnownPluginCaches(m); err != nil {
+			if _, err := syncKnownPluginCaches(m, pinnedProfiles); err != nil {
 				return fmt.Errorf("host plugin cache sync failed: %w", err)
 			}
 			if err := verifyUpdateLiveIdentity(m, liveCLI); err != nil {

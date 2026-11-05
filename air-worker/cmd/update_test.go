@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -196,5 +197,42 @@ func TestN130InstalledReleaseRequiresExplicitCleanVCSIdentity(t *testing.T) {
 				t.Fatalf("missing/dirty build must fail identity before vendor profile scan: %v", err)
 			}
 		})
+	}
+}
+
+func TestN130PinnedHostProfilesCannotExpandOrChangeAfterSnapshot(t *testing.T) {
+	home := t.TempDir()
+	makeProfile := func(host string) distributionProfile {
+		return distributionProfile{
+			Host:        host,
+			ConfigDir:   filepath.Join(home, host+"-config"),
+			InstallPath: filepath.Join(home, host+"-config", "plugins", "cache", "air-plugins", "air-worker", "0.11.11-rc.2"),
+			HasState:    true, PluginEnabled: true, Canonical: true,
+			Version: "0.11.11-rc.2", Revision: strings.Repeat("a", 40),
+			PayloadSHA256: strings.Repeat("b", 64),
+			CacheBinary:   distributionBinaryIdentity{SHA256: strings.Repeat("c", 64), Readable: true},
+		}
+	}
+	old := []distributionProfile{makeProfile("claude"), makeProfile("codex")}
+	if err := validatePinnedUpdateProfiles(old, []distributionProfile{old[1], old[0]}); err != nil {
+		t.Fatalf("unchanged profiles in reversed order rejected: %v", err)
+	}
+	if err := validatePinnedUpdateProfiles(old, old[:1]); err == nil {
+		t.Fatal("lost host cache accepted after snapshot")
+	}
+	extra := makeProfile("claude")
+	extra.ConfigDir = filepath.Join(home, "another-claude-profile")
+	if err := validatePinnedUpdateProfiles(old, append(append([]distributionProfile(nil), old...), extra)); err == nil {
+		t.Fatal("unsnapshotted new host profile accepted for vendor mutation")
+	}
+	changed := append([]distributionProfile(nil), old...)
+	changed[0].CacheBinary.SHA256 = strings.Repeat("d", 64)
+	if err := validatePinnedUpdateProfiles(old, changed); err == nil {
+		t.Fatal("previous managed cache binary identity drift accepted")
+	}
+	changed = append([]distributionProfile(nil), old...)
+	changed[0].Canonical = false
+	if err := validatePinnedUpdateProfiles(old, changed); err == nil {
+		t.Fatal("foreign marketplace accepted")
 	}
 }
