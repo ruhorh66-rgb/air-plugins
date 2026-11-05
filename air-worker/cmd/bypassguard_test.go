@@ -131,3 +131,47 @@ func TestN130AnthropicP1FlagFirstMarketplaceAndCodexGlobalFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestN130AnthropicShellWrappersMustNotHideVendorModelCalls(t *testing.T) {
+	denied := []string{
+		`cmd /c codex exec --json -m gpt-6-sol`,
+		`cmd.exe /d /c "codex --model gpt-6-sol exec --json"`,
+		`powershell -NoProfile -Command "codex exec --json"`,
+		`pwsh -NonInteractive -c '& "C:\Tools\codex.cmd" exec --json'`,
+		`bash -c 'claude -p "review"'`,
+		`sh -c "codex e task"`,
+		`env X=1 codex exec --json`,
+		`env FOO=bar claude --print prompt`,
+		`npx @openai/codex exec --json`,
+		`npx -y @openai/codex e hello`,
+		`call codex exec --json`,
+		`start codex exec --json`,
+		`(codex exec --json)`,
+		`$(codex exec --json)`,
+		`"codex" exec --json`,
+		`'claude' -p hi`,
+		"git status; cmd /c codex exec --json",
+		"Write-Output safe; powershell -Command 'claude -p hi'",
+		"claude plugin marketplace add ruhorh66-rgb/air-plugins && bash -c 'codex exec --json'",
+	}
+	for _, command := range denied {
+		if blocked, reason := classifyBypass(command, nil); !blocked || reason == "" {
+			t.Errorf("wrapped vendor model bypass not blocked: %q (%s)", command, reason)
+		}
+	}
+	allowed := []string{
+		`codex login status`, `codex --version`, `claude --version`,
+		`git grep -n 'codex exec' -- cmd`,
+		`Write-Output 'claude auth status'`,
+		`echo 'codex exec is forbidden here'`,
+		`powershell -NoProfile -Command "Write-Output 'codex exec is forbidden'"`,
+		`bash -c 'echo "claude -p is forbidden"'`,
+		`air-worker review source -node N-130 -executor codex`,
+		`air-worker orchestrate -product . -subagents 2`,
+	}
+	for _, command := range allowed {
+		if blocked, reason := classifyBypass(command, nil); blocked {
+			t.Errorf("benign diagnostic/documentation blocked: %q (%s)", command, reason)
+		}
+	}
+}

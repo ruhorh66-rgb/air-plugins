@@ -45,6 +45,10 @@ var (
 // в разрешённом виде); пустые элементы и пустой срез допустимы — тогда правило 2 ловит
 // только копии в кэш плагина.
 func classifyBypass(cmdText string, installDirs []string) (bool, string) {
+	return classifyBypassDepth(cmdText, installDirs, 0)
+}
+
+func classifyBypassDepth(cmdText string, installDirs []string, depth int) (bool, string) {
 	s := strings.TrimSpace(cmdText)
 	if s == "" {
 		return false, ""
@@ -110,6 +114,14 @@ func classifyBypass(cmdText string, installDirs []string) (bool, string) {
 			if arg == "-p" || arg == "--print" {
 				return true, "прямой Claude reviewer обходит native AirWorker и квитанцию независимого судьи: используй air-worker semantic или plan-review"
 			}
+		}
+	}
+	// Direct regexes correctly avoid quoted documentation and grep output.
+	// Shell interpreters, however, execute a nested command string. Unwrap
+	// only explicit launcher syntax and apply the SAME native guard there.
+	if depth < 6 {
+		if blocked, reason := classifyKnownShellWrapper(s, installDirs, depth+1); blocked {
+			return true, reason
 		}
 	}
 	return false, ""
@@ -182,4 +194,109 @@ func airWorkerInstallInvocation(s string) (string, bool) {
 		return "", true // голое имя, путь неизвестен
 	}
 	return filepath.Clean(p), true
+}
+
+var reKnownShellSegment = regexp.MustCompile(`(?m)(?:^|[\r\n;&|])\s*([^\r\n;&|]+)`)
+
+// The host guard receives shell text, not an executable AST. Only wrappers
+// that explicitly execute their argument as a command are unwrapped here.
+// Plain grep, echo and Write-Output text remains inert.
+func classifyKnownShellWrapper(command string, installDirs []string, depth int) (bool, string) {
+	for _, m := range reKnownShellSegment.FindAllStringSubmatch(command, -1) {
+		segment := strings.TrimSpace(m[1])
+		payload := unwrapNativeShellLauncher(segment)
+		if payload == "" || strings.EqualFold(payload, segment) {
+			continue
+		}
+		if blocked, reason := classifyBypassDepth(payload, installDirs, depth); blocked {
+			return true, reason
+		}
+	}
+	return false, ""
+}
+
+func unquoteCommandPayload(s string) string {
+	s = strings.TrimSpace(s)
+	for count := 0; count < 4; count++ {
+		if len(s) >= 3 && strings.HasPrefix(s, "$(") && strings.HasSuffix(s, ")") {
+			s = strings.TrimSpace(s[2 : len(s)-1])
+		} else if len(s) >= 2 && s[0] == '(' && s[len(s)-1] == ')' {
+			s = strings.TrimSpace(s[1 : len(s)-1])
+		} else if len(s) >= 2 && (s[0] == '"' && s[len(s)-1] == '"' ||
+			s[0] == '\'' && s[len(s)-1] == '\'') {
+			s = strings.TrimSpace(s[1 : len(s)-1])
+		} else {
+			break
+		}
+	}
+	return s
+}
+
+func unwrapNativeShellLauncher(segment string) string {
+	segment = strings.TrimSpace(segment)
+	if segment == "" {
+		return ""
+	}
+	if (strings.HasPrefix(segment, "$(") || strings.HasPrefix(segment, "(")) &&
+		strings.HasSuffix(segment, ")") {
+		return unquoteCommandPayload(segment)
+	}
+	args := strings.Fields(segment)
+	if len(args) < 2 {
+		return ""
+	}
+	first := strings.ToLower(strings.Trim(args[0], `"'`))
+	joinAfter := func(i int) string {
+		if i >= len(args) {
+			return ""
+		}
+		return unquoteCommandPayload(strings.Join(args[i:], " "))
+	}
+	switch first {
+	case "cmd", "cmd.exe":
+		for i := 1; i < len(args); i++ {
+			if strings.EqualFold(args[i], "/c") || strings.EqualFold(args[i], "/k") {
+				return joinAfter(i + 1)
+			}
+		}
+	case "powershell", "powershell.exe", "pwsh", "pwsh.exe":
+		for i := 1; i < len(args); i++ {
+			switch strings.ToLower(args[i]) {
+			case "-command", "-c", "/command":
+				return joinAfter(i + 1)
+			}
+		}
+	case "bash", "sh", "zsh":
+		for i := 1; i < len(args); i++ {
+			option := strings.ToLower(args[i])
+			if option == "-c" || option == "-lc" || option == "-ic" {
+				return joinAfter(i + 1)
+			}
+		}
+	case "env":
+		i := 1
+		for i < len(args) && (strings.Contains(args[i], "=") || args[i] == "-i") {
+			i++
+		}
+		return joinAfter(i)
+	case "call", "start":
+		i := 1
+		if first == "start" && i < len(args) && (args[i] == `""` || args[i] == `''`) {
+			i++
+		}
+		return joinAfter(i)
+	case "npx", "npx.cmd":
+		i := 1
+		for i < len(args) && (args[i] == "-y" || args[i] == "--yes") {
+			i++
+		}
+		if i < len(args) && strings.EqualFold(args[i], "@openai/codex") {
+			return "codex " + strings.Join(args[i+1:], " ")
+		}
+	case "codex", "claude":
+		if strings.HasPrefix(args[0], `"`) || strings.HasPrefix(args[0], "'") {
+			return first + " " + strings.Join(args[1:], " ")
+		}
+	}
+	return ""
 }
