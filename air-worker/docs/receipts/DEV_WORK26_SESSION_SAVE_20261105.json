@@ -1,0 +1,108 @@
+{
+  "schema": "air-worker.devwork26.session-save-handoff/v1",
+  "at_sgt": "2026-11-05",
+  "owner": "Dev Work 26 / SRVLM01",
+  "purpose": "LPR instructed preserve coding-session source, native training database lessons, clean git trees and handoff to new session",
+  "status": "SOURCE_ONLY_SESSION_SAVE__RELEASE_HOLD__N130_OPEN",
+  "source": {
+    "root": "D:/Devbox/AirWorker/worktrees/awlrn-orch-pilot-20261104/air-worker",
+    "repo": "ruhorh66-rgb/air-plugins",
+    "branch": "dev/airworker-native-orch-pilot-20261104",
+    "before_session_save_commit": "771a4df1c3e5a52e63823cde1a354f44448c215b",
+    "installed_version": "0.11.11-rc.2",
+    "installed_sha256": "495D1D274C04AAE41189579E368356C9A15BCB1C057227DB538C93AA41ACEFBE",
+    "code_baseline_frozen": "b659d8684b96662567cc53290019af8ca92c3b98",
+    "update_release_published": false,
+    "update_release_installed": false,
+    "handoff": "docs/receipts/HANDOFF_DEV_WORK26_TO_DEV_WORK27_20261105.md"
+  },
+  "plan": {
+    "save_node": "N-131_dev-work-26-session-save-learning-and-handoff",
+    "save_node_status": "OPEN_UNTIL_GIT_READBACK",
+    "release_node": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+    "release_node_status": "OPEN",
+    "other_open": [
+      "N-126",
+      "N-128",
+      "N-129",
+      "R0.11.9-05"
+    ],
+    "native_plan_lint_rc": 0
+  },
+  "coding_change_summary": [
+    "cmd/bypassguard.go and bypassguard_test.go: continue parsing compound marketplace command before native model path allow, no early ALLOW",
+    "cmd/semantic.go and semantic_process_exit_test.go: reject Claude semantic PASS-like JSON on nonzero process status",
+    "cmd/update.go, update_windows.go, update_cache_transaction_windows.go, update_cache_transaction_windows_test.go: snapshot and rollback own Claude/Codex cache versions and vendor metadata inside native updater lock; old installed release left unchanged"
+  ],
+  "qa": {
+    "gofmt_rc": 0,
+    "targeted_command": "go -C cmd test . -run '^(TestN130|TestUpdatePair)' -count=1 -timeout 150s",
+    "targeted_go_test_rc": 0,
+    "go_vet_rc": 0,
+    "git_diff_check_rc": 0,
+    "windows_symlink_adversarial_test": "SKIP: symlink privilege missing",
+    "prior_full_go_baseline_sha": "9e53ebc551c5299a3e05e2b9462acac70d06e882",
+    "prior_full_go_baseline_rc": 0,
+    "full_go_on_session_save_source": "NOT_RUN",
+    "independent_review_on_n130_after_fix": "NOT_RUN",
+    "normal_rollback_fixture": "PASS",
+    "real_install_rollback": "NOT_TESTED"
+  },
+  "learning": {
+    "mechanism": "native air-worker learn event -product source root; never manual journal edits",
+    "event_receipt_rc": 0,
+    "events": [
+      {
+        "id": "LR-20261105T033806Z-996cea46",
+        "class": "native-provider-auth-route"
+      },
+      {
+        "id": "LR-20261105T033844Z-e3929321",
+        "class": "model-reviewer-fail-closed"
+      },
+      {
+        "id": "LR-20261105T033844Z-933039f7",
+        "class": "compound-shell-hook-guard"
+      },
+      {
+        "id": "LR-20261105T033844Z-d8dea8f3",
+        "class": "atomic-plugin-release-rollback"
+      },
+      {
+        "id": "LR-20261105T033844Z-8de50215",
+        "class": "release-provenance-build-and-signature"
+      },
+      {
+        "id": "LR-20261105T033845Z-504df06b",
+        "class": "precise-qa-and-unknown-result"
+      }
+    ],
+    "native_learn_review_started": true,
+    "native_learn_review_session": "DevWork26Native20261104",
+    "native_learn_review_receipt": "NOT_YET_TERMINAL",
+    "new_procedure_applied": "NOT_PROVEN",
+    "active_self_owner_root": "R:/-4-/air-worker/worktrees/airworker-0119-n093-worker-b-20261018/air-worker",
+    "active_self_owner_transfer": "NOT_PERFORMED"
+  },
+  "release_gates": {
+    "lpr_publication_install_approval": "ALREADY_GRANTED_BY_USER",
+    "current_source_immutable_signed_publish": "NOT_READY",
+    "signer": "external existing Ed25519 key owner required, no secret copied or new root",
+    "vcs_build_from_git": "verified on previous code commit b659d868",
+    "old_candidate_zip": "NOT_ELIGIBLE_AFTER_N130_DELTA",
+    "next_release_artifact_sha": "NOT_BUILT",
+    "rollback_baseline": "0.11.11-rc.2 available in two host caches and official GitHub WITH_ROLLBACK release",
+    "live_config_F": "requires two exact opt-in flags in authorized release transaction",
+    "actual_two_parallel_codex_agents": "NOT_PROVEN",
+    "hermes_auto_learning_e2e": "NOT_PROVEN"
+  },
+  "handoff_next": [
+    "Confirm both source and Wiki branch SHA/readback/CLEAN with AIR Commander node SRVLM01",
+    "Read PLAN and node N130/N131 and this machine receipt; do not repeat accepted tests blindly",
+    "Check native learn review terminal receipt from this session, no duplicate review run",
+    "Independently security-review candidate rollback junction/reparse logic and update fail-closed path",
+    "Run scoped final QA and review on exact clean git source SHA before release; avoid false PASS",
+    "Arrange existing Ed25519 signed publisher key owner via curator, no bypass or raw secret",
+    "Release Codex/Claude/Hermes via official signed update only, verify installed host hook delivery/config and rc2 rollback before Hermes P0"
+  ]
+}

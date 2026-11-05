@@ -759,14 +759,9 @@ func cmdUpdate(argv []string) int {
 			printUpdateState(st, *asJSON)
 			return 0
 		}
-		st.Phase = "syncing-host-caches"
-		_ = writeUpdateState(st)
-		if _, err := syncKnownPluginCaches(m); err != nil {
-			st.Phase, st.Error = "error", "host plugin cache sync failed: "+err.Error()
-			_ = writeUpdateState(st)
-			printUpdateState(st, *asJSON)
-			return 1
-		}
+		// Cache synchronization is part of the _apply locked transaction now.
+		// Before handoff no plugin registry/cache is mutated, so a failed
+		// detached launch leaves the previous installed host plugins intact.
 		st.Phase, st.Error = "handoff", ""
 		_ = writeUpdateState(st)
 		if err := launchAirWorkerUpdateApply(m, stage, manifestPath, updateInstallHome()); err != nil {

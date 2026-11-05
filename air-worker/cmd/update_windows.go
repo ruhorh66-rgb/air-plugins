@@ -279,9 +279,23 @@ func cmdUpdateApply(argv []string) int {
 			return 2
 		}
 	}
+	// Snapshot only own canonical host-plugin metadata and the target version
+	// absence before invoking any vendor update. This runs under the same
+	// native installer lock as the binary replacement and rollback.
+	cacheSnapshot, cacheErr := snapshotManagedUpdateCaches(snapshotDir, m, knownUpdateProfiles())
+	if cacheErr != nil {
+		fmt.Fprintln(os.Stderr, "plugin cache preflight:", cacheErr)
+		if !trayDisabled() {
+			_ = startTrayDetached(dstTray)
+		}
+		return 2
+	}
 
 	rollback := func(cause error) int {
 		restoreErr := restoreUpdateSnapshot(snapshotDir, *home)
+		// Reconcile own host caches even if binary restoration itself fails.
+		// A stale newest Codex cache must never count as a successful rollback.
+		cacheRestoreErr := cacheSnapshot.rollback()
 		st := updateState{
 			CurrentVersion: oldVersion,
 			Channel:        cfg.Channel,
@@ -295,13 +309,16 @@ func cmdUpdateApply(argv []string) int {
 		if restoreErr != nil {
 			st.Error += "; " + restoreErr.Error()
 		}
+		if cacheRestoreErr != nil {
+			st.Error += "; " + cacheRestoreErr.Error()
+		}
 		_ = writeUpdateState(st)
 		writeUpdateReceipt("update-result.json", st)
 		if !trayDisabled() {
 			_ = startTrayDetached(dstTray)
 		}
 		fmt.Fprintln(os.Stderr, st.Error)
-		if restoreErr != nil {
+		if restoreErr != nil || cacheRestoreErr != nil {
 			return 2
 		}
 		return 1
@@ -310,6 +327,11 @@ func cmdUpdateApply(argv []string) int {
 	if err := replaceUpdatePairTransactional(
 		snapshotDir, *home, stagedCLI, stagedTray, m,
 		func(liveCLI string) error {
+			// Vendor updates now run under the install lock and are covered by
+			// the rollback snapshot of *both* AirWorker host cache identities.
+			if _, err := syncKnownPluginCaches(m); err != nil {
+				return fmt.Errorf("host plugin cache sync failed: %w", err)
+			}
 			if err := verifyUpdateLiveIdentity(m, liveCLI); err != nil {
 				return fmt.Errorf("distribution identity: %w", err)
 			}

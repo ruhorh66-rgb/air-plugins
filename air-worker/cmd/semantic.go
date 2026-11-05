@@ -554,7 +554,12 @@ func invokeSemanticClaude(scope sessionScope, exePath, prompt string, reviewer r
 		Runner: reviewer.Kind, Provider: reviewer.Kind, Model: reviewer.Model, Effort: reviewer.Effort,
 		Role: "semantic-reviewer", Sandbox: "read-only",
 	})
-	raw := decodeOutput(out)
+	return parseClaudeSemanticResult(decodeOutput(out), runErr)
+}
+
+// The native job's process exit is authoritative. A valid-looking PASS emitted
+// before a nonzero exit must never be promoted into an accepted semantic verdict.
+func parseClaudeSemanticResult(raw string, runErr error) (string, string, *float64, *int, error) {
 	var res *claudeResult
 	for _, line := range strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n") {
 		t := strings.TrimSpace(line)
@@ -570,10 +575,14 @@ func invokeSemanticClaude(scope sessionScope, exePath, prompt string, reviewer r
 			res = &cp
 		}
 	}
-	if res == nil {
-		if runErr != nil {
-			return "", "", nil, nil, fmt.Errorf("claude semantic process: %w", runErr)
+	if runErr != nil {
+		if res != nil {
+			return "", res.SessionID, res.TotalCostUSD, res.NumTurns,
+				fmt.Errorf("claude semantic process exited unsuccessfully: %w", runErr)
 		}
+		return "", "", nil, nil, fmt.Errorf("claude semantic process: %w", runErr)
+	}
+	if res == nil {
 		return "", "", nil, nil, errors.New("claude semantic judge returned no result object")
 	}
 	if res.IsError {

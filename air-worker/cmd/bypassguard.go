@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	reMarketplaceAdd = regexp.MustCompile(`(?i)\bplugin\s+marketplace\s+add\s+(\S+)`)
+	reMarketplaceAdd = regexp.MustCompile(`(?i)\bplugin\s+marketplace\s+add\s+([^\s;&|]+)`)
 	reOwnerRepo      = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 	reCopyVerb       = regexp.MustCompile(`(?i)(^|[\s|&;])(copy|xcopy|robocopy|move|copy-item|move-item|cp|mv)([\s]|$)`)
 	reAWInstall      = regexp.MustCompile(`(?i)("[^"]*air-worker\.exe"|\S*air-worker\.exe|air-worker)\s+install\b`)
@@ -50,13 +50,14 @@ func classifyBypass(cmdText string, installDirs []string) (bool, string) {
 		return false, ""
 	}
 
-	// 1) подмена маркетплейса локальным путём.
-	if m := reMarketplaceAdd.FindStringSubmatch(s); m != nil {
+	// 1) An authorized GitHub marketplace operation is not a blanket ALLOW
+	// for the rest of a compound shell line. Check *every* marketplace add
+	// and continue to the copy/install/direct-model guards below.
+	for _, m := range reMarketplaceAdd.FindAllStringSubmatch(s, -1) {
 		arg := strings.Trim(m[1], `"'`)
 		if isLocalPathArg(arg) {
 			return true, "подмена маркетплейса локальным путём: " + arg + " — источник обязан быть GitHub ruhorh66-rgb/air-plugins"
 		}
-		return false, ""
 	}
 
 	// 2) копирование/перемещение в каталог установки air-worker или в кэш плагина.

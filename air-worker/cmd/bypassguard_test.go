@@ -71,3 +71,31 @@ func TestСтражОбходаПустыеКаталоги(t *testing.T) {
 		t.Error("без installDirs копию в каталог установки ловить нечем — это ожидаемо, не паника")
 	}
 }
+
+func TestN130CompoundAuthorizedMarketplaceCannotMaskLaterBypass(t *testing.T) {
+	examples := []struct {
+		name    string
+		cmd     string
+		blocked bool
+	}{
+		{"valid_single", "claude plugin marketplace add ruhorh66-rgb/air-plugins", false},
+		{"market_then_codex_semicolon", "claude plugin marketplace add ruhorh66-rgb/air-plugins; codex exec --json", true},
+		{"market_then_codex_and", "claude plugin marketplace add ruhorh66-rgb/air-plugins && codex exec --json", true},
+		{"market_then_codex_newline", "claude plugin marketplace add ruhorh66-rgb/air-plugins\ncodex app-server --listen stdio://", true},
+		{"market_then_claude_print", "claude plugin marketplace add ruhorh66-rgb/air-plugins | claude -p 'review'", true},
+		{"market_then_local_marketplace", "claude plugin marketplace add ruhorh66-rgb/air-plugins; claude plugin marketplace add F:\\evil\\plugins", true},
+		{"market_then_install_copy", "claude plugin marketplace add ruhorh66-rgb/air-plugins; Copy-Item .\\x.exe C:\\Users\\u\\.claude\\plugins\\cache\\air-plugins\\air-worker\\x.exe", true},
+		{"valid_market_then_native", "claude plugin marketplace add ruhorh66-rgb/air-plugins; air-worker plan-review -product . -executor codex", false},
+	}
+	for _, tc := range examples {
+		t.Run(tc.name, func(t *testing.T) {
+			denied, reason := classifyBypass(tc.cmd, []string{testInstallDir})
+			if denied != tc.blocked {
+				t.Fatalf("blocked=%v want=%v reason=%q command=%q", denied, tc.blocked, reason, tc.cmd)
+			}
+			if tc.blocked && reason == "" {
+				t.Fatal("blocked command must provide a concrete safe native-route reason")
+			}
+		})
+	}
+}

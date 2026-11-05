@@ -808,3 +808,5 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] PLAN.md · owner:Dev Work 26 / AirWorker SRVLM01 · [[N-127_devwork26-subscription-model-ladder-weekly-refre]] · DevWork26 subscription model ladder weekly refresh
 - [open] N-127_devwork26-subscription-model-ladder-weekly-refre · owner:Dev Work 26 / SRVLM01 · [[N-128_n128-native-claude-subscription-preflight-and-ho]] · N128 native Claude subscription preflight and hook guidance
 - [open] N-128_n128-native-claude-subscription-preflight-and-ho · owner:Dev Work 26 / SRVLM01 · [[N-129_native-route-enforcement-at-hook-and-cli-boundar]] · Native route enforcement at hook and CLI boundaries
+- [open] N-129_native-route-enforcement-at-hook-and-cli-boundar · owner:Dev Work 26 / SRVLM01 · [[N-130_rc4-release-p0-source-reviewer-fixes-and-transac]] · RC4 release P0 source reviewer fixes and transactional rollback
+- [open] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 26 / SRVLM01 · [[N-131_dev-work-26-session-save-learning-and-handoff]] · Dev Work 26 session save, learning and handoff
