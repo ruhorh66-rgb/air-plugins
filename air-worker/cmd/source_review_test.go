@@ -180,3 +180,30 @@ func TestNativeSourceReviewRoutesNativeNNodeWithoutLegacyStep(t *testing.T) {
 		t.Fatal("invented native node accepted")
 	}
 }
+
+func TestNativeSourceReviewAcceptsBoundedFindingFixWhileRejectingUnknownFields(t *testing.T) {
+	root, commit, task, refs := sourceReviewFixture(t)
+	v := sourceReviewVerdict{
+		Verdict: "FAIL_P1", SourceCommit: commit, TaskSHA256: task,
+		TaskRead: "TASK_READ_OK", Checked: refs[:1],
+		Findings: []sourceReviewFinding{{
+			Severity: "P1", Path: refs[0].Path, Line: refs[0].Line, Quote: refs[0].Quote,
+			Detail: "verified regression", Next: "restore the own cache before another update",
+		}},
+		Next: "fix before release",
+	}
+	if got, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, task); err != nil || got.Verdict != "FAIL_P1" {
+		t.Fatalf("bounded Claude per-finding next was rejected or promoted: %+v %v", got, err)
+	}
+	v.Findings[0].Next = strings.Repeat("x", 1025)
+	if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, task); err == nil {
+		t.Fatal("oversized suggested fix accepted")
+	}
+	raw := strings.Replace(sourceReviewJSON(t, sourceReviewVerdict{
+		Verdict: "NOT_PROVEN", SourceCommit: commit, TaskSHA256: task, TaskRead: "TASK_READ_OK",
+		Checked: refs[:1], Next: "not enough evidence",
+	}), `"line":1`, `"line":1,"next":"unexpected"`, 1)
+	if _, err := parseSourceReviewVerdict(raw, root, commit, task); err == nil {
+		t.Fatal("unknown field inside checked evidence accepted")
+	}
+}
