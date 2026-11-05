@@ -290,11 +290,42 @@ func unwrapNativeShellLauncher(segment string) string {
 			}
 		}
 	case "env":
-		i := 1
-		for i < len(args) && (strings.Contains(args[i], "=") || args[i] == "-i") {
-			i++
+		// env options precede the command and some consume a separate value.
+		// Do not mistake those values for the executable being launched.
+		for i := 1; i < len(args); {
+			option := strings.ToLower(args[i])
+			switch {
+			case option == "--":
+				return joinAfter(i + 1)
+			case option == "-i" || option == "--ignore-environment":
+				i++
+			case option == "-u" || option == "--unset" || option == "-c" || option == "--chdir":
+				if i+1 >= len(args) {
+					return ""
+				}
+				i += 2
+			case strings.HasPrefix(option, "--unset=") || strings.HasPrefix(option, "--chdir=") ||
+				(strings.HasPrefix(option, "-u") && len(option) > 2) ||
+				(strings.HasPrefix(option, "-c") && len(option) > 2):
+				i++
+			case option == "-s" || option == "--split-string":
+				if i+1 >= len(args) {
+					return ""
+				}
+				return strings.ReplaceAll(joinAfter(i+1), `\"`, `"`)
+			case strings.HasPrefix(option, "--split-string="):
+				payload := strings.TrimPrefix(args[i], "--split-string=")
+				if i+1 < len(args) {
+					payload += " " + strings.Join(args[i+1:], " ")
+				}
+				return strings.ReplaceAll(unquoteCommandPayload(payload), `\"`, `"`)
+			case !strings.HasPrefix(option, "-") && strings.Contains(args[i], "="):
+				i++
+			default:
+				return joinAfter(i)
+			}
 		}
-		return joinAfter(i)
+		return ""
 	case "call", "start", "then", "do", "nohup", "time", "{":
 		i := 1
 		if first == "start" && i < len(args) && (args[i] == `""` || args[i] == `''`) {
@@ -317,8 +348,13 @@ func unwrapNativeShellLauncher(segment string) string {
 		for i < len(args) && (args[i] == "-y" || args[i] == "--yes") {
 			i++
 		}
-		if i < len(args) && strings.EqualFold(args[i], "@openai/codex") {
-			return "codex " + strings.Join(args[i+1:], " ")
+		if i < len(args) {
+			switch strings.ToLower(strings.Trim(args[i], `"'`)) {
+			case "@openai/codex":
+				return "codex " + strings.Join(args[i+1:], " ")
+			case "@anthropic-ai/claude-code":
+				return "claude " + strings.Join(args[i+1:], " ")
+			}
 		}
 	case "codex", "claude":
 		if strings.HasPrefix(args[0], `"`) || strings.HasPrefix(args[0], "'") {

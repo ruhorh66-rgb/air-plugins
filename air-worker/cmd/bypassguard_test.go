@@ -221,6 +221,12 @@ func TestN130AnthropicNativeWrapperNpxAndEnvOptions(t *testing.T) {
 		"env -S 'claude -p review'",
 		"env -S 'bash -c \"codex exec --json\"'",
 		"env -- claude -p review",
+		"env -i -u CLAUDE_CONFIG_DIR -C own-temp-dir -- codex e task",
+		"env --ignore-environment --unset=CLAUDE_CONFIG_DIR --chdir=own-temp-dir claude -p review",
+		"env -uCLAUDE_CONFIG_DIR claude --print review",
+		"env -Cown-temp-dir codex app-server",
+		"env --split-string 'claude --print review'",
+		"env --split-string='codex exec --json'",
 	}
 	for _, command := range denied {
 		if denied, why := classifyBypass(command, nil); !denied || why == "" {
@@ -234,6 +240,11 @@ func TestN130AnthropicNativeWrapperNpxAndEnvOptions(t *testing.T) {
 		"env -C own-temp-dir git status",
 		"env --chdir=own-temp-dir air-worker version",
 		"env -S 'git status'",
+		"npx -y @anthropic-ai/claude-code --version",
+		"npx --yes @anthropic-ai/claude-code --version",
+		"env -i -u CLAUDE_CONFIG_DIR git status",
+		"env --ignore-environment --chdir own-temp-dir -- codex --version",
+		"env --split-string='git status'",
 	}
 	for _, command := range allowed {
 		if denied, why := classifyBypass(command, nil); denied {
