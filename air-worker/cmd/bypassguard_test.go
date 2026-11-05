@@ -99,3 +99,35 @@ func TestN130CompoundAuthorizedMarketplaceCannotMaskLaterBypass(t *testing.T) {
 		})
 	}
 }
+
+func TestN130AnthropicP1FlagFirstMarketplaceAndCodexGlobalFlags(t *testing.T) {
+	for _, command := range []string{
+		`claude plugin marketplace add --scope user F:\\-8-\\air-plugins`,
+		`claude plugin marketplace add --scope=user .`,
+		`claude plugin marketplace add .`,
+		`claude plugin marketplace add mydir`,
+		`claude plugin marketplace add x/..`,
+		`claude plugin marketplace add https://example.org/fake/plugin`,
+		`codex -c model_reasoning_effort=low exec --json`,
+		`codex --model gpt-6-sol e some-task`,
+		`codex --model gpt-6-sol app-server`,
+		`& "C:\\Tools\\codex.cmd" --model gpt-6-sol exec --json`,
+	} {
+		if denied, reason := classifyBypass(command, nil); !denied || reason == "" {
+			t.Errorf("reviewer P1 command was allowed: %q (%s)", command, reason)
+		}
+	}
+	for _, command := range []string{
+		`claude plugin marketplace add ruhorh66-rgb/air-plugins`,
+		`claude plugin marketplace add --scope user ruhorh66-rgb/air-plugins`,
+		`claude plugin marketplace add https://github.com/ruhorh66-rgb/air-plugins`,
+		`codex login status`,
+		`codex --version`,
+		`git grep -n 'codex exec' -- cmd`,
+		`Write-Output 'claude auth status'`,
+	} {
+		if denied, reason := classifyBypass(command, nil); denied {
+			t.Errorf("allowed diagnostic was blocked: %q (%s)", command, reason)
+		}
+	}
+}

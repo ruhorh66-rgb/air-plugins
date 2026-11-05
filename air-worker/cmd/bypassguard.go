@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	reMarketplaceAdd = regexp.MustCompile(`(?i)\bplugin\s+marketplace\s+add\s+([^\s;&|]+)`)
+	reMarketplaceAdd = regexp.MustCompile(`(?i)\bplugin\s+marketplace\s+add\s+([^\r\n;&|]+)`)
 	reOwnerRepo      = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 	reCopyVerb       = regexp.MustCompile(`(?i)(^|[\s|&;])(copy|xcopy|robocopy|move|copy-item|move-item|cp|mv)([\s]|$)`)
 	reAWInstall      = regexp.MustCompile(`(?i)("[^"]*air-worker\.exe"|\S*air-worker\.exe|air-worker)\s+install\b`)
@@ -54,9 +54,9 @@ func classifyBypass(cmdText string, installDirs []string) (bool, string) {
 	// for the rest of a compound shell line. Check *every* marketplace add
 	// and continue to the copy/install/direct-model guards below.
 	for _, m := range reMarketplaceAdd.FindAllStringSubmatch(s, -1) {
-		arg := strings.Trim(m[1], `"'`)
-		if isLocalPathArg(arg) {
-			return true, "подмена маркетплейса локальным путём: " + arg + " — источник обязан быть GitHub ruhorh66-rgb/air-plugins"
+		arg, found := marketplaceSourceArg(m[1])
+		if !found || isLocalPathArg(arg) {
+			return true, "подмена маркетплейса локальным или неразобранным источником: " + arg + " — источник обязан быть GitHub ruhorh66-rgb/air-plugins"
 		}
 	}
 
@@ -93,8 +93,12 @@ func classifyBypass(cmdText string, installDirs []string) (bool, string) {
 		if len(args) == 0 {
 			continue
 		}
-		if strings.HasPrefix(tool, "codex") && (args[0] == "exec" || args[0] == "app-server") {
-			return true, "прямой Codex исполняет модель вне AirWorker: используй air-worker orchestrate для двух субагентов или штатный executor для строго одиночного задания"
+		if strings.HasPrefix(tool, "codex") {
+			for _, arg := range args {
+				if arg == "exec" || arg == "e" || arg == "app-server" {
+					return true, "прямой Codex исполняет модель вне AirWorker: используй air-worker orchestrate для двух субагентов или штатный executor для строго одиночного задания"
+				}
+			}
 		}
 		if !strings.HasPrefix(tool, "claude") {
 			continue
@@ -115,6 +119,23 @@ func classifyBypass(cmdText string, installDirs []string) (bool, string) {
 // GitHub-форма `owner/repo` содержит один слэш и обе части словарные; всё остальное с
 // разделителем пути, буквой диска, ведущими ./ ../ ~ / или обратным слэшем — локальный
 // путь. URL http(s) не локальный (это удалённый источник, отдельный от каталога).
+// Marketplace flags must not hide a local source. The one supported
+// split-value option is --scope; unknown flag values are fail-closed.
+func marketplaceSourceArg(rest string) (string, bool) {
+	args := strings.Fields(strings.TrimSpace(rest))
+	for i := 0; i < len(args); i++ {
+		arg := strings.Trim(args[i], `"'`)
+		if strings.HasPrefix(arg, "-") {
+			if arg == "--scope" || arg == "-s" {
+				i++
+			}
+			continue
+		}
+		return arg, true
+	}
+	return "", false
+}
+
 func isLocalPathArg(a string) bool {
 	a = strings.Trim(a, `"'`)
 	if a == "" {
@@ -132,13 +153,16 @@ func isLocalPathArg(a string) bool {
 	}
 	lo := strings.ToLower(a)
 	if strings.HasPrefix(lo, "http://") || strings.HasPrefix(lo, "https://") {
-		return false // удалённый URL — не локальный каталог
+		return !strings.HasPrefix(lo, "https://github.com/") // only trusted GitHub HTTPS can be a marketplace URL
 	}
 	if reOwnerRepo.MatchString(a) {
-		return false // GitHub owner/repo
+		parts := strings.SplitN(a, "/", 2)
+		if parts[0] != "." && parts[0] != ".." && parts[1] != "." && parts[1] != ".." {
+			return false // GitHub owner/repo, no dot-component path alias
+		}
 	}
-	// с разделителем, но не owner/repo и не URL — считаем путём
-	return strings.Contains(a, "/")
+	// Unknown bare tokens and all non-GitHub path syntaxes fail closed.
+	return true
 }
 
 func isAlphaByte(b byte) bool {
