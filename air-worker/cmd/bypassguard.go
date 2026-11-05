@@ -25,6 +25,7 @@ package main
 // само решение. В hooks.json на этом шаге ничего не добавляется.
 
 import (
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -209,6 +210,9 @@ var (
 func classifyKnownShellWrapper(command string, installDirs []string, depth int) (bool, string) {
 	for _, m := range reKnownShellSegment.FindAllStringSubmatch(command, -1) {
 		segment := strings.TrimSpace(m[1])
+		if opaqueNativeShellLauncher(segment) {
+			return true, "непрозрачный запуск PowerShell -EncodedCommand/-File невозможно проверить: используй штатный AirWorker вместо обхода native model guard"
+		}
 		payload := unwrapNativeShellLauncher(segment)
 		if payload == "" || strings.EqualFold(payload, segment) {
 			continue
@@ -248,6 +252,69 @@ func unquoteCommandPayload(s string) string {
 	return s
 }
 
+// nativeShellLauncherArgs separates an executable from arguments without
+// splitting a quoted Windows path such as "C:\Program Files\PowerShell\7\pwsh.exe".
+// It only inspects shell text; it never resolves or executes that path.
+func nativeShellLauncherArgs(segment string) (string, []string, bool) {
+	s := strings.TrimSpace(segment)
+	if strings.HasPrefix(s, "& ") {
+		s = strings.TrimSpace(s[1:])
+	}
+	if s == "" {
+		return "", nil, false
+	}
+	var executable, rest string
+	quoted := s[0] == '"' || s[0] == '\''
+	if quoted {
+		end := strings.IndexByte(s[1:], s[0])
+		if end < 0 {
+			return "", nil, false
+		}
+		executable = s[1 : end+1]
+		rest = strings.TrimSpace(s[end+2:])
+	} else {
+		end := strings.IndexAny(s, " \t\r\n")
+		if end < 0 {
+			return "", nil, false
+		}
+		executable = s[:end]
+		rest = strings.TrimSpace(s[end+1:])
+	}
+	base := strings.ToLower(path.Base(strings.ReplaceAll(executable, "\\", "/")))
+	return base, strings.Fields(rest), quoted
+}
+
+// Opaque PowerShell inputs cannot be checked against the actual model call
+// without executing/reading foreign script contents. Fail closed rather than
+// admitting an uninspected direct Codex or Claude invocation.
+func opaqueNativeShellLauncher(segment string) bool {
+	first, args, _ := nativeShellLauncherArgs(segment)
+	if first != "powershell" && first != "powershell.exe" &&
+		first != "pwsh" && first != "pwsh.exe" {
+		return false
+	}
+	for _, raw := range args {
+		flag := strings.ToLower(strings.Trim(raw, "\"'"))
+		// After -Command, the remaining tokens belong to the command string.
+		// Documentation or a diagnostic that mentions -File is not an
+		// additional PowerShell option and must not become a false denial.
+		if flag == "-command" || flag == "-c" || flag == "/command" ||
+			flag == "-commandwithargs" {
+			return false
+		}
+		// A colon/equals value remains opaque, just like a split-value flag.
+		switch {
+		case flag == "-encodedcommand" || flag == "-enc" || flag == "-e" ||
+			flag == "-encodedarguments" || flag == "-file" || flag == "-f" ||
+			strings.HasPrefix(flag, "-encodedcommand:") ||
+			strings.HasPrefix(flag, "-encodedcommand=") ||
+			strings.HasPrefix(flag, "-file:") || strings.HasPrefix(flag, "-file="):
+			return true
+		}
+	}
+	return false
+}
+
 func unwrapNativeShellLauncher(segment string) string {
 	segment = strings.TrimSpace(segment)
 	if segment == "" {
@@ -257,11 +324,10 @@ func unwrapNativeShellLauncher(segment string) string {
 		strings.HasSuffix(segment, ")") {
 		return unquoteCommandPayload(segment)
 	}
-	args := strings.Fields(segment)
-	if len(args) < 2 {
+	first, args, executableQuoted := nativeShellLauncherArgs(segment)
+	if len(args) == 0 {
 		return ""
 	}
-	first := strings.ToLower(strings.Trim(args[0], `"'`))
 	joinAfter := func(i int) string {
 		if i >= len(args) {
 			return ""
@@ -270,29 +336,35 @@ func unwrapNativeShellLauncher(segment string) string {
 	}
 	switch first {
 	case "cmd", "cmd.exe":
-		for i := 1; i < len(args); i++ {
+		for i := 0; i < len(args); i++ {
 			if strings.EqualFold(args[i], "/c") || strings.EqualFold(args[i], "/k") {
 				return joinAfter(i + 1)
 			}
 		}
 	case "powershell", "powershell.exe", "pwsh", "pwsh.exe":
-		for i := 1; i < len(args); i++ {
+		for i := 0; i < len(args); i++ {
 			switch strings.ToLower(args[i]) {
 			case "-command", "-c", "/command":
 				return joinAfter(i + 1)
 			}
 		}
 	case "bash", "sh", "zsh":
-		for i := 1; i < len(args); i++ {
+		for i := 0; i < len(args); i++ {
 			option := strings.ToLower(args[i])
-			if option == "-c" || option == "-lc" || option == "-ic" {
+			if option == "--" || !strings.HasPrefix(option, "-") {
+				break
+			}
+			// Bash allows combined short flags, e.g. -ec, -xc, -lc.
+			// The -c flag consumes the following argument as a command.
+			if len(option) > 1 && !strings.HasPrefix(option, "--") &&
+				strings.Contains(option[1:], "c") {
 				return joinAfter(i + 1)
 			}
 		}
 	case "env":
 		// env options precede the command and some consume a separate value.
 		// Do not mistake those values for the executable being launched.
-		for i := 1; i < len(args); {
+		for i := 0; i < len(args); {
 			option := strings.ToLower(args[i])
 			switch {
 			case option == "--":
@@ -327,13 +399,13 @@ func unwrapNativeShellLauncher(segment string) string {
 		}
 		return ""
 	case "call", "start", "then", "do", "nohup", "time", "{":
-		i := 1
+		i := 0
 		if first == "start" && i < len(args) && (args[i] == `""` || args[i] == `''`) {
 			i++
 		}
 		return joinAfter(i)
 	case "xargs":
-		i := 1
+		i := 0
 		for i < len(args) && strings.HasPrefix(args[i], "-") {
 			switch args[i] {
 			case "-n", "-L", "-P", "-I":
@@ -344,7 +416,7 @@ func unwrapNativeShellLauncher(segment string) string {
 		}
 		return joinAfter(i)
 	case "npx", "npx.cmd":
-		i := 1
+		i := 0
 		for i < len(args) && (args[i] == "-y" || args[i] == "--yes") {
 			i++
 		}
@@ -356,9 +428,10 @@ func unwrapNativeShellLauncher(segment string) string {
 				return "claude " + strings.Join(args[i+1:], " ")
 			}
 		}
-	case "codex", "claude":
-		if strings.HasPrefix(args[0], `"`) || strings.HasPrefix(args[0], "'") {
-			return first + " " + strings.Join(args[1:], " ")
+	case "codex", "claude", "codex.exe", "claude.exe", "codex.cmd", "claude.cmd":
+		if executableQuoted {
+			tool := strings.SplitN(first, ".", 2)[0]
+			return tool + " " + strings.Join(args, " ")
 		}
 	}
 	return ""

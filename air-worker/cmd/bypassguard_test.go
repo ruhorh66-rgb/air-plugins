@@ -287,3 +287,29 @@ func TestN130AnthropicP1PathQualifiedAndOpaqueShellLaunchers(t *testing.T) {
 		}
 	}
 }
+
+func TestN130PathShellOptionsFailClosedWithoutDiagnosticFalseDenials(t *testing.T) {
+	denied := []string{
+		`"C:\Program Files\PowerShell\7\pwsh.exe" -EncodedCommand YwBsAGEAdQBkAGUA`,
+		`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -File C:\Temp\script.ps1`,
+		`pwsh -enc YwBsAGEAdQBkAGUA`,
+		`/usr/bin/bash -o pipefail -c 'claude --print review'`,
+		`/usr/bin/bash -O extglob -ec 'codex exec --json'`,
+	}
+	for _, s := range denied {
+		if blocked, why := classifyBypass(s, nil); !blocked || why == "" {
+			t.Errorf("N130 additional nested launcher bypass: %q (%s)", s, why)
+		}
+	}
+	allowed := []string{
+		`powershell -NoProfile -Command "Write-Output '-File is a switch name'"`,
+		`pwsh -Command "Write-Output '-EncodedCommand is a switch name'"`,
+		`/usr/bin/bash -o pipefail -c 'echo safe'`,
+		`/usr/bin/bash -O extglob -ec 'git status'`,
+	}
+	for _, s := range allowed {
+		if blocked, why := classifyBypass(s, nil); blocked {
+			t.Errorf("N130 safe diagnostic was wrongly denied: %q (%s)", s, why)
+		}
+	}
+}
