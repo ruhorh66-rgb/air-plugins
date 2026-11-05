@@ -166,3 +166,35 @@ func TestStampUpdateStateReturnsWrittenSchemaAndTime(t *testing.T) {
 		t.Fatalf("checked_at is invalid: %q: %v", st.CheckedAt, err)
 	}
 }
+
+func TestN130InstalledReleaseRequiresExplicitCleanVCSIdentity(t *testing.T) {
+	old := readDistributionBinaryIdentity
+	defer func() { readDistributionBinaryIdentity = old }()
+	m := updateManifest{
+		Version:     "0.11.11-rc.4",
+		VCSRevision: strings.Repeat("a", 40),
+		CLI:         updateArtifact{SHA256: strings.Repeat("b", 64)},
+	}
+	dirty := true
+	for _, tc := range []struct {
+		name     string
+		modified *bool
+	}{
+		{name: "missing_vcs_modified", modified: nil},
+		{name: "explicitly_dirty", modified: &dirty},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			readDistributionBinaryIdentity = func(path string) distributionBinaryIdentity {
+				return distributionBinaryIdentity{
+					Path: path, Readable: true, Executable: true,
+					Version: m.Version, Revision: m.VCSRevision,
+					SHA256: m.CLI.SHA256, Modified: tc.modified,
+				}
+			}
+			err := verifyUpdateLiveIdentity(m, "own-test-live.exe")
+			if err == nil || !strings.Contains(err.Error(), "vcs.modified") {
+				t.Fatalf("missing/dirty build must fail identity before vendor profile scan: %v", err)
+			}
+		})
+	}
+}

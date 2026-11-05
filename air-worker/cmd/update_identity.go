@@ -106,7 +106,10 @@ func verifyUpdateLiveIdentity(m updateManifest, livePath string) error {
 	if id.Revision == "" || !strings.EqualFold(id.Revision, m.VCSRevision) {
 		return fmt.Errorf("live revision=%s want=%s", verOrDash(id.Revision), m.VCSRevision)
 	}
-	if id.Modified != nil && *id.Modified {
+	if id.Modified == nil {
+		return fmt.Errorf("live binary has no vcs.modified identity; clean Git source is not proven")
+	}
+	if *id.Modified {
 		return fmt.Errorf("live binary has vcs.modified=true")
 	}
 	if id.SHA256 == "" || !strings.EqualFold(id.SHA256, m.CLI.SHA256) {
