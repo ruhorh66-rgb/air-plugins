@@ -4,6 +4,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -133,5 +134,60 @@ func TestN130RollbackRejectsLinkedCacheTarget(t *testing.T) {
 	}
 	if _, err := os.Stat(outside); err != nil {
 		t.Fatal("foreign symlink destination erased")
+	}
+}
+
+func TestN130MustRestorePreviousManagedCacheAfterPartialVendorFailure(t *testing.T) {
+	p, _ := n130FakeCacheProfile(t, "claude")
+	old := filepath.Join(p.ConfigDir, "plugins", "cache", "air-plugins", "air-worker",
+		"0.11.11-rc.2", "bin", executableName())
+	original, err := os.ReadFile(old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap, err := snapshotManagedUpdateCaches(t.TempDir(),
+		updateManifest{Version: "0.11.11-rc.4"}, []distributionProfile{p})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Simulate a vendor update that damages the previous managed version
+	// before the second host fails. Only own t.TempDir contents are changed.
+	if err := os.WriteFile(old, []byte("modified previous managed binary"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := snap.rollback(); err != nil {
+		t.Fatalf("expected transactional rollback of previous owned cache after partial failure: %v", err)
+	}
+	restored, err := os.ReadFile(old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(restored) != string(original) {
+		t.Fatal("old managed cache binary bytes were not restored")
+	}
+}
+
+func TestN130MustRejectParentJunctionBeforeCacheMutation(t *testing.T) {
+	p, _ := n130FakeCacheProfile(t, "codex")
+	cacheParent := filepath.Join(p.ConfigDir, "plugins", "cache", "air-plugins", "air-worker")
+	physical := cacheParent + "-physical"
+	if err := os.Rename(cacheParent, physical); err != nil {
+		t.Fatal(err)
+	}
+	out, err := exec.Command("cmd.exe", "/d", "/c", "mklink", "/J", cacheParent, physical).CombinedOutput()
+	if err != nil {
+		t.Fatalf("Windows unprivileged junction fixture required for release test: %v %s", err, out)
+	}
+	defer func() {
+		if out, err := exec.Command("cmd.exe", "/d", "/c", "rmdir", cacheParent).CombinedOutput(); err != nil {
+			t.Errorf("own fixture link cleanup failed: %v %s", err, out)
+		}
+	}()
+	// The previous binary is still reachable, but a parent component now
+	// redirects through a Windows reparse point. Must fail before vendor IO.
+	_, err = snapshotManagedUpdateCaches(t.TempDir(),
+		updateManifest{Version: "0.11.11-rc.4"}, []distributionProfile{p})
+	if err == nil {
+		t.Fatal("parent junction was accepted for managed cache transaction")
 	}
 }
