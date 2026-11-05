@@ -196,7 +196,12 @@ func airWorkerInstallInvocation(s string) (string, bool) {
 	return filepath.Clean(p), true
 }
 
-var reKnownShellSegment = regexp.MustCompile(`(?m)(?:^|[\r\n;&|])\s*([^\r\n;&|]+)`)
+var (
+	reKnownShellSegment       = regexp.MustCompile(`(?m)(?:^|[\r\n;&|])\s*([^\r\n;&|]+)`)
+	reShellSubstitution       = regexp.MustCompile(`\$\(([^)]{1,512})\)`)
+	reShellBacktick           = regexp.MustCompile("`([^`\\r\\n]{1,512})`")
+	reShellParenthesizedModel = regexp.MustCompile(`(?i)\(\s*((?:codex|claude)(?:\.(?:cmd|exe|ps1))?\s+[^)]{1,512})\)`)
+)
 
 // The host guard receives shell text, not an executable AST. Only wrappers
 // that explicitly execute their argument as a command are unwrapped here.
@@ -210,6 +215,17 @@ func classifyKnownShellWrapper(command string, installDirs []string, depth int) 
 		}
 		if blocked, reason := classifyBypassDepth(payload, installDirs, depth); blocked {
 			return true, reason
+		}
+	}
+	// Shell command substitutions run an inner command even when the outer
+	// program is an otherwise harmless echo or a shell conditional.
+	for _, pattern := range []*regexp.Regexp{
+		reShellSubstitution, reShellBacktick, reShellParenthesizedModel,
+	} {
+		for _, m := range pattern.FindAllStringSubmatch(command, -1) {
+			if blocked, reason := classifyBypassDepth(strings.TrimSpace(m[1]), installDirs, depth); blocked {
+				return true, reason
+			}
 		}
 	}
 	return false, ""
@@ -279,10 +295,21 @@ func unwrapNativeShellLauncher(segment string) string {
 			i++
 		}
 		return joinAfter(i)
-	case "call", "start":
+	case "call", "start", "then", "do", "nohup", "time", "{":
 		i := 1
 		if first == "start" && i < len(args) && (args[i] == `""` || args[i] == `''`) {
 			i++
+		}
+		return joinAfter(i)
+	case "xargs":
+		i := 1
+		for i < len(args) && strings.HasPrefix(args[i], "-") {
+			switch args[i] {
+			case "-n", "-L", "-P", "-I":
+				i += 2
+			default:
+				i++
+			}
 		}
 		return joinAfter(i)
 	case "npx", "npx.cmd":

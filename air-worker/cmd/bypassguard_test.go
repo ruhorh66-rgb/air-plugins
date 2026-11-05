@@ -175,3 +175,34 @@ func TestN130AnthropicShellWrappersMustNotHideVendorModelCalls(t *testing.T) {
 		}
 	}
 }
+
+func TestN130AdditionalAnthropicShellPrefixes(t *testing.T) {
+	blocked := []string{
+		`then codex exec --json`,
+		`do claude --print "review"`,
+		`{ codex exec --json; }`,
+		`nohup codex exec --json`,
+		`time claude -p prompt`,
+		`xargs codex exec --json`,
+		`xargs -n 1 codex e task`,
+		`echo $(claude -p review)`,
+		"echo " + string(rune(96)) + "codex exec --json" + string(rune(96)),
+		`cmd /c "if exist a (codex exec --json)"`,
+	}
+	for _, s := range blocked {
+		if deny, reason := classifyBypass(s, nil); !deny || reason == "" {
+			t.Errorf("secondary wrapper/command substitution allowed: %q (%s)", s, reason)
+		}
+	}
+	for _, s := range []string{
+		`then echo safe`,
+		`time git status`,
+		`xargs echo hello`,
+		`nohup air-worker report -cached`,
+		`git grep -n "then codex exec" -- cmd`,
+	} {
+		if deny, reason := classifyBypass(s, nil); deny {
+			t.Errorf("safe secondary wrapper blocked: %q (%s)", s, reason)
+		}
+	}
+}

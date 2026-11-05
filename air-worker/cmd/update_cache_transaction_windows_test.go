@@ -501,3 +501,38 @@ func TestN130GoRootHandlePinsDirectoryAgainstWindowsRename(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestN130MetadataRestoreRefusesSwappedProfileJunction(t *testing.T) {
+	p, _ := n130FakeCacheProfile(t, "claude")
+	snapshot, err := snapshotManagedUpdateCaches(t.TempDir(),
+		updateManifest{Version: "0.11.11-rc.4"}, []distributionProfile{p})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plugins := filepath.Join(p.ConfigDir, "plugins")
+	physical := plugins + "-original-fixture"
+	if err := os.Rename(plugins, physical); err != nil {
+		t.Fatal(err)
+	}
+	out, err := exec.Command("cmd.exe", "/d", "/c", "mklink", "/J", plugins, physical).CombinedOutput()
+	if err != nil {
+		t.Fatalf("cannot create own Windows metadata parent fixture: %v %s", err, out)
+	}
+	defer func() {
+		if out, err := exec.Command("cmd.exe", "/d", "/c", "rmdir", plugins).CombinedOutput(); err != nil {
+			t.Errorf("cannot remove own junction fixture: %v %s", err, out)
+		}
+		if err := os.Rename(physical, plugins); err != nil {
+			t.Errorf("cannot restore own metadata fixture path: %v", err)
+		}
+	}()
+	sentinel := filepath.Join(physical, "keep_own_metadata.txt")
+	n130WriteFile(t, sentinel, "own file must remain unchanged")
+	if err := snapshot.rollback(); err == nil {
+		t.Fatal("swapped vendor metadata parent junction counted as successful rollback")
+	}
+	got, err := os.ReadFile(sentinel)
+	if err != nil || string(got) != "own file must remain unchanged" {
+		t.Fatalf("own external fixture changed through reparse: %v %q", err, got)
+	}
+}

@@ -547,15 +547,46 @@ func (s managedCacheSnapshot) rollback() error {
 			problems = append(problems, "quarantine unsafe candidate cache "+p.targetDir+": "+err.Error())
 		}
 		for _, f := range p.files {
-			if info, err := os.Lstat(f.live); err == nil && !info.Mode().IsRegular() {
-				problems = append(problems, "refuse unsafe metadata "+f.live)
-				continue
-			} else if err != nil && !os.IsNotExist(err) {
-				problems = append(problems, "stat metadata "+f.live+": "+err.Error())
+			// Host plugin metadata belongs to this profile, but cannot be
+			// restored through a swapped parent junction or file link.
+			unpin, err := releaseR04HoldSignedScratchUntilChild(filepath.Dir(f.live))
+			if err != nil {
+				problems = append(problems, "unsafe metadata parent "+f.live+": "+err.Error())
 				continue
 			}
-			if err := copyFile(f.saved, f.live); err != nil {
-				problems = append(problems, "restore metadata "+f.live+": "+err.Error())
+			if info, err := os.Lstat(f.live); err == nil {
+				if !info.Mode().IsRegular() {
+					problems = append(problems, "refuse unsafe metadata "+f.live)
+					unpin()
+					continue
+				}
+				if _, err := nativeInputPathIdentity(f.live); err != nil {
+					problems = append(problems, "refuse reparse metadata "+f.live+": "+err.Error())
+					unpin()
+					continue
+				}
+			} else if !os.IsNotExist(err) {
+				problems = append(problems, "stat metadata "+f.live+": "+err.Error())
+				unpin()
+				continue
+			}
+			got, shaErr := sha256File(f.saved)
+			if shaErr != nil || !strings.EqualFold(got, f.beforeSHA) {
+				problems = append(problems, "saved metadata SHA mismatch "+f.live)
+				unpin()
+				continue
+			}
+			backup, readErr := os.ReadFile(f.saved)
+			if readErr != nil || len(backup) > 8<<20 {
+				problems = append(problems, "saved metadata missing or oversized "+f.live)
+				unpin()
+				continue
+			}
+			// Atomic same-directory replacement, never truncate-in-place.
+			writeErr := writeFileAtomic(f.live, backup)
+			unpin()
+			if writeErr != nil {
+				problems = append(problems, "restore metadata "+f.live+": "+writeErr.Error())
 				continue
 			}
 			if got, err := sha256File(f.live); err != nil || !strings.EqualFold(got, f.beforeSHA) {

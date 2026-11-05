@@ -150,6 +150,28 @@ if (-not $revisionMatch.Success) { throw 'release CLI has no embedded vcs.revisi
 $revision = $revisionMatch.Groups[1].Value
 if ($buildText -notmatch 'vcs\.modified=false') { throw 'release CLI was built from modified source' }
 
+# Immutable publisher provenance: the payload must come from the exact clean
+# Git source commit embedded in the binary. A copied/stale staging tree that
+# has no Git identity cannot be silently promoted to the signed feed.
+$gitHeadLines = @(& git -C $PluginRoot rev-parse --verify HEAD 2>&1)
+if ($LASTEXITCODE -ne 0) { throw 'publisher PluginRoot must be a real readable Git checkout' }
+$sourceCommit = ($gitHeadLines -join '').Trim().ToLowerInvariant()
+if ($sourceCommit -notmatch '^[0-9a-f]{40}$' -or $sourceCommit -ne $revision.ToLowerInvariant()) {
+    throw "publisher Git HEAD $sourceCommit differs from built CLI vcs.revision $revision"
+}
+$sourceChanges = @(& git -C $PluginRoot status --porcelain=v1 --untracked-files=all -- . 2>&1)
+if ($LASTEXITCODE -ne 0 -or -not [string]::IsNullOrWhiteSpace(($sourceChanges -join '').Trim())) {
+    throw 'publisher PluginRoot must be Git CLEAN before source payload signing'
+}
+$trayBuild = @(& go version -m $trayPath 2>&1)
+if ($LASTEXITCODE -ne 0) { throw 'go version -m failed for release tray' }
+$trayBuildText = $trayBuild -join [Environment]::NewLine
+$trayRevision = [regex]::Match($trayBuildText, 'vcs\.revision=([0-9a-f]{40})')
+if (-not $trayRevision.Success -or $trayRevision.Groups[1].Value -ne $revision -or
+    $trayBuildText -notmatch 'vcs\.modified=false') {
+    throw 'release tray must be built from same clean Git revision as CLI'
+}
+
 $payloadJson = @(& $Verifier update payload -root $PluginRoot -json 2>&1)
 if ($LASTEXITCODE -ne 0) { throw "payload snapshot failed: $($payloadJson -join ' | ')" }
 $payload = (($payloadJson -join [Environment]::NewLine) | ConvertFrom-Json)
