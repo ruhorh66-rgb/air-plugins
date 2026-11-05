@@ -206,3 +206,38 @@ func TestN130AdditionalAnthropicShellPrefixes(t *testing.T) {
 		}
 	}
 }
+
+func TestN130AnthropicNativeWrapperNpxAndEnvOptions(t *testing.T) {
+	denied := []string{
+		"npx @anthropic-ai/claude-code -p review",
+		"npx -y @anthropic-ai/claude-code --print review",
+		"npx --yes @anthropic-ai/claude-code --print review",
+		"env -u CLAUDE_CONFIG_DIR claude -p review",
+		"env --unset CLAUDE_CONFIG_DIR codex exec --json",
+		"env --unset=CLAUDE_CONFIG_DIR claude --print review",
+		"env -C own-temp-dir codex exec --json",
+		"env --chdir own-temp-dir claude -p review",
+		"env --chdir=own-temp-dir codex app-server",
+		"env -S 'claude -p review'",
+		"env -S 'bash -c \"codex exec --json\"'",
+		"env -- claude -p review",
+	}
+	for _, command := range denied {
+		if denied, why := classifyBypass(command, nil); !denied || why == "" {
+			t.Errorf("model invocation was not denied: %q (%s)", command, why)
+		}
+	}
+	allowed := []string{
+		"npx @anthropic-ai/claude-code --version",
+		"env -- codex --version",
+		"env -u CLAUDE_CONFIG_DIR git status",
+		"env -C own-temp-dir git status",
+		"env --chdir=own-temp-dir air-worker version",
+		"env -S 'git status'",
+	}
+	for _, command := range allowed {
+		if denied, why := classifyBypass(command, nil); denied {
+			t.Errorf("legitimate diagnostic was denied: %q (%s)", command, why)
+		}
+	}
+}
