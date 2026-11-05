@@ -1,0 +1,67 @@
+{
+  "schema": "air-worker.n132-session-save-close-gate/v1",
+  "date_sgt": "2026-11-05",
+  "product": "AirWorker",
+  "node": "SRVLM01",
+  "plan_node": "N-132_dev-work-27-session-save-coding-lessons-and-new-s",
+  "parent": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "owner": "Dev Work 27 / SRVLM01",
+  "trigger": "LPR 05.11.2026 ordered source WIP preservation, coding lessons to self-learning base, clean commit/push, plans and handoff",
+  "done_when": "Native learning events recorded, scope-bounded RED facts and judge preserved, source/Wiki commits pushed/clean with exact readback, native plan handoff N132 close with committed receipt only; parent N130 OPEN",
+  "judge": {
+    "source_head_before_close": "9e4fdc84dff541c51a9e2ef9dc2bf49bca62e65f",
+    "source_wip_code_commit": "ac1a8f74fe281158f07ad0272404cfff4c74fb93",
+    "wiki_head_before_close": "8b4d6d6281a60138362c34214b64466763e9fbd2",
+    "source_local_upstream_remote_equal": true,
+    "wiki_local_upstream_remote_equal": true,
+    "both_clean": true,
+    "native_plan_lint_rc": 0,
+    "n130_status": "OPEN",
+    "n132_status_before_close": "OPEN",
+    "installed_airworker": "0.11.11-rc.2",
+    "go_vet_scoped_rc": 0,
+    "git_diff_check_rc": 0,
+    "targeted_exit_code": 1,
+    "targeted_log_sha256": "b3677726febee555a5639656c93849fcae6dc69f1c84c7bdfa3c0fdc77cfc3a3",
+    "red_cases": [
+      "/usr/bin/bash -o pipefail -c 'claude --print review'",
+      "/usr/bin/bash -O extglob -ec 'codex exec --json'"
+    ],
+    "windows_symlink": "SKIP_NOT_PASS",
+    "current_exact_sha_full_go": "NOT_RUN",
+    "current_exact_sha_independent_anthropic": "NOT_RUN"
+  },
+  "learning": {
+    "events": [
+      "LR-20261105T130704Z-cbe8e9e6",
+      "LR-20261105T130705Z-50f118cf",
+      "LR-20261105T130705Z-24783bb1",
+      "LR-20261105T130705Z-d561dea9"
+    ],
+    "recorded_via_native_core_rc": 0,
+    "journal_readback_pass": true,
+    "review_id": "RV-20261105T130958Z-56fb4586",
+    "review_outcome": "review_error",
+    "review_error": "reviewer did not return a successful agent_message",
+    "applied_skill": "NOT_PROVEN",
+    "owner_transfer": "NOT_PERFORMED"
+  },
+  "receipts": {
+    "machine": "docs/receipts/DEV_WORK27_SESSION_SAVE_20261105.json",
+    "handoff": "docs/receipts/HANDOFF_DEV_WORK27_TO_NEXT_SESSION_20261105.md",
+    "native_learn_review": ".air-worker/learn/reviews/RV-20261105T130958Z-56fb4586.json",
+    "native_learn_journal": "learn/events.jsonl",
+    "test_log": "D:/Devbox/AirWorker/temp/DevWork27/guard-p1-20261105/path-guard-targeted.log"
+  },
+  "next_step": "Fix Bash -o/-O argument-consuming options; GREEN the same source negative test, then final SHA independent judge, applicable QA, VCS-stamped signed rc4 release with three plugin hosts and rc2 rollback. Keep N130 OPEN.",
+  "state": "HANDOFF_PASS_SOURCE_ONLY_NOT_RELEASE_ACCEPTANCE",
+  "expected_close_action": "air-worker plan node close N-132_dev-work-27-session-save-coding-lessons-and-new-s -receipt docs/receipts/DEV_WORK27_N132_CLOSURE_GATE_20261105.json -product <product>",
+  "release": {
+    "rc4_published": false,
+    "rc4_installed": false,
+    "claude_code": "2.1.311",
+    "uac": false,
+    "reboot": false,
+    "stopped_other_services": false
+  }
+}
