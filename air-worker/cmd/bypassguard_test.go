@@ -252,3 +252,38 @@ func TestN130AnthropicNativeWrapperNpxAndEnvOptions(t *testing.T) {
 		}
 	}
 }
+
+func TestN130AnthropicP1PathQualifiedAndOpaqueShellLaunchers(t *testing.T) {
+	denied := []string{
+		`C:\Windows\System32\cmd.exe /c "codex exec --json"`,
+		`"C:\Windows\System32\cmd.exe" /c "claude --print review"`,
+		`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -Command "codex exec --json"`,
+		`"C:\Program Files\PowerShell\7\pwsh.exe" -NoProfile -Command "claude -p review"`,
+		`/bin/bash -c 'claude -p review'`,
+		`/usr/bin/bash -ec 'codex exec --json'`,
+		`/bin/sh -xc 'claude --print review'`,
+		`bash -ec 'claude -p review'`,
+		`bash -xc 'codex e review'`,
+		`powershell -EncodedCommand YwBsAGEAdQBkAGUAIAAtAHA=`,
+		`pwsh -EncodedCommand YwBsAGEAdQBkAGUAIAAtAHA=`,
+	}
+	for _, command := range denied {
+		if blocked, reason := classifyBypass(command, nil); !blocked || reason == "" {
+			t.Errorf("N130 path-qualified/opaque shell bypass escaped guard: %q (%s)", command, reason)
+		}
+	}
+	allowed := []string{
+		`C:\Windows\System32\cmd.exe /c "echo safe"`,
+		`/bin/bash -ec 'git status'`,
+		`/usr/bin/sh -c 'echo hello'`,
+		`bash -xc 'git status'`,
+		`powershell -NoProfile -Command "Write-Output 'codex exec forbidden'"`,
+		`codex --version`,
+		`claude --version`,
+	}
+	for _, command := range allowed {
+		if blocked, reason := classifyBypass(command, nil); blocked {
+			t.Errorf("N130 safe diagnostic incorrectly rejected: %q (%s)", command, reason)
+		}
+	}
+}
