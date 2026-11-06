@@ -1,0 +1,64 @@
+{
+  "schema": "air-worker.devwork28.n130-indirect-model-guard-source-only/v1",
+  "date_sgt": "2026-11-06",
+  "owner": "Dev Work 28 / SRVLM01",
+  "product": "AirWorker",
+  "node": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "source_baseline": "8772dd2e4cf63d57fb55754ef5d9ed191ce67aa5",
+  "trigger": "native Anthropic Sonnet read-only source review FAIL_P1 on 8772dd2 identified indirect model launches with inline assignments and options",
+  "scope": [
+    "cmd/bypassguard.go",
+    "cmd/bypassguard_test.go",
+    "learn/events.jsonl changed only through air-worker learn event"
+  ],
+  "guard_detail": {
+    "check": "Conservative clear vendor CLI argv token detection for indirect launchers in supported active AirWorker session shell text",
+    "detects": [
+      "X=1 claude -p",
+      "sudo X=1 claude -p",
+      "sudo -nu reviewer claude -p",
+      "time -p claude -p",
+      "nice -n 2 codex exec",
+      "flock -n lockfile claude -p"
+    ],
+    "preserves_safe": [
+      "echo 'claude -p' as inert text",
+      "printf 'codex exec'",
+      "rg 'claude -p' docs",
+      "git grep documentation",
+      "cmd /d/c echo",
+      "git status"
+    ],
+    "boundary": "Pure text guard; not a complete AST/OS process isolation; host PreToolUse hook delivery not inferred."
+  },
+  "qa": {
+    "initial_failing_repro": {
+      "request_id": "acmd-c101624b-3d21-4ed8-bae9-2ea04b01bf25",
+      "rc": 1
+    },
+    "early_false_denial": {
+      "request_id": "acmd-97b0fcc8-83d9-46ad-8769-ea47309d2ad3",
+      "rc": 1,
+      "description": "git grep literal model documentation mistakenly denied"
+    },
+    "corrected_targeted": {
+      "request_id": "acmd-a80dec2a-fdf2-455c-a257-17fbabf102fb",
+      "rc": 0,
+      "regex": "^(TestN130|TestN133|TestNativeSourceReview|TestN134|TestDistributionReleaseGuard)",
+      "one_windows_symlink": "SKIP_NOT_PASS"
+    },
+    "gofmt_rc": 0,
+    "full_go_current_sha": "NOT_RUN",
+    "independent_anthropic_current_sha": "NOT_RUN"
+  },
+  "learning": {
+    "native_id": "LR-20261106T110708Z-9166fb97",
+    "rc": 0,
+    "status": "CAPTURED_ONLY_NOT_APPLIED"
+  },
+  "installed": "0.11.11-rc.2 untouched",
+  "published": "NOT_PUBLISHED",
+  "release_status": "SOURCE_ONLY_HOLD",
+  "blocker": "Current dev branch 8 commits ahead of origin; earlier git push pre-execution explicitly refused, do not bypass with another transport. Need sanctioned owner publishing path plus exact SHA full QA/vet/reviewer/VCS-stamped signed prerelease before official update.",
+  "next": "Commit scoped code and native learning; read back clean HEAD; independent Anthropic exact-SHA source review and targeted QA; original LPR approval for rc4 publish/install remains valid within scope."
+}

@@ -210,6 +210,65 @@ var (
 	reShellParenthesizedModel = regexp.MustCompile(`(?i)\(\s*((?:codex|claude)(?:\.(?:cmd|exe|ps1))?\s+[^)]{1,512})\)`)
 )
 
+// Last-resort check for an indirectly wrapped vendor model invocation.
+// A shell string is NOT an executable AST: this intentionally conservative
+// guard catches clear CLI+model-flag argv words after unrecognised wrappers,
+// while leaving explicit inert text emitters/searches alone. Never claim that
+// a string check alone proves complete OS-level process enforcement.
+func classifyIndirectVendorModelLaunch(command string) (bool, string) {
+	argv := strings.Fields(strings.TrimSpace(command))
+	if len(argv) < 2 {
+		return false, ""
+	}
+	// POSIX NAME=value prefixes are assignments, not command executables.
+	for len(argv) > 0 {
+		word := strings.Trim(argv[0], "\"'")
+		eq := strings.IndexByte(word, '=')
+		if eq <= 0 || strings.ContainsAny(word[:eq], "/\\ -") {
+			break
+		}
+		argv = argv[1:]
+	}
+	if len(argv) < 2 {
+		return false, ""
+	}
+	first := strings.ToLower(strings.Trim(argv[0], "\"'"))
+	// Git's built-in read-only grep reports literal model command strings;
+	// it does not execute them. Do not exempt arbitrary Git aliases.
+	if first == "git" && len(argv) > 1 && strings.EqualFold(argv[1], "grep") {
+		return false, ""
+	}
+	switch first {
+	case "echo", "printf", "grep", "rg", "findstr", "write-output",
+		"select-string", "get-content", "cat", "type", "more", "head", "tail":
+		return false, ""
+	}
+	for i, raw := range argv {
+		token := strings.Trim(strings.ToLower(raw), "\"'(){}")
+		base := path.Base(strings.ReplaceAll(token, "\\", "/"))
+		typeOf := ""
+		switch base {
+		case "claude", "claude.exe", "claude.cmd", "claude.ps1":
+			typeOf = "claude"
+		case "codex", "codex.exe", "codex.cmd", "codex.ps1":
+			typeOf = "codex"
+		}
+		if typeOf == "" {
+			continue
+		}
+		for j := i + 1; j < len(argv) && j <= i+5; j++ {
+			arg := strings.Trim(strings.ToLower(argv[j]), "\"'(){}")
+			if typeOf == "claude" && (arg == "-p" || arg == "--print") {
+				return true, "косвенный прямой вызов Claude вне AirWorker: используй штатный review source"
+			}
+			if typeOf == "codex" && (arg == "exec" || arg == "e" || arg == "app-server") {
+				return true, "косвенный прямой вызов Codex вне AirWorker: используй штатный orchestrate/executor"
+			}
+		}
+	}
+	return false, ""
+}
+
 // The host guard receives shell text, not an executable AST. Only wrappers
 // that explicitly execute their argument as a command are unwrapped here.
 // Plain grep, echo and Write-Output text remains inert.
@@ -221,9 +280,15 @@ func classifyKnownShellWrapper(command string, installDirs []string, depth int) 
 		}
 		payload := unwrapNativeShellLauncher(segment)
 		if payload == "" || strings.EqualFold(payload, segment) {
+			if blocked, reason := classifyIndirectVendorModelLaunch(segment); blocked {
+				return true, reason
+			}
 			continue
 		}
 		if blocked, reason := classifyBypassDepth(payload, installDirs, depth); blocked {
+			return true, reason
+		}
+		if blocked, reason := classifyIndirectVendorModelLaunch(payload); blocked {
 			return true, reason
 		}
 	}
