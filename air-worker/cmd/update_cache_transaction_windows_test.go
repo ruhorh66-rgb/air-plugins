@@ -138,6 +138,45 @@ func TestN130RollbackRejectsLinkedCacheTarget(t *testing.T) {
 	}
 }
 
+// Test the same release-cache rollback boundary with a directory junction at
+// the exact candidate-version path. A standard Windows user can create this
+// fixture without SeCreateSymbolicLinkPrivilege, unlike os.Symlink. The symlink
+// case remains a separate SKIP, not a PASS inferred from this coverage.
+func TestN130RollbackRejectsExactCandidateRootJunctionWithoutForeignDeletion(t *testing.T) {
+	p, _ := n130FakeCacheProfile(t, "codex")
+	snap, err := snapshotManagedUpdateCaches(t.TempDir(),
+		updateManifest{Version: "0.11.11-rc.4"}, []distributionProfile{p})
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := snap.profiles[0].targetDir
+	external := t.TempDir()
+	sentinel := filepath.Join(external, "outside-sentinel.txt")
+	n130WriteFile(t, sentinel, "outside content must survive")
+	if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
+		t.Fatal(err)
+	}
+	out, err := exec.Command("cmd.exe", "/d", "/c", "mklink", "/J", target, external).CombinedOutput()
+	if err != nil {
+		t.Fatalf("cannot create unprivileged candidate root junction fixture: %v %s", err, out)
+	}
+	defer func() {
+		if out, err := exec.Command("cmd.exe", "/d", "/c", "rmdir", target).CombinedOutput(); err != nil {
+			t.Errorf("cannot remove own candidate root junction fixture: %v %s", err, out)
+		}
+	}()
+	if err := snap.rollback(); err == nil {
+		t.Fatal("candidate root junction was accepted as a completed rollback")
+	}
+	raw, err := os.ReadFile(sentinel)
+	if err != nil || string(raw) != "outside content must survive" {
+		t.Fatalf("rollback touched junction destination: %v %q", err, raw)
+	}
+	if link, err := os.Readlink(target); err != nil || link == "" {
+		t.Fatalf("foreign candidate root junction was silently removed: %q %v", link, err)
+	}
+}
+
 func TestN130MustRestorePreviousManagedCacheAfterPartialVendorFailure(t *testing.T) {
 	p, _ := n130FakeCacheProfile(t, "claude")
 	old := filepath.Join(p.ConfigDir, "plugins", "cache", "air-plugins", "air-worker",

@@ -1,0 +1,46 @@
+{
+  "schema": "air-worker.devwork28.n130-link-fixture-coverage/v1",
+  "observed_date_sgt": "2026-11-06",
+  "owner": "Dev Work 28 / SRVLM01",
+  "trigger": "Vega curator message sm_ceef7609-9ad1-48e1-87c4-ca08de304131: distinguish Windows symlink SKIP from junction/reparse coverage without elevation",
+  "product": "AirWorker",
+  "native_parent": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "source_baseline_sha": "538216d496e2980a7a2db4fe36a100183d5607ea",
+  "source_changed": [
+    "air-worker/cmd/update_cache_transaction_windows_test.go"
+  ],
+  "original_symlink": {
+    "test": "TestN130RollbackRejectsLinkedCacheTarget",
+    "scope": "directory symbolic link at candidate cache version root",
+    "outcome": "SKIP_NOT_PASS",
+    "reported_error": "A required privilege is not held by the client",
+    "supporting_log": "D:/Devbox/AirWorker/temp/DevWork28/N130/n130-n133-security-targeted.log",
+    "log_sha256": "0f091a15180bbb9645a3150422019b99dcd18d45278bdd39ab995162369fa963",
+    "elevation_performed": false
+  },
+  "accepted_prior_junction": {
+    "scope": "parent and nested directory NTFS junction/reparse guards under native cache rollback",
+    "pass": "PASS_RC0_PREVIOUS_RECEIPT",
+    "limitation": "Not literal proof of a symlink at candidate root"
+  },
+  "new_unprivileged_fixture": {
+    "test": "TestN130RollbackRejectsExactCandidateRootJunctionWithoutForeignDeletion",
+    "scope": "candidate version directory replaced with own NTFS junction to own outside fixture",
+    "expected": "snap.rollback must fail closed; outside sentinel unchanged; junction not removed",
+    "observed": "PASS",
+    "exit_code": 0,
+    "log": "D:/Devbox/AirWorker/temp/DevWork28/N130/target-root-junction-new-test.log",
+    "log_sha256": "d3959e3a4c81b035d20ebe076d2827faba1eb25f6e4f3ef1e9508617d5f217d0",
+    "genuine_symlink": "SKIP_NOT_PROVEN",
+    "privilege_change": false
+  },
+  "release_status": "SOURCE_ONLY_HOLD",
+  "unmet": [
+    "Go vet and native validate not executed after earlier pre-execution tool denial",
+    "Applicable full release QA not performed on final SHA",
+    "Independent Anthropic code/security reviewer not PASS",
+    "Signed rc.4 release and installed rollback/readback not performed"
+  ],
+  "model_qc": "No full-suite or symlink PASS inferred from targeted junction fixture",
+  "next": "Commit/push scoped source+receipt; await sanctioned QA path, then independent final-SHA review, signed release/restore and installation under previously granted scope."
+}
