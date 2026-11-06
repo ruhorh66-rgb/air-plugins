@@ -174,10 +174,10 @@
     "auto_apply": false
   },
   "orchestration": {
-    "_": "ЛПР 04.11.2026: AirWorker native 2 parallel Codex subagents -> leader -> independent Anthropic reviewer. A single dispatch cannot stand in for orchestration.",
-    "enabled": true,
+    "_": "ЛПР 06.11.2026: восстановить исходный coding-mode 0.11.11-rc.2: native executor dispatch через script/Luna/Sol/Astra действительно пишет код; затем factual judge и независимый Anthropic Sonnet/Opus. Два параллельных read-only subagents плюс leader доступны opt-in через orchestrate -subagents 2, но не заменяют coding-executor. Прежние guards и receipts сохраняются.",
+    "enabled": false,
     "subagents": 2,
-    "require_native_subagents": true,
+    "require_native_subagents": false,
     "require_anthropic_reviewer": true
   }
 }

@@ -177,7 +177,7 @@ func TestN129InactiveSessionGetsStartupRouteBeforeDeclare(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("new session startup failed: rc=%d output=%s", code, out)
 	}
-	if !strings.Contains(out, "AIRWORKER NATIVE START") || !strings.Contains(out, "two sequential dispatch") {
+	if !strings.Contains(out, "AIRWORKER NATIVE START") || !strings.Contains(out, "CODING ROUTE restored") || !strings.Contains(out, "Codex executor dispatch") {
 		t.Fatalf("inactive new session did not receive install-owned route guidance: %s", out)
 	}
 }
@@ -222,7 +222,34 @@ func TestN129CanonicalPolicyCannotBeDowngradedViaConfigOverride(t *testing.T) {
 	}
 }
 
-func TestN129HermesStructuredRunRespectsCanonicalNativeTwoAgentPolicy(t *testing.T) {
+// A real coding dispatch must advance past the product policy gate. The
+// unregistered session here deliberately stops before any model is launched;
+// the previous N129 policy rejected the same call with code 2.
+func TestN135NativeCodexCodingDispatchIsNotBlockedByReadOnlyRoster(t *testing.T) {
+	cfg := loadReleaseModelPolicy(t)
+	root := t.TempDir()
+	raw, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "run-config.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	stderr, code := captureStderr(t, func() int {
+		return cmdExecutorDispatch([]string{"-product", root, "-class", "complex",
+			"-principal", "gpt", "-session-key", "n135-not-yet-declared",
+			"-task-file", "missing.md"})
+	})
+	if code != 1 || !strings.Contains(stderr, "session") ||
+		strings.Contains(stderr, "native parallel subagents") {
+		t.Fatalf("native coding was rejected before normal session validation: code=%d stderr=%q", code, stderr)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".woody")); !os.IsNotExist(err) {
+		t.Fatalf("undocumented model job started for rejected test session: %v", err)
+	}
+}
+
+func TestN135HermesStructuredRunRestoresCanonicalCodingLadder(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("..", "run-config.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -231,14 +258,15 @@ func TestN129HermesStructuredRunRespectsCanonicalNativeTwoAgentPolicy(t *testing
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		t.Fatal(err)
 	}
-	if !cfg.Orchestration.Enabled || cfg.Orchestration.Subagents != 2 ||
-		!cfg.Orchestration.RequireNativeSubagents || !cfg.Orchestration.RequireAnthropicReviewer {
-		t.Fatalf("canonical AirWorker Hermes core policy drifted: %+v", cfg.Orchestration)
+	if cfg.Orchestration.Enabled || cfg.Orchestration.Subagents != 2 ||
+		cfg.Orchestration.RequireNativeSubagents || !cfg.Orchestration.RequireAnthropicReviewer {
+		t.Fatalf("N135 coding mode regressed to mandatory read-only subagent analysis: %+v", cfg.Orchestration)
 	}
-	// Hermes register(ctx) -> air_worker(action=run) -> native air-worker loop.
-	// No flags are needed because the canonical policy already owns orchestration.
+	// Hermes register(ctx) -> air_worker(action=run) -> native AirWorker loop.
+	// No flags are needed because the canonical policy now drives a real
+	// script-first Codex coding executor, not two mandatory analysis workers.
 	if err := requireNativeLoopInvocation(cfg, false, 0); err != nil {
-		t.Fatalf("Hermes structured native run rejected despite 2-agent canonical config: %v", err)
+		t.Fatalf("Hermes native coding route rejected: %v", err)
 	}
 	executor := runnerSpec{Kind: "codex", Model: "gpt-6-sol"}
 	reviewer, _, err := cfg.SemanticJudge.Resolve(executor, activeProductReleaseVersion(".."))
@@ -246,7 +274,7 @@ func TestN129HermesStructuredRunRespectsCanonicalNativeTwoAgentPolicy(t *testing
 		t.Fatal(err)
 	}
 	if err := enforceIndependentAnthropicReviewer(cfg, executor, reviewer); err != nil {
-		t.Fatalf("Hermes structured run lost independent Claude reviewer: %v", err)
+		t.Fatalf("Hermes coding route lost independent Claude reviewer: %v", err)
 	}
 }
 
@@ -263,7 +291,7 @@ func TestN129CodexAndHermesPluginStartupGuidanceUsesNativeKernel(t *testing.T) {
 	if err := json.Unmarshal(codexManifest, &doc); err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"air-worker orchestrate", "-subagents 2", "Anthropic reviewer", "not a direct Codex"} {
+	for _, required := range []string{"air-worker executor dispatch", "-class complex", "-class bulk", "Anthropic reviewer", "not a direct Codex", "optional read-only analysis"} {
 		if !strings.Contains(doc.Interface.DefaultPrompt, required) {
 			t.Fatalf("Codex plugin startup missing native route %q", required)
 		}
@@ -272,7 +300,7 @@ func TestN129CodexAndHermesPluginStartupGuidanceUsesNativeKernel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"action: run", "air-worker loop", "two parallel read-only Codex", "independent Claude"} {
+	for _, required := range []string{"action: run", "air-worker loop", "script-first Codex coding ladder", "independent Claude", "-class complex", "-class bulk"} {
 		if !strings.Contains(string(hermesSkill), required) {
 			t.Fatalf("Hermes skill missing native route %q", required)
 		}

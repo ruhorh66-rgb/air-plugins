@@ -134,9 +134,17 @@ const nativeAirWorkerStartupGuidance = "AIRWORKER NATIVE START: Use air-worker t
 	"is NOT proof of AirWorker authorization. Check 'air-worker tool -which headroom'; " +
 	"on a release supporting it, use 'air-worker tool -which claude -preflight -json'. " +
 	"Prove Anthropic with a terminal native reviewer receipt, not a token or health alone. " +
-	"Two parallel Codex subagents require 'air-worker orchestrate -subagents 2', " +
-	"not two sequential dispatch calls. This product rejects single executor dispatch, " +
-	"wrong reviewer vendor and noncanonical -config. If release-slice R05 blocks, " +
+	"CODING ROUTE restored from 0.11.11-rc.2: choose script-first then a native " +
+	"Codex executor dispatch -class complex (Sol medium), then -class bulk (Luna low) " +
+	"only for another bounded task after terminal readback; -class standard is also available. " +
+	"Astra requires justification. Require workspace-write code edits and terminal receipts; " +
+	"after factual checks use independent " +
+	"Anthropic Sonnet/Opus via native semantic/source review. Two sequential Codex " +
+	"coding tasks must each have a distinct real task and terminal receipt. " +
+	"Two parallel read-only subagents plus leader are OPTIONAL via " +
+	"'air-worker orchestrate -subagents 2' only when expressly useful; never " +
+	"substitute their reports for two coding tasks. Wrong reviewer vendor and " +
+	"noncanonical -config still fail closed. If release-slice R05 blocks, " +
 	"report exact RC2; never delete the sidecar or use an alternative root. " +
 	"No Codex App Server, direct provider CLI, paid API, or release-slice bypass. " +
 	"HOST TOOL RESULTS: request one scoped action with explicit target/node and necessary parameters. " +

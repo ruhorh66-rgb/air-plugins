@@ -15,6 +15,6 @@
     "capabilities": [
       "Interactive"
     ],
-    "defaultPrompt": "Use the installed AirWorker kernel and the woody skill, not a direct Codex model call. Declare this session, read the product PLAN, then use air-worker orchestrate -product <root> -subagents 2 for two parallel Codex subagents and an independent Anthropic reviewer. Require native receipts and never use Codex App Server, direct claude -p, or a custom router."
+    "defaultPrompt": "Use the installed AirWorker kernel and the woody skill, not a direct Codex model call. Declare this session and read PLAN. Restore the accepted coding workflow: script-first, then air-worker executor dispatch -product <root> -class complex for the first Codex coding task (Sol medium), and only after terminal readback use -class bulk (Luna low) for the next bounded coding task; -class standard is available independently. Require real file edits, tests and a terminal receipt for every coding task. Use the independent factual judge and native Anthropic reviewer (Sonnet/Opus). air-worker orchestrate -product <root> -subagents 2 is optional read-only analysis plus leader, not a substitute for coding executors. Never use Codex App Server, direct claude -p, PAYG or a custom router."
   }
 }

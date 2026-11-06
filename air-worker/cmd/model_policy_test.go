@@ -80,6 +80,63 @@ func TestReleaseJudgePolicy0113(t *testing.T) {
 	}
 }
 
+// N135 restores the accepted rc.2 development route: a Codex coding agent
+// with workspace-write runs through the native tier ladder, then an
+// independent Anthropic judge. Read-only subagents remain an optional mode,
+// not a mandatory prerequisite for the coding executor.
+func TestN135RestoreAcceptedCodingLadderAndAnthropicJudges(t *testing.T) {
+	cfg := loadReleaseModelPolicy(t)
+	if cfg.Orchestration.Enabled || cfg.Orchestration.RequireNativeSubagents ||
+		!cfg.Orchestration.RequireAnthropicReviewer {
+		t.Fatalf("N135 default coding route must be available without mandatory read-only subagents: %+v", cfg.Orchestration)
+	}
+	if err := validateModelPolicy(cfg); err != nil {
+		t.Fatal(err)
+	}
+	classes := map[string]string{
+		"bulk":     "gpt6-luna:low",
+		"standard": "gpt6-sol:low",
+		"complex":  "gpt6-sol:medium",
+		"hardest":  "gpt6-astra:low",
+	}
+	for class, want := range classes {
+		got, err := startTierForClass(cfg, class)
+		if err != nil || got != want {
+			t.Fatalf("class %s: got %q want %q err=%v", class, got, want, err)
+		}
+		runner := resolveRunner(cfg, got)
+		if runner.Kind != "codex" || runner.Model == "" {
+			t.Fatalf("coding tier %s has no native Codex writer: %+v", got, runner)
+		}
+	}
+	for _, item := range []struct {
+		executor runnerSpec
+		model    string
+	}{
+		{runnerSpec{Kind: "codex", Model: "gpt-6-sol"}, "claude-sonnet-5-5"},
+		{runnerSpec{Kind: "codex", Model: "gpt-6-astra"}, "claude-opus-5-5"},
+	} {
+		reviewer, override, err := cfg.SemanticJudge.Resolve(item.executor, "")
+		if err != nil || override || reviewer.Model != item.model {
+			t.Fatalf("no independent default judge for %q: %+v override=%v err=%v", item.executor.Model, reviewer, override, err)
+		}
+		if err := enforceIndependentAnthropicReviewer(cfg, item.executor, reviewer); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := requireNativeLoopInvocation(cfg, false, 0); err != nil {
+		t.Fatalf("a plain native coding loop must remain usable: %v", err)
+	}
+	// Mandatory two-read-only-subagent policy is still available as an
+	// explicit opt-in profile and remains fail-closed if misconfigured.
+	managed := cfg
+	managed.Orchestration = orchestrationSpec{Enabled: true, Subagents: 2,
+		RequireNativeSubagents: true, RequireAnthropicReviewer: true}
+	if err := validateModelPolicy(managed); err != nil {
+		t.Fatalf("optional native orchestration profile has regressed: %v", err)
+	}
+}
+
 func TestLegacyExecutorTierAliasesMapToOpenAI(t *testing.T) {
 	cfg := loadReleaseModelPolicy(t)
 	cases := map[string]string{
