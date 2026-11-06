@@ -710,7 +710,10 @@ func cmdLoopWithReleaseSliceRunner(argv []string, releaseRunner func(string, run
 
 			planTamper := false
 			if runner.Kind != "script" {
-				closed, tampered, err := reconcileModelStepPlan(planPath, planBefore, step, modelStepFactualPass(step, r.Ok, detailed), sem)
+				// A Codex or Claude step cannot close on factual PASS alone if the
+				// independent semantic reviewer was skipped or returned no PASS.
+				eligible := modelStepCloseEligible(runner.Kind, modelStepFactualPass(step, r.Ok, detailed), sem)
+				closed, tampered, err := reconcileModelStepPlan(planPath, planBefore, step, eligible, sem)
 				planTamper = tampered
 				if tampered {
 					line("  правка PLAN.md исполнителем отклонена: план возвращён к состоянию до хода")

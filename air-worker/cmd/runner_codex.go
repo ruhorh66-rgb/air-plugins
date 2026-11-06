@@ -268,7 +268,10 @@ func parseCodexResult(raw string, runErr error) stepResult {
 			}
 		}
 	}
-	if runErr != nil && !completed && !failed {
+	// Codex may write turn.completed before its OS process exits. A nonzero
+	// process result is authoritative even when the stream claims completion:
+	// the execution must not yield an Ok=true receipt or a model-step PASS.
+	if runErr != nil {
 		failed, subtype = true, "runner_error"
 		detail = append(detail, "codex process: "+runErr.Error())
 	}

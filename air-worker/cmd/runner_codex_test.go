@@ -38,6 +38,19 @@ func TestParseCodexResultTurnFailed(t *testing.T) {
 	}
 }
 
+func TestN130CodexTerminalTurnMustNotOverrideNonzeroProcessExit(t *testing.T) {
+	raw := strings.Join([]string{
+		`{"type":"thread.started","thread_id":"th-n130-exit"}`,
+		`{"type":"item.completed","item":{"type":"agent_message","text":"DONE"}}`,
+		`{"type":"turn.completed"}`,
+	}, "\n")
+	result := parseCodexResult(raw, errors.New("exit status 17"))
+	if result.Ok || result.Subtype != "runner_error" ||
+		!strings.Contains(result.Detail, "exit status 17") {
+		t.Fatalf("Codex reported success despite an actual failed process exit: %+v", result)
+	}
+}
+
 func TestParseCodexResultMissingTerminal(t *testing.T) {
 	r := parseCodexResult(`{"type":"thread.started","thread_id":"th-3"}`, nil)
 	if r.Ok || r.Subtype != "unparsed" {

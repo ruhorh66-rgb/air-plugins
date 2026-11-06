@@ -48,6 +48,34 @@ func TestPlanRowReturnedByteForByteOnNotPass(t *testing.T) {
 	}
 }
 
+func TestN130CodexAndClaudeCannotCloseModelStepWithoutIndependentJudge(t *testing.T) {
+	cases := []struct {
+		name   string
+		kind   string
+		sem    *semanticRun
+		closed bool
+	}{
+		{"codex-unread-reviewer", "codex", nil, false},
+		{"claude-unread-reviewer", "claude", nil, false},
+		{"codex-error", "codex", &semanticRun{Error: "unread task"}, false},
+		{"codex-unproven", "codex", &semanticRun{Verdict: semanticVerdict{Verdict: "NOT_PROVEN"}}, false},
+		{"codex-pass-but-drift", "codex", &semanticRun{Verdict: semanticVerdict{Verdict: "PASS", StepDone: "yes", Drift: "wrong direction"}}, false},
+		{"codex-pass", "codex", &semanticRun{Verdict: semanticVerdict{Verdict: "PASS", StepDone: "yes", Drift: "none"}}, true},
+		{"claude-pass", "claude", &semanticRun{Verdict: semanticVerdict{Verdict: "PASS", StepDone: "yes", Drift: "none"}}, true},
+		{"legacy-router-compat", "router", nil, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			path, before, step := planCloseFixture(t)
+			accepted := modelStepCloseEligible(tc.kind, true, tc.sem)
+			closed, _, err := reconcileModelStepPlan(path, before, step, accepted, tc.sem)
+			if err != nil || closed != tc.closed {
+				t.Fatalf("model %s closed=%t want %t err=%v", tc.kind, closed, tc.closed, err)
+			}
+		})
+	}
+}
+
 func TestExecutorCannotModifyPlan(t *testing.T) {
 	path, before, step := planCloseFixture(t)
 	if err := os.WriteFile(path, []byte("| ~~8a~~ | испорчено | haiku | К13 |\n| ~~9~~ | чужая правка | haiku | К14 |\n"), 0o644); err != nil {

@@ -27,6 +27,23 @@ func closeModelStepOnPass(path string, step workStep, factualPass bool, sem *sem
 	return closeStepInPlan(path, step)
 }
 
+// modelStepCloseEligible refuses to promote a successful factual judge into
+// model-step completion when a required independent coding-model reviewer was
+// never invoked (for example: needs_permission). Non-Codex legacy adapters
+// retain their existing explicit review policy; do not silently change them
+// while fixing the required Codex/Claude boundary.
+func modelStepCloseEligible(runnerKind string, factualPass bool, sem *semanticRun) bool {
+	if !factualPass {
+		return false
+	}
+	if runnerKind != "codex" && runnerKind != "claude" {
+		return true
+	}
+	return sem != nil && sem.Error == "" &&
+		sem.Verdict.Verdict == "PASS" && sem.Verdict.StepDone == "yes" &&
+		sem.Verdict.Drift == "none"
+}
+
 // reconcileModelStepPlan сначала откатывает любую правку исполнителя, затем
 // оставляет ядру единственное право закрыть строку по вердикту.
 func reconcileModelStepPlan(planPath string, before []byte, step workStep, factualPass bool, sem *semanticRun) (closed, tampered bool, err error) {
