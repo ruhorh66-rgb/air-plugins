@@ -363,9 +363,29 @@ func unwrapNativeShellLauncher(segment string) string {
 	}
 	switch first {
 	case "cmd", "cmd.exe":
-		for i := 0; i < len(args); i++ {
-			if strings.EqualFold(args[i], "/c") || strings.EqualFold(args[i], "/k") {
-				return joinAfter(i + 1)
+		for i, arg := range args {
+			low := strings.ToLower(arg)
+			if !strings.HasPrefix(strings.TrimLeft(low, "\"'"), "/") {
+				continue
+			}
+			// cmd.exe accepts combined switches (/d/c, /s/c) and an
+			// attached command after /c, e.g. /c"claude -p ...".
+			for j := 0; j+1 < len(low); j++ {
+				if low[j] != '/' || (low[j+1] != 'c' && low[j+1] != 'k') {
+					continue
+				}
+				if j+2 < len(low) && low[j+2] != '/' &&
+					low[j+2] != '"' && low[j+2] != '\'' {
+					continue
+				}
+				payload := arg[j+2:]
+				if payload == "" {
+					return joinAfter(i + 1)
+				}
+				if i+1 < len(args) {
+					payload += " " + strings.Join(args[i+1:], " ")
+				}
+				return unquoteCommandPayload(payload)
 			}
 		}
 	case "powershell", "powershell.exe", "pwsh", "pwsh.exe":
@@ -383,7 +403,8 @@ func unwrapNativeShellLauncher(segment string) string {
 			}
 			return joinAfter(i + 1)
 		}
-	case "bash", "sh", "zsh":
+	case "bash", "sh", "zsh", "dash", "ksh", "mksh",
+		"fish", "csh", "tcsh", "ash":
 		for i := 0; i < len(args); {
 			// Shell quotes around an argv option do not change how Bash
 			// parses it: "-c", '-ec' and "--rcfile" are still options.
@@ -466,12 +487,78 @@ func unwrapNativeShellLauncher(segment string) string {
 			}
 		}
 		return ""
-	case "call", "start", "then", "do", "nohup", "time", "{":
+	case "call", "start", "then", "do", "nohup", "time", "{",
+		"exec", "command", "builtin", "eval":
 		i := 0
 		if first == "start" && i < len(args) && (args[i] == `""` || args[i] == `''`) {
 			i++
 		}
+		if first == "exec" || first == "command" || first == "builtin" {
+			for i < len(args) && strings.HasPrefix(args[i], "-") {
+				if args[i] == "--" {
+					i++
+					break
+				}
+				if first == "exec" && args[i] == "-a" {
+					i += 2
+				} else {
+					i++
+				}
+			}
+		}
 		return joinAfter(i)
+	case "sudo":
+		i := 0
+		for i < len(args) && strings.HasPrefix(args[i], "-") {
+			option := strings.ToLower(args[i])
+			if option == "--" {
+				i++
+				break
+			}
+			switch option {
+			case "-u", "--user", "-g", "--group", "-h", "--host",
+				"-p", "--prompt", "-c", "--close-from", "-r", "--role", "-t", "--type":
+				i += 2
+			default:
+				i++
+			}
+		}
+		return joinAfter(i)
+	case "timeout":
+		i := 0
+		for i < len(args) && strings.HasPrefix(args[i], "-") {
+			option := strings.ToLower(args[i])
+			if option == "--" {
+				i++
+				break
+			}
+			switch option {
+			case "-k", "--kill-after", "-s", "--signal":
+				i += 2
+			default:
+				i++
+			}
+		}
+		// Coreutils timeout consumes a duration before the command.
+		return joinAfter(i + 1)
+	case "watch":
+		i := 0
+		for i < len(args) && strings.HasPrefix(args[i], "-") {
+			option := strings.ToLower(args[i])
+			if option == "--" {
+				i++
+				break
+			}
+			if option == "-n" || option == "--interval" {
+				i += 2
+			} else {
+				i++
+			}
+		}
+		return joinAfter(i)
+	case "busybox", "toybox":
+		// The multicall executable receives "sh -c ..." as its argv.
+		return joinAfter(0)
 	case "xargs":
 		i := 0
 		for i < len(args) && strings.HasPrefix(args[i], "-") {

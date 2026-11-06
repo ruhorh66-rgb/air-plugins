@@ -305,6 +305,50 @@ func TestN130AnthropicP1PathQualifiedAndOpaqueShellLaunchers(t *testing.T) {
 	}
 }
 
+func TestN130NestedProcessWrappersAndCmdCombinedSwitchesFailClosed(t *testing.T) {
+	denied := []string{
+		"exec claude -p review",
+		"command codex exec --json",
+		"sudo -n claude -p review",
+		"sudo -u reviewer codex exec --json",
+		"timeout 5 claude -p review",
+		"timeout -k 2 5 codex exec --json",
+		`eval "claude -p review"`,
+		"watch -n 1 codex exec --json",
+		"watch -d -n 1 codex exec --json",
+		`cmd /d/c "claude -p review"`,
+		`cmd /s/c "codex exec --json"`,
+		`cmd /c"claude -p review"`,
+		`dash -c 'claude -p review'`,
+		`ksh -c 'codex exec --json'`,
+		`fish -c 'claude -p review'`,
+		`busybox sh -c 'claude -p review'`,
+		`toybox sh -c 'codex exec --json'`,
+	}
+	for _, s := range denied {
+		if blocked, why := classifyBypass(s, nil); !blocked || why == "" {
+			t.Errorf("nested vendor model launch escaped guard: %q (%s)", s, why)
+		}
+	}
+	allowed := []string{
+		"exec git status",
+		"command git status",
+		"sudo -n echo safe",
+		"timeout 5 git status",
+		`eval "echo safe"`,
+		"watch -n 1 echo safe",
+		`cmd /d/c "echo safe"`,
+		`cmd /c"echo safe"`,
+		`dash -c 'git status'`,
+		`busybox sh -c 'echo safe'`,
+	}
+	for _, s := range allowed {
+		if blocked, why := classifyBypass(s, nil); blocked {
+			t.Errorf("safe wrapped diagnostic incorrectly blocked: %q (%s)", s, why)
+		}
+	}
+}
+
 func TestN130PathShellOptionsFailClosedWithoutDiagnosticFalseDenials(t *testing.T) {
 	denied := []string{
 		`"C:\Program Files\PowerShell\7\pwsh.exe" -EncodedCommand YwBsAGEAdQBkAGUA`,

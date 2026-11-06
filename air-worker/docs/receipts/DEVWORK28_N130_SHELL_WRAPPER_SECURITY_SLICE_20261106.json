@@ -1,0 +1,74 @@
+{
+  "schema": "air-worker.devwork28.n130-wrapper-guard-source-slice/v1",
+  "date_sgt": "2026-11-06",
+  "owner": "Dev Work 28 / SRVLM01",
+  "product": "AirWorker",
+  "parent": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "baseline_sha": "8c478c8735c8d5d7073bafc39ca6a92b9df9c79c",
+  "trigger": "native independent Anthropic source-security review of exact 8c478c8: FAIL_P1 for transparent shell prefixes and cmd combined switches, P2 for unwrapped POSIX shells",
+  "source": [
+    "cmd/bypassguard.go",
+    "cmd/bypassguard_test.go",
+    "learn/events.jsonl (native LEARN)"
+  ],
+  "scope": {
+    "command_wrappers": [
+      "exec",
+      "command",
+      "builtin",
+      "sudo",
+      "timeout",
+      "eval",
+      "watch",
+      "busybox",
+      "toybox"
+    ],
+    "cmd": "/d/c /s/c /c quoted attached command",
+    "interpreters": [
+      "dash",
+      "ksh",
+      "mksh",
+      "fish",
+      "csh",
+      "tcsh",
+      "ash"
+    ],
+    "tdd": "16 direct-model launches RED RC1 before code; safe echo/git in each category remains ALLOW; watch -d -n variant additional RED then GREEN",
+    "residual": "text-only shell guard cannot attest live ChatGPT hooks or any unsupported arbitrary shell grammar"
+  },
+  "checks": {
+    "targeted_regex": "^(TestN130|TestN133|TestNativeSourceReview|TestN134|TestDistributionReleaseGuard)",
+    "targeted_rc": 0,
+    "targeted_job_request_id": "acmd-31c499ce-1add-479a-8abe-b9d4f129930f",
+    "gofmt_rc": 0,
+    "accepted_windows_symlink": "SKIP_UNPRIVILEGED_NOT_PASS",
+    "parent_and_candidate_junction": "PASS scoped N130 tests",
+    "independent_anthropic_current_sha": "NOT_RUN",
+    "full_go_previous_sha": "ABORTED_OWN_OBSOLETE_JOB_RC_MINUS_1_NO_QA_PASS",
+    "full_go_8c478c_process": {
+      "wrapper_pid": 6088,
+      "go_pid": 892,
+      "child_test_pid": 3708,
+      "stopped_after_verified_parentage": true,
+      "terminal_rc": -1,
+      "previous_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "current_full_go": "NOT_RUN"
+  },
+  "learning": {
+    "native_learn_id": "LR-20261106T105717Z-a1e93308",
+    "recorded_rc": 0,
+    "applied": false
+  },
+  "runtime": {
+    "installed": "0.11.11-rc.2",
+    "changed": false
+  },
+  "release": {
+    "rc4_tag_published": false,
+    "rc4_installed": false,
+    "executable_build_vcs_current_sha": "NOT_PROVEN",
+    "code_release_gate": "OPEN"
+  },
+  "next": "Commit scoped source and receipt, independent Anthropic review of exact clean SHA with TASK_READ_OK; full applicable Go QA, VCS-stamped CLI and tray, verified signed publisher and host plugin transaction; source branch publication remains blocked by previous pre-execution refusal and must be handled through authorized owner, not alternate tool."
+}
