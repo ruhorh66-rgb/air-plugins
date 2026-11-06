@@ -349,10 +349,20 @@ func unwrapNativeShellLauncher(segment string) string {
 			}
 		}
 	case "bash", "sh", "zsh":
-		for i := 0; i < len(args); i++ {
-			option := strings.ToLower(args[i])
+		for i := 0; i < len(args); {
+			rawOption := args[i]
+			option := strings.ToLower(rawOption)
 			if option == "--" || !strings.HasPrefix(option, "-") {
 				break
+			}
+			// Bash -o/-O each consume an option name as the next argument.
+			// Skip that name before looking for a later -c or combined -ec.
+			if rawOption == "-o" || rawOption == "-O" {
+				if i+1 >= len(args) {
+					return ""
+				}
+				i += 2
+				continue
 			}
 			// Bash allows combined short flags, e.g. -ec, -xc, -lc.
 			// The -c flag consumes the following argument as a command.
@@ -360,6 +370,7 @@ func unwrapNativeShellLauncher(segment string) string {
 				strings.Contains(option[1:], "c") {
 				return joinAfter(i + 1)
 			}
+			i++
 		}
 	case "env":
 		// env options precede the command and some consume a separate value.

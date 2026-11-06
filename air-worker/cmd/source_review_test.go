@@ -207,3 +207,49 @@ func TestNativeSourceReviewAcceptsBoundedFindingFixWhileRejectingUnknownFields(t
 		t.Fatal("unknown field inside checked evidence accepted")
 	}
 }
+
+func TestN133Legal19HR14UnreadTaskNeverPassesNativeSourceReview(t *testing.T) {
+	root, commit, taskSHA, refs := sourceReviewFixture(t)
+	verified := sourceReviewVerdict{
+		Verdict: "PASS_SOURCE_ONLY", SourceCommit: commit, TaskSHA256: taskSHA,
+		TaskRead: "TASK_READ_OK", Checked: refs, Next: "accepted source evidence",
+	}
+
+	// Both incidents had a successful outer receipt although the executor
+	// explicitly could not read the task. Process exit 0 is not review PASS.
+	for _, tc := range []struct{ name, answer string }{
+		{"Legal19", "I couldn't read TASK.md because access was denied"},
+		{"HR14", "I couldn't open the review task; I cannot inspect the files"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stream, err := json.Marshal(map[string]any{
+				"type": "result", "result": tc.answer, "is_error": false,
+				"session_id": "outer-success-only",
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			reply, _, _, _, err := parseClaudeSemanticResult(string(stream)+"\n", nil)
+			if err != nil {
+				t.Fatalf("fixture must reproduce successful outer process: %v", err)
+			}
+			if _, err := parseSourceReviewVerdict(reply, root, commit, taskSHA); err == nil {
+				t.Fatal("unread task was promoted from outer success to source-review PASS")
+			}
+		})
+	}
+
+	unread := verified
+	unread.TaskRead = "TASK_READ_FAIL"
+	if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, unread), root, commit, taskSHA); err == nil {
+		t.Fatal("structured PASS with explicit failed task read was accepted")
+	}
+	missingEvidence := verified
+	missingEvidence.Checked = nil
+	if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, missingEvidence), root, commit, taskSHA); err == nil {
+		t.Fatal("TASK_READ_OK without real code citations was accepted")
+	}
+	if got, err := parseSourceReviewVerdict(sourceReviewJSON(t, verified), root, commit, taskSHA); err != nil || got.Verdict != "PASS_SOURCE_ONLY" {
+		t.Fatalf("genuine exact-task, source-cited read-only review was rejected: %+v %v", got, err)
+	}
+}

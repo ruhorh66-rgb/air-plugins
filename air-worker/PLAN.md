@@ -812,3 +812,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] N-129_native-route-enforcement-at-hook-and-cli-boundar · owner:Dev Work 26 / SRVLM01 · [[N-130_rc4-release-p0-source-reviewer-fixes-and-transac]] · RC4 release P0 source reviewer fixes and transactional rollback
 - [closed] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 26 / SRVLM01 · [[N-131_dev-work-26-session-save-learning-and-handoff]] · Dev Work 26 session save, learning and handoff
 - [closed] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 27 / SRVLM01 · [[N-132_dev-work-27-session-save-coding-lessons-and-new-s]] · Dev Work 27 session save, coding lessons and new-session handoff
+- [open] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 28 / SRVLM01 · [[N-133_n130-unread-task-must-not-pass-source-review-leg]] · N130 unread task must not pass source review (Legal19 HR14 regression)

@@ -1,0 +1,62 @@
+{
+  "schema": "air-worker.devwork28.n130-n133-targeted-source-only/v1",
+  "date_sgt": "2026-11-06",
+  "node": "SRVLM01",
+  "owner": "Dev Work 28",
+  "source_worktree": "D:/Devbox/AirWorker/worktrees/awlrn-orch-pilot-20261104",
+  "source_baseline_head": "edc9971753db3120af1a7d6863b578eaee6efaa9",
+  "native_node": "N-133_n130-unread-task-must-not-pass-source-review-leg",
+  "parent": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "node_created_via_native_core_rc": 0,
+  "changes": [
+    "air-worker/cmd/bypassguard.go",
+    "air-worker/cmd/source_review_test.go",
+    "air-worker/PLAN.md (native core)",
+    "air-worker/plan/N-133_n130-unread-task-must-not-pass-source-review-leg.md (native core)",
+    "air-worker/learn/events.jsonl (native core)"
+  ],
+  "tests": {
+    "bash_guard": {
+      "rc": 0,
+      "pass_groups": 3,
+      "log": "D:/Devbox/AirWorker/temp/DevWork28/N130/bash-guard-targeted.log",
+      "log_sha256": "83625b5a37eb482e35bc865a98933b6cc174c4d6eb5a12dd9e22fcf19d27db93"
+    },
+    "scoped_security": {
+      "rc": 0,
+      "passed": 33,
+      "failed": 0,
+      "log": "D:/Devbox/AirWorker/temp/DevWork28/N130/n130-n133-security-targeted.log",
+      "log_sha256": "0f091a15180bbb9645a3150422019b99dcd18d45278bdd39ab995162369fa963",
+      "includes": [
+        "bash -o/-O direct model guard negatives and safe commands",
+        "Legal19/HR14 unread task never counts as native source-review PASS",
+        "Claude/Codex old binary/plugin cache transactional rollback",
+        "Windows junction/reparse/parent path protection",
+        "successful source cited reviewer remains accepted"
+      ]
+    },
+    "gofmt_rc": 0,
+    "git_diff_check_rc": 0,
+    "native_plan_lint_rc": 0,
+    "go_vet_current_sha": "BLOCKED_PRE_EXECUTION_BY_OPENAI_TOOL_SECURITY_NO_PROCESS_RC",
+    "native_validate_current_sha": "BLOCKED_PRE_EXECUTION_BY_SAME_REJECTED_TOOL_CALL_NO_PROCESS_RC",
+    "full_go_current_sha": "NOT_RUN",
+    "independent_anthropic_final_sha": "NOT_RUN"
+  },
+  "learning": {
+    "native_review_status": "HISTORICAL_REVIEW_ERROR_NOT_APPLIED"
+  },
+  "runtime": {
+    "installed": "air-worker 0.11.11-rc.2",
+    "changed": false
+  },
+  "release": {
+    "rc4": "SOURCE_ONLY_HOLD",
+    "signed": false,
+    "published": false,
+    "installed": false,
+    "reason": "Full applicable QA and independent exact-SHA Anthropic review incomplete; QA request blocked before execution; need sanctioned execution path and trusted publisher signer"
+  },
+  "next": "On approved QA path, finish native validate and go vet on exact source, applicable full QA and independent Anthropic source review with TASK_READ_OK and citations; VCS-stamped CLI/Tray from clean Git, official signed prerelease and verified rollback to rc.2, then Hermes Self-Learning live next-session use."
+}
