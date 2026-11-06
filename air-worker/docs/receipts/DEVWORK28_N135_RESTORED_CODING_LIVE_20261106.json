@@ -1,0 +1,113 @@
+{
+  "schema": "air-worker.n135.restore-coding-native-acceptance/v1",
+  "date_sgt": "2026-11-06",
+  "owner": "Dev Work 28 / SRVLM01",
+  "trigger": "LPR: restore existing full coding Codex ladder and independent Anthropic judge from working historic release; stop read-only-only regression",
+  "product": "AirWorker",
+  "native_node": "N-135_restore-accepted-codex-coding-ladder-and-anthrop",
+  "parent": "N-126_native-two-codex-and-anthropic-reviewer-orchestr",
+  "source": {
+    "branch": "dev/airworker-native-orch-pilot-20261104",
+    "sha": "c976f5748508c37a8e68502af356429095a40e25",
+    "local_equals_upstream": true,
+    "github_verified": true,
+    "clean": true,
+    "installed": "0.11.11-rc.2 unchanged"
+  },
+  "release_comparison": {
+    "historical_reference": "air-worker--v0.11.11-rc.2",
+    "historical_native_ladder": [
+      "script",
+      "gpt6-luna:low/medium/high",
+      "gpt6-sol:low/medium/high",
+      "gpt6-astra:low/medium/high"
+    ],
+    "historical_judges": [
+      "claude-sonnet-5-5",
+      "claude-opus-5-5"
+    ],
+    "regression": "product-scoped require_native_subagents=true blocked native single Codex coding dispatch, forced two read-only analysts and one leader; generic runner_codex already supported coding and optional analysis",
+    "restoration": "disable mandatory read-only native subagents in AirWorker source run-config, retain independent Anthropic requirement, keep optional two-read-only-subagent orchestration and security guards, update native hook/Codex/Hermes/Woody guidance"
+  },
+  "tests": {
+    "policy_red": {
+      "name": "TestN135RestoreAcceptedCodingLadderAndAnthropicJudges",
+      "rc": 1,
+      "reason": "mandatory read-only subagent policy blocked native coding"
+    },
+    "policy_green": {
+      "rc": 0
+    },
+    "targeted_regression": {
+      "regex": "TestN12[89]|TestN130|TestN133|TestN134|TestN135|TestReleaseModelPolicy0113|TestReleaseJudgePolicy0113|TestCodexNativeOrchestration|TestCodexOrchestration",
+      "rc": 0,
+      "log": "D:/Devbox/AirWorker/temp/DevWork28/N135/n135-restored-final-scoped.log",
+      "sha256": "65db42d9d9544c58f7059ce9d46e4898eae7007c9bda1210a4e0deab66d2e9cc"
+    },
+    "plan_lint": {
+      "rc": 0,
+      "warnings": []
+    },
+    "live_fixture": {
+      "root": "D:/Devbox/AirWorker/temp/DevWork28/N135/coding-fixture-20261106",
+      "started_red": "Sum(2,3) returned -1, go test TestSum RC1",
+      "task1": {
+        "class": "complex",
+        "native_tier": "gpt6-sol:medium",
+        "model": "gpt-6-sol",
+        "role": "executor/leader",
+        "sandbox": "workspace-write",
+        "job_id": "gpt__DevWork28N135Coding20261106__1793972183125327100__40d6209a",
+        "status": "DONE",
+        "actual_change": "calc.go Sum now returns a+b",
+        "terminal_cli_rc": 0
+      },
+      "task2": {
+        "class": "bulk",
+        "native_tier": "gpt6-luna:low",
+        "model": "gpt-6-luna",
+        "role": "executor/leader",
+        "sandbox": "workspace-write",
+        "job_id": "gpt__DevWork28N135Coding20261106__1793972335142385400__c3721a87",
+        "status": "DONE",
+        "actual_change": "calc.go Product now returns a*b; calc_test.go TestProduct positive/zero/negative",
+        "terminal_cli_rc": 0,
+        "limitation": "Codex task process reported inability to run Go due sandbox cache; no QA PASS inferred from model claim"
+      },
+      "factual": {
+        "command": "go test -count=1 ./...",
+        "rc": 0,
+        "job_id": "legacy__default__1793972708883823900__3ed7a0c6",
+        "product_judge_code": 0,
+        "criterion": "K2",
+        "task1_sum_test_rc": 0
+      },
+      "anthropic": {
+        "command": "air-worker semantic -step 2 -executor codex",
+        "provider": "claude",
+        "model": "claude-sonnet-5-5",
+        "sandbox": "read-only",
+        "job_id": "legacy__default__1793972711191308600__c67bf991",
+        "status": "DONE",
+        "verdict": "PASS",
+        "step_done": "yes",
+        "drift": "none",
+        "rc": 0
+      },
+      "code_files": {
+        "calc_go_sha256": "d62020d514f18397308614cae1245c13faced675116393912ee6a71c7e550ea9",
+        "calc_test_go_sha256": "5d512891480df5bb65b65283be544c0160d9370eb0b3c3f3db47ab86dd58b6ec",
+        "task1_sha256": "66b47d618414391b313a2b231cddec41389f372ca8f2ca10f7344fdf84c8a16c",
+        "task2_sha256": "157edf55fb9e1c1e23bce5827e80c8beb837034c58dac14aadc36a7a77d9f56f"
+      }
+    }
+  },
+  "limitations": [
+    "Manual coordinator invoked two sequential native coding tasks and the semantic judge; NOT a zero-touch AirWorker autonomous PLAN→coding→factual→semantic→native close cycle",
+    "No interruption-resume and dynamic ladder escalation evidence for final source",
+    "Live fixture product is isolated and not installed AirWorker, no rc4 release approval inferred",
+    "Literal Windows symlink negative fixture SKIP is separate N130 release QA",
+    "N126 broader/legacy release slice N130 and Hermes P0 remain separately open"
+  ],
+  "next": "Commit and push source-only receipt, native close N135 after evidence verification; add existing-plan milestone for one fully kernel-driven autonomous coding step and resume/ladder proof, without touching historical 0.11.9 release-slices except by supported native transition."
+}
