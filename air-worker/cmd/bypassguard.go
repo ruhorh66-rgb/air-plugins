@@ -256,7 +256,9 @@ func classifyIndirectVendorModelLaunch(command string) (bool, string) {
 		if typeOf == "" {
 			continue
 		}
-		for j := i + 1; j < len(argv) && j <= i+5; j++ {
+		// Model flags can follow many legitimate vendor options. A fixed
+		// lookahead silently permits longer direct print/exec invocations.
+		for j := i + 1; j < len(argv); j++ {
 			arg := strings.Trim(strings.ToLower(argv[j]), "\"'(){}")
 			if typeOf == "claude" && (arg == "-p" || arg == "--print") {
 				return true, "косвенный прямой вызов Claude вне AirWorker: используй штатный review source"

@@ -1,0 +1,35 @@
+{
+  "schema": "air-worker.devwork28.n130-long-argv-guard-source-only/v1",
+  "date_sgt": "2026-11-06",
+  "owner": "Dev Work 28 / SRVLM01",
+  "node": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "baseline_sha": "51d8af6cf6c3f274e06fa5bbab8d2af5d62273ec",
+  "source_files": [
+    "cmd/bypassguard.go",
+    "cmd/bypassguard_test.go",
+    "learn/events.jsonl via native"
+  ],
+  "trigger": "Independent Anthropic FAIL_P1 on five-token model flag lookahead, direct invocation could use longer legitimate options",
+  "evidence": {
+    "reviewer_verdict": "FAIL_P1 on baseline sha 51d8af6, TASK_READ_OK and source line citation",
+    "regression_red_rc": 1,
+    "regression_red_request_id": "acmd-df3cdd45-4af9-47c5-b632-829cf8be40a7",
+    "fix": "Remove five-token window, inspect all remaining argv words in bounded shell segment; inert diagnostic whitelist preserved",
+    "targeted_regression_rc": 0,
+    "targeted_regression_request_id": "acmd-5406edd2-112c-4f02-bd21-b58dded3ff45",
+    "test_regex": "^(TestN130|TestN133|TestNativeSourceReview|TestN134|TestDistributionReleaseGuard)",
+    "literal_windows_symlink": "SKIP_NOT_PASS",
+    "new_exact_sha_independent_review": "NOT_RUN",
+    "full_go_current_sha": "NOT_RUN",
+    "older_full_go_8c": "ABORTED_OWN_OBSOLETE_JOB_RC_MINUS_1_NOT_PASS"
+  },
+  "learning": {
+    "native_id": "LR-20261106T111256Z-d06954bc",
+    "rc": 0,
+    "applied": false
+  },
+  "installed": "0.11.11-rc.2 unchanged",
+  "release": "rc4 SOURCE_ONLY HOLD",
+  "publication": "previous push action pre-execution denied; source branch local ahead, no alternate transport used",
+  "next": "Commit source with receipt and readback clean; secure owner-approved source publication, full QA/independent final SHA review/VCS stamped signed GitHub release and official rollback-verified installation, then Hermes real E2E."
+}
