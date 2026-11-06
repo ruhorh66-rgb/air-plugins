@@ -284,9 +284,40 @@ func nativeShellLauncherArgs(segment string) (string, []string, bool) {
 	return base, strings.Fields(rest), quoted
 }
 
-// Opaque PowerShell inputs cannot be checked against the actual model call
-// without executing/reading foreign script contents. Fail closed rather than
-// admitting an uninspected direct Codex or Claude invocation.
+// nativePowerShellLauncherOption recognizes only command-producing or opaque
+// PowerShell launcher options, including documented aliases and unambiguous
+// long-option prefixes. ExecutionPolicy/NoProfile and diagnostic text remain
+// ordinary options. No shell code or files are executed by this classifier.
+func nativePowerShellLauncherOption(raw string) (kind, inlineValue string) {
+	token := strings.Trim(raw, "\"'")
+	if !strings.HasPrefix(token, "-") && !strings.HasPrefix(token, "/") {
+		return "", ""
+	}
+	option := strings.TrimLeft(token, "-/")
+	value := ""
+	if cut := strings.IndexAny(option, ":="); cut >= 0 {
+		value = option[cut+1:]
+		option = option[:cut]
+	}
+	option = strings.ToLower(option)
+	switch {
+	case option == "e" || option == "ec" ||
+		(len(option) >= 2 && (strings.HasPrefix("encodedcommand", option) ||
+			strings.HasPrefix("encodedarguments", option))):
+		return "opaque", ""
+	case option == "f" || (len(option) >= 2 && strings.HasPrefix("file", option)):
+		return "opaque", ""
+	case option == "c" || (len(option) >= 2 &&
+		(strings.HasPrefix("command", option) || strings.HasPrefix("commandwithargs", option))):
+		return "command", value
+	default:
+		return "", ""
+	}
+}
+
+// Opaque PowerShell inputs cannot be inspected without running untrusted
+// scripts or decoding arbitrary payloads. Reject the launcher before -Command,
+// not quoted data AFTER -Command (e.g. Write-Output '-File is a switch name').
 func opaqueNativeShellLauncher(segment string) bool {
 	first, args, _ := nativeShellLauncherArgs(segment)
 	if first != "powershell" && first != "powershell.exe" &&
@@ -294,21 +325,11 @@ func opaqueNativeShellLauncher(segment string) bool {
 		return false
 	}
 	for _, raw := range args {
-		flag := strings.ToLower(strings.Trim(raw, "\"'"))
-		// After -Command, the remaining tokens belong to the command string.
-		// Documentation or a diagnostic that mentions -File is not an
-		// additional PowerShell option and must not become a false denial.
-		if flag == "-command" || flag == "-c" || flag == "/command" ||
-			flag == "-commandwithargs" {
+		kind, _ := nativePowerShellLauncherOption(raw)
+		switch kind {
+		case "command":
 			return false
-		}
-		// A colon/equals value remains opaque, just like a split-value flag.
-		switch {
-		case flag == "-encodedcommand" || flag == "-enc" || flag == "-e" ||
-			flag == "-encodedarguments" || flag == "-file" || flag == "-f" ||
-			strings.HasPrefix(flag, "-encodedcommand:") ||
-			strings.HasPrefix(flag, "-encodedcommand=") ||
-			strings.HasPrefix(flag, "-file:") || strings.HasPrefix(flag, "-file="):
+		case "opaque":
 			return true
 		}
 	}
@@ -343,10 +364,18 @@ func unwrapNativeShellLauncher(segment string) string {
 		}
 	case "powershell", "powershell.exe", "pwsh", "pwsh.exe":
 		for i := 0; i < len(args); i++ {
-			switch strings.ToLower(args[i]) {
-			case "-command", "-c", "/command":
-				return joinAfter(i + 1)
+			kind, inlineValue := nativePowerShellLauncherOption(args[i])
+			if kind != "command" {
+				continue
 			}
+			if inlineValue != "" {
+				payload := inlineValue
+				if i+1 < len(args) {
+					payload += " " + strings.Join(args[i+1:], " ")
+				}
+				return unquoteCommandPayload(payload)
+			}
+			return joinAfter(i + 1)
 		}
 	case "bash", "sh", "zsh":
 		for i := 0; i < len(args); {

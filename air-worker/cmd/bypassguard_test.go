@@ -293,6 +293,12 @@ func TestN130PathShellOptionsFailClosedWithoutDiagnosticFalseDenials(t *testing.
 		`"C:\Program Files\PowerShell\7\pwsh.exe" -EncodedCommand YwBsAGEAdQBkAGUA`,
 		`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -File C:\Temp\script.ps1`,
 		`pwsh -enc YwBsAGEAdQBkAGUA`,
+		`pwsh -ec YwBsAGEAdQBkAGUA`,
+		`pwsh -EncodedC YwBsAGEAdQBkAGUA`,
+		`powershell -Fi C:\Temp\script.ps1`,
+		`pwsh -NoProfile -Comm "claude -p review"`,
+		`pwsh -NoProfile -CommandWithArgs "codex exec --json"`,
+		`pwsh -Comm:"codex exec --json"`,
 		`/usr/bin/bash -o pipefail -c 'claude --print review'`,
 		`/usr/bin/bash -O extglob -ec 'codex exec --json'`,
 	}
@@ -304,6 +310,10 @@ func TestN130PathShellOptionsFailClosedWithoutDiagnosticFalseDenials(t *testing.
 	allowed := []string{
 		`powershell -NoProfile -Command "Write-Output '-File is a switch name'"`,
 		`pwsh -Command "Write-Output '-EncodedCommand is a switch name'"`,
+		`pwsh -NoProfile -Comm "Write-Output '-Fi is a switch name'"`,
+		`pwsh -NoProfile -CommandWithArgs "git status"`,
+		`pwsh -Comm:"Write-Output safe"`,
+		`powershell -ExecutionPolicy RemoteSigned -Command "Write-Output safe"`,
 		`/usr/bin/bash -o pipefail -c 'echo safe'`,
 		`/usr/bin/bash -O extglob -ec 'git status'`,
 	}
