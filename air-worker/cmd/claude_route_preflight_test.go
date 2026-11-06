@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -62,6 +64,53 @@ func TestNativeSessionStartGuidancePreservesExistingContext(t *testing.T) {
 	}
 	if after.Block {
 		t.Fatal("static SessionStart information unexpectedly blocks a session")
+	}
+}
+
+func TestN134SessionStartToolOutcomeTruthIsDelivered(t *testing.T) {
+	before := hookResult{Context: "existing learning procedure"}
+	startup := hookResult{Context: "trusted curator instructions"}
+	got := withNativeRouteStartupContext(before, startup)
+	for _, required := range []string{
+		"HOST_DENIED_PRE_EXECUTION",
+		"not a server outage or failed Go test",
+		"request_id, PID, exit code UNKNOWN",
+		"Do not retry the refused operation",
+		"Continue only independent authorized actions",
+		"RUNNING/UNKNOWN until its terminal receipt",
+		"exit 0 alone is not task read or judge PASS",
+		"Host hook rules apply only after verified delivery",
+	} {
+		if !strings.Contains(got.Context, required) {
+			t.Errorf("native SessionStart guidance lacks %q", required)
+		}
+	}
+	if !strings.HasPrefix(got.Context, startup.Context) {
+		t.Fatal("curator-provided session context was overwritten")
+	}
+	if !strings.Contains(got.Context, before.Context) || got.Block {
+		t.Fatal("tool outcome guidance must preserve previous context without new blocking power")
+	}
+}
+
+func TestN134WoodySkillIncludesToolOutcomeBoundary(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "skills", "woody", "SKILL.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	for _, required := range []string{
+		"HOST_DENIED_PRE_EXECUTION",
+		"NOT_CHECKED_BY_THIS_CALL",
+		"EXECUTION_UNKNOWN",
+		"NOT_RUN",
+		"Не повторяй это же отклонённое действие",
+		"разрешённые **независимые** шаги",
+		"факт доставки хука **не предполагается**",
+	} {
+		if !strings.Contains(text, required) {
+			t.Errorf("packaged Woody skill has no safety-boundary guidance %q", required)
+		}
 	}
 }
 

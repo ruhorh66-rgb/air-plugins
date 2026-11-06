@@ -1,0 +1,61 @@
+{
+  "schema": "air-worker.devwork28.tool-outcome-procedure/v1",
+  "date_sgt": "2026-11-06",
+  "node": "SRVLM01",
+  "owner": "Dev Work 28",
+  "trigger": "LPR instruction: correct own tool-use approach, record allowed and forbidden behaviors in AirWorker code, teach through native LEARN, continue N130",
+  "plan_node": "N-134_n130-tool-outcome-truth-and-safe-host-call-proce",
+  "parent": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "source_baseline_head": "26d69e2863f51b73425fe32f192212c0fbe91fe8",
+  "changes": {
+    "native_plan_and_learning": [
+      "air-worker/PLAN.md",
+      "air-worker/plan/N-134_n130-tool-outcome-truth-and-safe-host-call-proce.md",
+      "air-worker/learn/events.jsonl"
+    ],
+    "source": [
+      "air-worker/cmd/hook.go",
+      "air-worker/cmd/claude_route_preflight_test.go",
+      "air-worker/skills/woody/SKILL.md"
+    ],
+    "behavior": "Native SessionStart now supplies a scoped host-tool evidence contract; packaged Woody skill details pre-execution refusal, terminal receipts, no retry via alternate transport, safe independent continuation and source-vs-installed distinction.",
+    "scope": "Only source and packaged skill; does not modify or relax OpenAI safety, host hooks or installed rc.2."
+  },
+  "checks": {
+    "gofmt_rc": 0,
+    "targeted_test_names": [
+      "TestNativeSessionStartGuidancePreservesExistingContext",
+      "TestN134SessionStartToolOutcomeTruthIsDelivered",
+      "TestN134WoodySkillIncludesToolOutcomeBoundary"
+    ],
+    "targeted_test_result": "3 PASS, 0 FAIL, RC0",
+    "targeted_test_tool_request_id": "acmd-e9c1a82c-0e85-4d18-afb0-f3f51ec15ab9",
+    "diff_check_rc": 0,
+    "plan_lint_rc": 0,
+    "native_plan_node_new_rc": 0,
+    "native_learn_event_rc": 0,
+    "learn_readback": "PASS"
+  },
+  "learn": {
+    "id": "LR-20261106T072328Z-6d851e26",
+    "class": "host-tool-result-evidence-boundary",
+    "recorded_via": "air-worker learn event",
+    "status": "CAPTURED_ONLY_NOT_REVIEWED_OR_APPLIED",
+    "reference": "N-134_n130-tool-outcome-truth-and-safe-host-call-proce"
+  },
+  "permissions": {
+    "new_host_privileges": false,
+    "new_service_or_bridge": false,
+    "installed_rc2_changed": false,
+    "release_or_install_performed": false,
+    "core_platform_protections_changed": false
+  },
+  "not_proven": [
+    "Full applicable Go QA on exact final SHA",
+    "Independent Anthropic source/security review",
+    "Runtime delivery of new rule to ordinary ChatGPT chats",
+    "Signed and installed rc4",
+    "Hermes Self-Learning E2E"
+  ],
+  "next": "Commit and push exact source and native plan/LEARN, read back GitHub and native N134 judge; close N134 only after factual receipt; keep N130 OPEN for release QA/sign/install already authorized under unchanged scope."
+}

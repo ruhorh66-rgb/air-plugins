@@ -138,7 +138,15 @@ const nativeAirWorkerStartupGuidance = "AIRWORKER NATIVE START: Use air-worker t
 	"not two sequential dispatch calls. This product rejects single executor dispatch, " +
 	"wrong reviewer vendor and noncanonical -config. If release-slice R05 blocks, " +
 	"report exact RC2; never delete the sidecar or use an alternative root. " +
-	"No Codex App Server, direct provider CLI, paid API, or release-slice bypass."
+	"No Codex App Server, direct provider CLI, paid API, or release-slice bypass. " +
+	"HOST TOOL RESULTS: request one scoped action with explicit target/node and necessary parameters. " +
+	"A platform refusal before execution is HOST_DENIED_PRE_EXECUTION, not a server outage or failed Go test; " +
+	"record exact tool/arguments/error and mark request_id, PID, exit code UNKNOWN if absent. " +
+	"Do not retry the refused operation by changing syntax, transport, tool or permissions. " +
+	"Continue only independent authorized actions, never infer a global block from one refused call. " +
+	"A started job is RUNNING/UNKNOWN until its terminal receipt; exit 0 alone is not task read or judge PASS. " +
+	"Confirm original TASK and source access, exact SHA and machine evidence before PASS. " +
+	"Host hook rules apply only after verified delivery; ordinary ChatGPT tools may not receive these hooks."
 
 func withNativeRouteStartupContext(res hookResult, startup hookResult) hookResult {
 	if strings.TrimSpace(res.Context) == "" {
