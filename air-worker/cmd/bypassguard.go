@@ -385,7 +385,9 @@ func unwrapNativeShellLauncher(segment string) string {
 		}
 	case "bash", "sh", "zsh":
 		for i := 0; i < len(args); {
-			rawOption := args[i]
+			// Shell quotes around an argv option do not change how Bash
+			// parses it: "-c", '-ec' and "--rcfile" are still options.
+			rawOption := strings.Trim(args[i], "\"'")
 			option := strings.ToLower(rawOption)
 			if option == "--" || !strings.HasPrefix(option, "-") {
 				break
