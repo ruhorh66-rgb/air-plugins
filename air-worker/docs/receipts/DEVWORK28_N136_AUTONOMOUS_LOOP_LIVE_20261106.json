@@ -1,0 +1,107 @@
+{
+  "schema": "air-worker.n136.autonomous-plan-coding-factual-anthropic/v1",
+  "date_sgt": "2026-11-06",
+  "owner": "Dev Work 28 / SRVLM01",
+  "source_tree_baseline_sha": "386c8088d20888eedbf5f3cab40d1e5fd8f733f1",
+  "native_node": "N-136_prove-autonomous-plan-coding-factual-anthropic-c",
+  "parent": "N-126_native-two-codex-and-anthropic-reviewer-orchestr",
+  "reason": "LPR and Vega: prove actual autonomous AirWorker control (choose eligible plan step, edit code with Codex, factual plus Anthropic judge, close step, then independently verify idempotency/resume and ladder escalation); previous N135 two Codex tasks were manually dispatched",
+  "test_product": "D:/Devbox/AirWorker/temp/DevWork28/N136/autonomous-fixture-20261106",
+  "source_runtime": {
+    "binary": "D:/Devbox/AirWorker/temp/DevWork28/N135/air-worker-n135-coding-probe.exe",
+    "binary_sha256": "ba9127f3f5358ae30494ce04df667c4349be07d28534aafe92a1dd227159e73e",
+    "version": "0.11.11-rc.4",
+    "vcs_revision": "NOT_EMBEDDED: source-only probe, not release-grade VCS attestation",
+    "installed_version_unchanged": "0.11.11-rc.2",
+    "source_product_plan_slices": "Historical 0.11.9 source project release-slices left unchanged; this is a separate isolated product normally supported by AirWorker, not an override of that guard"
+  },
+  "workflow": {
+    "one_and_only_entry": "air-worker loop -product <isolated> -principal gpt -session-key DevWork28N136Autonomy20261106",
+    "initial_step_count": {
+      "open": 1,
+      "closed": 0
+    },
+    "initial_factual": {
+      "judge": "fixture-go",
+      "rc": 1,
+      "reason": "VerifiedOutcome(0,false) incorrectly true, TestVerifiedOutcome RED"
+    },
+    "plan_semantic": {
+      "model": "claude-sonnet-5-5",
+      "verdict": "PASS",
+      "job_id": "gpt__DevWork28N136Autonomy20261106__1793977285090967700__44b183ac"
+    },
+    "coding": {
+      "selected_plan_row": "1",
+      "tier": "gpt6-luna:low",
+      "model": "gpt-6-luna",
+      "runner": "codex",
+      "native_role": "executor/leader",
+      "sandbox": "workspace-write",
+      "job_id": "gpt__DevWork28N136Autonomy20261106__1793977304625961900__cfa0f277",
+      "status": "DONE",
+      "code_changed": "task.go VerifiedOutcome now requires exitCode==0 && taskRead",
+      "manual_codex_invocation_after_loop_start": false
+    },
+    "post_code_factual": {
+      "judge": "fixture-go",
+      "exit_code": 0,
+      "criteria_passed": 1,
+      "job_id": "gpt__DevWork28N136Autonomy20261106__1793977460168552700__be8b2b1c"
+    },
+    "independent_semantic": {
+      "runner": "claude",
+      "model": "claude-sonnet-5-5",
+      "sandbox": "read-only",
+      "job_id": "gpt__DevWork28N136Autonomy20261106__1793977367736882900__64c9d97e",
+      "terminal_status": "DONE",
+      "verdict": "PASS",
+      "step_done": "yes",
+      "drift": "none"
+    },
+    "native_plan_close": {
+      "line": "~~1~~",
+      "readback": true
+    },
+    "terminal": {
+      "loop_rc": 0,
+      "process_wall_time_seconds": 101.82,
+      "measured_cost_usd": 0.0964,
+      "measured_model_turns": 1,
+      "goal": "ACHIEVED"
+    },
+    "manual_interventions_between_loop_entry_and_terminal": 0,
+    "independent_readback": {
+      "command": "go test -count=1 ./...",
+      "exit_code": 0,
+      "plan_sha256": "5403f164b47f406783119747cfb521b2a3be275b184f48e5edde52407f3859d5",
+      "task_go_sha256": "ba5a6e51c45d14ee779f6b246c81547ab5e9657ab0aa5260cbf5ef5ac965d772",
+      "task_test_sha256": "9c4bd215a400cdd21b0af8c5fd6fba496fc842ac502fd6715ae4b95bb501b22c"
+    },
+    "completed_reentry": {
+      "same_session_reinvoked": true,
+      "rc": 0,
+      "executor_receipts_before": 1,
+      "executor_receipts_after": 1,
+      "no_duplicate_coding": true
+    }
+  },
+  "evidence": {
+    "source_initial_red_request": "acmd-f155aea9-0195-408f-81a5-1668e4db6843",
+    "source_plan_validation_request": "acmd-45cd4af6-af25-46f6-a87e-923554306357",
+    "one_native_loop_start_request": "acmd-c45e0822-516d-4a01-9501-e7e3b9e26ccb",
+    "terminal_read_request": "acmd-70172167-6307-479f-ad9d-9cac63dbafa0",
+    "independent_readback_request": "acmd-40f6a64c-4e61-4241-bc8d-e91f373d477d",
+    "completed_reentry_request": "acmd-48591e9a-8acb-40ef-a0e7-5a63261294fb"
+  },
+  "limitations": {
+    "live_on_actual_AirWorker_source": "NOT_PROVEN: test ran in controlled disposable product with real providers",
+    "resumed_interrupted_running_job": "NOT_PROVEN: completed reentry no-dup only",
+    "actual_ladder_escalation": "NOT_PROVEN: Luna low succeeded on first try; config presence does not prove escalation",
+    "N126_broader_done_when": "OPEN pending separate reconciliation",
+    "N130_release": "OPEN; full release QA/VCS stamped signed payload/install/rollback not proven",
+    "release_slices_active_0119": "UNCHANGED; no false version switch, current source release guard retained",
+    "self_learning_effect": "NOT_PROVEN"
+  },
+  "next": "Commit factual receipt and machine plan changes, do not close N136 before independent interrupted-job resume/tier-transition proofs; prioritize supported plan runner improvement or retain NOT_PROVEN with exact scope. Do not substitute manual model calls or fixture PASS for production autonomous acceptance."
+}
