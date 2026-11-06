@@ -53,7 +53,10 @@ func TestN130PublisherRequiresTagCommitBeforeSigning(t *testing.T) {
 	s := string(b)
 	must := []string{
 		"if ([string]$release.tagName -ne $tag)",
-		"gh api \"repos/$GitHubRepo/commits/$tag\" --jq '.sha'",
+		"repos/$GitHubRepo/git/ref/tags/$TagName",
+		"repos/$GitHubRepo/git/tags/$sha",
+		"if ([string]$ref.ref -cne \"refs/tags/$TagName\")",
+		"if ($kind -ceq 'commit')",
 		"$tagCommitSha -ne $sourceCommit",
 		"release tag $tag resolves to $tagCommitSha",
 		"vcs\\.revision",
@@ -65,10 +68,16 @@ func TestN130PublisherRequiresTagCommitBeforeSigning(t *testing.T) {
 			t.Fatalf("release provenance contract missing %q", phrase)
 		}
 	}
+	if strings.Contains(s, "repos/$GitHubRepo/commits/$tag") {
+		t.Fatal("ambiguous generic commits/<ref> can resolve a branch instead of the release tag")
+	}
 	tagCheck := strings.Index(s, "$tagCommitSha -ne $sourceCommit")
 	signCall := strings.Index(s, "sign-update-manifest.py")
-	if tagCheck < 0 || signCall < 0 || tagCheck >= signCall {
-		t.Fatal("GitHub release tag must be resolved and compared before manifest signing")
+	secondCheck := strings.Index(s, "if ((Resolve-ReleaseTagCommit $tag) -ne $sourceCommit)")
+	feedWrite := strings.Index(s, "$feedPath = Publish-Manifest $manifestPath")
+	if tagCheck < 0 || signCall < 0 || secondCheck < 0 || feedWrite < 0 ||
+		tagCheck >= signCall || secondCheck <= signCall || secondCheck >= feedWrite {
+		t.Fatal("explicit release tag identity must be checked before signing and rechecked immediately before feed publication")
 	}
 }
 

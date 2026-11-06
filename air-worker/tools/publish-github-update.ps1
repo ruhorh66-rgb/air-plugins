@@ -32,6 +32,30 @@ function Invoke-GhJson([string[]]$Arguments) {
     return $text | ConvertFrom-Json
 }
 
+# Resolve ONLY refs/tags/<release>, never a generic commits/<name> ref that
+# might resolve a same-named branch. Handle lightweight and annotated tags.
+# Fail closed on missing, malformed, noncommit or nested tag object chains.
+function Resolve-ReleaseTagCommit([string]$TagName) {
+    if ($TagName -notmatch '^air-worker--v[0-9][A-Za-z0-9.-]*$') {
+        throw "invalid release tag identity: $TagName"
+    }
+    $ref = Invoke-GhJson @('api',"repos/$GitHubRepo/git/ref/tags/$TagName")
+    if ([string]$ref.ref -cne "refs/tags/$TagName") {
+        throw "GitHub returned a different tag ref: $($ref.ref)"
+    }
+    $kind = [string]$ref.object.type
+    $sha = [string]$ref.object.sha
+    for ($depth = 0; $depth -lt 4; $depth++) {
+        if ($sha -notmatch '^[0-9a-fA-F]{40}$') { throw 'tag object has no valid SHA' }
+        if ($kind -ceq 'commit') { return $sha.ToLowerInvariant() }
+        if ($kind -cne 'tag') { throw "release tag did not resolve to a commit: $kind" }
+        $tagObject = Invoke-GhJson @('api',"repos/$GitHubRepo/git/tags/$sha")
+        $kind = [string]$tagObject.object.type
+        $sha = [string]$tagObject.object.sha
+    }
+    throw 'release tag object chain exceeds bounded dereference depth'
+}
+
 function Get-FeedContentSha([string]$Path) {
     $old = $ErrorActionPreference
     try {
@@ -160,18 +184,14 @@ if ($sourceCommit -notmatch '^[0-9a-f]{40}$' -or $sourceCommit -ne $revision.ToL
     throw "publisher Git HEAD $sourceCommit differs from built CLI vcs.revision $revision"
 }
 # A GitHub release with matching asset hashes is NOT evidence that the release
-# tag points at this exact clean source commit. Resolve the immutable tag on
-# GitHub before signing or advancing the official update feed. GitHub's commits
-# endpoint dereferences both lightweight and annotated tags to a commit SHA.
+# tag points at this exact clean source commit. Resolve explicit refs/tags
+# (lightweight or annotated), not ambiguous commits/<ref>, before signing
+# or advancing the official update feed.
 if ([string]$release.tagName -ne $tag) {
     throw "GitHub release tag $($release.tagName) differs from expected $tag"
 }
-$tagCommit = @(& gh api "repos/$GitHubRepo/commits/$tag" --jq '.sha' 2>&1)
-if ($LASTEXITCODE -ne 0) {
-    throw "cannot resolve release tag to a Git commit: $($tagCommit -join ' | ')"
-}
-$tagCommitSha = ($tagCommit -join '').Trim().ToLowerInvariant()
-if ($tagCommitSha -notmatch '^[0-9a-f]{40}$' -or $tagCommitSha -ne $sourceCommit) {
+$tagCommitSha = Resolve-ReleaseTagCommit $tag
+if ($tagCommitSha -ne $sourceCommit) {
     throw "GitHub release tag $tag resolves to $tagCommitSha, expected source $sourceCommit"
 }
 $sourceChanges = @(& git -C $PluginRoot status --porcelain=v1 --untracked-files=all -- . 2>&1)
@@ -229,6 +249,11 @@ if (-not [bool]$verified.verified) { throw 'client did not verify signed manifes
 
 $feedPath = ''
 if (-not $VerifyOnly) {
+    # Revalidate explicit release tag identity immediately before publishing
+    # the signed feed. A tag move during preparation must never be accepted.
+    if ((Resolve-ReleaseTagCommit $tag) -ne $sourceCommit) {
+        throw "GitHub release tag $tag changed after signing, abort feed publication"
+    }
     $feedPath = Publish-Manifest $manifestPath
 
     $oldHome = $env:AIR_WORKER_HOME
