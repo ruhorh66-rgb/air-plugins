@@ -98,6 +98,12 @@ func classifyBypassDepth(cmdText string, installDirs []string, depth int) (bool,
 		if len(args) == 0 {
 			continue
 		}
+		// Shell quotes are not part of the executed argv. A quoted "-p",
+		// "exec" or "app-server" has the same model-launch behavior as
+		// its unquoted spelling; keep safe --version diagnostics allowed.
+		for i := range args {
+			args[i] = strings.Trim(args[i], "\"'")
+		}
 		if strings.HasPrefix(tool, "codex") {
 			for _, arg := range args {
 				if arg == "exec" || arg == "e" || arg == "app-server" {
@@ -387,6 +393,16 @@ func unwrapNativeShellLauncher(segment string) string {
 			// Bash -o/-O each consume an option name as the next argument.
 			// Skip that name before looking for a later -c or combined -ec.
 			if rawOption == "-o" || rawOption == "-O" {
+				if i+1 >= len(args) {
+					return ""
+				}
+				i += 2
+				continue
+			}
+			// GNU Bash --rcfile and --init-file each consume the next
+			// filename token. Do not interpret it as a script positional
+			// argument and overlook a later -c/-ec.
+			if option == "--rcfile" || option == "--init-file" {
 				if i+1 >= len(args) {
 					return ""
 				}
