@@ -823,4 +823,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 27 / SRVLM01 · [[N-132_dev-work-27-session-save-coding-lessons-and-new-s]] · Dev Work 27 session save, coding lessons and new-session handoff
 - [open] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 28 / SRVLM01 · [[N-133_n130-unread-task-must-not-pass-source-review-leg]] · N130 unread task must not pass source review (Legal19 HR14 regression)
 - [closed] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 28 / SRVLM01 · [[N-134_n130-tool-outcome-truth-and-safe-host-call-proce]] · N130 tool outcome truth and safe host-call procedure
-- [open] N-126_native-two-codex-and-anthropic-reviewer-orchestr · owner:Dev Work 28 / SRVLM01 · [[N-135_restore-accepted-codex-coding-ladder-and-anthrop]] · Restore accepted Codex coding ladder and Anthropic judge from rc2
+- [closed] N-126_native-two-codex-and-anthropic-reviewer-orchestr · owner:Dev Work 28 / SRVLM01 · [[N-135_restore-accepted-codex-coding-ladder-and-anthrop]] · Restore accepted Codex coding ladder and Anthropic judge from rc2
