@@ -1,0 +1,57 @@
+{
+  "schema": "air-worker.devwork28.n130-review-publisher-hardening/v1",
+  "observed_date_sgt": "2026-11-06",
+  "node": "SRVLM01",
+  "owner": "Dev Work 28",
+  "parent": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "product": "AirWorker",
+  "baseline_source_commit": "af3cbe22bb8d561487dd3f7f9977d55962f68741",
+  "change_scope": [
+    "cmd/source_review.go",
+    "cmd/source_review_test.go",
+    "tools/publish-github-update.ps1",
+    "cmd/distribution_release_test.go",
+    "learn/events.jsonl via native air-worker learn event"
+  ],
+  "reviewed_defect": {
+    "origin": "independent Anthropic supplementary source review of af3cbe2",
+    "source_review_state": "NOT_PROVEN RC2 due incomplete reviewed scope; diagnostic P2 was factual",
+    "p2": "PASS_SOURCE_ONLY distinct checked-file citation counter keyed on raw reviewer path rather than physical code source identity, accepting aliases of one file or documentation",
+    "red_reproduction": "TestN130SourceReviewPassRejectsPathAliasAndNonCodeCitationInflation RED RC1",
+    "correction": "verify each citation; only eligible source code paths count; distinct count from EvalSymlinks physical path identity",
+    "regression": "TestN130SourceReviewPassRejectsPathAliasAndNonCodeCitationInflation PASS RC0; 3 true code sources PASS; two Go files plus docs fail; Legal19/HR14 unread-task remains blocked"
+  },
+  "publisher": {
+    "finding": "Release's tag was not independently bound to checked clean source VCS revision prior to signing; release asset hashes alone insufficient",
+    "fix": "Publisher checks gh release tagName exact expected and gh api repos/$GitHubRepo/commits/$tag resolves exact sourceCommit SHA before sign-update-manifest.py",
+    "process": "GitHub tag-to-commit dereference handles annotated and lightweight tags via GET commits/ref",
+    "checks": "TestN130PublisherRequiresTagCommitBeforeSigning PASS RC0, PS AST parser 0 errors",
+    "actual_publisher_executed": false,
+    "signer_or_keys_accessed": false,
+    "release_published": false
+  },
+  "checks": {
+    "targeted_command": "go test -run '^(TestN130PublisherRequiresTagCommitBeforeSigning|TestN130SourceReviewPassRejectsPathAliasAndNonCodeCitationInflation|TestNativeSourceReviewRequiresVerifiedDistinctEvidenceForPass|TestN133Legal19HR14UnreadTaskNeverPassesNativeSourceReview)$' -count=1 -v .",
+    "scoped_test_rc": 0,
+    "scoped_pass_groups": 4,
+    "scoped_request_id": "acmd-09867f21-88db-43d2-a10a-ba8480878f4b",
+    "initial_alias_test_red_rc": 1,
+    "initial_red_request_id": "acmd-86ab561c-75c5-4b45-9a90-f7d110d78864",
+    "gofmt_rc": 0,
+    "powershell_ast_parse_rc": 0,
+    "powershell_ast_error_count": 0,
+    "powershell_ast_request_id": "acmd-39661f44-4536-4562-8f1f-9aaa8e87e884",
+    "full_go_current_sha": "NOT_RUN",
+    "independent_anthropic_current_sha": "NOT_RUN",
+    "installed_cli": "0.11.11-rc.2 (no update performed)"
+  },
+  "learning": {
+    "id": "LR-20261106T103053Z-91df756c",
+    "native_action": "air-worker learn event",
+    "rc": 0,
+    "applied": false
+  },
+  "release": "SOURCE_ONLY_HOLD",
+  "native_node_N130": "OPEN",
+  "next": "commit scoped source/receipt; independently Anthropic review exact clean SHA, applicable QA and VCS-stamped clean CLI/Tray, immutable signed GitHub prerelease and official update+rollback under existing approval; Hermes after installed rc4."
+}

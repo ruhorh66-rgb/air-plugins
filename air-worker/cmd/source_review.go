@@ -131,6 +131,24 @@ func verifyReviewCitation(root string, c sourceReviewLocation) error {
 	return nil
 }
 
+// Only independently checked SOURCE-CODE files count towards a release
+// PASS. A task, PLAN, learning journal, generated receipt or Markdown page
+// may still be quoted but cannot be substituted for inspected code.
+func sourceReviewCodeCitation(path string) bool {
+	rel := strings.ToLower(filepath.ToSlash(filepath.Clean(path)))
+	for _, excluded := range []string{"docs/", ".woody/", ".air-worker/", "plan/", "learn/"} {
+		if strings.HasPrefix(rel, excluded) {
+			return false
+		}
+	}
+	switch filepath.Ext(rel) {
+	case ".go", ".ps1", ".py", ".sh", ".js", ".ts", ".tsx", ".jsx":
+		return true
+	default:
+		return false
+	}
+}
+
 func parseSourceReviewVerdict(raw, root, sourceSHA, taskSHA string) (sourceReviewVerdict, error) {
 	dec := json.NewDecoder(strings.NewReader(strings.TrimSpace(raw)))
 	dec.DisallowUnknownFields()
@@ -156,7 +174,16 @@ func parseSourceReviewVerdict(raw, root, sourceSHA, taskSHA string) (sourceRevie
 		if err := verifyReviewCitation(root, c); err != nil {
 			return v, err
 		}
-		seen[strings.ToLower(c.Path)] = true
+		if !sourceReviewCodeCitation(c.Path) {
+			continue
+		}
+		// Normalize and resolve the verified path. Different spellings of one
+		// file must never satisfy the three distinct source-code files gate.
+		resolved, err := filepath.EvalSymlinks(filepath.Join(root, filepath.Clean(c.Path)))
+		if err != nil {
+			return v, fmt.Errorf("resolve review citation identity: %w", err)
+		}
+		seen[strings.ToLower(filepath.Clean(resolved))] = true
 	}
 	for _, finding := range v.Findings {
 		if finding.Severity != "P0" && finding.Severity != "P1" &&

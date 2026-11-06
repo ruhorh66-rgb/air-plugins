@@ -42,6 +42,36 @@ func runDistributionGuard(t *testing.T, repo, version, commit string) (int, stri
 	return exitCode(cmd, err), decodeOutput(out)
 }
 
+// The native publisher must bind a GitHub RELEASE tag to the same clean Git
+// source revision as the VCS-stamped CLI and tray BEFORE signing any feed.
+// This is a source contract, not an external GitHub publication test.
+func TestN130PublisherRequiresTagCommitBeforeSigning(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "tools", "publish-github-update.ps1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	must := []string{
+		"if ([string]$release.tagName -ne $tag)",
+		"gh api \"repos/$GitHubRepo/commits/$tag\" --jq '.sha'",
+		"$tagCommitSha -ne $sourceCommit",
+		"release tag $tag resolves to $tagCommitSha",
+		"vcs\\.revision",
+		"vcs\\.modified=false",
+		"sign-update-manifest.py",
+	}
+	for _, phrase := range must {
+		if !strings.Contains(s, phrase) {
+			t.Fatalf("release provenance contract missing %q", phrase)
+		}
+	}
+	tagCheck := strings.Index(s, "$tagCommitSha -ne $sourceCommit")
+	signCall := strings.Index(s, "sign-update-manifest.py")
+	if tagCheck < 0 || signCall < 0 || tagCheck >= signCall {
+		t.Fatal("GitHub release tag must be resolved and compared before manifest signing")
+	}
+}
+
 func TestDistributionReleaseGuardRejectsDirtyAndReusedVersion(t *testing.T) {
 	repo := t.TempDir()
 	gitFixtureRun(t, repo, "init")

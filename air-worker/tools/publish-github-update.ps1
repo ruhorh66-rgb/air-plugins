@@ -159,6 +159,21 @@ $sourceCommit = ($gitHeadLines -join '').Trim().ToLowerInvariant()
 if ($sourceCommit -notmatch '^[0-9a-f]{40}$' -or $sourceCommit -ne $revision.ToLowerInvariant()) {
     throw "publisher Git HEAD $sourceCommit differs from built CLI vcs.revision $revision"
 }
+# A GitHub release with matching asset hashes is NOT evidence that the release
+# tag points at this exact clean source commit. Resolve the immutable tag on
+# GitHub before signing or advancing the official update feed. GitHub's commits
+# endpoint dereferences both lightweight and annotated tags to a commit SHA.
+if ([string]$release.tagName -ne $tag) {
+    throw "GitHub release tag $($release.tagName) differs from expected $tag"
+}
+$tagCommit = @(& gh api "repos/$GitHubRepo/commits/$tag" --jq '.sha' 2>&1)
+if ($LASTEXITCODE -ne 0) {
+    throw "cannot resolve release tag to a Git commit: $($tagCommit -join ' | ')"
+}
+$tagCommitSha = ($tagCommit -join '').Trim().ToLowerInvariant()
+if ($tagCommitSha -notmatch '^[0-9a-f]{40}$' -or $tagCommitSha -ne $sourceCommit) {
+    throw "GitHub release tag $tag resolves to $tagCommitSha, expected source $sourceCommit"
+}
 $sourceChanges = @(& git -C $PluginRoot status --porcelain=v1 --untracked-files=all -- . 2>&1)
 if ($LASTEXITCODE -ne 0 -or -not [string]::IsNullOrWhiteSpace(($sourceChanges -join '').Trim())) {
     throw 'publisher PluginRoot must be Git CLEAN before source payload signing'

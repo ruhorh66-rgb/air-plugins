@@ -56,6 +56,39 @@ func TestNativeSourceReviewRequiresVerifiedDistinctEvidenceForPass(t *testing.T)
 	}
 }
 
+func TestN130SourceReviewPassRejectsPathAliasAndNonCodeCitationInflation(t *testing.T) {
+	root, commit, taskSHA, refs := sourceReviewFixture(t)
+	aliasA, aliasB, aliasC := refs[0], refs[0], refs[0]
+	aliasA.Path = "cmd/executor.go"
+	aliasB.Path = "./cmd/executor.go"
+	aliasC.Path = "cmd//executor.go"
+	v := sourceReviewVerdict{
+		Verdict: "PASS_SOURCE_ONLY", SourceCommit: commit, TaskSHA256: taskSHA,
+		TaskRead: "TASK_READ_OK", Checked: []sourceReviewLocation{aliasA, aliasB, aliasC},
+		Next: "do not accept path aliases as multiple read files",
+	}
+	if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, taskSHA); err == nil {
+		t.Fatal("one Go source file counted as three distinct cited code files")
+	}
+	if err := os.MkdirAll(filepath.Join(root, "docs"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "docs", "README.md"), []byte("documentation alone cannot prove code inspection\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	v.Checked = []sourceReviewLocation{refs[0], refs[1], {
+		Path: "docs/README.md", Line: 1, Quote: "documentation alone cannot prove code inspection",
+	}}
+	if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, taskSHA); err == nil {
+		t.Fatal("documentation was counted as a third distinct source-code file")
+	}
+	v.Checked = refs
+	if got, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, taskSHA); err != nil ||
+		got.Verdict != "PASS_SOURCE_ONLY" {
+		t.Fatalf("three true Go source citations should still pass: %+v %v", got, err)
+	}
+}
+
 func TestNativeSourceReviewRejectsStaleOrUnreadableInputs(t *testing.T) {
 	root, commit, task, refs := sourceReviewFixture(t)
 	v := sourceReviewVerdict{
