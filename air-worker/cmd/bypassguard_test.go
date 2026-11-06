@@ -318,6 +318,9 @@ func TestN130PathShellOptionsFailClosedWithoutDiagnosticFalseDenials(t *testing.
 		`pwsh -Comm:"codex exec --json"`,
 		`/usr/bin/bash -o pipefail -c 'claude --print review'`,
 		`/usr/bin/bash -O extglob -ec 'codex exec --json'`,
+		`/usr/bin/bash +O extglob -ec 'codex exec --json'`,
+		`/usr/bin/bash "+o" pipefail "-c" "claude -p hi"`,
+		`/usr/bin/bash -Onocaseglob -ec 'claude -p hi'`,
 	}
 	for _, s := range denied {
 		if blocked, why := classifyBypass(s, nil); !blocked || why == "" {
@@ -333,6 +336,8 @@ func TestN130PathShellOptionsFailClosedWithoutDiagnosticFalseDenials(t *testing.
 		`powershell -ExecutionPolicy RemoteSigned -Command "Write-Output safe"`,
 		`/usr/bin/bash -o pipefail -c 'echo safe'`,
 		`/usr/bin/bash -O extglob -ec 'git status'`,
+		`/usr/bin/bash +O extglob -ec 'git status'`,
+		`/usr/bin/bash -Onocaseglob -ec 'echo safe'`,
 	}
 	for _, s := range allowed {
 		if blocked, why := classifyBypass(s, nil); blocked {

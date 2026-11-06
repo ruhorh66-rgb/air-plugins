@@ -389,16 +389,26 @@ func unwrapNativeShellLauncher(segment string) string {
 			// parses it: "-c", '-ec' and "--rcfile" are still options.
 			rawOption := strings.Trim(args[i], "\"'")
 			option := strings.ToLower(rawOption)
-			if option == "--" || !strings.HasPrefix(option, "-") {
+			if option == "--" || (!strings.HasPrefix(option, "-") && !strings.HasPrefix(option, "+")) {
 				break
 			}
 			// Bash -o/-O each consume an option name as the next argument.
 			// Skip that name before looking for a later -c or combined -ec.
-			if rawOption == "-o" || rawOption == "-O" {
+			if rawOption == "-o" || rawOption == "-O" ||
+				rawOption == "+o" || rawOption == "+O" {
 				if i+1 >= len(args) {
 					return ""
 				}
 				i += 2
+				continue
+			}
+			// An attached value belongs to -o/-O or +o/+O; its letters
+			// (including a 'c' in nocaseglob) are not combined shell flags.
+			if len(rawOption) > 2 && (strings.HasPrefix(rawOption, "-o") ||
+				strings.HasPrefix(rawOption, "-O") ||
+				strings.HasPrefix(rawOption, "+o") ||
+				strings.HasPrefix(rawOption, "+O")) {
+				i++
 				continue
 			}
 			// GNU Bash --rcfile and --init-file each consume the next
@@ -413,8 +423,8 @@ func unwrapNativeShellLauncher(segment string) string {
 			}
 			// Bash allows combined short flags, e.g. -ec, -xc, -lc.
 			// The -c flag consumes the following argument as a command.
-			if len(option) > 1 && !strings.HasPrefix(option, "--") &&
-				strings.Contains(option[1:], "c") {
+			if len(option) > 1 && strings.HasPrefix(option, "-") &&
+				!strings.HasPrefix(option, "--") && strings.Contains(option[1:], "c") {
 				return joinAfter(i + 1)
 			}
 			i++
