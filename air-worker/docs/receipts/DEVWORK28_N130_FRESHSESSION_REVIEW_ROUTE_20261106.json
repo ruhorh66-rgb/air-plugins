@@ -1,0 +1,92 @@
+{
+  "schema": "air-worker.devwork28.n130-fresh-session-review-route/v1",
+  "date_sgt": "2026-11-06",
+  "owner": "Dev Work 28 / SRVLM01",
+  "node": "SRVLM01",
+  "parent_plan_node": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "source_base_commit": "d4d7385ed0c2c21bb9bc1605eb8a88a44b7f8714",
+  "current_release": "SOURCE_ONLY_HOLD",
+  "accepted_previous_evidence": {
+    "N-134": "CLOSED via native core, three earlier static guidance tests PASS RC0",
+    "N-133": "OPEN",
+    "N-132": "CLOSED",
+    "installed": "0.11.11-rc.2 (latest readback)"
+  },
+  "native_reviewer_route": {
+    "source_files": [
+      "cmd/source_review.go",
+      "cmd/semantic.go"
+    ],
+    "top_level_command": "air-worker review source -product <product> -node N-130 -task-file <task> -executor codex ...",
+    "selection": "judgeLaneRunner(cfg,class), enforceIndependentAnthropicReviewer",
+    "provider_binary_lookup": "resolveRunnerTool(\"claude\")",
+    "call": "invokeSemanticClaude",
+    "args": [
+      "-p",
+      "--output-format",
+      "json",
+      "--max-turns",
+      "20",
+      "--allowed-tools",
+      "Read,Glob,Grep",
+      "--model",
+      "<reviewer.Model>",
+      "--effort",
+      "<reviewer.Effort>"
+    ],
+    "input": "prompt via stdin",
+    "working_directory": "product source root",
+    "acceptance": "successful process exit AND TASK_READ_OK AND exact task/source SHA AND source-citation verification",
+    "historical_reviewer_executable": "NOT_PROVEN_FROM_READBACK",
+    "statement": "This verifies source-level route, not the historical executable path or successful external model review."
+  },
+  "new_fixture": {
+    "file": "cmd/hook_test.go",
+    "test": "TestN130FreshSessionStartEmitsHostToolOutcomeRules",
+    "goal": "Actual cmdHook SessionStart produces JSON additionalContext with N134 tool-outcome rules in isolated undeclared host session",
+    "initial_execution": {
+      "tool": "mcp__AIR_Commander_Test__start_process",
+      "request_id": "acmd-87c46631-f310-4970-8352-d2e59124498a",
+      "shell_pid": 8324,
+      "command_summary": "go test -run '^TestN130FreshSessionStartEmitsHostToolOutcomeRules$' -count=1 -v .",
+      "go_pid": 2840,
+      "outcome": "INTERRUPTED_OWN_TEST",
+      "terminal_shell_report": "FRESH_SESSION_TEST_RC=-1",
+      "monitored_seconds": 402.44,
+      "child_process_identity_checked": true,
+      "own_go_process_stopped_after_nonresponsive": true,
+      "expected_test_result": "NOT_PROVEN",
+      "rerun": false
+    },
+    "source_test_accepted": true,
+    "followup_execution": {
+      "source_delta": "cmd/hook_test.go now drains the hook stdout pipe concurrently; earlier hang cause not proven",
+      "tool": "mcp__AIR_Commander_Test__start_process",
+      "request_id": "acmd-0207306f-c438-4829-b87e-e315f08d9256",
+      "command_summary": "go test -run '^TestN130FreshSessionStartEmitsHostToolOutcomeRules$' -count=1 -timeout 40s -v .",
+      "outcome": "PASS",
+      "exit_code": 0,
+      "test_duration_seconds": 0.00,
+      "package_duration_seconds": 0.257,
+      "real_host_hook_delivery": "NATIVE_HOOK_FIXTURE_PROVEN_ONLY",
+      "real_model_follow_through": "NOT_PROVEN"
+    },
+    "source_only": true
+  },
+  "blocked_action": {
+    "tool": "mcp__AIR_Commander_Test__start_process",
+    "intent": "restore only self-authored cmd/hook_test.go change after test noncompletion",
+    "result": "HOST_DENIED_PRE_EXECUTION",
+    "exact_error": "Этот вызов инструмента был заблокирован системами безопасности OpenAI. Внимательно проверьте отправляемые данные.",
+    "request_id": null,
+    "process_started": false,
+    "bypass_or_retry": false
+  },
+  "future_gate": [
+    "Scoped native SessionStart fixture PASS after source adjustment; actual installed hook delivery and model follow-through remain NOT_PROVEN",
+    "Do not blindly rerun after unknown; original job terminally interrupted with RC -1",
+    "Prove clean Git and correct scoped test after supported QA preconditions",
+    "Keep independently accepted tests and N130 release criteria unchanged",
+    "Signed rc.4 publication/installation and Hermes E2E remain pending"
+  ]
+}

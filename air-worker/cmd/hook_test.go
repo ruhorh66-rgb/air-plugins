@@ -96,6 +96,62 @@ func assertTraceContains(t *testing.T, dir, session, substr string) {
 	}
 }
 
+// N130/DevWork28: verify the real hook entrypoint for a fresh, undeclared
+// host session. A static guidance string test alone does not prove delivery.
+// The test isolates host state/config and does not invoke model or external apps.
+func TestN130FreshSessionStartEmitsHostToolOutcomeRules(t *testing.T) {
+	t.Setenv(hookStateDirEnv, t.TempDir())
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	t.Setenv("AIR_WORKER_PLUGIN_ROOT", "")
+	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
+	withStdin(t, `{"session_id":"n130-fresh-guidance-fixture","hook_event_name":"SessionStart"}`)
+	// Drain stdout concurrently: a large curator/learning context can exceed
+	// a Windows pipe buffer. Holding the pipe unread until cmdHook returns can
+	// deadlock the test, independently of the hook's correctness.
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := os.Stdout
+	os.Stdout = w
+	readDone := make(chan string, 1)
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+		readDone <- buf.String()
+	}()
+	code := cmdHook([]string{"SessionStart"})
+	_ = w.Close()
+	os.Stdout = original
+	raw := <-readDone
+	_ = r.Close()
+	if code != 0 {
+		t.Fatalf("fresh SessionStart must complete without activating control gate: code=%d output=%q", code, raw)
+	}
+	var packet struct {
+		HookSpecificOutput struct {
+			Event   string `json:"hookEventName"`
+			Context string `json:"additionalContext"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(raw)), &packet); err != nil {
+		t.Fatalf("SessionStart did not emit a structured host packet: %v %q", err, raw)
+	}
+	if packet.HookSpecificOutput.Event != "SessionStart" {
+		t.Fatalf("incorrect hook event %q", packet.HookSpecificOutput.Event)
+	}
+	for _, phrase := range []string{
+		"HOST_DENIED_PRE_EXECUTION",
+		"Do not retry the refused operation",
+		"Continue only independent authorized actions",
+		"exit 0 alone is not task read or judge PASS",
+	} {
+		if !strings.Contains(packet.HookSpecificOutput.Context, phrase) {
+			t.Fatalf("fresh host session did not receive %q", phrase)
+		}
+	}
+}
+
 // --- control ------------------------------------------------------------------------
 
 func TestHookControlErrorBlocksWithReason(t *testing.T) {
