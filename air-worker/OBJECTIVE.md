@@ -1,5 +1,17 @@
 # AirWorker 0.11.9 — self-learning-only release
 
+## Актуальная операционная цель разработки · решение ЛПР 07.11.2026 10:45 SGT
+
+**Приоритет 0 (главная измеримая цель):** восстановить и доказать в работе нативную оркестрацию AirWorker: Codex coding ladder `script → Luna → Sol → Astra`, factual RC, независимый Anthropic semantic judge, завершение шага PLAN и возобновление прерванного RUNNING без двойного запуска. Не ограничиваться disposable fixture: доказать полезный шаг над текущими исходниками AirWorker. Владельцы шагов: существующие N-126/N-136/N-123; judge и terminal evidence — в `PLAN.md` (верхняя актуальная нить).
+
+**Приоритет 1 (после P0):** довести собственное самообучение AirWorker до `capture → review → safe apply → next-run use → measured outcome/effect`, без смешения CAPTURED с APPLIED и без ручного переписывания selector/LEARN. Существующие узлы N-073/N-076/N-110/N-121/N-125; проверяемый результат — native receipt и минимум один реально предотвращённый повтор ошибки.
+
+**Релиз/установщик:** N-130/N-138 отложены до функционального P0/P1, кроме доказанной критической зависимости; ни один новый release/install не разрешён этим изменением целей. Installed baseline на SRVLM01: 0.11.11-rc.2.
+
+**Compatibility boundary:** исходный release-контракт ниже и `goal/goal.json` / `plan/release-slices.json` относятся к legacy 0.11.9 (baseline 0.11.8) и сохраняются без переписывания принятой истории. До применения native `loop` к самому AirWorker требуется поддерживаемое переключение operational goal, иначе legacy selector может неверно выбрать выпуск 0.11.9. Приоритет P0 задан действующим `PLAN.md`; историческая release-цель далее — не текущая очередь исполнения.
+
+---
+
 ## Scope and release plan
 
 Release the self-learning vertical slice only, per `plan/release-slices.json` and the 2026-10-15 continuation handoff. Do not re-scope into the full legacy `PLAN.md` backlog or later releases. The candidate source baseline is branch `dev/airworker-0.11.9-selflearning-only-20261011`, HEAD `e3ca3a72376a3d9c5d53ea235bd29e77ef95a231`; verify branch tip/dirty before any edits. Keep installed 0.11.8 untouched until the signed stable artifact and package are ready.

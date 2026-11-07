@@ -1,0 +1,68 @@
+{
+  "schema": "air-worker.development-priorities/v1",
+  "decision_date_sgt": "2026-11-07",
+  "decision_authority": "LPR direct user instruction",
+  "scope": "PLAN/OBJECTIVE/Wiki priority rephase only; not a release, product code change, or native-node closure",
+  "source_before": "f607bd035545189ab97137ee81d151bbcd58abd3",
+  "wiki_before": "3705a727c00cd806ad6f784e8cd14d7f2ccbf669",
+  "priority_order": [
+    {
+      "rank": 0,
+      "objective": "Native Codex coding ladder and Anthropic independent judge fully operational with durable resume and causal escalation",
+      "nodes": [
+        "N-126",
+        "N-136",
+        "N-123"
+      ],
+      "proof": "Real AirWorker PLAN->code->factual RC0->Anthropic PASS->native close, resume without duplicate, escalation receipts"
+    },
+    {
+      "rank": 1,
+      "objective": "AirWorker self-learning genuine next-run use and measured prevented recurrence",
+      "nodes": [
+        "N-073",
+        "N-076",
+        "N-110",
+        "N-121",
+        "N-125"
+      ],
+      "proof": "Signed native CAPTURE->REVIEW->safe APPLY->USED->EFFECT"
+    },
+    {
+      "rank": 2,
+      "objective": "Release/distribution and Windows installer only after functional P0/P1 or proven dependency",
+      "nodes": [
+        "N-130",
+        "N-138"
+      ],
+      "proof": "New exact LPR grant required for new release or install; rollback to installed rc.2"
+    }
+  ],
+  "verified_baseline": {
+    "installed_version": "0.11.11-rc.2",
+    "N135": "CLOSED live isolated coding tests only",
+    "N136": "OPEN; isolated PLAN->Codex->factual->Anthropic->close accepted; resume/escalation still NOT_PROVEN",
+    "N123": "OPEN",
+    "N126": "OPEN",
+    "N130": "OPEN",
+    "N138": "OPEN",
+    "source_git_before": "CLEAN HEAD=upstream=GitHub",
+    "wiki_git_before": "CLEAN HEAD=upstream=GitHub",
+    "plan_lint_rc": 0,
+    "encoding_plan_rc": 0,
+    "encoding_objective_rc": 0,
+    "diff_check_source_rc": 0,
+    "diff_check_wiki_rc": 0,
+    "learn_4_events": "CAPTURED only"
+  },
+  "legacy_goal_guard": "goal/goal.json and plan/release-slices.json remain 0.11.9/0.11.8 legacy; native supported operational goal transition required before loop on this product; no direct release_version rewrite",
+  "native_plan_nodes_mutated": false,
+  "learn_events_mutated": false,
+  "product_code_mutated": false,
+  "release_install_authorized": false,
+  "target_evidence": [
+    "docs/receipts/AIRWORKER_P0_CODEX_ANTHROPIC_RESUME_20261107.json",
+    "docs/receipts/AIRWORKER_P1_LEARN_USE_EFFECT_20261107.json"
+  ],
+  "result": "PRIORITY_PLAN_UPDATED; FUNCTIONAL_P0_NOT_YET_PROVEN"
+}
