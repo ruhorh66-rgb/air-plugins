@@ -1,0 +1,41 @@
+{
+  "schema": "air-worker.devwork29.g04-reconcile-source/v1",
+  "owner": "Dev Work 29 / SRVLM01",
+  "node": "N-139_n136-native-operational-goal-selector-for-real-a",
+  "source_base": "e908af6be0ce4598c3b6cb81499a4429bcad1372",
+  "scope": "SOURCE_ONLY bounded native evidence recovery after original Anthropic NOT_PROVEN",
+  "original_native_jobs": {
+    "codex": {
+      "id": "gpt__devwork29-7fc2da058a095e9a__1794026842523903500__3115cf12",
+      "status": "DONE",
+      "output_sha256": "2ca8997b3bcb8c51d04024da970adf6373c65e8c40967c33b23d562b8bc480bb",
+      "legacy_unsealed": true
+    },
+    "factual_go": {
+      "id": "gpt__devwork29-7fc2da058a095e9a__1794027935412442500__30cad5a6",
+      "status": "DONE",
+      "output_sha256": "94efe696195b25b8e932f1dba57b71b15bc296e4524de8d536c3fea8fdbe652c",
+      "legacy_unsealed": true
+    },
+    "semantic_original": {
+      "id": "gpt__devwork29-7fc2da058a095e9a__1794028008608935400__808f5486",
+      "verdict": "NOT_PROVEN",
+      "preserve": true
+    }
+  },
+  "source_files": [
+    "cmd/operational_reconcile.go",
+    "cmd/operational_reconcile_test.go",
+    "cmd/operational_goal.go"
+  ],
+  "qa": {
+    "focused_rc": 0,
+    "vet_rc": 0,
+    "diff_check_rc": 0,
+    "request_id": "acmd-a2accdd2-7e37-47a5-b7f9-6696408301bf"
+  },
+  "next": "Independent Anthropic source review exact frozen SHA; if source accepted, update native operational goal pin and invoke distinct independent semantic reviewer; do not rerun Codex or Go.",
+  "n139_state": "OPEN",
+  "p0_g04_state": "OPEN",
+  "releases": "No release/install, installed 0.11.11-rc.2 unchanged"
+}
