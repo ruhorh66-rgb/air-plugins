@@ -286,3 +286,33 @@ func TestN133Legal19HR14UnreadTaskNeverPassesNativeSourceReview(t *testing.T) {
 		t.Fatalf("genuine exact-task, source-cited read-only review was rejected: %+v %v", got, err)
 	}
 }
+
+func TestSourceReviewPromptRequiresThreeExactOneBasedCitations(t *testing.T) {
+	prompt := sourceReviewPrompt("Read docs/tasks/TASK.md", strings.Repeat("a", 40), strings.Repeat("b", 64))
+	for _, required := range []string{
+		"EXACTLY THREE checked citations",
+		"one per DISTINCT",
+		"ACTUAL 1-based file line number",
+		"a single mismatched citation makes the entire PASS",
+		"Read, Glob and Grep only, never Bash",
+		"actually reading the named TASK file from disk",
+	} {
+		if !strings.Contains(prompt, required) {
+			t.Fatalf("source reviewer instruction is missing machine precision rule %q", required)
+		}
+	}
+}
+
+func TestSourceReviewRejectsOneBadCitationEvenWithThreeValid(t *testing.T) {
+	root, commit, taskSHA, refs := sourceReviewFixture(t)
+	extra := append(append([]sourceReviewLocation(nil), refs...), sourceReviewLocation{
+		Path: refs[0].Path, Line: 2, Quote: refs[0].Quote,
+	})
+	v := sourceReviewVerdict{
+		Verdict: "PASS_SOURCE_ONLY", SourceCommit: commit, TaskSHA256: taskSHA,
+		TaskRead: "TASK_READ_OK", Checked: extra, Next: "source-only acceptance",
+	}
+	if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, taskSHA); err == nil {
+		t.Fatal("one mismatched extra citation must invalidate PASS rather than being ignored")
+	}
+}

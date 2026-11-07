@@ -246,6 +246,14 @@ Output exactly ONE JSON object and no Markdown, in this contract:
  "quote":"exact substring from that line","detail":"specific verified issue","next":"optional concise fix"}],
  "next":"concrete next action"}
 PASS_SOURCE_ONLY requires 0 findings and at least three distinct source-code citations.
+For PASS_SOURCE_ONLY, include EXACTLY THREE checked citations, one per DISTINCT
+source code file. Do not add a ninth or fourth redundant citation. Each line
+is the ACTUAL 1-based file line number shown by the Read tool, not a guessed
+neighbor. BEFORE emitting JSON, verify each quote is a contiguous substring
+on that exact single line; a single mismatched citation makes the entire PASS
+invalid. If you cannot verify three, return NOT_PROVEN and explain why.
+Use Read, Glob and Grep only, never Bash. Every claimed TASK_READ_OK must be
+backed by actually reading the named TASK file from disk, not the inline text.
 FAIL_P0/FAIL_P1 require precise line evidence. Each checked item has ONLY path,line,quote. Each finding has ONLY severity,path,line,quote,detail and optional next. Never add a next key to checked items or any other fields. On unreadable inputs return NOT_PROVEN.
 Source commit: ` + commit + `
 Task SHA256: ` + taskSHA + `

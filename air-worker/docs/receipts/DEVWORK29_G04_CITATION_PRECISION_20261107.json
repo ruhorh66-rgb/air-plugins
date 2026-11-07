@@ -1,0 +1,38 @@
+{
+  "schema": "air-worker.g04-citation-precision-source/v1",
+  "owner": "Dev Work 29 / SRVLM01",
+  "native_node": "N-139_n136-native-operational-goal-selector-for-real-a",
+  "base_source_head": "7774481813f4cbd88e656bd9c055640d4a3ab66d",
+  "reason": "Native independent review rejects single inaccurate source line although models return PASS_SOURCE_ONLY; preserve strict every-citation validation, reduce model's redundant citations instead of fuzzily accepting wrong lines.",
+  "sonnet": {
+    "model": "claude-sonnet-5-5",
+    "native_rc": 2,
+    "job_id": "gpt__devwork29-7fc2da058a095e9a__1794038963346867400__3a924f9f",
+    "model_verdict": "PASS_SOURCE_ONLY",
+    "task_read": "TASK_READ_OK",
+    "fatal": "cmd/job_status.go line 114 quote present on line 115",
+    "native_accepted": false
+  },
+  "opus": {
+    "model": "claude-opus-5-5",
+    "native_rc": 2,
+    "job_id": "gpt__devwork29-g04-opus-777448__1794039085676065800__9e14ed67",
+    "model_verdict": "PASS_SOURCE_ONLY",
+    "task_read": "TASK_READ_OK",
+    "valid_exact_citations": 10,
+    "total_citations": 11,
+    "fatal": "cmd/job_status.go:77 quote actually on line 78",
+    "native_accepted": false
+  },
+  "patch": "sourceReviewPrompt now requires EXACTLY THREE DISTINCT code citations with verified ACTUAL 1-based lines and no Bash; source reviewer citation validator untouched, all malformed citations still invalidate PASS.",
+  "checks": {
+    "targeted_go_rc": 0,
+    "go_vet_rc": 0,
+    "gofmt_rc": 0,
+    "diff_check_rc": 0,
+    "request_id": "acmd-ac92b7fc-db85-43a0-98eb-c38c13361834"
+  },
+  "status": "SOURCE_ONLY_CANDIDATE; INDEPENDENT_PASS_NOT_YET_ACCEPTED",
+  "next": "Freeze exact source SHA, one independent native reviewer on new frozen SHA, reject any inaccurate citations; re-use previous Codex and Go factual evidence without duplicate dispatch.",
+  "boundary": "No install/release or plan node closure. Historical 0.11.9 release-slices unchanged. Installed rc.2 unchanged."
+}
