@@ -34,16 +34,14 @@ type airWorkerARPRecord struct {
 	EstimatedSizeKB uint32
 }
 
+// ARP writes are not connected to a live installer in this source-only slice.
+// A future native writer must report whether it TOUCHED the exact key: a
+// failed preflight/read/ownership check must NEVER trigger deletion on rollback.
 type airWorkerARPStore interface {
 	Read() (airWorkerARPRecord, bool, error)
-	Write(airWorkerARPRecord) error
-	// Restore is allowed only inside a verified, installer-owned rollback.
-	// Normal Write cannot downgrade; restoring a snapshotted previous version
-	// must not reuse that public version-upgrade path.
+	Write(airWorkerARPRecord) (touched bool, err error)
 	Restore(previous airWorkerARPRecord, existed bool) error
 }
-
-var procRegDeleteKeyW = advapi32Install.NewProc("RegDeleteKeyW")
 
 // This is an identity and ownership gate, not a guarantee that -uninstall
 // currently deletes owned binaries. N-138 must prove that separately.
@@ -120,7 +118,8 @@ func validateAirWorkerARPRemoval(old airWorkerARPRecord, exists bool, expectedHo
 func sameARPIdentity(a, b airWorkerARPRecord) bool {
 	return a.DisplayName == b.DisplayName && a.DisplayVersion == b.DisplayVersion &&
 		a.Publisher == b.Publisher && samePath(a.InstallLocation, b.InstallLocation) &&
-		a.UninstallString == b.UninstallString && a.EstimatedSizeKB == b.EstimatedSizeKB
+		a.UninstallString == b.UninstallString && a.InstallDate == b.InstallDate &&
+		a.EstimatedSizeKB == b.EstimatedSizeKB
 }
 
 // reconcileAirWorkerARP is a rollbackable source-only building block.
@@ -137,11 +136,21 @@ func reconcileAirWorkerARP(store airWorkerARPStore, next airWorkerARPRecord) err
 	restore := func() error {
 		return store.Restore(before, exists)
 	}
-	if err := store.Write(next); err != nil {
+	touched, err := store.Write(next)
+	if err != nil {
+		// A foreign key may appear after our initial Read but before Write.
+		// It is NOT ours; a validation failure before any mutation is never
+		// permission to restore/delete that later foreign key.
+		if !touched {
+			return fmt.Errorf("registry write refused before mutation: %w", err)
+		}
 		if rollbackErr := restore(); rollbackErr != nil {
 			return fmt.Errorf("registry write failed: %v; restoring prior state also failed: %w", err, rollbackErr)
 		}
 		return fmt.Errorf("registry write failed; previous state restored: %w", err)
+	}
+	if !touched {
+		return errors.New("registry writer returned success without any mutation; no installed-program PASS")
 	}
 	actual, found, err := store.Read()
 	if err != nil || !found || !sameARPIdentity(actual, next) {
@@ -241,135 +250,6 @@ func (nativeAirWorkerARPStore) Read() (airWorkerARPRecord, bool, error) {
 		return airWorkerARPRecord{}, true, err
 	}
 	return record, true, nil
-}
-
-func writeARPString(h syscall.Handle, name, value string) error {
-	field, err := syscall.UTF16PtrFromString(name)
-	if err != nil {
-		return err
-	}
-	data, err := syscall.UTF16FromString(value)
-	if err != nil {
-		return err
-	}
-	rc, _, _ := procRegSetValueExW.Call(uintptr(h), uintptr(unsafe.Pointer(field)), 0,
-		regSZ, uintptr(unsafe.Pointer(&data[0])), uintptr(len(data)*2))
-	if rc != 0 {
-		return fmt.Errorf("set Windows installed-program field %s: error %d", name, rc)
-	}
-	return nil
-}
-
-func writeARPDWORD(h syscall.Handle, name string, value uint32) error {
-	field, err := syscall.UTF16PtrFromString(name)
-	if err != nil {
-		return err
-	}
-	rc, _, _ := procRegSetValueExW.Call(uintptr(h), uintptr(unsafe.Pointer(field)), 0,
-		regDWORD, uintptr(unsafe.Pointer(&value)), 4)
-	if rc != 0 {
-		return fmt.Errorf("set Windows installed-program DWORD %s: error %d", name, rc)
-	}
-	return nil
-}
-
-func (nativeAirWorkerARPStore) Write(record airWorkerARPRecord) error {
-	old, exists, err := (nativeAirWorkerARPStore{}).Read()
-	if err != nil {
-		return err
-	}
-	if err := validateAirWorkerARPRecord(old, record, exists); err != nil {
-		return err
-	}
-	return (nativeAirWorkerARPStore{}).writeRaw(record)
-}
-
-// writeRaw is an installer-internal primitive. It bypasses upgrade comparison
-// ONLY for restoring an exact previously snapshotted own record after failure.
-func (nativeAirWorkerARPStore) writeRaw(record airWorkerARPRecord) error {
-	sub, err := syscall.UTF16PtrFromString(airWorkerARPSubkey)
-	if err != nil {
-		return err
-	}
-	var h syscall.Handle
-	var disposition uint32
-	rc, _, _ := procRegCreateKeyExW.Call(uintptr(hkeyCurrentUser), uintptr(unsafe.Pointer(sub)),
-		0, 0, 0, uintptr(keyWrite), 0, uintptr(unsafe.Pointer(&h)), uintptr(unsafe.Pointer(&disposition)))
-	if rc != 0 {
-		return fmt.Errorf("create Windows installed-program key: error %d", rc)
-	}
-	defer procRegCloseKey.Call(uintptr(h))
-	for _, item := range []struct{ name, value string }{
-		{"DisplayName", record.DisplayName},
-		{"DisplayVersion", record.DisplayVersion},
-		{"Publisher", record.Publisher},
-		{"InstallLocation", record.InstallLocation},
-		{"UninstallString", record.UninstallString},
-		{"InstallDate", record.InstallDate},
-	} {
-		if err := writeARPString(h, item.name, item.value); err != nil {
-			return err
-		}
-	}
-	for _, item := range []struct {
-		name  string
-		value uint32
-	}{
-		{"EstimatedSize", record.EstimatedSizeKB},
-		{"NoModify", 1},
-		{"NoRepair", 1},
-	} {
-		if err := writeARPDWORD(h, item.name, item.value); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Restore can only be called with the snapshot captured under the installer
-// mutex by reconcileAirWorkerARP. It never reads a new version or foreign root
-// from the caller. The previous snapshot must have been fully owned/verified.
-func (nativeAirWorkerARPStore) Restore(previous airWorkerARPRecord, existed bool) error {
-	if existed {
-		if err := validateAirWorkerARPRemoval(previous, true, previous.InstallLocation); err != nil {
-			return fmt.Errorf("refuse to restore invalid prior installed-program snapshot: %w", err)
-		}
-		return (nativeAirWorkerARPStore{}).writeRaw(previous)
-	}
-	// The registry key was absent BEFORE this installer-owned transaction.
-	// A failed partial first write may be missing any display fields, so normal
-	// Delete's full-identity requirement cannot apply. Remove ONLY this exact
-	// fixed user-key; no recursion and never outside the installer mutex.
-	sub, err := syscall.UTF16PtrFromString(airWorkerARPSubkey)
-	if err != nil {
-		return err
-	}
-	rc, _, _ := procRegDeleteKeyW.Call(uintptr(hkeyCurrentUser), uintptr(unsafe.Pointer(sub)))
-	if rc != 0 && rc != 2 {
-		return fmt.Errorf("rollback first-install ARP key failed: Windows error %d", rc)
-	}
-	return nil
-}
-
-func (nativeAirWorkerARPStore) Delete() error {
-	// A product may delete only the exact key it owns, after verifying
-	// publisher, name and installed location. No recursive key deletion.
-	old, exists, err := (nativeAirWorkerARPStore{}).Read()
-	if err != nil || !exists {
-		return err
-	}
-	if err := validateAirWorkerARPRemoval(old, true, installHome()); err != nil {
-		return fmt.Errorf("refuse to delete mismatched Windows installed-program entry: %w", err)
-	}
-	sub, err := syscall.UTF16PtrFromString(airWorkerARPSubkey)
-	if err != nil {
-		return err
-	}
-	rc, _, _ := procRegDeleteKeyW.Call(uintptr(hkeyCurrentUser), uintptr(unsafe.Pointer(sub)))
-	if rc != 0 && rc != 2 {
-		return fmt.Errorf("delete owned Windows installed-program key: Windows error %d", rc)
-	}
-	return nil
 }
 
 // Non-mutating readback is safe before the owner authorizes live upgrade.

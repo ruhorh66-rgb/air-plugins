@@ -18,6 +18,9 @@ type fakeARPStore struct {
 	deleteCount     int
 	corruptReadback bool
 	restoreErr      error
+	restoreCount    int
+	preflightErr    error
+	racedForeign    *airWorkerARPRecord
 }
 
 func (s *fakeARPStore) Read() (airWorkerARPRecord, bool, error) {
@@ -30,16 +33,27 @@ func (s *fakeARPStore) Read() (airWorkerARPRecord, bool, error) {
 	}
 	return value, s.exists, nil
 }
-func (s *fakeARPStore) Write(r airWorkerARPRecord) error {
+func (s *fakeARPStore) Write(r airWorkerARPRecord) (bool, error) {
+	if s.racedForeign != nil {
+		// Another writer created a key between Read(absent) and Write.
+		// Our Win32 backend must not claim that it touched this foreign key.
+		s.exists = true
+		s.record = *s.racedForeign
+		return false, errors.New("foreign Windows key appeared before write")
+	}
+	if s.preflightErr != nil {
+		return false, s.preflightErr
+	}
 	s.writeCount++
 	s.record = r
 	s.exists = true
 	if s.writeCount == s.failWriteOnCall {
-		return errors.New("simulated partial write")
+		return true, errors.New("simulated partial write")
 	}
-	return nil
+	return true, nil
 }
 func (s *fakeARPStore) Restore(previous airWorkerARPRecord, existed bool) error {
+	s.restoreCount++
 	if s.restoreErr != nil {
 		return s.restoreErr
 	}
@@ -177,6 +191,21 @@ func TestN138WindowsARPFailedRestoreIsNotCalledSuccess(t *testing.T) {
 	err := reconcileAirWorkerARP(store, testARPRecord(t, "0.11.11-rc.5"))
 	if err == nil || !strings.Contains(err.Error(), "restoring prior state also failed") {
 		t.Fatalf("failed registry rollback was hidden as successful: %v", err)
+	}
+}
+
+func TestN138WindowsARPRacedForeignKeyIsNeverDeleted(t *testing.T) {
+	// The previous source review found P1: Read reported absent, a foreign key
+	// appeared before Write, Write refused it, but Restore(absent) deleted it.
+	// On pre-mutation refusal no rollback/delete is ever authorized.
+	foreign := testARPRecord(t, "0.11.11-rc.2")
+	foreign.DisplayName = "Foreign Product"
+	store := &fakeARPStore{racedForeign: &foreign}
+	err := reconcileAirWorkerARP(store, testARPRecord(t, "0.11.11-rc.5"))
+	if err == nil || !strings.Contains(err.Error(), "refused before mutation") ||
+		!store.exists || store.record.DisplayName != "Foreign Product" ||
+		store.restoreCount != 0 || store.deleteCount != 0 {
+		t.Fatalf("foreign key in read/write race was removed or accepted: err=%v store=%+v", err, store)
 	}
 }
 

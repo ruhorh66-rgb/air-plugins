@@ -1,0 +1,58 @@
+{
+  "schema": "air-worker.n138.arp-p1-race-source-correction/v1",
+  "date_sgt": "2026-11-07",
+  "owner": "Dev Work 28 / SRVLM01",
+  "node": "N-138_n130-windows-installed-program-registration-and-s",
+  "parent": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "baseline_commit": "baf3dd3055719bfe8094ba493ecdf037dd6cc922",
+  "trigger": {
+    "independent_reviewer": "Claude Sonnet 5.5 via native air-worker review source",
+    "task_sha256": "e205a52e296dfcf84143c286074b1f228bb5dec547831c74dce0dcf743350c42",
+    "verdict": "FAIL_P1 RC1, TASK_READ_OK",
+    "finding": "RegDeleteKeyW unconditional rollback when original Read reported absent, even if second preflight Write refused later foreign key before touching registry",
+    "secondary_findings": "No native isolated registry fixture; old snapshot did not reverify full restoration"
+  },
+  "correction": {
+    "scope": "SOURCE_ONLY: pure policy, in-memory transactional fake tests, read-only HKCU status; native mutating backend absent",
+    "source_files": [
+      "cmd/installed_program_windows.go",
+      "cmd/installed_program_windows_test.go",
+      "learn/events.jsonl via native learn event",
+      "docs/receipts/DEVWORK28_N138_ARP_P1_RACE_CORRECTION_20261107.json"
+    ],
+    "actions": [
+      "Removed not-yet-wired native Write/Restore/Delete and Win32 RegDeleteKeyW from source",
+      "Changed pure ARP Store Write contract to return touched=true only if mutation occurred",
+      "When Write validation/preflight fails without mutation, no Restore/Delete allowed",
+      "Restoration failures remain explicit errors, never PASS",
+      "Extended exact postwrite identity comparison to include InstallDate",
+      "Added negative foreign-key race fixture preserving foreign record with zero rollback/delete calls"
+    ],
+    "new_live_registry_mutation": false,
+    "new_installer_runtime_write": false,
+    "installed_version_unchanged": "0.11.11-rc.2"
+  },
+  "qa": {
+    "tests": "go test -run '^TestN138WindowsARP' -count=1 -timeout 80s -v .",
+    "count_passed": 7,
+    "rc": 0,
+    "request_id": "acmd-f0ef5c04-7e00-49c9-a14e-1be0a2975b8c",
+    "vet": "go vet ./...",
+    "vet_rc": 0,
+    "vet_request_id": "acmd-e23c026e-9127-4ca2-b799-ed3636112bf8",
+    "previous_sourceonly_status_probe": "Windows Apps: ARP: no AirWorker registration in current user Installed Apps",
+    "new_independent_review_state": "PENDING_AT_COMMIT"
+  },
+  "learning": {
+    "id": "LR-20261107T010928Z-33fa7cb4",
+    "native_action": "air-worker learn event",
+    "rc": 0
+  },
+  "limits": [
+    "Do not call N138 complete: real per-user registry backend, owner-safe full uninstall, updater integration and native Windows registry fixture remain OPEN",
+    "Do not run live update or registry writer without explicit release/install approval",
+    "Do not change rc4 signed GitHub release/tag/feed or claim new payload installed",
+    "Existing N130 release remains OPEN; no false PASS from pure in-memory fake"
+  ],
+  "next": "Commit exact source, independent Anthropic source review of clean SHA and publish source after PASS; retain N138 OPEN for real installer transaction implementation."
+}
