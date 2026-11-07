@@ -154,6 +154,9 @@ func writeNewOperationalGoal(path string, raw []byte) error {
 }
 
 func cmdOperationalGoal(argv []string) int {
+	if len(argv) > 0 && argv[0] == "advance" {
+		return cmdOperationalGoalAdvance(argv[1:])
+	}
 	if len(argv) == 0 || (argv[0] != "activate" && argv[0] != "status") {
 		fmt.Fprintln(os.Stderr, "usage: air-worker operational-goal activate|status -product <root> [-node <full-id> -source-head <sha>]")
 		return 2

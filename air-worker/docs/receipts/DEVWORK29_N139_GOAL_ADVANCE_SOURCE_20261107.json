@@ -1,0 +1,22 @@
+{
+  "schema": "air-worker.n139.operational-goal-advance-source/v1",
+  "owner": "Dev Work 29 / SRVLM01",
+  "native_node": "N-139_n136-native-operational-goal-selector-for-real-a",
+  "source_base": "6d029cc77e1869dc7fda307bb27128e88e125758",
+  "prior_selector_source_pin": "8c813f673c4d3ccae472f441183f78903fe6efb8",
+  "verified_legacy_sha": "811a37794842d8ed575f478d0a84665579daee5f5afe94e5e4ad6e9e7627ab9a",
+  "action": "Add native air-worker operational-goal advance to retarget only owned host-local selector along Git descendant commits, with declared session, clean HEAD, full node/owner/done_when/release digest unchanged; lock against concurrent N139 source writer.",
+  "tested": {
+    "targeted_go_rc": 0,
+    "go_vet_rc": 0,
+    "diff_check_rc": 0,
+    "go_test_selector": "TestOperationalGoalAdvance.*|TestOperationalGoal.*|TestN139TerminalOutputIntegrityRejectsTamper|TestSourceReviewPromptRequiresThreeExactOneBasedCitations",
+    "request_id": "acmd-948407ea-f1e3-4e07-b11d-fe1778b9781a"
+  },
+  "review_status": "NOT_YET_REVIEWED",
+  "pilot_execution": "NOT_YET_RUN; host-local goal state unchanged",
+  "expected_after_review": "Build source-only candidate; invoke advance one time after source commit; read exact goal pin and legacy SHA; no model run or installation",
+  "status": "SOURCE_ONLY_CHECKPOINT_NOT_N139_CLOSED",
+  "release_install": "none; installed rc.2 unchanged",
+  "next": "Independent Anthropic code review on exact frozen SHA before changing operational goal"
+}
