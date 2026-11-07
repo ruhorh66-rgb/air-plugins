@@ -1,6 +1,6 @@
 {
     "schema":  "air-worker.p0-acceptance-matrix/v1",
-    "owner":  "Dev Work 29 / SRVLM01",
+    "owner":  "Dev Work 30 / SRVLM01 (Dev Work 29 handoff accepted)",
     "decision":  "LPR 2026-11-07: P0 native autonomous Codex ladder, independent Anthropic judge, durable recovery/escalation; P1 useful self-learning after P0. Expose measurable remaining gates.",
     "observed_date_sgt":  "2026-11-07",
     "project":  "AirWorker",
@@ -70,19 +70,19 @@
                       "name":  "Frozen source and security acceptance",
                       "status":  "OPEN",
                       "node":  "N-139/N-136/N-123",
-                      "done_when":  "Frozen source HEAD + targeted and required full N123 QA where justified + independent source code review PASS and commit/push Git CLEAN readback",
+                      "done_when":  "Final clean exact source SHA, targeted/adversarial and required full N123 QA, independent Anthropic code/security review, independent Codex Sol low PASS, reversible rollback receipt, commit/push/GitHub remote CLEAN readback",
                       "evidence":  [
 
                                    ],
-                      "judge":  "Go RC, independent Anthropic code review with valid TASK, GitHub SHA",
-                      "blocker":  "Worktree still has uncommitted N139 cmd changes and no source PASS."
+                      "judge":  "Final-SHA Go QA RC, Anthropic code/security review with TASK_READ_OK, separate Codex Sol low PASS, reversible rollback proof, GitHub SHA",
+                      "blocker":  "Dev Work29 N123 source-only targeted QA and Sonnet PASS_SOURCE_ONLY accepted on 26e4cdb; full final-SHA QA, Codex Sol low acceptance and reversible rollback not yet proven."
                   },
                   {
                       "id":  "G06",
                       "name":  "Causal model-ladder escalation",
                       "status":  "OPEN",
                       "node":  "N-136/N-126",
-                      "done_when":  "Same native task proves a genuine cause for tier transition from Luna to next allowed tier, preserved job/attempt receipts and matrix",
+                      "done_when":  "One native TASK proves genuine stall/failure cause for transition from Luna to next allowed Codex tier with unchanged TASK identity, native attempt/job receipts; Luna/Sol/Astra route matrix separately, no mandatory traversal of all tiers",
                       "evidence":  [
 
                                    ],
@@ -125,9 +125,9 @@
                     "p0_status":  "OPEN"
                 },
     "next_critical_path":  [
-                               "G05: exact frozen source with full N123 QA and independent code review, Git readback",
-                               "G07: two real disconnects plus EXECUTION_UNKNOWN with zero duplicate execution",
-                               "G06: one causal model-tier transition in a native job with receipts",
+                               "G07: two real disconnects plus EXECUTION_UNKNOWN; same job and zero duplicates",
+                               "G06: one causal native tier transition on unchanged TASK with receipts; route matrix separately",
+                               "G05: exact frozen SHA, required N123 full QA, Anthropic code/security and Codex Sol low PASS, reversible rollback, GitHub readback",
                                "G08: close each native P0 node only after full own done_when"
                            ],
     "p1_case":  {

@@ -1,0 +1,47 @@
+{
+  "schema": "air-worker.devwork30.n123-sonnet-readback/v1",
+  "owner": "Dev Work 30 / SRVLM01",
+  "trigger": "LPR 2026-11-07: preserve Dev Work29 published N123 source receipt and add exact already-completed native Anthropic Sonnet 5.5 receipt at source HEAD 26e4cdb",
+  "source_commit": "26e4cdbf70b6a6af959a4425c6e22f32577382e7",
+  "prior_published_receipt": "docs/receipts/DEVWORK29_N123_SOURCE_ONLY_HANDOFF_20261107.json",
+  "prior_published_receipt_sha256": "95280dae533bd53dc0b4dfa7547c92f9f07d9ccb54bbf7e7f57ec35ea91d49e5",
+  "native_receipt_path": "D:/Devbox/AirWorker/worktrees/awlrn-orch-pilot-20261104/air-worker/.woody/jobs/gpt-devwork29-n123-review-26e4-source-review-N-123-p0-resume-durable-qa-judge-jobs-after-chat-inter-26e4cdbf70b6-semantic-reviewer.receipt.json",
+  "native_receipt_sha256": "a7f96d50e44d4dd6a28f70599821e2029fe93889cffe2b3909d1148d573c1ec4",
+  "job_id": "gpt__devwork29-n123-review-26e4__1794045317110285200__43eefb8b",
+  "runner": "claude",
+  "model": "claude-sonnet-5-5",
+  "role": "semantic-reviewer",
+  "source_head": "26e4cdbf70b6a6af959a4425c6e22f32577382e7",
+  "process_started": true,
+  "terminal_status": "DONE",
+  "exit_code": 0,
+  "output_sha256": "d30af8cf427529626d8b995d695527043bb2f38055cf6050084518802ad9fd5f",
+  "args_sha256": "856cc1162707808da83ab55d7ec63687f3a5ab5fca7258919c78e996e9c4b936",
+  "model_verdict": "PASS_SOURCE_ONLY",
+  "task_read": "TASK_READ_OK",
+  "verified_source_citations": [
+    "cmd/job_receipt.go:128",
+    "cmd/job_status.go:95",
+    "cmd/job_recovery_p0_test.go:88"
+  ],
+  "reviewed_scope": "DevWork29 N123 bounded source-only delta; not complete N123 or P0",
+  "reused_existing_native_job": true,
+  "new_review_performed": false,
+  "p0_gate_credit": "none; G01-G04 remain PASS; G05-G08 remain OPEN",
+  "n123_status": "OPEN",
+  "g07_status": "OPEN",
+  "next_order": [
+    "G07",
+    "G06",
+    "G05",
+    "G08"
+  ],
+  "requirements_unmet": [
+    "Two forced real message disconnects and EXECUTION_UNKNOWN with same durable job and zero reexecution",
+    "Causal native model tier escalation from one TASK",
+    "Final exact SHA full required N123 QA",
+    "Independent Codex Sol low acceptance",
+    "Reversible rollback receipt",
+    "Four individual native node closures"
+  ]
+}
