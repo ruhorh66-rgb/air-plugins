@@ -1,0 +1,69 @@
+{
+  "schema": "air-worker.devwork29.n139-semantic-reconcile/v1",
+  "node": "N-139_n136-native-operational-goal-selector-for-real-a",
+  "owner": "Dev Work 29 / SRVLM01",
+  "source_head": "bd29620b94f96e0e4a8584a6b608d6a73cb30cfd",
+  "source_clean_at_review": true,
+  "scope": "one native N139 source-edit slice; not full N139 acceptance",
+  "original_autonomous_run": {
+    "codex": {
+      "job_id": "gpt__devwork29-7fc2da058a095e9a__1794026842523903500__3115cf12",
+      "status": "DONE",
+      "output_sha256": "2ca8997b3bcb8c51d04024da970adf6373c65e8c40967c33b23d562b8bc480bb",
+      "redispatched": false,
+      "legacy_unsealed": true
+    },
+    "go": {
+      "job_id": "gpt__devwork29-7fc2da058a095e9a__1794027935412442500__30cad5a6",
+      "status": "DONE",
+      "output_sha256": "94efe696195b25b8e932f1dba57b71b15bc296e4524de8d536c3fea8fdbe652c",
+      "redispatched": false,
+      "legacy_unsealed": true
+    },
+    "semantic_first": {
+      "job_id": "gpt__devwork29-7fc2da058a095e9a__1794028008608935400__808f5486",
+      "verdict": "NOT_PROVEN",
+      "preserved_in_immutable_receipt_and_semantic_history": true
+    }
+  },
+  "frozen_independent_source_review": {
+    "source_sha": "bd29620b94f96e0e4a8584a6b608d6a73cb30cfd",
+    "native_result": "PASS_SOURCE_ONLY",
+    "task_read": "TASK_READ_OK",
+    "source_checked_paths": [
+      "cmd/operational_reconcile.go",
+      "cmd/operational_reconcile_test.go",
+      "cmd/operational_goal.go"
+    ],
+    "native_rc": 0,
+    "request_id": "acmd-fd9f5433-4f35-45c4-a3b7-ff2ea01495d2"
+  },
+  "independent_semantic_reconcile": {
+    "job_id": "gpt__devwork29-g04-reconcile-bd29620__1794040428070045000__a5da3aad",
+    "model": "claude-sonnet-5-5",
+    "provider": "Anthropic",
+    "job_status": "DONE",
+    "output_sha256": "19f34fe73e4ee545aa86da90bf5a0634ce4622621c698e3d538d6982bdf29c95",
+    "verdict": "PASS",
+    "step_done": "yes",
+    "drift": "none",
+    "native_rc": 0,
+    "request_id": "acmd-ba3b80bd-5243-4fef-ac34-1b131c03cec2",
+    "evidence": "Bounded source diff and old original terminal job SHA readback, verified factual native Go RC0, independent source review PASS_SOURCE_ONLY"
+  },
+  "p0_gate": "G04 PASS",
+  "p0_progress_at_review": {
+    "passed": 4,
+    "total": 8,
+    "remaining": 4,
+    "native_nodes_closed": 0
+  },
+  "p0_next": "G05 accepted/frozen source & full N123 QA, G07 two real interruption recoveries, G06 causal model tier escalation, G08 native closures",
+  "limits": [
+    "N139/N136/N126/N123 still OPEN",
+    "Reconcile did not rerun Codex or Go",
+    "Old unsealed receipts flagged, not claimed as cryptographically sealed",
+    "No deployment, release, installer, service stop, reboot or UAC"
+  ],
+  "status": "G04_PASS_BOUNDED_SEMANTIC_ONLY"
+}
