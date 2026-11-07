@@ -42,8 +42,8 @@ func runDistributionGuard(t *testing.T, repo, version, commit string) (int, stri
 	return exitCode(cmd, err), decodeOutput(out)
 }
 
-// The native publisher must bind a GitHub RELEASE tag to the same clean Git
-// source revision as the VCS-stamped CLI and tray BEFORE signing any feed.
+// The native publisher must bind a GitHub RELEASE tag to the clean binary
+// distribution commit B, which contains CLI/tray built at source SHA S.
 // This is a source contract, not an external GitHub publication test.
 func TestN130PublisherRequiresTagCommitBeforeSigning(t *testing.T) {
 	b, err := os.ReadFile(filepath.Join("..", "tools", "publish-github-update.ps1"))
@@ -57,7 +57,7 @@ func TestN130PublisherRequiresTagCommitBeforeSigning(t *testing.T) {
 		"repos/$GitHubRepo/git/tags/$sha",
 		"if ([string]$ref.ref -cne \"refs/tags/$TagName\")",
 		"if ($kind -ceq 'commit')",
-		"$tagCommitSha -ne $sourceCommit",
+		"$tagCommitSha -ne $packageCommit",
 		"release tag $tag resolves to $tagCommitSha",
 		"vcs\\.revision",
 		"vcs\\.modified=false",
@@ -71,13 +71,49 @@ func TestN130PublisherRequiresTagCommitBeforeSigning(t *testing.T) {
 	if strings.Contains(s, "repos/$GitHubRepo/commits/$tag") {
 		t.Fatal("ambiguous generic commits/<ref> can resolve a branch instead of the release tag")
 	}
-	tagCheck := strings.Index(s, "$tagCommitSha -ne $sourceCommit")
+	tagCheck := strings.Index(s, "$tagCommitSha -ne $packageCommit")
 	signCall := strings.Index(s, "sign-update-manifest.py")
-	secondCheck := strings.Index(s, "if ((Resolve-ReleaseTagCommit $tag) -ne $sourceCommit)")
+	secondCheck := strings.Index(s, "if ((Resolve-ReleaseTagCommit $tag) -ne $packageCommit)")
 	feedWrite := strings.Index(s, "$feedPath = Publish-Manifest $manifestPath")
 	if tagCheck < 0 || signCall < 0 || secondCheck < 0 || feedWrite < 0 ||
 		tagCheck >= signCall || secondCheck <= signCall || secondCheck >= feedWrite {
 		t.Fatal("explicit release tag identity must be checked before signing and rechecked immediately before feed publication")
+	}
+}
+
+// Historical accepted S->B->R release: embedded CLI/tray VCS revision identifies
+// source S, while GitHub release tag points at the independently committed
+// installable binary package B. A source-root payload containing 0.11.9 EXE
+// must never be signed as a newer release's host-plugin cache payload.
+func TestN130PublisherSeparatesSourceAndInstallableDistributionCommit(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "tools", "publish-github-update.ps1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	for _, required := range []string{
+		"$packageCommit",
+		"$sourceRevision",
+		"air-worker/cmd",
+		"bin\\air-worker.exe",
+		"bin\\air-worker-tray.exe",
+		"bundled CLI SHA-256",
+		"bundled tray SHA-256",
+		"$tagCommitSha -ne $packageCommit",
+		"(Resolve-ReleaseTagCommit $tag) -ne $packageCommit",
+		"sign-update-manifest.py",
+	} {
+		if !strings.Contains(s, required) {
+			t.Errorf("publisher missing accepted source→binary package release contract %q", required)
+		}
+	}
+	check := strings.Index(s, "bundled CLI SHA-256")
+	sign := strings.Index(s, "sign-update-manifest.py")
+	if check < 0 || sign < 0 || check >= sign {
+		t.Fatal("publisher might sign source tree before validating installable cached binary identity")
+	}
+	if strings.Contains(s, "$tagCommitSha -ne $sourceCommit") {
+		t.Fatal("GitHub release tag must point to the package commit B, not the compiled source revision S")
 	}
 }
 

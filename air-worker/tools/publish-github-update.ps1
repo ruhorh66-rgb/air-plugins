@@ -174,37 +174,61 @@ if (-not $revisionMatch.Success) { throw 'release CLI has no embedded vcs.revisi
 $revision = $revisionMatch.Groups[1].Value
 if ($buildText -notmatch 'vcs\.modified=false') { throw 'release CLI was built from modified source' }
 
-# Immutable publisher provenance: the payload must come from the exact clean
-# Git source commit embedded in the binary. A copied/stale staging tree that
-# has no Git identity cannot be silently promoted to the signed feed.
+# Historical AirWorker S->B->R release provenance:
+#   S = clean Go source commit embedded in both Windows binaries;
+#   B = separate clean Git distribution commit containing those binaries;
+#   R = GitHub release tag pointing to B (not S).
+# Never sign the source working tree with an old checked-in bin/air-worker.exe.
+$sourceRevision = $revision.ToLowerInvariant()
 $gitHeadLines = @(& git -C $PluginRoot rev-parse --verify HEAD 2>&1)
-if ($LASTEXITCODE -ne 0) { throw 'publisher PluginRoot must be a real readable Git checkout' }
-$sourceCommit = ($gitHeadLines -join '').Trim().ToLowerInvariant()
-if ($sourceCommit -notmatch '^[0-9a-f]{40}$' -or $sourceCommit -ne $revision.ToLowerInvariant()) {
-    throw "publisher Git HEAD $sourceCommit differs from built CLI vcs.revision $revision"
+if ($LASTEXITCODE -ne 0) { throw 'publisher PluginRoot must be a readable Git distribution checkout' }
+$packageCommit = ($gitHeadLines -join '').Trim().ToLowerInvariant()
+if ($packageCommit -notmatch '^[0-9a-f]{40}$') {
+    throw "invalid distribution commit $packageCommit"
 }
-# A GitHub release with matching asset hashes is NOT evidence that the release
-# tag points at this exact clean source commit. Resolve explicit refs/tags
-# (lightweight or annotated), not ambiguous commits/<ref>, before signing
-# or advancing the official update feed.
+$sourceTree = @(& git -C $PluginRoot rev-parse --verify "$($sourceRevision):air-worker/cmd" 2>&1)
+if ($LASTEXITCODE -ne 0) { throw "bundled source commit S $sourceRevision is absent from the distribution repository" }
+$packageTree = @(& git -C $PluginRoot rev-parse --verify "HEAD:air-worker/cmd" 2>&1)
+if ($LASTEXITCODE -ne 0 -or ($sourceTree -join '').Trim() -ne ($packageTree -join '').Trim()) {
+    throw "distribution commit B $packageCommit contains code different from the built source S $sourceRevision"
+}
+# Verify bundled installation bytes BEFORE signing a payload. The source tree
+# currently contains an old 0.11.9 EXE; it must fail this preflight for rc.4.
+$bundledCLI = Join-Path $PluginRoot 'bin\air-worker.exe'
+$bundledTray = Join-Path $PluginRoot 'bin\air-worker-tray.exe'
+if (-not (Test-Path -LiteralPath $bundledCLI -PathType Leaf)) { throw 'installable distribution is missing bundled CLI' }
+if (-not (Test-Path -LiteralPath $bundledTray -PathType Leaf)) { throw 'installable distribution is missing bundled tray' }
+$bundledCLIHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $bundledCLI).Hash.ToLowerInvariant()
+$bundledTrayHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $bundledTray).Hash.ToLowerInvariant()
+if ($bundledCLIHash -ne $cliHash) { throw "bundled CLI SHA-256 $bundledCLIHash differs from release asset $cliHash" }
+if ($bundledTrayHash -ne $trayHash) { throw "bundled tray SHA-256 $bundledTrayHash differs from release asset $trayHash" }
+foreach ($mPath in @('.claude-plugin\plugin.json','.codex-plugin\plugin.json')) {
+    $manifest = Join-Path $PluginRoot $mPath
+    if (-not (Test-Path -LiteralPath $manifest -PathType Leaf)) { throw "distribution manifest missing: $mPath" }
+    $plugin = Get-Content -LiteralPath $manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ([string]$plugin.version -ne $Version) {
+        throw "distribution $mPath version=$($plugin.version), expected $Version"
+    }
+}
+# A tag must identify the installable distribution B, not just its Go source S.
 if ([string]$release.tagName -ne $tag) {
     throw "GitHub release tag $($release.tagName) differs from expected $tag"
 }
 $tagCommitSha = Resolve-ReleaseTagCommit $tag
-if ($tagCommitSha -ne $sourceCommit) {
-    throw "GitHub release tag $tag resolves to $tagCommitSha, expected source $sourceCommit"
+if ($tagCommitSha -ne $packageCommit) {
+    throw "GitHub release tag $tag resolves to $tagCommitSha, expected package $packageCommit"
 }
 $sourceChanges = @(& git -C $PluginRoot status --porcelain=v1 --untracked-files=all -- . 2>&1)
 if ($LASTEXITCODE -ne 0 -or -not [string]::IsNullOrWhiteSpace(($sourceChanges -join '').Trim())) {
-    throw 'publisher PluginRoot must be Git CLEAN before source payload signing'
+    throw 'publisher distribution checkout must be Git CLEAN before package payload signing'
 }
 $trayBuild = @(& go version -m $trayPath 2>&1)
 if ($LASTEXITCODE -ne 0) { throw 'go version -m failed for release tray' }
 $trayBuildText = $trayBuild -join [Environment]::NewLine
 $trayRevision = [regex]::Match($trayBuildText, 'vcs\.revision=([0-9a-f]{40})')
-if (-not $trayRevision.Success -or $trayRevision.Groups[1].Value -ne $revision -or
+if (-not $trayRevision.Success -or $trayRevision.Groups[1].Value.ToLowerInvariant() -ne $sourceRevision -or
     $trayBuildText -notmatch 'vcs\.modified=false') {
-    throw 'release tray must be built from same clean Git revision as CLI'
+    throw 'release tray must be built from the same clean Git source revision S as CLI'
 }
 
 $payloadJson = @(& $Verifier update payload -root $PluginRoot -json 2>&1)
@@ -251,7 +275,7 @@ $feedPath = ''
 if (-not $VerifyOnly) {
     # Revalidate explicit release tag identity immediately before publishing
     # the signed feed. A tag move during preparation must never be accepted.
-    if ((Resolve-ReleaseTagCommit $tag) -ne $sourceCommit) {
+    if ((Resolve-ReleaseTagCommit $tag) -ne $packageCommit) {
         throw "GitHub release tag $tag changed after signing, abort feed publication"
     }
     $feedPath = Publish-Manifest $manifestPath

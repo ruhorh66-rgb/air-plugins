@@ -1,0 +1,72 @@
+{
+  "schema": "air-worker.n130.sbr-publisher-correction/v1",
+  "observed_date_sgt": "2026-11-07",
+  "owner": "Dev Work 28 / SRVLM01",
+  "source_branch": "dev/airworker-native-orch-pilot-20261104",
+  "baseline_head": "58569378e794343e902d7b5da463f61844cafea7",
+  "node": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "lpr_trigger": "LPR challenged SSH-to-GitHub, Claude GitHub dependency, GitHub immutability as misdiagnosed blockers; correct approach and do not touch live installation",
+  "diagnostic": {
+    "historical_previous_release": "0.11.7 accepted receipt source_commit S=c78493bb, package_commit B=e867f381, release tag target=B",
+    "historical_second_release": "0.11.10 README states source S=8ca190f and binary commit B=11c576b",
+    "installed_plugin_binary": "0.11.11-rc.2, SHA256 495d1d274c04aae41189579e368356c9a15bcb1c057227db538c93aa41acefbe",
+    "source_checkout_bin": "0.11.9, SHA256 30e93a269daba8edd122831a6c3caf53c5d67be4a79b987e37c5ebd82d6bbe34",
+    "prior_rc4_release_source": "0cb69306e0c4dd1cd388cd7a498e3f0ec4ea2a60",
+    "prior_signed_payload_sha256": "ff63974dd86cf3653a7a5dd3cd118fd6da5f201c33451875604381ef4ac43715",
+    "prior_claude_marketplace_pinned_version": "0.11.11-rc.2",
+    "actual_install_rollback": "PASS to rc.2; new rc.4 not installed",
+    "ssh": "Triggered by separate forced Claude plugin update inside native updater. GitHub SSH is not needed to execute Codex coding or Anthropic judge; changing SSH trust is not a fix for wrong package.",
+    "immutability": "GitHub release property not cause of updater RC1; no repository settings changed."
+  },
+  "source_delta": {
+    "files": [
+      "tools/publish-github-update.ps1",
+      "cmd/distribution_release_test.go",
+      "PLAN.md",
+      "learn/events.jsonl via native air-worker learn event",
+      "docs/receipts/DEVWORK28_N130_SBR_PUBLISHER_CORRECTION_20261107.json"
+    ],
+    "publisher_changes": [
+      "Differentiate Go source revision S from clean Git distribution/package commit B",
+      "Require B cmd tree identical to checked source S cmd tree (existing campaign check-provenance contract)",
+      "Require bundled bin/air-worker.exe and air-worker-tray.exe SHA256 exactly equal to staged release CLI/tray assets before signing",
+      "Require both packaged Claude and Codex manifest versions equal requested Version",
+      "Require GitHub release exact tag commit B, not S, and recheck before updating signed channel",
+      "Preserve signed client verification, source VCS clean=false requirement, and unchanged strict update cache identity"
+    ],
+    "historical_code_reused": "tools/campaign/check-provenance.ps1 + tools/check-distribution-identity.ps1; no new orchestrator or alternate GitHub transport"
+  },
+  "qa": {
+    "red_test": "TestN130PublisherSeparatesSourceAndInstallableDistributionCommit",
+    "red_rc": 1,
+    "red_request_id": "acmd-f694dab8-0a3a-4f3c-8b76-b97f0df5bee1",
+    "green_tests": [
+      "TestN130PublisherSeparatesSourceAndInstallableDistributionCommit",
+      "TestN130PublisherRequiresTagCommitBeforeSigning",
+      "TestDistributionReleaseGuardRejectsDirtyAndReusedVersion"
+    ],
+    "green_rc": 0,
+    "green_request_id": "acmd-45c80f99-d69a-4853-ae7d-855eee180fd7",
+    "powershell_ast_errors": 0,
+    "powershell_ast_request_id": "acmd-a3403211-26bd-4b3b-8261-b1f8d8364465",
+    "actual_new_distribution_created": false,
+    "actual_publisher_execution_on_new_package": false,
+    "independent_anthropic_delta_review": "PENDING",
+    "installed_runtime_regression": "NOT_RUN; SOURCE_ONLY"
+  },
+  "learning": {
+    "native_id": "LR-20261107T002044Z-220dc4fd",
+    "native_rc": 0,
+    "status": "RECORDED_NOT_APPLIED"
+  },
+  "operations": {
+    "new_release_published": false,
+    "existing_rc4_signature_or_assets_modified": false,
+    "installed_version_changed": false,
+    "ssh_host_keys_or_credentials_changed": false,
+    "github_release_settings_changed": false,
+    "release_install_performed": false
+  },
+  "status": "SOURCE_CORRECTION_READY_FOR_INDEPENDENT_REVIEW",
+  "next": "Commit source delta and exact receipt, independent Anthropic source review exact clean SHA, preserve rc.2. Build and verify historical S-B-R distribution only under existing native controls; new release/install requires exact LPR approval."
+}
