@@ -1,0 +1,50 @@
+{
+  "schema": "air-worker.p0-critical-path-rephase/v1",
+  "observed_sgt": "2026-11-07",
+  "owner": "Dev Work 29 / SRVLM01",
+  "trigger": "LPR: adjust the existing plan, optimize shortest path to finish P0 and continue work",
+  "source_before_sha": "ec359b5c74c7dfd57f7e21163bb48fbde92e37ec",
+  "single_plan": "air-worker/PLAN.md",
+  "priority": [
+    "P0-A N-139 operational node runner on real AirWorker worktree",
+    "P0-B N-123 interrupted RUNNING recovery without duplicates",
+    "P0-C N-136/N-126 causal model escalation and accepted previous evidence",
+    "P0-D frozen exact SHA factual+independent Anthropic approval then native plan close",
+    "P1 causal self-learning next-run EFFECT"
+  ],
+  "optimizations": [
+    "Reuse N135/N136 accepted isolated E2E; no repeat fixtures without delta",
+    "Reuse N139 selector and existing loop engine; no second plan/orchestrator",
+    "One native job/writer at a time; source before model, terminal receipt before retry",
+    "N123 two disconnects and EXECUTION_UNKNOWN by own done_when, not a single sample",
+    "No full Go suite N124 known hang until justified",
+    "N130/N138 not P0 unless functional dependency is proven"
+  ],
+  "verified_snapshot": {
+    "path": "D:/Devbox/AirWorker/temp/DevWork29/N139/collision-snapshot-20261107T032222Z/manifest.json",
+    "captured_utc": "2026-11-07T03:23:09.8708940Z",
+    "manifest_sha256": "312a7cf9f493713d06040769de27433631456ea0543e31440910f6d1450f5dd2",
+    "verified_files": 20,
+    "hash_failures": 0,
+    "job_log_receipt_files": 4,
+    "before_existing_source_commit": true
+  },
+  "present_limits": {
+    "operational_goal_file": "ABSENT",
+    "native_loop": "SELECTOR_ONLY; operational node execution rejects RC2",
+    "independent_anthropic": "NOT_PROVEN RC2 TASK_READ_FAIL",
+    "interrupted_running_resume": "NOT_PROVEN",
+    "causal_ladder_escalation": "NOT_PROVEN",
+    "learn_effect": "NOT_PROVEN"
+  },
+  "checks": {
+    "plan_lint_rc": 0,
+    "encoding_rc": 0,
+    "git_diff_check_rc": 0,
+    "no_native_node_manual_edit": true,
+    "no_learn_journal_manual_edit": true,
+    "installed_product": "0.11.11-rc.2 unchanged"
+  },
+  "status": "PLAN_READY_P0_OPEN",
+  "note": "Do not close any P0 node on documentation or model DONE alone. New code source and independent runtime proof remain required."
+}
