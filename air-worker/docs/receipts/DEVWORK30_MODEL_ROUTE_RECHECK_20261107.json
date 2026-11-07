@@ -1,0 +1,90 @@
+{
+  "schema": "air-worker.devwork30.model-route-recheck/v1",
+  "date": "2026-11-07",
+  "owner": "Dev Work 30 / SRVLM01",
+  "reason": "LPR challenged unsupported-model conclusion; reverify OpenAI Codex model access without changing installed CLI",
+  "source_head_before_correction": "ef209f394a08b634ea6b9bcd8467d3909ab462fa",
+  "previous_receipt": "docs/receipts/DEVWORK30_MODEL_ROUTE_REFRESH_20261107.json",
+  "previous_result": "Old Codex CLI 0.158.0 returned HTTP 400 model_not_found for GPT-6.1 Sol and GPT-6.1 Terra; observation retained as historical, inference of account-wide inaccessibility superseded",
+  "root_cause": "Codex CLI 0.158.0 predates bundled GPT-6.1 Sol support (0.159.1) and Terra support (0.165.0); latest 0.167.0 includes both",
+  "source_references": [
+    "https://learn.chatgpt.com/docs/changelog",
+    "https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex",
+    "https://developers.openai.com/api/docs/models"
+  ],
+  "local_old_cli": {
+    "version": "0.158.0",
+    "path": "R:/-4-/npm-global",
+    "login": "ChatGPT confirmed",
+    "installed_unchanged": true
+  },
+  "staged_cli": {
+    "version": "0.167.0",
+    "root": "D:/Devbox/AirWorker/temp/DevWork30/codex-0.167-model-audit",
+    "install": "npm install --prefix <private D temp root> --no-save --ignore-scripts @openai/codex@0.167.0",
+    "global_install": false,
+    "login": "ChatGPT confirmed, same host profile"
+  },
+  "native_model_catalog": {
+    "method": "Codex 0.167.0 app-server model/list with existing ChatGPT authentication",
+    "count": 8,
+    "models": [
+      "gpt-6.1-sol",
+      "gpt-6-astra",
+      "gpt-6.1-terra",
+      "gpt-6-sol",
+      "gpt-6-luna",
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna"
+    ],
+    "default": "gpt-6.1-sol"
+  },
+  "live_tests": [
+    {
+      "model": "gpt-6.1-sol",
+      "invocation": "Codex CLI 0.167.0 exec, read-only sandbox, low reasoning, explicit closed stdin, one bounded prompt",
+      "cli_rc": 0,
+      "model_response": "MODEL_ROUTE_OK",
+      "event": "turn.completed",
+      "output_path": "D:/Devbox/AirWorker/temp/DevWork30/sol61-newcli-closedstdin.jsonl",
+      "output_sha256": "55ec326fc7bfc9d88ae216b15c93f9205a6442864781754afa6dee9f05d370d5",
+      "output_tokens": 7,
+      "result": "AVAILABLE_AND_EXECUTED_VIA_STAGED_CODEX"
+    },
+    {
+      "model": "gpt-6.1-terra",
+      "invocation": "Codex CLI 0.167.0 exec, read-only sandbox, low reasoning, explicit closed stdin, one bounded prompt",
+      "cli_rc": 0,
+      "model_response": "MODEL_ROUTE_OK",
+      "event": "turn.completed",
+      "output_path": "D:/Devbox/AirWorker/temp/DevWork30/terra61-newcli-closedstdin.jsonl",
+      "output_sha256": "ec852c72df9fded561f6ddadb7037682d6d44cb4396084fc2a09b52a41c5c207",
+      "output_tokens": 7,
+      "result": "AVAILABLE_AND_EXECUTED_VIA_STAGED_CODEX"
+    }
+  ],
+  "stdin_transport_note": "First attempt under PowerShell waited for additional stdin; own stuck probe stopped, rerun with stdin explicitly closed. This was not a model error.",
+  "gpt_6_sol": "Present in both original 0.158.0 and new 0.167.0 Codex catalogs; preserve as active working rung. No additional model call needed.",
+  "active_airworker": {
+    "installed_version": "0.11.11-rc.2",
+    "installed_codex_cli_version": "0.158.0",
+    "current_config": "run-config.json keeps GPT-6 Luna -> GPT-6 Sol -> GPT-6 Astra active, with GPT-6.1 candidate aliases nonselectable until qualified client activation",
+    "target_after_client_upgrade": "script -> GPT-6 Luna -> GPT-6.1 Terra -> GPT-6 Sol -> GPT-6.1 Sol -> GPT-6 Astra; all tiers low/medium/high only, cause-gated and without mandatory traversal of all rungs",
+    "no_native_airworker_new_model_call": true,
+    "status": "QUALIFIED_IN_CODEX_CLI_0.167; NOT_YET_ENABLED_IN_AIRWORKER_NATIVE_RUNNER",
+    "no_global_update": true,
+    "no_release_or_install": true
+  },
+  "p0": {
+    "G01": "PASS",
+    "G02": "PASS",
+    "G03": "PASS",
+    "G04": "PASS",
+    "G07": "OPEN",
+    "G06": "OPEN",
+    "G05": "OPEN",
+    "G08": "OPEN"
+  },
+  "conclusion": "Previous statement that ChatGPT account cannot use GPT-6.1 Sol/Terra is wrong; new client proves actual access. Preserve old CLI/receipt as historical, fix the model-ladder recommendation and gate activation on supported CLI."
+}
