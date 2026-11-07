@@ -124,6 +124,17 @@ func readOperationalGoal(root string) (operationalGoal, error) {
 	return saved, nil
 }
 
+func operationalGoalPreview(root string, selected operationalGoal) error {
+	verified, err := readOperationalGoal(root)
+	if err != nil {
+		return fmt.Errorf("selector is not verified: %w", err)
+	}
+	if verified != selected {
+		return errors.New("selector changed during preview")
+	}
+	return nil
+}
+
 // writeNewOperationalGoal creates one host-local selector without replacing a raced foreign file.
 // A torn write remains invalid and fail-closed; only the native owner may reconcile it.
 func writeNewOperationalGoal(path string, raw []byte) error {

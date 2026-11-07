@@ -66,6 +66,21 @@ func startJobReceipt(scope sessionScope, step, operation, receiptPath, outputPat
 			step, operation, scope.key())
 	}
 
+	// The path is deterministic across reconnects. A per-process lock alone only
+	// excludes concurrent starts; after the terminal result it used to allow
+	// overwriting both the receipt and output, losing recovery evidence.
+	// Refuse any existing evidence even after the lock has been released.
+	// The lock still serializes all workers with the same owned scope/step/operation.
+	for _, candidate := range []string{receiptPath, outputPath} {
+		if _, statErr := os.Lstat(candidate); statErr == nil {
+			lock.release()
+			return nil, nil, fmt.Errorf("ОТКАЗ: existing job evidence %s; recover its receipt/result, do not start again", filepath.Base(candidate))
+		} else if !os.IsNotExist(statErr) {
+			lock.release()
+			return nil, nil, fmt.Errorf("inspect job evidence %s: %w", filepath.Base(candidate), statErr)
+		}
+	}
+
 	r := &jobReceipt{
 		JobID:      newJobID(scope),
 		PID:        os.Getpid(),
@@ -89,9 +104,15 @@ func startJobReceipt(scope sessionScope, step, operation, receiptPath, outputPat
 // (done/failed) самой команды. Transport/RDC timeout НЕ вызывает эту функцию — это и есть
 // контракт К42: таймаут ожидания не трогает receipt, он остаётся RUNNING на диске.
 func finishJobReceipt(receiptPath, status string) error {
+	if status != jobStatusDone && status != jobStatusFailed {
+		return fmt.Errorf("invalid terminal job status: %q", status)
+	}
 	r, err := readJobReceipt(receiptPath)
 	if err != nil {
 		return err
+	}
+	if r.Status != jobStatusRunning {
+		return fmt.Errorf("job %s already terminal (%s); status cannot be overwritten", r.JobID, r.Status)
 	}
 	r.Status = status
 	return writeJobReceiptFunc(receiptPath, r)

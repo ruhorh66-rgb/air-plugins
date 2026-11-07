@@ -1,0 +1,65 @@
+{
+  "schema": "air-worker.n123.job-status-readback-source/v1",
+  "observed_sgt": "2026-11-07",
+  "owner": "Dev Work 29 / SRVLM01",
+  "native_node": "N-123_p0-resume-durable-qa-judge-jobs-after-chat-inter",
+  "stage": "SOURCE_ONLY_PARTIAL; N123_OPEN",
+  "trigger": "LPR P0 durable resume and no duplicate; code-owned job status readback supports continued work after lost transport",
+  "source_base_head": "4bc4496f3f221bc2265f9a24c6c28eddc7b2e27e",
+  "source_changes": [
+    "cmd/job_receipt.go refuses repeated same-scoped receipt/output after terminal and duplicate terminal status changes",
+    "cmd/job_status.go adds read-only job status in existing AirWorker binary with scoped identity check and bounded terminal output SHA",
+    "cmd/job_status_test.go plus cmd/job_receipt_test.go prove negative replay/foreign/output/terminal behavior",
+    "cmd/main.go routes job status; no new daemon, no process restart"
+  ],
+  "machine_checks": {
+    "n123_negative_before_fix": {
+      "rc": 1,
+      "failed_cases": 3,
+      "request_id": "acmd-aa8e0c77-50eb-4eab-a277-c5b2ee0ee362"
+    },
+    "after_fix": {
+      "rc": 0,
+      "request_id": "acmd-e0f110fc-0b68-4e3a-9e18-f42cf862f933",
+      "selectors": "TestN123*|TestCriterion42Pending|TestRunReceiptedFailsClosedWhenPIDRegistrationFails"
+    },
+    "go_vet": {
+      "rc": 0,
+      "request_id": "acmd-e0f110fc-0b68-4e3a-9e18-f42cf862f933"
+    },
+    "source_only_build": {
+      "rc": 0,
+      "binary_sha256": "a699fcdd36a0c3c889551105ee1284a9f85c3975684bef6040f4af7290f01afb",
+      "request_id": "acmd-b7a9eb3e-b85a-4e10-9754-0de787a2d0d7",
+      "installed_changed": false
+    },
+    "terminal_readback": {
+      "rc": 0,
+      "request_id": "acmd-ba76c996-e240-4206-b50a-c5887ad13128",
+      "job_id": "gpt__devwork29-7fc2da058a095e9a__1794024639948607700__5c1ce3be",
+      "status": "DONE",
+      "terminal": true,
+      "output_sha256": "c6be009e3ef33f06637e6bd52be56ffb81bab62bedbb369ff4dc786054e5ab8e",
+      "output_bytes": 262149,
+      "sha_matches_independent_host": true,
+      "no_redispatch": true
+    }
+  },
+  "source_sha256": {
+    "cmd/job_receipt.go": "eff62256a1199b387d7641be149e17e29ebaf03d41c3586e37872e389ff506be",
+    "cmd/job_receipt_test.go": "c1997d10ba8055f1a9727a7272d3e148ddcb7de6fe9d0e66f35b375d8b6c6682",
+    "cmd/job_status.go": "94877b0d53495ceafa72aea6883a601ffd7cee6882b5f7ea2f8307aca8759137",
+    "cmd/job_status_test.go": "7848690c5b69b33747c7a6698e7984ee33d0122a686e4502ac9d91afb2056573",
+    "cmd/main.go": "6504164af4f5e459f2d31922387db26f968ca5b45dabbce55c16959ba1f781eb",
+    "plan/release-slices.json": "811a37794842d8ed575f478d0a84665579daee5f5afe94e5e4ad6e9e7627ab9a"
+  },
+  "limits": [
+    "No forced real ChatGPT disconnect or two recovery events tested",
+    "RUNNING job cannot yet be reattached with immutable args/source and process-tree proof",
+    "No post-terminal native judge PASS on frozen final SHA",
+    "Actual operational node runner N139 remains unimplemented and returns RC2",
+    "Causal ladder escalation remains NOT_PROVEN"
+  ],
+  "safety": "No new release/install/UAC/reboot/foreign process stop. Installed 0.11.11-rc.2 unchanged. Native plan/N and LEARN journal not edited.",
+  "next": "Finish N139 actual node runner using existing Codex/factual/Anthropic paths; then reproduce two real disconnect/recovery events and causal tier escalation. Close N123 only on full N123 done_when."
+}

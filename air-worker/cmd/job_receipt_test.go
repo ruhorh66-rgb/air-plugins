@@ -324,3 +324,95 @@ func testReceiptWiredIntoExecutorLaunchPath(t *testing.T, root string) {
 		t.Fatalf("stdout исполнителя не читается по output_path: %v, %q", err, data)
 	}
 }
+
+func TestN123TerminalReceiptReplayCannotOverwrite(t *testing.T) {
+	root := setupSessionProduct(t)
+	scope := newScope(root, sessionIdentity{"gpt", "n123-terminal-replay"})
+	dir := t.TempDir()
+	receiptPath, outputPath := filepath.Join(dir, "job.receipt.json"), filepath.Join(dir, "job.out")
+
+	first, lock, err := startJobReceipt(scope, "N123", "codex-run", receiptPath, outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := finishJobReceipt(receiptPath, jobStatusDone); err != nil {
+		lock.release()
+		t.Fatal(err)
+	}
+	lock.release()
+	before, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, secondLock, err := startJobReceipt(scope, "N123", "codex-run", receiptPath, outputPath); err == nil {
+		if secondLock != nil {
+			secondLock.release()
+		}
+		t.Fatal("same scoped job was executed again after terminal; must use saved result")
+	} else if secondLock != nil {
+		secondLock.release()
+	}
+	after, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Fatal("terminal receipt bytes changed during duplicate start")
+	}
+	r, err := readJobReceipt(receiptPath)
+	if err != nil || r.JobID != first.JobID || r.Status != jobStatusDone {
+		t.Fatalf("terminal job identity/status not preserved: %+v %v", r, err)
+	}
+}
+
+func TestN123OrphanOutputRejectsBlindJobRestart(t *testing.T) {
+	root := setupSessionProduct(t)
+	scope := newScope(root, sessionIdentity{"gpt", "n123-orphan-output"})
+	dir := t.TempDir()
+	receiptPath, outputPath := filepath.Join(dir, "job.receipt.json"), filepath.Join(dir, "job.out")
+	const existing = "unreconciled historical output"
+	if err := os.WriteFile(outputPath, []byte(existing), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, lock, err := startJobReceipt(scope, "N123", "codex-run", receiptPath, outputPath); err == nil {
+		if lock != nil {
+			lock.release()
+		}
+		t.Fatal("orphan output must block a new job until explicit recovery")
+	} else if lock != nil {
+		lock.release()
+	}
+	if _, err := os.Stat(receiptPath); !os.IsNotExist(err) {
+		t.Fatalf("orphan-output replay created a new receipt: %v", err)
+	}
+	raw, err := os.ReadFile(outputPath)
+	if err != nil || string(raw) != existing {
+		t.Fatalf("orphan output changed: %q / %v", raw, err)
+	}
+}
+
+func TestN123FinishedReceiptIsImmutableAgainstSecondFinalization(t *testing.T) {
+	root := setupSessionProduct(t)
+	scope := newScope(root, sessionIdentity{"gpt", "n123-finish-once"})
+	dir := t.TempDir()
+	receiptPath, outputPath := filepath.Join(dir, "job.receipt.json"), filepath.Join(dir, "job.out")
+	_, lock, err := startJobReceipt(scope, "N123", "codex-run", receiptPath, outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.release()
+	if err := finishJobReceipt(receiptPath, jobStatusDone); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := finishJobReceipt(receiptPath, jobStatusFailed); err == nil {
+		t.Fatal("DONE must not be overwritten by a second FAILED finalization")
+	}
+	after, err := os.ReadFile(receiptPath)
+	if err != nil || string(after) != string(before) {
+		t.Fatalf("terminal receipt modified after finalization: %v", err)
+	}
+}

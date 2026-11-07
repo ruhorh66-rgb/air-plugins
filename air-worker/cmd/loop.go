@@ -253,8 +253,15 @@ func cmdLoopWithReleaseSliceRunner(argv []string, releaseRunner func(string, run
 			return 2
 		}
 		line("Operational goal selected: " + goal.NodeID + " @ " + goal.SourceHead)
-		line("ОТКАЗ: operational node runner is not implemented; execution not started.")
-		return 2
+		if *whatIf || *planOnly {
+			if err := operationalGoalPreview(root, goal); err != nil {
+				line("ОТКАЗ: " + err.Error())
+				return 2
+			}
+			line("Operational goal preview: " + goal.NodeID + " · release SHA256 " + goal.ReleaseSHA256)
+			return 0
+		}
+		return runN139Operational(root, cfg, cfgPath, goal, *principal, *sessionKey)
 	} else if !os.IsNotExist(err) {
 		line("ОТКАЗ: operational goal cannot be inspected: " + err.Error())
 		return 2

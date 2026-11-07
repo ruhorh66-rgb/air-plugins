@@ -272,6 +272,8 @@ func run(argv []string) int {
 		return cmdOrchestrate(argv[1:])
 	case "executor":
 		return cmdExecutor(argv[1:])
+	case "job":
+		return cmdJob(argv[1:])
 	case "semantic":
 		return cmdSemantic(argv[1:])
 	case "review":

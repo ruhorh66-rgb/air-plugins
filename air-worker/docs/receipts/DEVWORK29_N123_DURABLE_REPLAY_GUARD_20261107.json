@@ -1,0 +1,53 @@
+{
+  "schema": "air-worker.n123.durable-job-no-replay-source/v1",
+  "observed_sgt": "2026-11-07",
+  "owner": "Dev Work 29 / SRVLM01",
+  "trigger": "LPR P0 complete working native Codex/Anthropic and durable job recovery; core source verification found re-run overwrites terminal receipt",
+  "source_base_head": "4bc4496f3f221bc2265f9a24c6c28eddc7b2e27e",
+  "node": "N-123_p0-resume-durable-qa-judge-jobs-after-chat-inter",
+  "state": "OPEN_SOURCE_ONLY",
+  "root": "D:/Devbox/AirWorker/worktrees/awlrn-orch-pilot-20261104/air-worker",
+  "defect": "startJobReceipt prevented duplicate only while scoped lock held, then old terminal receipt and output could be overwritten by another same-scope job; finishJobReceipt allowed terminal status rewrite",
+  "code_action": "Refuse existing receipt/output before new job under scoped lock; refuse second terminal transition; no side effects to foreign processes",
+  "verification": {
+    "red": {
+      "selectors": "TestN123*",
+      "rc": 1,
+      "observed_failures": 3,
+      "request_id": "acmd-aa8e0c77-50eb-4eab-a277-c5b2ee0ee362"
+    },
+    "green": {
+      "selectors": "TestN123*|TestCriterion42Pending|TestRunReceiptedFailsClosedWhenPIDRegistrationFails",
+      "rc": 0,
+      "request_id": "acmd-bea5942e-82ef-48dc-bb21-5dc5222ef06d"
+    },
+    "vet": {
+      "rc": 0,
+      "request_id": "acmd-be089e35-53e2-4df6-ae89-f2b40bb9e075"
+    },
+    "gofmt_rc": 0,
+    "git_diff_check_rc": 0
+  },
+  "sha256": {
+    "cmd/job_receipt.go": "eff62256a1199b387d7641be149e17e29ebaf03d41c3586e37872e389ff506be",
+    "cmd/job_receipt_test.go": "c1997d10ba8055f1a9727a7272d3e148ddcb7de6fe9d0e66f35b375d8b6c6682",
+    "cmd/loop.go": "3c153e4d2f6d715d03041057e77cf882b7375209398c27b7ebc6ef028c6ccadc",
+    "cmd/operational_goal.go": "04a0d58fd5de43373991b0b192c4d5ef75b3eee1471ddc5c815a83f22c32f1dc",
+    "cmd/operational_goal_test.go": "a266b040c0d86b875ecd752fa73210877b659be9dfa11b566dccbea5960c17ab",
+    "PLAN.md": "041316537044a3bf8131e7a8631a96839155a7016f05cbcc3a0e9bb89f2450ef",
+    "plan/release-slices.json": "811a37794842d8ed575f478d0a84665579daee5f5afe94e5e4ad6e9e7627ab9a"
+  },
+  "accepted": "TARGETED_SOURCE_QA_ONLY",
+  "unproven": [
+    "N123 two forced message disconnects",
+    "host EXECUTION_UNKNOWN resume on same job without second start",
+    "exit code/log SHA immutable final receipt",
+    "independent Anthropic source PASS",
+    "N139 native actual runner; current loop RC2",
+    "P0 causal tier escalation"
+  ],
+  "active_release": "installed AirWorker 0.11.11-rc.2 unchanged",
+  "forbidden_actions_done": false,
+  "next": "Deliver safe read-only job recovery/status and operational node execution via existing core; run full independent P0 evidence before any native node close; retain historical 0.11.9 release slices",
+  "mutation_scope": "source-only; no plan/N or learn journal manual changes; no release/install; .tmp preserved outside staging"
+}

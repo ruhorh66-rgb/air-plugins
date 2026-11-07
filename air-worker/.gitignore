@@ -21,3 +21,9 @@ steps.jsonl
 /learn/legacy-rules/
 # Host-local operational selector is read back by the native core, not a release artifact.
 /goal/operational-goal.json
+
+# N139 source-only Go caches produced by the native coding/QA pilot;
+# retained on disk, never staged or treated as product source.
+/.n139-go-cache/
+/.n139-go-tmp/
+/.tmp/n139/

@@ -1,0 +1,40 @@
+{
+  "schema": "air-worker.n139.autonomous-red-seed/v1",
+  "observed_sgt": "2026-11-07",
+  "owner": "Dev Work 29 / SRVLM01",
+  "trigger": "LPR P0: real AirWorker native PLAN→Codex code→factual→independent Anthropic, no manual second dispatch",
+  "product": "AirWorker",
+  "native_node": "N-139_n136-native-operational-goal-selector-for-real-a",
+  "state": "SOURCE_ONLY_RED_ACCEPTANCE_FIXTURE; N139_OPEN",
+  "source_base_commit": "4bc4496f3f221bc2265f9a24c6c28eddc7b2e27e",
+  "deployed_version": "0.11.11-rc.2 unchanged",
+  "historical_release_slices": {
+    "active": "0.11.9 R05",
+    "sha256": "811a37794842d8ed575f478d0a84665579daee5f5afe94e5e4ad6e9e7627ab9a",
+    "mutated": false
+  },
+  "prerequisites": {
+    "session": "gpt__devwork29-7fc2da058a095e9a",
+    "model_route": "native air-worker loop uses Codex gpt6-luna:low via runModelStep, independent Anthropic via semanticJudge",
+    "one_product_writer": "operational-n139 named lock; distinct session scope",
+    "no_duplicate": "native job receipt refuses existing receipt/output; factual Go and Codex use same durable receipt path family",
+    "factual": "native receipted fixed selector, bounded 4 minutes, confined Go temp, immutable output SHA readback"
+  },
+  "intentionally_red": {
+    "test": "TestN139TerminalOutputIntegrityRejectsTamper",
+    "rc": 1,
+    "evidence": "acmd-e91d5d98-55c5-4876-946e-aadff3b777ca",
+    "reason": "inspectOwnedJob accepts changed output after DONE without comparing to an original sealed terminal output digest",
+    "goal": "one native Codex source fix in cmd/job_receipt.go and cmd/job_status.go, followed by literal Go RC0 and independent Anthropic PASS",
+    "task_path": "docs/tasks/DEVWORK29_N139_AUTONOMOUS_TAMPER_FIX_20261107.md"
+  },
+  "scope_limitations": [
+    "P0 real-source autonomous E2E NOT_PROVEN until native loop terminal receipt",
+    "Independent Anthropic source reviewer previously TASK_READ_FAIL; must verify new actual TASK/source access",
+    "N123 two disconnects and EXECUTION_UNKNOWN full recovery remain OPEN",
+    "N136 causal model tier escalation remains OPEN",
+    "Do not auto-close N139 on Go or semantic only",
+    "No source release/install/privileged process action"
+  ],
+  "authorizations": "Only source coding and native source-only candidate run. New signed release/install needs separate LPR yes."
+}

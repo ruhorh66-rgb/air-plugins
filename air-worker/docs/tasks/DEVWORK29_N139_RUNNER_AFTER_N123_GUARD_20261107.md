@@ -1,0 +1,19 @@
+DEV WORK29 / P0-A / N139 SELF-HOSTED OPERATIONAL NODE RUNNER — ONE SOURCE CODING TASK
+
+EXPECTED HEAD: 4bc4496f3f221bc2265f9a24c6c28eddc7b2e27e. Root D:\Devbox\AirWorker\worktrees\awlrn-orch-pilot-20261104\air-worker.
+LPR P0: AirWorker selects own native PLAN/N step → real Codex coding write → factual Go process RC0 → independent Anthropic semantic PASS → native node close, and separately proves RUNNING recovery & escalation. This is SOURCE-ONLY BOOTSTRAP: DO NOT CLAIM autonomously completed P0 just because you are a separately dispatched coder.
+
+WHAT IS READY:
+- Verified native operational selector in cmd/operational_goal.go binds N139, exact Git HEAD, plan link and SHA of unchanged release-slices R0.11.9. Current loop.go returns RC2 for operational execution (correct so far), but now needs an executable branch.
+- DONE accepted disposable N136 loop and N135 Codex/Claude proofs; do not repeat them.
+- New N123 core fix in dirty tree cmd/job_receipt.go REFUSES terminal replay, orphan output, second finalization. 3 RED→GREEN N123 tests, K42 old tests, go vet RC0. New cmd/job_status.go read-only receipt status and output SHA tested on a REAL prior Codex job, RC0. Their current dirty source is protected by D:\Devbox\AirWorker\temp\DevWork29\N139\pre-runner-4bc4496-20261107 snapshot (14 verified files). Do NOT overwrite or revert.
+- Prior native Anthropic source review TASK_READ_FAIL RC2 due sandbox; do not bypass or claim PASS, do not loosen permissions.
+
+THIS ITERATION MUST ATTEMPT ACTUAL SOURCE-ONLY EXECUTION BRANCH, NOT ANOTHER PREVIEW-ONLY:
+1. In existing cmd/loop.go selector branch, after full native readOperationalGoal validation, route one bounded N139 step to a helper within same AirWorker runtime (prefer new small cmd/operational_run.go). Preserve historical 0.11.9 release-slices invariant and default FAIL-CLOSED if selector absent/invalid. Do NOT hide/rename/delete historical release-slices or route into legacy numeric PLAN.
+2. Reuse existing native loopCtx.runModelStep and semanticJudge (Codex writer / Claude independent judge), native sessionScope job receipts, model policy and script-first ladder. No extra orchestrator, subprocess wrapper system, external API, or direct vendor CLI. One actual model invocation per selected step; no rerun on RUNNING/terminal/EXECUTION_UNKNOWN; receipt now refuses duplicate same step/operation.
+3. Run a SAFE, bounded, source-only factual Go selector with literal arguments, no arbitrary command from task/node text. Require before/after source evidence that a model actually wrote own AirWorker code; protected tests/judge and PLAN/native N/LEARN cannot be changed by model. Separate factual Go PASS and Anthropic semantic PASS; never auto-close N139 merely on Codex DONE. Native N-node close only if every N139 done_when including proof/receipt is met; otherwise remain OPEN and return NOT_PROVEN with machine reason.
+4. You may implement one strict N139-only proof-of-execution scaffold for the NEXT live test rather than generic orchestrator. Make it testable with mock (no paid calls) and write negative tests for absent/stale selector, no script/model call on preview, no duplicate after DONE, non-PASS Anthropic cannot close. Do not make a separate PLAN.md.
+5. TARGETED QA ONLY: gofmt; go -C cmd test -run '^(TestOperationalGoal|TestN139|TestN123|TestCriterion42Pending)' -count=1 .; go vet . after. Use own D: GOTMPDIR/GOCACHE, not R: AirVera temp and not .tmp under Git. No broad Go suite, no release/install/UAC/reboot/services. Do not commit/push or write PLAN.md / plan/N-*.md / learn/events.jsonl directly. Avoid duplicate/parallel model jobs.
+
+One terminal report: files changed, actual test RC, what can be run via native operational-goal/loop on current source, what remains NOT_PROVEN. If task/source not readable stop without false success. No model-only PASS.

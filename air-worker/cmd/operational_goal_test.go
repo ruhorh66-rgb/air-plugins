@@ -96,3 +96,21 @@ func TestOperationalGoalDoesNotMutateHistoricalReleaseSlices(t *testing.T) {
 		t.Fatalf("operational selection modified historical release slices: %v", err)
 	}
 }
+
+func TestOperationalGoalPreviewRejectsMissingSelector(t *testing.T) {
+	root, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	head, err := planRephaseGit(root, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	goal, err := operationalGoalInputs(root, "N-139_n136-native-operational-goal-selector-for-real-a", head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := operationalGoalPreview(t.TempDir(), goal); err == nil || !strings.Contains(err.Error(), "selector") {
+		t.Fatalf("absent selector must refuse preview: %v", err)
+	}
+}
