@@ -266,6 +266,8 @@ func run(argv []string) int {
 		return cmdDrift(argv[1:])
 	case "loop":
 		return cmdLoop(argv[1:])
+	case "operational-goal":
+		return cmdOperationalGoal(argv[1:])
 	case "orchestrate":
 		return cmdOrchestrate(argv[1:])
 	case "executor":

@@ -889,3 +889,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] N-126_native-two-codex-and-anthropic-reviewer-orchestr · owner:Dev Work 28 / SRVLM01 · [[N-136_prove-autonomous-plan-coding-factual-anthropic-c]] · Prove autonomous PLAN coding factual Anthropic close and resume
 - [closed] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 28 / SRVLM01 · [[N-137_n130-sbr-package-preflight-against-dev139-dev070]] · N130 SBR package preflight against DEV139 DEV070 install registry
 - [open] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 28 / SRVLM01 · [[N-138_n130-windows-installed-program-registration-and-s]] · N130 Windows installed-program registration and safe removal lifecycle
+- [open] N-136_prove-autonomous-plan-coding-factual-anthropic-c · owner:Dev Work 29 / SRVLM01 · [[N-139_n136-native-operational-goal-selector-for-real-a]] · N136 native operational goal selector for real AirWorker source

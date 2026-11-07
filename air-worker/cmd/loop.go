@@ -246,6 +246,19 @@ func cmdLoopWithReleaseSliceRunner(argv []string, releaseRunner func(string, run
 		line("ОТКАЗ: " + err.Error())
 		return 2
 	}
+	if _, err := os.Stat(operationalGoalPath(root)); err == nil {
+		goal, err := readOperationalGoal(root)
+		if err != nil {
+			line("ОТКАЗ: operational goal invalid: " + err.Error())
+			return 2
+		}
+		line("Operational goal selected: " + goal.NodeID + " @ " + goal.SourceHead)
+		line("ОТКАЗ: operational node runner is not implemented; execution not started.")
+		return 2
+	} else if !os.IsNotExist(err) {
+		line("ОТКАЗ: operational goal cannot be inspected: " + err.Error())
+		return 2
+	}
 
 	// A machine release-slice plan is authoritative over legacy numeric PLAN.md rows.
 	// Once present, malformed or unsupported state must fail closed; never fall back

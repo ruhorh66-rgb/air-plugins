@@ -19,3 +19,5 @@ steps.jsonl
 /.air-learning-owner.json
 /learning-module.json
 /learn/legacy-rules/
+# Host-local operational selector is read back by the native core, not a release artifact.
+/goal/operational-goal.json

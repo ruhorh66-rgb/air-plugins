@@ -1,0 +1,56 @@
+{
+  "schema": "air-worker.devwork29.n139-source-slice/v1",
+  "date_sgt": "2026-11-07",
+  "actor": "Dev Work 29 / SRVLM01",
+  "decision": "LPR P0 native Codex ladder, independent Anthropic judge, recovery and escalation; P1 learned effect. N130/N138 off critical path.",
+  "product": "AirWorker",
+  "source_baseline_head": "e4e79d55db22198e8e0f5daa4431ba071cb0700f",
+  "node": "N-139_n136-native-operational-goal-selector-for-real-a",
+  "node_state": "OPEN",
+  "parent": "N-136_prove-autonomous-plan-coding-factual-anthropic-c",
+  "native_codex": {
+    "job_id": "gpt__devwork29-7fc2da058a095e9a__1794021020892251400__db0d35c7",
+    "tier": "gpt6-sol:low",
+    "terminal_status": "DONE",
+    "provider": "OpenAI",
+    "read_task": true,
+    "second_job": "gpt__7fc2da058a095e9a__1794021052498149700__ee5db59d",
+    "second_status": "FAILED/explicitly stopped own duplicate after identifying concurrent worktree writer; foreign job preserved"
+  },
+  "source_delta": [
+    "cmd/operational_goal.go: host-local operational goal activation/status explicitly bound to actual N139 and current Git SHA, history slice SHA; no rewrite of legacy R05",
+    "cmd/loop.go: recognizes verified operational selection and returns fail-closed NOT_IMPLEMENTED instead of unsafe numeric fallback",
+    "cmd/main.go: routes new source-only operational-goal command",
+    "cmd/operational_goal_test.go: negative no-foreign-overwrite/no-repeat/readback/release-slice unchanged",
+    ".gitignore: host-local selector excluded from source Git",
+    "PLAN.md + plan/N139 + learn/events.jsonl: native AirWorker plan-node creation evidence; no manual edits"
+  ],
+  "verification": {
+    "targeted_go_test": {
+      "rc": 0,
+      "case_count": 5,
+      "request_id": "acmd-a0444691-cd22-4fa4-a289-c6d4d7cbc4f2"
+    },
+    "go_vet": {
+      "rc": 0,
+      "request_id": "acmd-123d8aff-9ce0-447d-9e75-39f0fb54305a"
+    },
+    "gofmt": {
+      "rc": 0
+    },
+    "git_diff_check": {
+      "rc": 0
+    },
+    "anthropic_independent_review": "PENDING",
+    "code_authority": "SOURCE_ONLY"
+  },
+  "historic_goal": "0.11.9 active R05; goal/goal.json and plan/release-slices.json unmodified",
+  "installed": "0.11.11-rc.2 unchanged",
+  "p0_autonomous_real_source": "NOT_PROVEN: native loop still refuses operational execution",
+  "p0_resume": "NOT_PROVEN: no interrupted RUNNING resume on same durable job",
+  "p0_escalation": "NOT_PROVEN: not tested",
+  "p1_learning_effect": "NOT_PROVEN",
+  "reason_for_not_closing": "N139 done_when requires autonomous end-to-end and independent review, not merely selector source and focused QA; N123 broader test requires two disconnects and EXECUTION_UNKNOWN",
+  "next": "Commit source-only checkpoint, independent Anthropic review on exact Git SHA, demonstrate native selector activation and fail-closed status, then implement real autonomous N139 runner with durable resume and tier escalation; do not repeat N135/N136 accepted fixture",
+  "boundary": "No release/install/reboot/UAC/foreign-service actions"
+}
