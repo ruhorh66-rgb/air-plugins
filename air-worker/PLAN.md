@@ -867,3 +867,5 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 28 / SRVLM01 · [[N-134_n130-tool-outcome-truth-and-safe-host-call-proce]] · N130 tool outcome truth and safe host-call procedure
 - [closed] N-126_native-two-codex-and-anthropic-reviewer-orchestr · owner:Dev Work 28 / SRVLM01 · [[N-135_restore-accepted-codex-coding-ladder-and-anthrop]] · Restore accepted Codex coding ladder and Anthropic judge from rc2
 - [open] N-126_native-two-codex-and-anthropic-reviewer-orchestr · owner:Dev Work 28 / SRVLM01 · [[N-136_prove-autonomous-plan-coding-factual-anthropic-c]] · Prove autonomous PLAN coding factual Anthropic close and resume
+- [closed] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 28 / SRVLM01 · [[N-137_n130-sbr-package-preflight-against-dev139-dev070]] · N130 SBR package preflight against DEV139 DEV070 install registry
+- [open] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 28 / SRVLM01 · [[N-138_n130-windows-installed-program-registration-and-s]] · N130 Windows installed-program registration and safe removal lifecycle

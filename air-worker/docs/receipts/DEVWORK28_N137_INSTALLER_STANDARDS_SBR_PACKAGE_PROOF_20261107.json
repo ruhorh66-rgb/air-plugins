@@ -1,0 +1,133 @@
+{
+  "schema": "air-worker.n137.installer-standards-sbr-package-proof/v1",
+  "date_sgt": "2026-11-07",
+  "node": "SRVLM01",
+  "product": "AirWorker",
+  "owner": "Dev Work 28",
+  "native_plan_node": "N-137_n130-sbr-package-preflight-against-dev139-dev070",
+  "parent": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "standards": [
+    {
+      "id": "DEV-139",
+      "status": "active",
+      "version": "1.0.0",
+      "scope": "host-native plugin / accepted portable distribution, therefore no Inno/MSI migration requested for current release; existing runtime/update path preserved"
+    },
+    {
+      "id": "DEV-070",
+      "status": "candidate",
+      "source_version": "1.49",
+      "scope": "source vs package vs installed, canonical tagged release identity, before-install rollback and exact-Git provenance"
+    },
+    {
+      "id": "DEV-135",
+      "status": "active",
+      "scope": "small atomic source-only package proof; no full QA repeat solely for manifest metadata; version reuse rejected"
+    },
+    {
+      "id": "DEV-130",
+      "status": "active",
+      "scope": "positive and negative proof, cannot call reproduced bug a safety PASS"
+    },
+    {
+      "id": "DEV-136",
+      "status": "active",
+      "scope": "single native PLAN node and learning writer, no manually changed plan/N-*"
+    },
+    {
+      "id": "DEV-137",
+      "status": "active",
+      "scope": "own D: staging and cache, no foreign/installed cleanup"
+    },
+    {
+      "id": "PRODUCTS_INSTALL_REGISTRATION_20260921",
+      "status": "current requirement",
+      "scope": "Windows installed program entry, same displayed version, update does not duplicate record, real uninstall affects only owned components; requires separate implementation"
+    }
+  ],
+  "baseline": {
+    "source_repo": "ruhorh66-rgb/air-plugins",
+    "source_branch": "dev/airworker-native-orch-pilot-20261104",
+    "source_sha": "1c264c797868c31b40ce516ce0ebe003d0ad8441",
+    "source_clone": "D:/Devbox/AirWorker/temp/DevWork28/N137/sbr-package-snapshot-20261107",
+    "source_cloned_from": "https://github.com/ruhorh66-rgb/air-plugins.git",
+    "installed_version": "0.11.11-rc.2",
+    "installed_changed": false
+  },
+  "package": {
+    "status": "SOURCE_ONLY_LOCAL_PROOF_NOT_PUBLISHED_OR_INSTALLED",
+    "local_B_sha": "18f45d8bb1359b4799284a61bb0006f5c78194b0",
+    "B_branch": "devwork28/n137-sbr-package-proof-20261107",
+    "local_only": true,
+    "code_tree_sha": "9d9300e76862aa0373c117d17a7e9f4b61b21e29",
+    "source_and_binary_code_tree_identical": true,
+    "cli_version": "0.11.11-rc.4",
+    "cli_sha256": "496d5ed981c1598b68f9eb858f509b0e894b00c404e05f4f2d028a46580eb394",
+    "cli_vcs_revision": "1c264c797868c31b40ce516ce0ebe003d0ad8441",
+    "cli_vcs_modified": false,
+    "tray_sha256": "9804aa1e20d6a025224e7733f3ae26dfec76dc29b511da32dae45eb773d15bed",
+    "tray_vcs_revision": "1c264c797868c31b40ce516ce0ebe003d0ad8441",
+    "tray_vcs_modified": false,
+    "windows_cli_subsystem": 3,
+    "windows_tray_subsystem": 2,
+    "pe_symbols": 0,
+    "authenticode": "NotSigned; allowed by DEV-139 when binary origin and SHA verified",
+    "go_toolchain": "go1.26.8 windows/amd64",
+    "manifest_versions": {
+      "claude": "0.11.11-rc.4",
+      "codex": "0.11.11-rc.4",
+      "distribution_catalog": "0.11.11-rc.4"
+    },
+    "manifest_portability_check_rc": 0,
+    "manifest_portability_check": "tools/check-plugin.ps1 on local B",
+    "payload_file_count": 925,
+    "payload_sha256": "92d367441987bd42f946461cd253085561d5afa70366dd70f1015f46aacf245c",
+    "payload_command": "air-worker update payload -root <own B/air-worker> -json",
+    "payload_rc": 0,
+    "full_source_Go_QA": "Previously accepted at respective source scopes; not repeated after binary-only B commit, release full Go still separately held in N130"
+  },
+  "safety_negative": {
+    "check": "tools/check-distribution-identity.ps1 against local B after fetching exact existing remote tag",
+    "previous_published_version": "0.11.11-rc.4",
+    "published_tag_sha": "0cb69306e0c4dd1cd388cd7a498e3f0ec4ea2a60",
+    "candidate_B_sha": "18f45d8bb1359b4799284a61bb0006f5c78194b0",
+    "observed_expected_rc": 1,
+    "output": "FAIL: distribution identity already published; bump version; do not publish changed payload under existing tag/version",
+    "safety_property": "VERSION_REUSE_REJECTED_PASS",
+    "no_tag_overwritten": true
+  },
+  "installer_gap": {
+    "windows_arp_registrations_found": 0,
+    "registry_roots_read": [
+      "HKCU/Software/Microsoft/Windows/CurrentVersion/Uninstall",
+      "HKLM/Software/Microsoft/Windows/CurrentVersion/Uninstall",
+      "HKLM/Software/WOW6432Node/Microsoft/Windows/CurrentVersion/Uninstall"
+    ],
+    "current_install_uninstall_behavior": "install_windows.go -uninstall removes Run value/Start Menu/PATH and stops tray but intentionally leaves executable files; does not create or remove Windows installed-program registry entry",
+    "standard_status": "FAIL_NOT_INSTALLED_COMPLIANT",
+    "risk": "Do not claim Windows lifecycle or installed acceptance until HKCU single-entry/version/remove semantics and rollback have source+isolated+authorized live receipts",
+    "remediation": "N130 next scoped source slice: per-user Windows ARP identity plus actual owned uninstall/upgrade/rollback proof; no global MSI/Inno retrofit required for host-native plugin"
+  },
+  "independent_code_review": {
+    "source_sha": "1c264c797868c31b40ce516ce0ebe003d0ad8441",
+    "provider": "Anthropic Sonnet 5.5",
+    "mechanism": "native air-worker review source",
+    "verdict": "PASS_SOURCE_ONLY",
+    "task_read": "TASK_READ_OK",
+    "scope": "publisher S/B code + tests and existing approved provenance scripts",
+    "current_B_bytes_reviewed_by_model": false
+  },
+  "boundaries": {
+    "new_live_install": false,
+    "new_release_tag": false,
+    "existing_published_rc4_modified": false,
+    "current_installed_rc2_unchanged": true,
+    "global_installer_toolchain_changed": false,
+    "github_release_settings_changed": false,
+    "registry_changed": false,
+    "uac_reboot_foreign_services": false,
+    "local_package_B_commit_pushed": false
+  },
+  "decision": "SOURCE_ONLY_PACKAGE_PROOF_ACCEPTED; INSTALLED_RELEASE_GATE_OPEN due missing ARP/uninstall lifecycle and already published rc4 tag",
+  "next": "Close installer standard audit node only after machine receipt and readback; keep N130 OPEN; prepare a small ARP/uninstall lifecycle patch, then re-build fresh S→B for a newly approved release ID. No reuse old rc4 tag."
+}
