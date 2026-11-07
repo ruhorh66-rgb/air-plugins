@@ -1,0 +1,152 @@
+{
+  "schema": "air-worker.devwork30.model-route-refresh/v1",
+  "date_sgt": "2026-11-07",
+  "owner": "Dev Work 30 / SRVLM01",
+  "purpose": "Refresh executor/judge model catalog without weakening active P0; verify entitlement using actual native Codex jobs rather than treating publication or cached model list as access",
+  "source_baseline_head": "228b5c2010387106e0c26ce91eaa459e44a82137",
+  "official_sources": {
+    "openai": "https://developers.openai.com/api/docs/models",
+    "openai_coding": "https://developers.openai.com/api/docs/guides/code-generation",
+    "anthropic": "https://platform.claude.com/docs/en/models/overview",
+    "openai_codex_catalog_caveat": "https://developers.openai.com/siwc/token-sharing-open-source/codex-app-server"
+  },
+  "openai_cli": {
+    "codex_version": "codex-cli 0.158.0",
+    "auth": "ChatGPT login PASS RC0",
+    "codex_app_server_model_list": {
+      "result": "OK",
+      "count": 6,
+      "present_relevant": [
+        "gpt-6-luna",
+        "gpt-6-sol",
+        "gpt-6-astra"
+      ],
+      "missing_in_report": [
+        "gpt-6.1-sol",
+        "gpt-6.1-terra"
+      ],
+      "note": "local/catalog metadata is not entitlement proof"
+    },
+    "native_disposable_product": "D:/Devbox/AirWorker/temp/DevWork30/model-route-probe",
+    "native_dispatch_tests": [
+      {
+        "model": "gpt-6.1-sol",
+        "tier": "gpt61-sol:low",
+        "job_id": "gpt__devwork30-model-probe-61__1794049462584203000__8d407264",
+        "status": "FAILED",
+        "native_rc": 1,
+        "subtype": "runner_error",
+        "http": 400,
+        "error_code": "model_not_found",
+        "error": "The model is not supported when using Codex with a ChatGPT account",
+        "receipt_sha256": "516b098c6d84d4ac560bb06cfcbbeaa2b913e467693ab9b0e0dfa2b0a9c40334",
+        "output_sha256": "22d5c2a3d8a607e23066630924996853c8a3ac5eb74b5960063d1198f4a40fdb"
+      },
+      {
+        "model": "gpt-6.1-terra",
+        "tier": "gpt61-terra:low",
+        "job_id": "gpt__devwork30-model-probe-61__1794049479586418100__ce70e49b",
+        "status": "FAILED",
+        "native_rc": 1,
+        "subtype": "runner_error",
+        "http": 400,
+        "error_code": "model_not_found",
+        "error": "The model is not supported when using Codex with a ChatGPT account",
+        "receipt_sha256": "3dd4df3528e3267040b05a191565a9a42005f6fa98bb3ac2fde97aac1b6eeaf8",
+        "output_sha256": "50f461098c0c75d4a6d3ae5722c34bc405a90254df0877b3b08d6ef26fdcfbe2"
+      }
+    ]
+  },
+  "active_executor_policy": {
+    "model_order": [
+      "script",
+      "gpt-6-luna",
+      "gpt-6-sol",
+      "gpt-6-astra"
+    ],
+    "efforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "fallbacks_preserved": true,
+    "candidate_runners_not_selectable": [
+      "gpt61-sol-candidate",
+      "gpt61-terra-candidate"
+    ],
+    "candidate_official_models": [
+      "gpt-6.1-sol",
+      "gpt-6.1-terra"
+    ],
+    "candidate_activation": "Native Codex ChatGPT terminal success with exact model and receipt first; then intentional promotion into primary ladder and policy tests; no unsupported-model default or hidden API key switch"
+  },
+  "anthropic": {
+    "official_models": [
+      "claude-haiku-5-5",
+      "claude-sonnet-5-5",
+      "claude-opus-5-5",
+      "claude-fable-5-1"
+    ],
+    "retained_active_judges": {
+      "default": "claude-sonnet-5-5",
+      "complex": "claude-opus-5-5",
+      "arbitration": "claude-fable-5-1"
+    },
+    "haiku_candidate": "claude-haiku-5-5: optional preliminary triage only, not P0 accept judge; not enabled in native policy",
+    "claude_code_version": "2.1.311",
+    "shell_auth": "loggedIn=false; does not inspect runner's user-scoped token",
+    "native_preflight": {
+      "tool_resolved": true,
+      "profile_known": true,
+      "oauth_source": "user_env",
+      "headroom_ready": true,
+      "headroom_version": "0.43.1",
+      "status": "READY_TO_TRY_NATIVE_REVIEW",
+      "model_call": "NOT_RUN"
+    },
+    "existing_n123_sonnet_review": "PASS_SOURCE_ONLY RC0 on 26e4cdb; not rerun for model refresh",
+    "independent_new_judge_model_calls": 0
+  },
+  "scope": {
+    "approved_p0": [
+      "G01 PASS",
+      "G02 PASS",
+      "G03 PASS",
+      "G04 PASS",
+      "G07 OPEN",
+      "G06 OPEN",
+      "G05 OPEN",
+      "G08 OPEN"
+    ],
+    "native_nodes": [
+      "N-139 OPEN",
+      "N-136 OPEN",
+      "N-126 OPEN",
+      "N-123 OPEN"
+    ],
+    "no_release_install": true,
+    "installed_version_unchanged": "0.11.11-rc.2",
+    "changed_files": [
+      "run-config.json: only nonselectable runner entries and policy explanatory comment; active ladder/judge routes unchanged",
+      "PLAN.md: current model refresh evidence",
+      "AirWorker Wiki production plan projection"
+    ],
+    "historical_release_slices_sha256": "811a37794842d8ed575f478d0a84665579daee5f5afe94e5e4ad6e9e7627ab9a",
+    "goal_and_plan_nodes_untouched": true
+  },
+  "verification": {
+    "native_executor_list_rc": 0,
+    "primary_tiers_count": 9,
+    "first_tier": "gpt6-luna:low",
+    "last_tier": "gpt6-astra:high",
+    "candidate_not_selectable": true,
+    "native_plan_lint_rc": 0,
+    "targeted_go_model_policy_tests_rc": 0,
+    "targeted_go_test_result": "ok airos/air-worker 0.210s",
+    "model_call_count_after_denied_probes": 0,
+    "full_N123_QA": "NOT_RUN; unchanged G05",
+    "independent_current_SHA_code_review": "NOT_RUN; unchanged G05"
+  },
+  "status": "CATALOG_CURRENT; CODEX_GPT61_ROUTE_DENIED; ACTIVE_LADDER_PRESERVED; ANTHROPIC_DEFAULT_CURRENT; P0_UNCHANGED",
+  "result_next": "Commit+push existing source/Wiki branches, native operational-goal advance to exact clean commit; resume G07"
+}

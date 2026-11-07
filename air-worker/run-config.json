@@ -93,7 +93,7 @@
     "usd": 20,
     "turns_per_iteration": 60
   },
-  "_ladder": "ЛПР 29.09.2026: штатные исполнители только OpenAI/Codex; внутри модели low -> medium -> high, max/xhigh/ultra запрещены. GPT-5.5/5.6 зарегистрированы как vendor-limit fallbacks и не участвуют в обычном росте цены.",
+  "_ladder": "ЛПР 29.09.2026: исполнители только OpenAI/Codex; low -> medium -> high, max/xhigh/ultra не входят в штатную лестницу. Проверка 07.11.2026 Dev Work 30: GPT-6.1 Terra/Sol опубликованы в каталоге OpenAI, но реальные native Codex ChatGPT задания для обоих получили HTTP 400 model_not_found/unsupported. Поэтому активная лестница script/Luna 6/Sol 6/Astra 6 сохранена; новые runners зарегистрированы только как НЕВЫБИРАЕМЫЕ кандидаты, без primary tier/fallback и без живого допущения. Anthropic default Sonnet 5.5, complex Opus 5.5, arbitration Fable 5.1 актуальны; Haiku 5.5 пока кандидат предварительной проверки, не судья P0. Активация только после успешной native ChatGPT Codex job receipt, не по каталогу или подписке.",
   "ladder": [
     "script",
     "gpt6-luna:low",
@@ -163,6 +163,14 @@
     "gpt6-sol": {
       "kind": "codex",
       "model": "gpt-6-sol"
+    },
+    "gpt61-terra-candidate": {
+      "kind": "codex",
+      "model": "gpt-6.1-terra"
+    },
+    "gpt61-sol-candidate": {
+      "kind": "codex",
+      "model": "gpt-6.1-sol"
     },
     "gpt6-astra": {
       "kind": "codex",
