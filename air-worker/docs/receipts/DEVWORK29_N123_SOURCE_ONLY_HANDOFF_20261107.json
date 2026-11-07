@@ -1,0 +1,77 @@
+{
+  "schema": "air-worker.devwork29.n123-source-only-handoff/v1",
+  "owner": "Dev Work 29 / SRVLM01",
+  "trigger": "LPR 2026-11-07 SGT: save developments, synchronize plans, clean both product/Wiki trees, commit/push and prepare new-session handoff",
+  "node": "N-123_p0-resume-durable-qa-judge-jobs-after-chat-inter",
+  "node_status": "OPEN",
+  "baseline_git_head": "611e66df826ea274150a3cee2c798db05ff7a525",
+  "branch": "dev/airworker-native-orch-pilot-20261104",
+  "product_root": "D:/Devbox/AirWorker/worktrees/awlrn-orch-pilot-20261104/air-worker",
+  "scope": "source-only N123 durable job metadata and two-reconnect fixture tests; NOT whole N123",
+  "source_changes": [
+    "cmd/job_receipt.go: add source_head from real Git, command argv SHA256, actual child terminal exit_code, recovery_ref, bounded context deadline_utc; protect DONE/nonzero; preserve existing no-replay and output digest",
+    "cmd/job_status.go: expose additional native receipt identity/recovery metadata without launching jobs or classifying RUNNING as terminal",
+    "cmd/job_recovery_p0_test.go: two separate read-only scope reconnections while original 900ms helper remains RUNNING, reject duplicate attempts, terminal output/exit/identity verification; negative exit=7, fingerprint, private args and wrong terminal code"
+  ],
+  "source_file_sha256": {
+    "cmd/job_receipt.go": "a476a95da9482501254c564cd6821a06cbdb37e97e6d690bde230a8db632474e",
+    "cmd/job_status.go": "1f28eed22ccc64a122dc0678bc8f32c28807f9cf8f2b05b1ed486f76c89189b8",
+    "cmd/job_recovery_p0_test.go": "de7529c39169da0b6c9f2ea024ff95f95de6448ab54d0eae10083d470db4d3f3",
+    "plan/release-slices.json": "811a37794842d8ed575f478d0a84665579daee5f5afe94e5e4ad6e9e7627ab9a"
+  },
+  "verification": {
+    "test_command": "go test . -count=1 -run '^(TestN123.*|TestCriterion42Pending|TestRunReceiptedFailsClosedWhenPIDRegistrationFails|TestN139TerminalOutputIntegrityRejectsTamper)$' -v",
+    "test_rc": 0,
+    "tested_positive_and_negative": [
+      "TestN123DurableTwoReattachmentsNoDuplicate PASS (one native Go test process, not two real ChatGPT disconnects)",
+      "TestN123FailingChildExitReceipt PASS, actual child exit 7",
+      "TestN123CommandAndSourceFingerprint PASS",
+      "TestN123FinishRejectsSuccessWithNonzeroActualExit PASS",
+      "TestN123NoRawCommandArgsInReceipt PASS",
+      "TestCriterion42Pending 3 cases PASS",
+      "All existing TestN123* and N139 tamper PASS"
+    ],
+    "go_vet_rc": 0,
+    "gofmt_list_rc": 0,
+    "diff_check_rc": 0,
+    "plan_lint_rc": 0,
+    "tool_request_ids": {
+      "tests": "acmd-ad4d95a4-0551-4e33-8e11-d1c8cca2156f",
+      "sha": "acmd-fb6d440e-02e5-43c9-87c0-19bd5f4f3494"
+    }
+  },
+  "do_not_claim": [
+    "Previous AIR Commander invocation ended EXECUTION_UNKNOWN, no recovered terminal receipt for that abandoned wrapper; current distinct controlled Go run RC0 does not retroactively prove the abandoned RC",
+    "Two readback operations in same Go fixture are NOT two forced disconnects across independent ChatGPT sessions",
+    "No live EXECUTION_UNKNOWN resume reattachment E2E with same process or complete N123 source-SHA+args keyed full QA proof",
+    "No independent Codex Sol low final N123 PASS and no full QA clean SHA",
+    "No native N123 node close or whole P0 G07 PASS"
+  ],
+  "critical_path": {
+    "accepted_p0_gates": [
+      "G01",
+      "G02",
+      "G03",
+      "G04"
+    ],
+    "open_gates": [
+      "G05 frozen final acceptance",
+      "G06 causal ladder escalation",
+      "G07 real N123 recovery",
+      "G08 individual native plan closures"
+    ],
+    "nodes": [
+      "N-139 OPEN",
+      "N-136 OPEN",
+      "N-126 OPEN",
+      "N-123 OPEN"
+    ]
+  },
+  "p1_negative_case": "N139 errors not autonomously learned. Preserve existing P1 example in PLAN/Wiki; do not manually mutate LEARN.",
+  "installed": "0.11.11-rc.2 unchanged",
+  "release_and_install": "HOLD absent separate exact LPR yes; no release/tag/reboot/UAC/foreign service changes",
+  "final_source_sha": "VERIFY_AFTER_COMMIT_AND_GITHUB_READBACK",
+  "review_state": "PENDING_EXACT_SOURCE_ANTHROPIC_PASS",
+  "result": "SOURCE_ONLY_TARGETED_QA_PASS_N123_OPEN",
+  "next": "Independent source review after frozen commit, GitHub SHA/readback, then next session G07 two actual disconnects and EXECUTION_UNKNOWN with no duplicate; G05 full QA once on final frozen SHA and G06 causal escalation; no repeated N135/N136 pilots."
+}

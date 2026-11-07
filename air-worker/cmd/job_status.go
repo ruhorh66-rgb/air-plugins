@@ -30,6 +30,11 @@ type jobStatusSnapshot struct {
 	OutputPath   string `json:"output_path"`
 	OutputSHA256 string `json:"output_sha256,omitempty"`
 	OutputBytes  int64  `json:"output_bytes,omitempty"`
+	SourceHead   string `json:"source_head,omitempty"`
+	ArgsSHA256   string `json:"args_sha256,omitempty"`
+	ExitCode     *int   `json:"exit_code,omitempty"`
+	RecoveryRef  string `json:"recovery_ref,omitempty"`
+	DeadlineUTC  string `json:"deadline_utc,omitempty"`
 	Reason       string `json:"reason,omitempty"`
 }
 
@@ -83,6 +88,8 @@ func inspectOwnedJob(scope sessionScope, step, operation string) (jobStatusSnaps
 		return s, errors.New("unknown job receipt status")
 	}
 	s.JobID, s.Status = r.JobID, r.Status
+	s.SourceHead, s.ArgsSHA256 = r.SourceHead, r.ArgsSHA256
+	s.ExitCode, s.RecoveryRef, s.DeadlineUTC = r.ExitCode, r.RecoveryRef, r.DeadlineUTC
 	s.Terminal = r.Status == jobStatusDone || r.Status == jobStatusFailed
 	if !s.Terminal {
 		s.Reason = "RUNNING is not terminal; read this identity again later, do not redispatch"

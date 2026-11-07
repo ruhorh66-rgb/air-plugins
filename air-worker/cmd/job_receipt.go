@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -49,6 +50,11 @@ type jobReceipt struct {
 	Cost           *float64  `json:"cost,omitempty"`
 	OutputSHA256   string    `json:"output_sha256,omitempty"`
 	OutputBytes    int64     `json:"output_bytes,omitempty"`
+	SourceHead     string    `json:"source_head,omitempty"`
+	ArgsSHA256     string    `json:"args_sha256,omitempty"`
+	ExitCode       *int      `json:"exit_code,omitempty"`
+	RecoveryRef    string    `json:"recovery_ref,omitempty"`
+	DeadlineUTC    string    `json:"deadline_utc,omitempty"`
 }
 
 // jobLockKind — duplicate-start guard именует замок по (step, operation) внутри scope: тот
@@ -98,6 +104,7 @@ func startJobReceipt(scope sessionScope, step, operation, receiptPath, outputPat
 		Step:       step,
 		Operation:  operation,
 	}
+	r.RecoveryRef = filepath.ToSlash(receiptPath) + "#job_id=" + r.JobID
 	if err := writeJobReceiptFunc(receiptPath, r); err != nil {
 		lock.release()
 		return nil, nil, err
@@ -109,8 +116,17 @@ func startJobReceipt(scope sessionScope, step, operation, receiptPath, outputPat
 // (done/failed) самой команды. Transport/RDC timeout НЕ вызывает эту функцию — это и есть
 // контракт К42: таймаут ожидания не трогает receipt, он остаётся RUNNING на диске.
 func finishJobReceipt(receiptPath, status string) error {
+	return finishJobReceiptWithExit(receiptPath, status, nil)
+}
+
+// finishJobReceiptWithExit seals actual child exit status and stdout only after
+// Wait has finished. Caller timeout must never mark this job terminal.
+func finishJobReceiptWithExit(receiptPath, status string, code *int) error {
 	if status != jobStatusDone && status != jobStatusFailed {
 		return fmt.Errorf("invalid terminal job status: %q", status)
+	}
+	if code != nil && status == jobStatusDone && *code != 0 {
+		return errors.New("DONE cannot carry a nonzero child process exit code")
 	}
 	r, err := readJobReceipt(receiptPath)
 	if err != nil {
@@ -134,6 +150,7 @@ func finishJobReceipt(receiptPath, status string) error {
 		}
 	}
 	r.Status = status
+	r.ExitCode = code
 	return writeJobReceiptFunc(receiptPath, r)
 }
 
@@ -219,6 +236,11 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 	r.Effort = meta.Effort
 	r.Role = meta.Role
 	r.Sandbox = meta.Sandbox
+	r.SourceHead = jobSourceHead(scope.Root)
+	r.ArgsSHA256 = jobCommandFingerprint(cmd)
+	if deadline, ok := ctx.Deadline(); ok {
+		r.DeadlineUTC = deadline.UTC().Format(time.RFC3339Nano)
+	}
 	if err := writeJobReceiptFunc(receiptPath, r); err != nil {
 		_ = finishJobReceipt(receiptPath, jobStatusFailed)
 		lock.release()
@@ -261,12 +283,25 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 		waitErr := cmd.Wait()
 		outFile.Close()
 		status := jobStatusDone
+		actualExit := 0
 		if waitErr != nil {
 			status = jobStatusFailed
+			actualExit = 1
+			var processError *exec.ExitError
+			if errors.As(waitErr, &processError) {
+				actualExit = processError.ExitCode()
+			}
 		}
-		_ = finishJobReceipt(receiptPath, status)
+		finishErr := finishJobReceiptWithExit(receiptPath, status, &actualExit)
 		lock.release()
 		data, _ := os.ReadFile(outputPath)
+		if finishErr != nil {
+			if waitErr != nil {
+				waitErr = errors.Join(waitErr, finishErr)
+			} else {
+				waitErr = fmt.Errorf("terminal receipt could not be verified: %w", finishErr)
+			}
+		}
 		resultCh <- jobCmdResult{data: data, err: waitErr}
 	}()
 
@@ -276,4 +311,35 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 	case <-ctx.Done():
 		return nil, errJobStillRunning
 	}
+}
+
+// jobCommandFingerprint binds exact executable path and argv to durable job
+// identity without exposing prompt content, environment variables or secrets.
+// The fingerprint is a measurement only, not a signing/authorization token.
+func jobCommandFingerprint(cmd *exec.Cmd) string {
+	if cmd == nil {
+		return ""
+	}
+	h := sha256.New()
+	for _, part := range append([]string{cmd.Path}, cmd.Args...) {
+		_, _ = fmt.Fprintf(h, "%d:", len(part))
+		_, _ = h.Write([]byte(part))
+		_, _ = h.Write([]byte{0})
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// jobSourceHead is factual if the owned product is a Git repository. Legacy
+// disposable products may not have a HEAD; callers must never interpret an
+// absent source_head as proof of source identity.
+func jobSourceHead(root string) string {
+	raw, err := exec.Command("git", "-C", root, "rev-parse", "HEAD").Output()
+	if err != nil {
+		return ""
+	}
+	head := strings.TrimSpace(string(raw))
+	if !operationalSHA.MatchString(head) {
+		return ""
+	}
+	return head
 }
