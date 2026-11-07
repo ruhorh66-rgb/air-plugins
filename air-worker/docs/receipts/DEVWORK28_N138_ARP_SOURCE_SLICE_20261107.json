@@ -1,0 +1,92 @@
+{
+  "schema": "air-worker.n138.windows-arp-registration-source-slice/v1",
+  "date_sgt": "2026-11-07",
+  "owner": "Dev Work 28 / SRVLM01",
+  "native_plan_node": "N-138_n130-windows-installed-program-registration-and-s",
+  "parent_release_node": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "scope": "SOURCE_ONLY: Windows Installed Apps registry policy and read-only status; not yet wired to install/update/uninstall",
+  "source": {
+    "branch": "dev/airworker-native-orch-pilot-20261104",
+    "parent_head": "f384e2f4c5dea46ce7c378cce5a39440a1efa3f7",
+    "source_files": [
+      "cmd/installed_program_windows.go",
+      "cmd/installed_program_windows_test.go",
+      "cmd/install_windows.go"
+    ],
+    "current_installed_version": "0.11.11-rc.2",
+    "current_live_untouched": true
+  },
+  "standards": {
+    "DEV139": "host-native plugin/portable distribution retained without artificial Inno or MSI rewrite",
+    "DEV070": "version/SHA/rollback/source state separate from install",
+    "DEV130": "negative failure-class tests and actual registry readback",
+    "DEV135": "bounded release source delta, no full historical test rerun due only to a source-only ARP module",
+    "DEV136": "one canonical native N-138 OPEN",
+    "DEV137": "own D: test/staging, no foreign runtime cache cleanup",
+    "installed_program_registration": "PRODUCTS_INSTALL_REGISTRATION_20260921: HKCU Installed Apps entry; upgrade changes same entry; genuine own uninstall and no foreign file deletion"
+  },
+  "implementation": {
+    "registry_scope": "HKCU/Software/Microsoft/Windows/CurrentVersion/Uninstall/AirWorker",
+    "program_name": "AirWorker",
+    "publisher": "AIR OS",
+    "fields": [
+      "DisplayName",
+      "DisplayVersion",
+      "Publisher",
+      "InstallLocation",
+      "UninstallString",
+      "InstallDate",
+      "EstimatedSize",
+      "NoModify",
+      "NoRepair"
+    ],
+    "source_guards": [
+      "Refuse relative/UNC/root/control-character install paths",
+      "Validate actual semver and bounded CLI/tray sizes",
+      "Preserve single stable per-user program key",
+      "Refuse foreign Publisher/DisplayName/location/uninstall command or corrupt previous version",
+      "Refuse version downgrade",
+      "Read the existing key before changes; unreadable != absent",
+      "Require exact post-write readback; restore previous or remove newly created key on failure",
+      "Do not report restoration failure as success",
+      "No recursive registry deletion"
+    ],
+    "read_only_status": "cmdInstall -status now reports Windows Apps key separately from binary/plugin health",
+    "runtime_write_integrated": false,
+    "runtime_uninstall_integrated": false,
+    "updater_rollback_integrated": false,
+    "installation_source_code_complete": false
+  },
+  "evidence": {
+    "six_isolated_tests": [
+      "TestN138WindowsARPRegistryIdentityAndVersionGate",
+      "TestN138WindowsARPInputSafety",
+      "TestN138WindowsARPReconcileRollbackWithoutLiveRegistry",
+      "TestN138WindowsARPReconcileReadbackMismatchTriggersRestore",
+      "TestN138WindowsARPFailedRestoreIsNotCalledSuccess",
+      "TestN138WindowsARPReconcileRejectsForeignWithoutWrite"
+    ],
+    "six_tests_rc": 0,
+    "six_tests_request_id": "acmd-31870346-4e48-48a0-bdf8-f26ad52a741d",
+    "existing_install_tests_passed": 2,
+    "install_test_request_id": "acmd-c3d8c9a3-1925-4d37-b555-cb67b670cc94",
+    "go_vet_rc": 0,
+    "vet_request_id": "acmd-f4ec1f99-226d-458c-8676-a9cfb12af4f8",
+    "source_build_rc": 0,
+    "source_probe_sha256": "e9428fda7bbfcec92bb6806187e328a7a91d69ab0170130249ee2c40eb7d63fd",
+    "source_build_request_id": "acmd-d68fae75-9148-40f0-831b-82ed79eaf97a",
+    "read_only_installer_status_rc": 0,
+    "read_only_status_request_id": "acmd-f601a08b-6330-41b2-b15f-e89530e08fbe",
+    "status_output": "Windows Apps: ARP: no AirWorker registration in current user Installed Apps",
+    "actual_installed_version_after": "0.11.11-rc.2",
+    "source_probe_version": "0.11.11-rc.4, dirty SOURCE_ONLY test binary; not installable release"
+  },
+  "known_limitations": [
+    "N138 remains OPEN: no successful per-user ARP registration nor owned true uninstall lifecycle demonstrated",
+    "Current live installed rc.2 has no ARP registration; do not call source-only code an installed fix",
+    "Native rollback of ARP needs independent source/security review and integration into official updater before any live install",
+    "Uninstall currently preserves bin files, so registry must not advertise fake uninstaller until actual owned binary removal is implemented",
+    "No new GitHub release/tag, published distribution or installed version changed"
+  ],
+  "next": "Independent source review on exact clean commit for new Windows registry code; subsequent bounded step wires ARP with installer transaction and owned uninstall lifecycle, then isolated failure/upgrade/rollback tests and exact source/installer receipt; no live registry writes before authorized release."
+}

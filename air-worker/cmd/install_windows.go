@@ -463,6 +463,14 @@ func cmdInstall(argv []string) int {
 		for _, line := range installIdentityStatusLines(dstCLI, claudeConfigDir(), codexConfigDir()) {
 			fmt.Print("Identity   : " + line + lineEnding)
 		}
+		// DEV-139 / PRODUCTS_INSTALL_REGISTRATION: report HKCU Installed Apps
+		// separately from CLI/plugin health. A missing ARP entry is a recorded
+		// compliance gap, not evidence that the working rc.2 is uninstalled.
+		if arp, err := airWorkerARPStatus(home); err != nil {
+			fmt.Printf("Windows Apps: проверить запись не удалось — %v%s", err, lineEnding)
+		} else {
+			fmt.Print("Windows Apps: " + arp + lineEnding)
+		}
 		return 0
 	}
 
