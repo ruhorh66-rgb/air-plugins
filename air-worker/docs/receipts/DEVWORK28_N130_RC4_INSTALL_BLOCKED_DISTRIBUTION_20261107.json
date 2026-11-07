@@ -1,0 +1,86 @@
+{
+  "schema": "air-worker.n130.rc4.install-blocker-verified/v1",
+  "observed_date_sgt": "2026-11-07",
+  "owner": "Dev Work 28 / SRVLM01",
+  "parent_node": "N-130_rc4-release-p0-source-reviewer-fixes-and-transac",
+  "release": {
+    "version": "0.11.11-rc.4",
+    "source_sha": "0cb69306e0c4dd1cd388cd7a498e3f0ec4ea2a60",
+    "tag": "air-worker--v0.11.11-rc.4",
+    "github_url": "https://github.com/ruhorh66-rgb/air-plugins/releases/tag/air-worker--v0.11.11-rc.4",
+    "github_prerelease": true,
+    "github_immutable": false,
+    "published": true,
+    "signed_feed": true,
+    "signing_key_id": "air-worker-update-2026-01",
+    "manifest_version": "0.11.11-rc.4",
+    "manifest_payload_sha256": "ff63974dd86cf3653a7a5dd3cd118fd6da5f201c33451875604381ef4ac43715",
+    "cli_asset_sha256": "a1734684f2de42cf7a8442e0b1f982681e4e16e5d10258eafe534877f13124b5",
+    "tray_asset_sha256": "baea887f66b3849c1d84ffe3137acf5b8fa34dd41e971580fea133b3380fd7b2",
+    "signed_native_verification_rc": 0
+  },
+  "install": {
+    "exact_command": "air-worker update install -json",
+    "completion_rc": 1,
+    "cause": "Claude git-subdir SSH attempt: No ED25519 host key is known for github.com, StrictHostKeyChecking prevents cloning",
+    "native_rollback_readback": "PASS",
+    "installed_version_after": "0.11.11-rc.2",
+    "installed_cli_sha256": "495d1d274c04aae41189579e368356c9a15bcb1c057227db538c93aa41acefbe",
+    "installed_tray_sha256": "c8a12b362975349c3c376e830b61f5858ed3c3439650374dc56f53f40442f67b",
+    "claude_plugin": "0.11.11-rc.2 ACTIVE canonical",
+    "codex_plugin": "0.11.11-rc.2 ACTIVE canonical",
+    "install_status_rc": 0
+  },
+  "ssh_diagnosis": {
+    "official_fingerprint": "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU",
+    "official_documentation": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints",
+    "official_ed25519_host_key_verified_in_isolated_probe": true,
+    "probe_ssh_auth_rc": 255,
+    "probe_ssh_auth_message": "Permission denied (publickey)",
+    "trust_store_modified": false,
+    "credentials_modified": false,
+    "strict_host_key_checking_disabled": false,
+    "conclusion": "Adding GitHub host trust alone cannot make current SSH route authenticate; do not replace credentials or weaken protection."
+  },
+  "distribution_diagnosis": {
+    "catalogue_source": "GitHub main .claude-plugin/marketplace.json, plugin air-worker",
+    "live_catalogue_version": "0.11.11-rc.2",
+    "source_kind": "git-subdir",
+    "source_ref": "dist/air-worker-0.11.11-rc.2-github-binaries",
+    "source_sha": "43df6b28f681787d4b5e89f32b64bf36a11e1bc1",
+    "source_url": "ruhorh66-rgb/air-plugins",
+    "signed_source_payload_file_count": 923,
+    "signed_source_payload_sha_verified": "ff63974dd86cf3653a7a5dd3cd118fd6da5f201c33451875604381ef4ac43715",
+    "bundled_source_binary_version": "0.11.9",
+    "signed_manifest_target_version": "0.11.11-rc.4",
+    "release_cli_and_tray_versions": "0.11.11-rc.4",
+    "mandatory_cache_guard": "verifyUpdateCachesForManifest compares installed plugin version to manifest version, VCS revision to source SHA, and cache payload SHA to signed payload SHA",
+    "conclusion": "Even after restoring SSH connectivity, existing signed rc4 source payload cannot satisfy the rc4 host plugin cache identity: catalog points to rc2 and bundled source bin is 0.11.9. Requires a correctly packaged GitHub distribution and new signed release; do not rewrite existing published tag/assets/manifest to hide discrepancy."
+  },
+  "immutability": {
+    "observed": "github release immutable=false",
+    "official_documentation": "https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes",
+    "retroactive_enable_supported": false,
+    "status": "OPEN_RELEASE_GATE",
+    "protected_repository_settings_changed": false
+  },
+  "required_next_release": {
+    "proposed_tag": "0.11.11-rc.5 (candidate; not approved for installation)",
+    "deliverables": [
+      "Package exact installable plugin dist with VCS-stamped CLI and tray, not source root with 0.11.9 binaries",
+      "Compute Ed25519-signed payload digest from exact distribution content while retaining source commit identity",
+      "Publish official GitHub marketplace air-worker catalog ref/sha/version to new pinned distribution through supported HTTPS git-subdir source",
+      "Run native Claude/Codex vendor update and compare cache version, VCS revision and payload against new signed manifest",
+      "Enable GitHub immutable releases before a future prerelease only with separate LPR permission; immutability is not retroactive",
+      "Obtain separate explicit LPR yes for any new-version installation and verify rc2 rollback"
+    ]
+  },
+  "permissions": {
+    "original_lpr_grant": "rc.4 publish/install only, unchanged scope",
+    "new_version_install_grant": false,
+    "repo_immutability_setting_grant": false,
+    "active_install_or_service_changes": false
+  },
+  "node_state": "OPEN",
+  "handoff": "Continue in new session from exact machine evidence and current clean source. Do not rerun accepted QA or repeat rc4 publication; fix distribution architecture first."
+}
