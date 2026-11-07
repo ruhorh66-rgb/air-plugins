@@ -1,0 +1,134 @@
+{
+  "schema": "air-worker.p0-acceptance-matrix/v1",
+  "owner": "Dev Work 29 / SRVLM01",
+  "decision": "LPR 2026-11-07: P0 native autonomous Codex ladder, independent Anthropic judge, durable recovery/escalation; P1 useful self-learning after P0. Expose measurable remaining gates.",
+  "observed_date_sgt": "2026-11-07",
+  "project": "AirWorker",
+  "product_root": "D:/Devbox/AirWorker/worktrees/awlrn-orch-pilot-20261104/air-worker",
+  "source_baseline": "8c813f673c4d3ccae472f441183f78903fe6efb8",
+  "native_nodes": [
+    "N-139_n136-native-operational-goal-selector-for-real-a",
+    "N-136_prove-autonomous-plan-coding-factual-anthropic-c",
+    "N-126_native-two-codex-and-anthropic-reviewer-orchestr",
+    "N-123_p0-resume-durable-qa-judge-jobs-after-chat-inter"
+  ],
+  "gates": [
+    {
+      "id": "G01",
+      "name": "Operational machine goal",
+      "status": "PASS",
+      "node": "N-139",
+      "done_when": "Native operational-goal activate/status RC0 for exact N139 ID, source SHA and untouched historical 0.11.9 release-slices SHA",
+      "evidence": [
+        "acmd-bbb9f680-5578-468d-ad36-257676e1d297",
+        "8c813f673c4d3ccae472f441183f78903fe6efb8",
+        "811a37794842d8ed575f478d0a84665579daee5f5afe94e5e4ad6e9e7627ab9a"
+      ],
+      "judge": "native operational-goal status + Git SHA readback"
+    },
+    {
+      "id": "G02",
+      "name": "Native Codex actual source editing",
+      "status": "PASS",
+      "node": "N-139",
+      "done_when": "Single native air-worker loop picked N139 and ran Codex Luna low, real cmd source modified, terminal executor DONE",
+      "evidence": [
+        "gpt__devwork29-7fc2da058a095e9a__1794026842523903500__3115cf12",
+        "git diff cmd/job_receipt.go cmd/job_status.go"
+      ],
+      "judge": "native executor job receipt + code diff"
+    },
+    {
+      "id": "G03",
+      "name": "Factual Go native judge",
+      "status": "PASS",
+      "node": "N-139",
+      "done_when": "Bounded native Go process RC0 with DONE receipt and output SHA independently verified",
+      "evidence": [
+        "gpt__devwork29-7fc2da058a095e9a__1794027935412442500__30cad5a6",
+        "94efe696195b25b8e932f1dba57b71b15bc296e4524de8d536c3fea8fdbe652c"
+      ],
+      "judge": "native factual-go-test receipt + actual `ok airos/air-worker` output"
+    },
+    {
+      "id": "G04",
+      "name": "Independent Anthropic evidence-verified PASS",
+      "status": "OPEN",
+      "node": "N-139",
+      "done_when": "Anthropic verdict PASS with TASK_READ_OK, exact source citations and no contradiction with verified Go evidence",
+      "evidence": [
+        "semantic-verdict.json currently NOT_PROVEN",
+        "gpt__devwork29-7fc2da058a095e9a__1794028008608935400__808f5486"
+      ],
+      "judge": "Anthropic verified source/task verdict",
+      "blocker": "Claude returned NOT_PROVEN because executor narrative said judge interrupted, while bounded factual Go receipt was DONE RC0."
+    },
+    {
+      "id": "G05",
+      "name": "Frozen source and security acceptance",
+      "status": "OPEN",
+      "node": "N-139/N-136/N-123",
+      "done_when": "Frozen source HEAD + targeted and required full N123 QA where justified + independent source code review PASS and commit/push Git CLEAN readback",
+      "evidence": [],
+      "judge": "Go RC, independent Anthropic code review with valid TASK, GitHub SHA",
+      "blocker": "Worktree still has uncommitted N139 cmd changes and no source PASS."
+    },
+    {
+      "id": "G06",
+      "name": "Causal model-ladder escalation",
+      "status": "OPEN",
+      "node": "N-136/N-126",
+      "done_when": "Same native task proves a genuine cause for tier transition from Luna to next allowed tier, preserved job/attempt receipts and matrix",
+      "evidence": [],
+      "judge": "native ladder receipts",
+      "blocker": "Only successful Luna low coding demonstrated; no causal tier transition."
+    },
+    {
+      "id": "G07",
+      "name": "Durable resume after disconnection",
+      "status": "OPEN",
+      "node": "N-123",
+      "done_when": "Two forced chat/message disconnects plus one EXECUTION_UNKNOWN, same RUNNING job resumed with zero duplicate execution, exact args/source SHA/output exit/recovery_ref, no foreign kill",
+      "evidence": [],
+      "judge": "native immutable status/receipt, independently verified replay counts",
+      "blocker": "Source-only job no-replay/readback tests pass; two real interruption scenarios still not demonstrated."
+    },
+    {
+      "id": "G08",
+      "name": "All four P0 native nodes closed",
+      "status": "OPEN",
+      "node": "N-139/N-136/N-126/N-123",
+      "done_when": "After G04–G07 pass, separately native-close N139/N136/N126/N123 with accepted receipts and clean Git readback; no manual plan/N editing",
+      "evidence": [],
+      "judge": "native plan node list status CLOSED and receipts",
+      "blocker": "All four native nodes currently OPEN."
+    }
+  ],
+  "metrics": {
+    "gates_total": 8,
+    "gates_pass": 3,
+    "gates_open": 5,
+    "gates_percent": 37.5,
+    "p0_nodes_total": 4,
+    "p0_nodes_closed": 0,
+    "p0_nodes_open": 4,
+    "p0_status": "OPEN"
+  },
+  "next_critical_path": [
+    "G04: resolve contradictory reviewer evidence using existing factual Go receipt, no duplicate Codex run",
+    "G05: targeted acceptance, freeze source and independent code review",
+    "G07: interrupted-running recovery and EXECUTION_UNKNOWN",
+    "G06: causal ladder escalation",
+    "G08: native close nodes on full PASS"
+  ],
+  "p1_case": {
+    "status": "NOT_PROVEN",
+    "class": "missed-native-n139-error-learning",
+    "observed": "N139 Go failures, wrong R: GOTMPDIR and Anthropic contradictory evidence occurred; no causal learned skill applied/used/effect. Three older APPLIED rules use_count=0; R runtime contains generic cli-failure events with unjudged result.",
+    "worktree_latest_learn_event_utc": "2026-11-07T03:07:16.1650907Z",
+    "required_future_proof": "Automatically capture original N139 failure via native own CLI; independent review; safe apply; new session procedure used; measured prevention EFFECT",
+    "must_not_do_now": "Do not manually write LEARN or divert P0 to P1."
+  },
+  "release_install": "OUT_OF_CRITICAL_PATH; installed 0.11.11-rc.2 unchanged",
+  "caution": "Gate statuses are evidence-validated checkpoints, not percentage of time. Update only after independently verified facts. Do not treat model DONE as judge PASS."
+}

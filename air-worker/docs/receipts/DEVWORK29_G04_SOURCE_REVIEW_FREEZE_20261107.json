@@ -1,0 +1,33 @@
+{
+  "schema": "air-worker.devwork29.g04-review-freeze/v1",
+  "owner": "Dev Work 29 / SRVLM01",
+  "target_node": "N-139_n136-native-operational-goal-selector-for-real-a",
+  "goal": "Resolve independent Anthropic NOT_PROVEN on actual native N139 Codex+Go fix without redispatching coding job",
+  "source_before_head": "8c813f673c4d3ccae472f441183f78903fe6efb8",
+  "expected_file_sha256": {
+    "cmd/job_receipt.go": "0085d4e6ab534dd31ef20a734e50121407ee2451bab223e21d7407af5ca4dce3",
+    "cmd/job_status.go": "7c7a96960075e8bbda2748d7179769e160e1d9c101a2fe44d223414686acbf26",
+    "docs/tasks/DEVWORK29_N139_G04_CODE_REVIEW_20261107.md": "bb5869d9d9af0641bf9d77ff94386e8695bdcd4cd33dcc7b4031d96fca144107"
+  },
+  "proof_native": {
+    "codex_job": "gpt__devwork29-7fc2da058a095e9a__1794026842523903500__3115cf12",
+    "factual_go_job": "gpt__devwork29-7fc2da058a095e9a__1794027935412442500__30cad5a6",
+    "factual_output_sha256": "94efe696195b25b8e932f1dba57b71b15bc296e4524de8d536c3fea8fdbe652c",
+    "anthropic_old_verdict": "NOT_PROVEN (not accepted)"
+  },
+  "verification": {
+    "targeted_test_rc": 0,
+    "go_vet_rc": 0,
+    "diff_check_rc": 0,
+    "plan_lint_rc": 0,
+    "request_id": "acmd-98886d4e-e9be-4441-a0ea-ff152e7d7ab0"
+  },
+  "status": "SOURCE_ONLY_FROZEN_FOR_INDEPENDENT_REVIEW",
+  "g04": "OPEN",
+  "g05": "OPEN",
+  "p0_metric": "3/8 PASS, 5 OPEN, 0/4 nodes CLOSED",
+  "historical_release_sha256": "811a37794842d8ed575f478d0a84665579daee5f5afe94e5e4ad6e9e7627ab9a",
+  "installed": "0.11.11-rc.2 unchanged",
+  "next": "Commit candidate source SHA locally, invoke native independent Anthropic review on exact clean SHA with task actually read, then evaluate verdict and only push accepted delta. Do not close any node on reviewer model DONE alone.",
+  "note": "After new source commit, host-local operational-goal selector pinned to prior HEAD must be advanced through a future native goal transition before any new autonomous N139 run; do not rewrite it manually."
+}

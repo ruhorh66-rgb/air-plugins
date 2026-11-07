@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,6 +47,8 @@ type jobReceipt struct {
 	ProcessStarted bool      `json:"process_started"`
 	RequestStarted bool      `json:"request_started,omitempty"`
 	Cost           *float64  `json:"cost,omitempty"`
+	OutputSHA256   string    `json:"output_sha256,omitempty"`
+	OutputBytes    int64     `json:"output_bytes,omitempty"`
 }
 
 // jobLockKind — duplicate-start guard именует замок по (step, operation) внутри scope: тот
@@ -113,6 +118,20 @@ func finishJobReceipt(receiptPath, status string) error {
 	}
 	if r.Status != jobStatusRunning {
 		return fmt.Errorf("job %s already terminal (%s); status cannot be overwritten", r.JobID, r.Status)
+	}
+	output, openErr := os.Open(r.OutputPath)
+	if openErr == nil {
+		defer output.Close()
+		info, statErr := output.Stat()
+		if statErr == nil && info.Mode().IsRegular() && info.Size() <= (32<<20) {
+			h := sha256.New()
+			n, readErr := io.Copy(h, output)
+			if readErr == nil && n == info.Size() {
+				r.OutputSHA256, r.OutputBytes = hex.EncodeToString(h.Sum(nil)), n
+			} else if status == jobStatusDone {
+				return fmt.Errorf("cannot seal terminal output")
+			}
+		}
 	}
 	r.Status = status
 	return writeJobReceiptFunc(receiptPath, r)

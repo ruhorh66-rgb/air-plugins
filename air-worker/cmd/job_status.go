@@ -106,6 +106,14 @@ func inspectOwnedJob(scope sessionScope, step, operation string) (jobStatusSnaps
 		return s, errors.New("terminal output could not be read completely")
 	}
 	s.OutputSHA256, s.OutputBytes = hex.EncodeToString(h.Sum(nil)), n
+	if r.OutputSHA256 == "" {
+		s.OutputSHA256, s.OutputBytes = "", 0
+		s.Reason = "terminal output has no completion seal; historical result is unproven"
+		return s, nil
+	}
+	if s.OutputSHA256 != r.OutputSHA256 || s.OutputBytes != r.OutputBytes {
+		return s, errors.New("terminal output changed after completion seal")
+	}
 	return s, nil
 }
 
