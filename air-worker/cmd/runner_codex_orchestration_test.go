@@ -61,7 +61,7 @@ func TestCodexNativeOrchestrationUsesExactModelRoster(t *testing.T) {
 		}
 		wantRole, wantSandbox := "executor/leader", "workspace-write"
 		if strings.Contains(receipt.Operation, "subagent") {
-			wantRole, wantSandbox = "orchestration-subagent", "read-only"
+			wantRole, wantSandbox = "coding-subagent/patch-author", "read-only"
 		}
 		if receipt.Role != wantRole || receipt.Sandbox != wantSandbox {
 			t.Fatalf("receipt does not distinguish reviewer from leader: %+v", receipt)
@@ -99,13 +99,49 @@ func TestCodexOrchestrationCountsOnlyStartedProcesses(t *testing.T) {
 	}
 }
 
+func TestCodexPatchCandidateRequiresCodeNotReview(t *testing.T) {
+	good := "diff --git a/cmd/a.go b/cmd/a.go\n--- a/cmd/a.go\n+++ b/cmd/a.go\n@@ -1 +1 @@\n-a\n+b"
+	if !codexPatchCandidatePresent(good) {
+		t.Fatal("unified patch was not recognized")
+	}
+	for _, bad := range []string{"review complete", "the fix is a diff --git a/cmd/a.go", good + "\nGIT binary patch"} {
+		if codexPatchCandidatePresent(bad) {
+			t.Fatalf("review-only/unsafe candidate credited: %q", bad)
+		}
+	}
+}
+
+func TestCodexOrchestrationRejectsNarrativeOnlySubagents(t *testing.T) {
+	old := runnerCommand
+	t.Cleanup(func() { runnerCommand = old })
+	t.Setenv("AW_CODEX_ORCH_HELPER", "1")
+	t.Setenv("AW_CODEX_ORCH_NARRATIVE", "1")
+	runnerCommand = func(_ string, _ ...string) *exec.Cmd {
+		return exec.Command(os.Args[0], "-test.run=TestCodexOrchestrationHelperProcess")
+	}
+	ctx := loopCtx{Root: t.TempDir(), Subagents: 2}
+	res := ctx.invokeCodexOrchestrated("codex", "write source patch", runnerSpec{Kind: "codex", Model: "gpt-6-luna", Effort: "low"}, "99")
+	if res.Ok || res.Subtype != "orchestration_not_proven" || res.AgentStarted != 2 ||
+		res.AgentCompleted != 0 || res.AgentAborted != 2 || !strings.Contains(res.AgentIssue, "no unified source patch") {
+		t.Fatalf("review-only subagents were wrongly counted as coders: %+v", res)
+	}
+	receipts, _ := filepath.Glob(filepath.Join(ctx.Root, ".woody", "jobs", "*.receipt.json"))
+	if len(receipts) != 2 {
+		t.Fatalf("leader must not launch after 2 non-coding proposals: receipts=%v", receipts)
+	}
+}
+
 func TestCodexOrchestrationHelperProcess(t *testing.T) {
 	if os.Getenv("AW_CODEX_ORCH_HELPER") != "1" {
 		return
 	}
 	fmt.Println(`{"type":"thread.started","thread_id":"native-agent"}`)
 	fmt.Println(`{"type":"turn.started"}`)
-	fmt.Println(`{"type":"item.completed","item":{"type":"agent_message","text":"review complete"}}`)
+	patch := "diff --git a/cmd/example.go b/cmd/example.go\n--- a/cmd/example.go\n+++ b/cmd/example.go\n@@ -1 +1 @@\n-old\n+new"
+	if os.Getenv("AW_CODEX_ORCH_NARRATIVE") == "1" {
+		patch = "review complete; no code changes proposed"
+	}
+	fmt.Printf("{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":%q}}\n", patch)
 	fmt.Println(`{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}`)
 	os.Exit(0)
 }

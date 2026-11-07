@@ -88,15 +88,14 @@ func TestReleaseJudgePolicy0113(t *testing.T) {
 	}
 }
 
-// N135 restores the accepted rc.2 development route: a Codex coding agent
-// with workspace-write runs through the native tier ladder, then an
-// independent Anthropic judge. Read-only subagents remain an optional mode,
-// not a mandatory prerequisite for the coding executor.
+// N135 retains the accepted Codex coding / independent Anthropic boundary.
+// LPR 07.11.2026 additionally requires exactly two native Codex patch-author
+// subagents plus one shared-tree writing leader, not an optional analysis mode.
 func TestN135RestoreAcceptedCodingLadderAndAnthropicJudges(t *testing.T) {
 	cfg := loadReleaseModelPolicy(t)
-	if cfg.Orchestration.Enabled || cfg.Orchestration.RequireNativeSubagents ||
-		!cfg.Orchestration.RequireAnthropicReviewer {
-		t.Fatalf("N135 default coding route must be available without mandatory read-only subagents: %+v", cfg.Orchestration)
+	if !cfg.Orchestration.Enabled || cfg.Orchestration.Subagents != 2 ||
+		!cfg.Orchestration.RequireNativeSubagents || !cfg.Orchestration.RequireAnthropicReviewer {
+		t.Fatalf("two Codex coding subagents and independent Anthropic must be mandatory: %+v", cfg.Orchestration)
 	}
 	if err := validateModelPolicy(cfg); err != nil {
 		t.Fatal(err)
@@ -133,15 +132,15 @@ func TestN135RestoreAcceptedCodingLadderAndAnthropicJudges(t *testing.T) {
 		}
 	}
 	if err := requireNativeLoopInvocation(cfg, false, 0); err != nil {
-		t.Fatalf("a plain native coding loop must remain usable: %v", err)
+		t.Fatalf("native default must use canonical two-subagent orchestration: %v", err)
 	}
-	// Mandatory two-read-only-subagent policy is still available as an
-	// explicit opt-in profile and remains fail-closed if misconfigured.
-	managed := cfg
-	managed.Orchestration = orchestrationSpec{Enabled: true, Subagents: 2,
-		RequireNativeSubagents: true, RequireAnthropicReviewer: true}
-	if err := validateModelPolicy(managed); err != nil {
-		t.Fatalf("optional native orchestration profile has regressed: %v", err)
+	if err := requireNativeLoopInvocation(cfg, false, 1); err == nil {
+		t.Fatal("one subagent bypassed exact two-subagent gate")
+	}
+	broken := cfg
+	broken.Orchestration.Subagents = 1
+	if err := validateModelPolicy(broken); err == nil {
+		t.Fatal("native product accepted a single Codex subagent")
 	}
 }
 

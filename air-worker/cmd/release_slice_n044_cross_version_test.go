@@ -14,7 +14,7 @@ import (
 // source. Current 0.11.11-rc.4/v0.1.1 must reject those original release
 // checkpoints BEFORE any reviewer or measured-use code may run.
 func TestN044CurrentConsumerRejectsHistoricalR03R04ReleaseWork(t *testing.T) {
-	if version != "0.11.11-rc.4" || learning.Version != "0.1.1" {
+	if version != "0.11.11-rc.5" || learning.Version != "0.1.1" {
 		t.Fatalf("N044 wrong consumer identity: air-worker=%s learning=%s", version, learning.Version)
 	}
 	r02, err := n042HistoricalR02SourceBytes()

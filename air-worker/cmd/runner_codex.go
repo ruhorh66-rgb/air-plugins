@@ -121,6 +121,43 @@ type codexSubagentRun struct {
 	result  stepResult
 }
 
+// A Codex coding subagent is not credited for a narrative review. It must
+// produce an identifiable unified source patch in its terminal model output.
+// This is a candidate only; the leader and independent judges still own all
+// changes, applicability, factual QA, and semantic acceptance. Never apply the
+// untrusted diff automatically or give the subagent shared-tree write access.
+func codexPatchCandidatePresent(detail string) bool {
+	if len(detail) == 0 || len(detail) > 256*1024 || strings.Contains(detail, "GIT binary patch") {
+		return false
+	}
+	var path string
+	var oldFile, newFile, hunk, changed bool
+	for _, line := range strings.Split(strings.ReplaceAll(detail, "\r\n", "\n"), "\n") {
+		switch {
+		case strings.HasPrefix(line, "diff --git a/"):
+			fields := strings.Fields(line)
+			if len(fields) != 4 || !strings.HasPrefix(fields[3], "b/") ||
+				strings.TrimPrefix(fields[2], "a/") != strings.TrimPrefix(fields[3], "b/") {
+				return false
+			}
+			path = strings.TrimPrefix(fields[2], "a/")
+			if path == "" || strings.HasPrefix(path, "/") || strings.Contains(path, "\\") ||
+				strings.Contains(path, "../") || strings.Contains(path, "/..") || path == ".." {
+				return false
+			}
+		case strings.HasPrefix(line, "--- a/"):
+			oldFile = path != "" && strings.TrimPrefix(line, "--- a/") == path
+		case strings.HasPrefix(line, "+++ b/"):
+			newFile = path != "" && strings.TrimPrefix(line, "+++ b/") == path
+		case strings.HasPrefix(line, "@@"):
+			hunk = oldFile && newFile
+		case hunk && (strings.HasPrefix(line, "+") || strings.HasPrefix(line, "-")):
+			changed = true
+		}
+	}
+	return path != "" && oldFile && newFile && hunk && changed
+}
+
 func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
 	if err := validateCodexAddDirs(runner.AddDirs); err != nil {
 		return stepResult{Subtype: "invalid_runner_config", Detail: "codex add_dirs: " + err.Error()}
@@ -138,7 +175,7 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 	}
 	line(fmt.Sprintf("  orchestration core: AirWorker · transport codex · model %s · effort %s · subagents %d",
 		runner.Model, effort, requested))
-	line(fmt.Sprintf("  process roster: %d subagents read-only · leader workspace-write", requested))
+	line(fmt.Sprintf("  process roster: %d Codex coding subagents (independent read-only patch authors) · leader workspace-write", requested))
 
 	results := make(chan codexSubagentRun, requested)
 	var wg sync.WaitGroup
@@ -147,12 +184,12 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 		go func(index int) {
 			defer wg.Done()
 			reviewPrompt := fmt.Sprintf(
-				"You are AirWorker native read-only subagent %d/%d. Analyze the task independently. Do not edit files. Return concrete risks, an implementation or review plan, and exact checks.\n\nCoordinator task:\n%s",
+				"You are AirWorker Codex CODING SUBAGENT %d/%d, operating independently of the other Codex subagent. Read the coordinator task and the actual source files first. AUTHOR A CONCRETE SOURCE PATCH: return one compilable unified diff with lines diff --git, --- a/, +++ b/ and @@. Do not edit the shared working tree: you are a read-only patch author and the leader is the only writer. Do not return review-only comments instead of code. Follow the task scope; no changes to protected plan, policies or judge. After the patch, state narrow checks.\n\nCoordinator task:\n%s",
 				index, requested, prompt)
 			cmd := codexCommandForSandbox(exePath, c.Root, reviewPrompt, runner, "read-only")
 			agentStep := fmt.Sprintf("%s-agent-%d", stepID, index)
 			operation := runnerReceiptOperation("executor-codex-subagent", runner, c.iter)
-			out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), agentStep, operation, cmd, codexReceiptMeta(runner, "orchestration-subagent", "read-only"))
+			out, runErr := runReceiptedWithMeta(context.Background(), c.scope(), agentStep, operation, cmd, codexReceiptMeta(runner, "coding-subagent/patch-author", "read-only"))
 			receiptPath, _ := jobReceiptPaths(c.scope(), agentStep, operation)
 			receipt, _ := readJobReceipt(receiptPath)
 			results <- codexSubagentRun{index: index, started: receipt != nil && receipt.ProcessStarted, result: parseCodexResult(decodeOutput(out), runErr)}
@@ -175,8 +212,11 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 			ids = append(ids, run.result.Session)
 		}
 		switch {
-		case run.started && run.result.Ok:
+		case run.started && run.result.Ok && codexPatchCandidatePresent(run.result.Detail):
 			completed++
+		case run.started && run.result.Ok:
+			aborted++
+			problems = append(problems, fmt.Sprintf("coding subagent %d supplied no unified source patch; review-only response cannot count as coding", run.index))
 		case run.started && !run.result.Ok:
 			aborted++
 			problems = append(problems, fmt.Sprintf("subagent %d failed: %s %s", run.index, run.result.Subtype, run.result.Detail))
@@ -205,13 +245,13 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 	}
 
 	var evidence strings.Builder
-	evidence.WriteString("\n\nAIRWORKER NATIVE ORCHESTRATION: the kernel completed independent read-only reviews. Reconcile them before editing.\n")
+	evidence.WriteString("\n\nAIRWORKER NATIVE ORCHESTRATION: two independent Codex subagents authored SOURCE PATCH proposals in read-only sandboxes. Reconcile both candidate diffs; the leader is the SINGLE shared-tree writer. These candidate patches are NOT applied, tested, or independently accepted by their mere presence.\n")
 	for i, res := range ordered {
 		detail := res.Detail
 		if len(detail) > 12000 {
 			detail = detail[:12000]
 		}
-		fmt.Fprintf(&evidence, "\nSUBAGENT %d/%d (%s):\n%s\n", i+1, requested, runner.Model, detail)
+		fmt.Fprintf(&evidence, "\nCODEX PATCH AUTHOR %d/%d (%s):\n%s\n", i+1, requested, runner.Model, detail)
 	}
 	leader := c.invokeCodex(exePath, prompt+evidence.String(), runner, stepID)
 	return applyAgentLifecycle(leader, stats)

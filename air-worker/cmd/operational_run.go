@@ -33,7 +33,9 @@ func runN139Operational(root string, cfg runConfig, cfgPath string, goal operati
 	defer ownerLock.release()
 	c := &loopCtx{Root: root, Cfg: cfg, CfgPath: cfgPath,
 		MaxTurns:  orInt(cfg.Budget.TurnsPerIteration, 60),
-		Principal: principal, SessionKey: sessionKey}
+		Principal: principal, SessionKey: sessionKey,
+		Orchestrate: cfg.Orchestration.Enabled,
+		Subagents:   cfg.Orchestration.Subagents}
 	return runN139Step(c, goal, operationalGoalPreview, c.runModelStep, c.semanticJudge)
 }
 

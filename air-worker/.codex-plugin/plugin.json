@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.11.11-rc.4",
-  "description": "AirWorker 0.11.11-rc.4 source candidate: native Codex/Claude route enforcement and Hermes plugin compatibility, shared learning reviewer capacity 64; not installed.",
+  "version": "0.11.11-rc.5",
+  "description": "AirWorker 0.11.11-rc.5 source candidate: mandatory two native Codex code-patch subagents plus single writing leader, GPT-6.1 model ladder and independent Anthropic review; release/install pending.",
   "author": {
     "name": "AIR OS"
   },
@@ -15,6 +15,6 @@
     "capabilities": [
       "Interactive"
     ],
-    "defaultPrompt": "Use the installed AirWorker kernel and the woody skill, not a direct Codex model call. Declare this session and read PLAN. Restore the accepted coding workflow: script-first, then air-worker executor dispatch -product <root> -class complex for the first Codex coding task (Sol medium), and only after terminal readback use -class bulk (Luna low) for the next bounded coding task; -class standard is available independently. Require real file edits, tests and a terminal receipt for every coding task. Use the independent factual judge and native Anthropic reviewer (Sonnet/Opus). air-worker orchestrate -product <root> -subagents 2 is optional read-only analysis plus leader, not a substitute for coding executors. Never use Codex App Server, direct claude -p, PAYG or a custom router."
+    "defaultPrompt": "Use the installed AirWorker kernel and woody skill, never direct Codex/Claude provider tools. After native session declare and PLAN readback, run the approved coding route with exactly TWO native Codex patch-author subagents: air-worker orchestrate -product <root> -subagents 2, or the canonical Hermes air_worker(action=run). The native kernel selects Codex from script, GPT-6 Luna, GPT-6.1 Terra, GPT-6 Sol, GPT-6.1 Sol, GPT-6 Astra; escalate on proved cause only, never march all tiers blindly. Each Codex subagent reads the original TASK, authors a concrete unified source patch under its own read-only process receipt, and does not alter the shared source; the Codex leader integrates patches as the single shared-tree workspace-write owner. Narrative-only reviews do NOT count as coding subagents. Require real source changes, factual Go RC, immutable receipts and an independent native Anthropic Sonnet/Opus judge before acceptance. Standalone executor dispatch is forbidden for this managed two-subagent product, and the previous two sequential dispatch pilots are historical only. Keep G07/G06/G05/G08 and release/install gates distinct. Never use Codex App Server, direct claude -p, PAYG or a custom router."
   }
 }

@@ -103,7 +103,7 @@ func n044HistoricalR03R04PositiveOnly(t *testing.T) bool {
 	// Preserve the original signed-positive fixture only for 0.11.9/v0.1.0.
 	// Known 0.11.11 consumers (including rc.4) must fail closed before R03/R04
 	// instead of executing a historical release under a newer binary.
-	knownNewConsumer := version == "0.11.11-rc.2" || version == "0.11.11-rc.3" || version == "0.11.11-rc.4"
+	knownNewConsumer := version == "0.11.11-rc.2" || version == "0.11.11-rc.3" || version == "0.11.11-rc.4" || version == "0.11.11-rc.5"
 	if !knownNewConsumer || learning.Version != "0.1.1" {
 		t.Fatalf("historical R03/R04 test has unknown version pair: air-worker=%s learning=%s", version, learning.Version)
 	}

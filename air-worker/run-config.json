@@ -195,10 +195,10 @@
     "auto_apply": false
   },
   "orchestration": {
-    "_": "ЛПР 06.11.2026: восстановить исходный coding-mode 0.11.11-rc.2: native executor dispatch через script/Luna/Terra6.1/Sol6/Sol6.1/Astra использует Codex для реального кода; затем factual judge и независимый Anthropic Sonnet/Opus/Fable по классу, Haiku только предварительный triage. Два параллельных read-only subagents плюс leader доступны opt-in через orchestrate -subagents 2, но не заменяют coding-executor. Прежние guards и receipts сохраняются.",
-    "enabled": false,
+    "_": "ЛПР 06.11.2026: восстановить исходный coding-mode 0.11.11-rc.2: native executor dispatch через script/Luna/Terra6.1/Sol6/Sol6.1/Astra использует Codex для реального кода; затем factual judge и независимый Anthropic Sonnet/Opus/Fable по классу, Haiku только предварительный triage. ЛПР 07.11.2026 подтвердил режим ОРКЕСТРАЦИИ ОБЯЗАТЕЛЬНО: ровно два нативных Codex coding subagents создают независимые кандидаты unified diff (read-only sandbox для исключения гонки shared-tree), а Codex leader единственный пишет source; независимый Anthropic final judge. Нельзя выдавать read-only REVIEW за coding: kernel требует от обоих subagents реальные source patch proposals с receipts. Одиночный executor dispatch не удовлетворяет контракт и в managed product отклоняется. Прежние guards и receipts сохраняются.",
+    "enabled": true,
     "subagents": 2,
-    "require_native_subagents": false,
+    "require_native_subagents": true,
     "require_anthropic_reviewer": true
   }
 }

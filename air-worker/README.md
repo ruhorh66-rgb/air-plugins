@@ -1,6 +1,6 @@
 # air-worker
 
-## 0.11.11-rc.4 · native route enforcement candidate (SOURCE ONLY)
+## 0.11.11-rc.5 · two Codex coding subagents and GPT-6.1 ladder (SOURCE CANDIDATE)
 
 **Owner:** AirWorker / Dev Work 26, SRVLM01. **Goal:** eliminate the recurring
 new-session mistake of bypassing the built-in Codex/Anthropic ladder and treating

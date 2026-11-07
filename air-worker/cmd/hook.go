@@ -134,16 +134,17 @@ const nativeAirWorkerStartupGuidance = "AIRWORKER NATIVE START: Use air-worker t
 	"is NOT proof of AirWorker authorization. Check 'air-worker tool -which headroom'; " +
 	"on a release supporting it, use 'air-worker tool -which claude -preflight -json'. " +
 	"Prove Anthropic with a terminal native reviewer receipt, not a token or health alone. " +
-	"CODING ROUTE restored from 0.11.11-rc.2: choose script-first then a native " +
-	"Codex executor dispatch -class complex (Sol medium), then -class bulk (Luna low) " +
-	"only for another bounded task after terminal readback; -class standard is also available. " +
-	"Astra requires justification. Require workspace-write code edits and terminal receipts; " +
-	"after factual checks use independent " +
-	"Anthropic Sonnet/Opus via native semantic/source review. Two sequential Codex " +
-	"coding tasks must each have a distinct real task and terminal receipt. " +
-	"Two parallel read-only subagents plus leader are OPTIONAL via " +
-	"'air-worker orchestrate -subagents 2' only when expressly useful; never " +
-	"substitute their reports for two coding tasks. Wrong reviewer vendor and " +
+	"CODING ROUTE approved by LPR 07.11: native two-Codex subagent orchestration is MANDATORY. " +
+	"Use 'air-worker orchestrate -product <root> -subagents 2' or the canonical Hermes air_worker(action=run). " +
+	"Each of exactly two Codex coding subagents MUST read the TASK and produce a concrete unified source patch " +
+	"under an independent read-only sandbox with its own process/terminal receipt. " +
+	"Read-only narrative analysis alone is NOT coding and must fail closed. " +
+	"The Codex leader is the single shared-tree writer; integrate candidate patches only after comparison, " +
+	"factual code edits and QA, then request an independent Anthropic Sonnet/Opus source judge. " +
+	"Use the authorized Luna 6 -> Terra 6.1 -> Sol 6 -> Sol 6.1 -> Astra 6 ladder (low/medium/high). " +
+	"Escalate only with factual failure/stall reason; Astra requires justification. " +
+	"Standalone 'air-worker executor dispatch' must refuse when the managed two-subagent contract is active. " +
+	"Wrong reviewer vendor and " +
 	"noncanonical -config still fail closed. If release-slice R05 blocks, " +
 	"report exact RC2; never delete the sidecar or use an alternative root. " +
 	"No Codex App Server, direct provider CLI, paid API, or release-slice bypass. " +

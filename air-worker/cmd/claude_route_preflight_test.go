@@ -52,8 +52,8 @@ func TestNativeSessionStartGuidancePreservesExistingContext(t *testing.T) {
 	after := withNativeRouteStartupContext(before, startup)
 	for _, need := range []string{
 		"curator skill loaded", "learned skill SHA verified",
-		"AirWorker authorization", "CODING ROUTE restored",
-		"Two parallel read-only subagents plus leader are OPTIONAL",
+		"AirWorker authorization", "CODING ROUTE approved",
+		"two-Codex subagent orchestration is MANDATORY",
 		"No Codex App Server", "release-slice bypass",
 	} {
 		if !strings.Contains(after.Context, need) {

@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.11.11-rc.4",
-  "description": "AirWorker 0.11.11-rc.4 source candidate: native Codex/Claude route enforcement and Hermes plugin compatibility, shared learning reviewer capacity 64; not installed.",
+  "version": "0.11.11-rc.5",
+  "description": "AirWorker 0.11.11-rc.5 source candidate: mandatory two native Codex code-patch subagents plus single writing leader, GPT-6.1 model ladder and independent Anthropic review; release/install pending.",
   "author": {
     "name": "AIR OS"
   },

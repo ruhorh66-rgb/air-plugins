@@ -1,0 +1,129 @@
+{
+  "schema": "air-worker.devwork30.two-codex-rc5-source-candidate/v1",
+  "owner": "Dev Work 30 / SRVLM01",
+  "observed_date_sgt": "2026-11-07",
+  "lpr_decision": "Two native Codex subagents per executor ladder with independent Anthropic judge are mandatory; improve ladder and publish in a NEW release, not the published broken rc.4",
+  "version_candidate": "0.11.11-rc.5",
+  "source_branch": "dev/airworker-native-orch-pilot-20261104",
+  "source_baseline": "07ddd4a1ffb2d0713c7aad3ca8ae87847b3c5f24",
+  "source_final_sha": "VERIFY_AFTER_COMMIT",
+  "mode": {
+    "enabled": true,
+    "subagents": 2,
+    "require_native_subagents": true,
+    "require_anthropic_reviewer": true,
+    "subagent_role": "Codex coding-subagent/patch-author",
+    "subagent_sandbox": "read-only",
+    "subagent_output": "concrete unified source patch, narrative review is rejected",
+    "leader_role": "executor/leader",
+    "leader_sandbox": "workspace-write",
+    "shared_tree_writers": 1,
+    "judge": "independent Anthropic Sonnet/Opus, no model review counted from two Codex patch proposals"
+  },
+  "ladder": [
+    "script",
+    "gpt-6-luna",
+    "gpt-6.1-terra",
+    "gpt-6-sol",
+    "gpt-6.1-sol",
+    "gpt-6-astra"
+  ],
+  "class_routing_source": {
+    "bulk": "gpt6-luna:low",
+    "standard": "gpt61-terra:low",
+    "complex": "gpt61-sol:low",
+    "hardest": "gpt6-astra:low"
+  },
+  "compatible_clients": {
+    "codex": "0.167.0",
+    "claude_code": "2.1.319",
+    "installed_airworker": "0.11.11-rc.2"
+  },
+  "source_changes": [
+    "run-config.json mandatory two Codex subagents and model ladder",
+    "cmd/runner_codex.go model subprocesses write independent code patches in read-only sandbox and are credited only for bounded unified diff proposals",
+    "cmd/operational_run.go N139 operational goal now receives native orchestration policy",
+    "cmd/hook.go SessionStart truthful two-subagent guidance",
+    "Codex plugin defaultPrompt and Hermes skill canonical two-subagent guidance",
+    "Go policy, native route, startup and orchestration negative tests",
+    "opt-in live native model E2E test",
+    "rc.5 source candidate metadata/version manifests"
+  ],
+  "live_acceptance": {
+    "product_root": "D:/Devbox/AirWorker/temp/DevWork30/orch-live-20261107-30",
+    "invocation": "Go native AirWorker source-owned TestDevWork30LiveTwoCodexPatchAuthors with AIR_WORKER_LIVE_TWO_CODEX=1 and exact own D: root, not direct vendor calls",
+    "model": "gpt-6.1-terra",
+    "effort": "low",
+    "passed": true,
+    "rc": 0,
+    "requested": 2,
+    "started": 2,
+    "completed": 2,
+    "aborted": 0,
+    "leader_edited": "demo.go: Answer() OLD->NEW",
+    "subagents": [
+      {
+        "step": "devwork30-native-two-codex-agent-1",
+        "job_id": "gpt__devwork30-native-two-codex-20261107__1794060615509555000__34bf472b",
+        "status": "DONE",
+        "role": "coding-subagent/patch-author",
+        "sandbox": "read-only",
+        "receipt_sha256": "8fb07199b8e9c8dc88ca41cef0f368797816e1240ed613cafefd1d7b57cbb1f6",
+        "output_sha256": "420dd18a9eb4027bf4b840e03da9b7da5b5d768fd3255db45bb00f9c20e9e4b3",
+        "patch_diff": true,
+        "turn_completed": true
+      },
+      {
+        "step": "devwork30-native-two-codex-agent-2",
+        "job_id": "gpt__devwork30-native-two-codex-20261107__1794060615266839500__9ff5f64c",
+        "status": "DONE",
+        "role": "coding-subagent/patch-author",
+        "sandbox": "read-only",
+        "receipt_sha256": "8320d8b1edc85d397bb2a924dc66f044084d948c5159daef30a7d2d983502822",
+        "output_sha256": "fdff4e31cc2918b1dee60d73f7068bb499fabec2f578de2cf7af23a7604db86c",
+        "patch_diff": true,
+        "turn_completed": true
+      }
+    ],
+    "leader": {
+      "step": "devwork30-native-two-codex",
+      "job_id": "gpt__devwork30-native-two-codex-20261107__1794060656793950300__5ea44a32",
+      "status": "DONE",
+      "role": "executor/leader",
+      "sandbox": "workspace-write",
+      "receipt_sha256": "931b1e517f5c9621e18b50fd99b605460295d42dfc711cab4d56dd0b65c86f6b",
+      "output_sha256": "78eb49d150d003499ca548371709c1e9fab4eb236553306311b6f4d4ab5a3b18",
+      "file_edit_verified": true
+    }
+  },
+  "qa_at_checkpoint": {
+    "orchestration_targeted_go_rc": 0,
+    "go_vet_rc": 0,
+    "live_test_rc": 0
+  },
+  "release_constraints": {
+    "installed_airworker_unchanged": "0.11.11-rc.2",
+    "old_rc4_published_not_reused": true,
+    "old_rc4_install_failure_cause": "wrong distribution package: stale bin 0.11.9, marketplace pinned rc.2; signed assets already published",
+    "source_manifest_bin_mismatch": "source tree bin/air-worker.exe old 0.11.9; must create new exact binary S->B distribution and run independent QA",
+    "n130": "OPEN; signed Ed25519 new prerelease + correct VCS-stamped dist B + vendor cache rollback/host plugin QA still unproven",
+    "n123": "OPEN; two real GPT-session disconnects/EXECUTION_UNKNOWN and final full QA/Codex Sol review/rollback unmet",
+    "new_release_published": false,
+    "new_version_installed": false,
+    "new_reviewer_verdict": "NOT_YET_RUN_ON_FROZEN_SHA",
+    "github_settings_immutability": "unchanged"
+  },
+  "p0": {
+    "passed": 4,
+    "total": 8,
+    "remaining": 4,
+    "next": [
+      "G07",
+      "G06",
+      "G05",
+      "G08"
+    ],
+    "nodes_closed": 0
+  },
+  "next": "Complete rc.5 manifest and targeted security/version QA, freeze source S SHA, native Anthropic source review exact S, stage independently packaged dist B with exact signed binary/hash/version; release only after N130 acceptance, preserve installed rc2."
+}
