@@ -1,0 +1,163 @@
+{
+  "schema": "air-worker.devwork30.clients-model-ladder-refresh/v1",
+  "owner": "Dev Work 30 / SRVLM01",
+  "trigger": "LPR 2026-11-07: explicitly update Codex, Anthropic Claude Code and approved OpenAI/Anthropic model ladder",
+  "node": "SRVLM01",
+  "date_sgt": "2026-11-07",
+  "baseline_source_git_head": "24c9d0d1bc224c8b84c142fc888b841eb3eee975",
+  "original": {
+    "codex_cli": "0.158.0",
+    "claude_code": "2.1.311",
+    "installed_airworker": "0.11.11-rc.2"
+  },
+  "installed": {
+    "codex_cli": "0.167.0",
+    "codex_install": "npm install -g @openai/codex@0.167.0 --ignore-scripts --no-audit --no-fund (user prefix R:/-4-/npm-global)",
+    "codex_install_rc": 0,
+    "codex_login_status": "Logged in using ChatGPT; RC0",
+    "claude_code": "2.1.319",
+    "claude_install": "Official native claude.exe install 2.1.319 with HOME=USERPROFILE=C:/Users/admin_loc",
+    "claude_install_rc": 0,
+    "claude_live_path": "C:/Users/admin_loc/.local/bin/claude.exe",
+    "claude_live_sha256": "2e055732c9d03d22700d9046251a8370b673607bfcc9e4d16a1b0e8fb1345cbd",
+    "claude_stable_channel_preserved": true,
+    "claude_install_first_attempt_note": "First native installer invocation affected AIR Commander service HOME R:/-4-/air-commander-test/dc-home; working admin_loc executable was still 2.1.311 until targeted HOME correction and exact live SHA readback",
+    "installed_airworker": "0.11.11-rc.2 unchanged"
+  },
+  "rollback": {
+    "snapshot_root": "D:/Devbox/AirWorker/temp/DevWork30/host-client-upgrade-20261107",
+    "prior_codex_package": "rollback-codex: v0.158.0; package metadata SHA verified",
+    "prior_claude_exe": "claude-2.1.311-original.exe",
+    "prior_claude_sha256": "966f4b2ce962298f5dee6a942e8c47c8f97392e69e728e622319a98b259c0680",
+    "codex_reversible_using_official_pinned_package": "npm install -g @openai/codex@0.158.0",
+    "rollback_execution": "NOT_RUN; approved upgrade retained; backups verified",
+    "system_disk_c_free_gb_after": 0.73
+  },
+  "active_executor_ladder": {
+    "models": [
+      "script",
+      "gpt-6-luna",
+      "gpt-6.1-terra",
+      "gpt-6-sol",
+      "gpt-6.1-sol",
+      "gpt-6-astra"
+    ],
+    "efforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "primary_tiers": 15,
+    "vendor_limit_fallbacks_preserved": true,
+    "gpt6_sol_preserved": true,
+    "full_tier_walk_required": false,
+    "causal_escalation_p0_g06": "NOT_PROVEN; separate single-TASK failure/stall→next-allowed-tier acceptance"
+  },
+  "native_airworker_model_smokes": {
+    "scope": "One synthetic product owned by Dev Work 30 on D:, no business data, no other product mutation",
+    "product_root": "D:/Devbox/AirWorker/temp/DevWork30/native-model-activation-20261107",
+    "source_of_routes": "Installed air-worker rc.2 reads updated run-config.json; explicit -tier used",
+    "terra": {
+      "model": "gpt-6.1-terra",
+      "tier": "gpt61-terra:low",
+      "job_id": "gpt__devwork30-client-upgrade-20261107__1794052096610875300__a5bcedd8",
+      "terminal_receipt_status": "DONE",
+      "process_started": true,
+      "output_marker": "AW_NATIVE_ROUTE_OK",
+      "codex_event": "turn.completed",
+      "dispatch_rc": 0,
+      "receipt_sha256": "48dd3f069b13a30d6c3b158d85ff37d387b16c56b977fc0d39c551a5f370384e",
+      "explicit_exit_code_seal_in_installed_rc2": false,
+      "task_scope": "answer-only, no file changes"
+    },
+    "sol": {
+      "model": "gpt-6.1-sol",
+      "tier": "gpt61-sol:low",
+      "job_id": "gpt__devwork30-client-upgrade-20261107__1794052123197077500__d02fe446",
+      "terminal_receipt_status": "DONE",
+      "process_started": true,
+      "output_marker": "AW_NATIVE_ROUTE_OK",
+      "codex_event": "turn.completed",
+      "dispatch_rc": 0,
+      "receipt_sha256": "65b521f5d0a68c71d974d04854e63c39d61c25a4cce1aba1dc9241fca3415258",
+      "explicit_exit_code_seal_in_installed_rc2": false,
+      "task_scope": "answer-only, no file changes"
+    },
+    "result": "ACTUAL_NATIVE_MODEL_EXECUTION_PASS; NOT P0 G06/G07; installed rc2 receipts do not prove N123 terminal exit/log seal"
+  },
+  "class_route": {
+    "installed_airworker_rc2_classes": {
+      "bulk": "gpt6-luna:low",
+      "standard": "gpt6-sol:low",
+      "complex": "gpt6-astra:low",
+      "hardest": "gpt6-astra:low"
+    },
+    "updated_source_only_classes": {
+      "bulk": "gpt6-luna:low",
+      "standard": "gpt61-terra:low",
+      "complex": "gpt61-sol:low",
+      "hardest": "gpt6-astra:low"
+    },
+    "source_cli_exe": "D:/Devbox/AirWorker/temp/DevWork30/air-worker-ladder-source-20261107.exe",
+    "source_cli_sha256": "56ca3f8e26fc4637c94b59f3fb51de7c0a97fd5bf1ad2c5d8b138fbe4b15e587",
+    "source_build_rc": 0,
+    "active_class_switch_requires_future_airworker_release": true,
+    "source_only_release_evidence_not_installed": true
+  },
+  "anthropic": {
+    "claude_cli_version": "2.1.319",
+    "model_policy": {
+      "triage": "claude-haiku-5-5 (optional and nonfinal)",
+      "default": "claude-sonnet-5-5 (independent P0 judge)",
+      "complex": "claude-opus-5-5",
+      "arbitration": "claude-fable-5-1"
+    },
+    "native_claude_preflight": {
+      "status": "READY_TO_TRY_NATIVE_REVIEW",
+      "tool_resolved": true,
+      "profile_known": true,
+      "oauth_source": "user_env",
+      "headroom_ready": true,
+      "headroom_version": "0.43.1",
+      "model_call": "NOT_RUN"
+    },
+    "new_model_inference_after_upgrade": "NOT_PROVEN; no new Anthropic model call",
+    "prior_sonnet_source_receipt_preserved": "DevWork29 PASS_SOURCE_ONLY on 26e4cdb"
+  },
+  "source_verification": {
+    "targeted_go_tests": [
+      "TestReleaseModelPolicy0113",
+      "TestReleaseJudgePolicy0113",
+      "TestN135RestoreAcceptedCodingLadderAndAnthropicJudges",
+      "TestLegacyExecutorTierAliasesMapToOpenAI",
+      "TestExecutorListUsesApprovedPolicy",
+      "TestExecutorDispatchLoadsPonytailAndWalksVendorFallbacks"
+    ],
+    "targeted_go_rc": 0,
+    "go_vet_rc": 0,
+    "gofmt_after_addressed": "PASS (all own modified Go files)",
+    "native_executor_list_rc": 0,
+    "native_plan_lint": "PENDING FINAL READBACK",
+    "full_n123_qa": "NOT_RUN; remains G05",
+    "independent_final_sha_security_review": "NOT_RUN; remains G05"
+  },
+  "limitations": [
+    "Installed AirWorker rc.2 can select new models explicitly via -tier, but its class defaults have not yet been replaced by source-only changes",
+    "Anthropic triage model is configured but not used for final P0 acceptance",
+    "Current model-route verification does not satisfy G06 causal escalation or G07 cross-session recovery, and does not close G05/G08",
+    "New AirWorker release/install/marketplace changes, P1 learning, reboot, UAC, ACL, foreign services, scheduled tasks were not performed"
+  ],
+  "p0": {
+    "passed": 4,
+    "total": 8,
+    "open": [
+      "G07",
+      "G06",
+      "G05",
+      "G08"
+    ],
+    "native_nodes_closed": 0
+  },
+  "status": "CLIENTS_UPDATED_NATIVE_MODELS_VERIFIED_LADDER_SOURCE_READY_P0_STILL_OPEN",
+  "next": "Finalize plan/wiki, readback native state and exact Git SHA, source-only commit/push; continue G07->G06->G05->G08 on future task"
+}

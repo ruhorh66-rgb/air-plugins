@@ -24,7 +24,9 @@ func TestReleaseModelPolicy0113(t *testing.T) {
 	want := []string{
 		"script",
 		"gpt6-luna:low", "gpt6-luna:medium", "gpt6-luna:high",
+		"gpt61-terra:low", "gpt61-terra:medium", "gpt61-terra:high",
 		"gpt6-sol:low", "gpt6-sol:medium", "gpt6-sol:high",
+		"gpt61-sol:low", "gpt61-sol:medium", "gpt61-sol:high",
 		"gpt6-astra:low", "gpt6-astra:medium", "gpt6-astra:high",
 	}
 	if !reflect.DeepEqual(cfg.Ladder, want) {
@@ -42,6 +44,8 @@ func TestReleaseModelPolicy0113(t *testing.T) {
 		"gpt56-sol":   "gpt-5.6-sol",
 		"gpt6-luna":   "gpt-6-luna",
 		"gpt6-sol":    "gpt-6-sol",
+		"gpt61-terra": "gpt-6.1-terra",
+		"gpt61-sol":   "gpt-6.1-sol",
 		"gpt6-astra":  "gpt-6-astra",
 	}
 	for alias, model := range models {
@@ -53,11 +57,15 @@ func TestReleaseModelPolicy0113(t *testing.T) {
 	if got := executorFallbackTiers(cfg, "gpt6-sol:medium"); !reflect.DeepEqual(got, []string{"gpt56-terra:medium", "gpt56-sol:medium", "gpt55:medium"}) {
 		t.Fatalf("sol fallbacks=%v", got)
 	}
+	if got := executorFallbackTiers(cfg, "gpt61-sol:medium"); !reflect.DeepEqual(got, []string{"gpt6-sol:medium", "gpt56-sol:medium", "gpt55:medium"}) {
+		t.Fatalf("gpt61-sol fallbacks=%v", got)
+	}
 }
 
 func TestReleaseJudgePolicy0113(t *testing.T) {
 	cfg := loadReleaseModelPolicy(t)
 	want := map[string]string{
+		"triage":      "claude-haiku-5-5",
 		"default":     "claude-sonnet-5-5",
 		"complex":     "claude-opus-5-5",
 		"arbitration": "claude-fable-5-1",
@@ -95,8 +103,8 @@ func TestN135RestoreAcceptedCodingLadderAndAnthropicJudges(t *testing.T) {
 	}
 	classes := map[string]string{
 		"bulk":     "gpt6-luna:low",
-		"standard": "gpt6-sol:low",
-		"complex":  "gpt6-sol:medium",
+		"standard": "gpt61-terra:low",
+		"complex":  "gpt61-sol:low",
 		"hardest":  "gpt6-astra:low",
 	}
 	for class, want := range classes {

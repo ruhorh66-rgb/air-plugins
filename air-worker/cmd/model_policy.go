@@ -205,7 +205,13 @@ func validateModelPolicy(cfg runConfig) error {
 			}
 		}
 	}
-	for _, class := range []string{"default", "complex", "arbitration"} {
+	// Triage is optional for older products. If supplied, validate it using the
+	// same bounded effort and model policy; it never substitutes a P0 final judge.
+	classes := []string{"default", "complex", "arbitration"}
+	if _, ok := p.Judges["triage"]; ok {
+		classes = append(classes, "triage")
+	}
+	for _, class := range classes {
 		lane, ok := p.Judges[class]
 		if !ok {
 			return fmt.Errorf("judge class %q is missing", class)

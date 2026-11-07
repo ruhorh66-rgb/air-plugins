@@ -143,9 +143,10 @@ func executorClasses(cfg runConfig) ([]executorClassDoc, error) {
 		MaxEffort   string
 	}{
 		{"bulk", "gpt6-luna", "low", "medium"},
-		{"standard", "gpt6-sol", "low", "medium"},
-		// Sol handles complex tasks first; Astra is reserved for an explicit hardest task.
-		{"complex", "gpt6-sol", "medium", "high"},
+		{"standard", "gpt61-terra", "low", "medium"},
+		// GPT-6.1 Sol takes complex tasks; GPT-6 Sol remains a selectable intermediate
+		// tier and a vendor-limit fallback. Astra requires an explicit hardest reason.
+		{"complex", "gpt61-sol", "low", "high"},
 		{"hardest", "gpt6-astra", "low", "high"},
 	}
 	out := make([]executorClassDoc, 0, len(specs))

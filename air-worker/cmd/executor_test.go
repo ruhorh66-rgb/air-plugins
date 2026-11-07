@@ -15,15 +15,19 @@ func executorTestConfig() runConfig {
 		Ladder: []string{
 			"script",
 			"gpt6-luna:low", "gpt6-luna:medium", "gpt6-luna:high",
+			"gpt61-terra:low", "gpt61-terra:medium", "gpt61-terra:high",
 			"gpt6-sol:low", "gpt6-sol:medium", "gpt6-sol:high",
+			"gpt61-sol:low", "gpt61-sol:medium", "gpt61-sol:high",
 			"gpt6-astra:low", "gpt6-astra:medium", "gpt6-astra:high",
 		},
 		Runners: map[string]runnerSpec{
-			"gpt6-luna":  {Kind: "codex", Model: "gpt-6-luna"},
-			"gpt6-sol":   {Kind: "codex", Model: "gpt-6-sol"},
-			"gpt6-astra": {Kind: "codex", Model: "gpt-6-astra"},
-			"fb1":        {Kind: "codex", Model: "gpt-fallback-1"},
-			"fb2":        {Kind: "codex", Model: "gpt-fallback-2"},
+			"gpt6-luna":   {Kind: "codex", Model: "gpt-6-luna"},
+			"gpt61-terra": {Kind: "codex", Model: "gpt-6.1-terra"},
+			"gpt6-sol":    {Kind: "codex", Model: "gpt-6-sol"},
+			"gpt61-sol":   {Kind: "codex", Model: "gpt-6.1-sol"},
+			"gpt6-astra":  {Kind: "codex", Model: "gpt-6-astra"},
+			"fb1":         {Kind: "codex", Model: "gpt-fallback-1"},
+			"fb2":         {Kind: "codex", Model: "gpt-fallback-2"},
 		},
 		ModelPolicy: modelPolicySpec{
 			Schema: modelPolicySchemaV1,
@@ -34,6 +38,7 @@ func executorTestConfig() runConfig {
 				"default":     {Model: "claude-sonnet-5-5", Efforts: []string{"low", "medium", "high"}},
 				"complex":     {Model: "claude-opus-5-5", Efforts: []string{"low", "medium", "high"}},
 				"arbitration": {Model: "claude-fable-5-1", Efforts: []string{"low", "medium", "high"}},
+				"triage":      {Model: "claude-haiku-5-5", Efforts: []string{"low", "medium", "high"}},
 			},
 		},
 	}
@@ -44,8 +49,8 @@ func TestExecutorListUsesApprovedPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(doc.Primary) != 9 {
-		t.Fatalf("primary=%d want 9", len(doc.Primary))
+	if len(doc.Primary) != 15 {
+		t.Fatalf("primary=%d want 15", len(doc.Primary))
 	}
 	for _, tier := range doc.Primary {
 		if tier.Effort == "max" || tier.Effort == "ultra" || tier.Effort == "xhigh" {
@@ -55,7 +60,7 @@ func TestExecutorListUsesApprovedPolicy(t *testing.T) {
 	if len(doc.Fallbacks["gpt6-sol"]) != 6 {
 		t.Fatalf("fallback variants=%d want 6", len(doc.Fallbacks["gpt6-sol"]))
 	}
-	if len(doc.Classes) != 4 || doc.Classes[0].StartTier != "gpt6-luna:low" || doc.Classes[3].MaxTier != "gpt6-astra:high" {
+	if len(doc.Classes) != 4 || doc.Classes[0].StartTier != "gpt6-luna:low" || doc.Classes[1].StartTier != "gpt61-terra:low" || doc.Classes[2].StartTier != "gpt61-sol:low" || doc.Classes[3].MaxTier != "gpt6-astra:high" {
 		t.Fatalf("classes=%+v", doc.Classes)
 	}
 }

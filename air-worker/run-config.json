@@ -93,15 +93,21 @@
     "usd": 20,
     "turns_per_iteration": 60
   },
-  "_ladder": "ЛПР 29.09.2026: исполнители только OpenAI/Codex; low -> medium -> high, max/xhigh/ultra не входят в штатную лестницу. Исправленная проверка 07.11.2026 Dev Work 30: Codex CLI 0.158.0 (до добавления моделей) ошибочно возвратил 400 model_not_found для GPT-6.1 Terra/Sol. На отдельно размещённом CLI 0.167.0 с той же ChatGPT-авторизацией оба отдельных read-only запроса выполнены RC0/MODEL_ROUTE_OK, каталог показывает также GPT-6 Sol. НЕДОСТУПНОСТЬ УЧЁТНОЙ ЗАПИСИ ОПРОВЕРГНУТА. До штатного обновления локального Codex CLI активная лестница script/Luna 6/Sol 6/Astra 6 сохранена. Новые runners по-прежнему НЕВЫБИРАЕМЫЕ в установленной AirWorker CLI версии, целевой порядок после проверки native route: script/Luna 6/Terra 6.1/Sol 6/Sol 6.1/Astra 6. Квитанция docs/receipts/DEVWORK30_MODEL_ROUTE_RECHECK_20261107.json. Anthropic default Sonnet 5.5, complex Opus 5.5, arbitration Fable 5.1 актуальны; Haiku 5.5 пока кандидат предварительной проверки, не судья P0. Доступность через staged Codex 0.167.0 доказана отдельными live RC0; активация в штатной AirWorker ladder требует обновления локального CLI, проверенного native AirWorker dispatch и обратимого readback, а не только catalog.",
+  "_ladder": "ЛПР 29.09.2026: исполнители только OpenAI/Codex; low -> medium -> high, max/xhigh/ultra не входят в штатную лестницу. Исправленная проверка 07.11.2026 Dev Work 30: Codex CLI 0.158.0 (до добавления моделей) ошибочно возвратил 400 model_not_found для GPT-6.1 Terra/Sol. На отдельно размещённом CLI 0.167.0 с той же ChatGPT-авторизацией оба отдельных read-only запроса выполнены RC0/MODEL_ROUTE_OK, каталог показывает также GPT-6 Sol. НЕДОСТУПНОСТЬ УЧЁТНОЙ ЗАПИСИ ОПРОВЕРГНУТА. По прямому согласию ЛПР 07.11.2026 штатный Codex CLI обновлён до 0.167.0, Claude Code в профиле admin_loc до 2.1.319. Действующая лестница теперь script/Luna 6/Terra 6.1/Sol 6/Sol 6.1/Astra 6, low/medium/high; GPT-6 Sol сохранён. Смена ступени требует реальной причины, полный проход всех моделей не обязателен. Квитанция docs/receipts/DEVWORK30_MODEL_ROUTE_RECHECK_20261107.json. Anthropic default Sonnet 5.5, complex Opus 5.5, arbitration Fable 5.1 актуальны; Haiku 5.5 введён в отдельный optional triage lane для предварительной проверки, но не является независимым финальным судьёй P0. После обновления глобального Codex 0.167.0 два штатных AirWorker executor dispatch на GPT-6.1 Terra и Sol завершились RC0 с отдельными receipts; активная лестница и три класса судей проходят адресные Go-тесты. Текущий установленный бинарник AirWorker rc.2 не обновлялся, его старые class defaults продолжают действовать до отдельного релизного гейта; явные -tier новых моделей уже доступны.",
   "ladder": [
     "script",
     "gpt6-luna:low",
     "gpt6-luna:medium",
     "gpt6-luna:high",
+    "gpt61-terra:low",
+    "gpt61-terra:medium",
+    "gpt61-terra:high",
     "gpt6-sol:low",
     "gpt6-sol:medium",
     "gpt6-sol:high",
+    "gpt61-sol:low",
+    "gpt61-sol:medium",
+    "gpt61-sol:high",
     "gpt6-astra:low",
     "gpt6-astra:medium",
     "gpt6-astra:high"
@@ -110,10 +116,17 @@
     "schema": "air-worker.model-policy/v1",
     "executor_fallbacks": {
       "gpt6-luna": ["gpt56-luna"],
+      "gpt61-terra": ["gpt6-sol", "gpt56-terra"],
       "gpt6-sol": ["gpt56-terra", "gpt56-sol", "gpt55"],
-      "gpt6-astra": ["gpt56-sol", "gpt55"]
+      "gpt61-sol": ["gpt6-sol", "gpt56-sol", "gpt55"],
+      "gpt6-astra": ["gpt61-sol", "gpt6-sol", "gpt56-sol", "gpt55"]
     },
     "judges": {
+      "triage": {
+        "model": "claude-haiku-5-5",
+        "efforts": ["low", "medium", "high"],
+        "fallbacks": ["claude-haiku-4-5"]
+      },
       "default": {
         "model": "claude-sonnet-5-5",
         "efforts": ["low", "medium", "high"],
@@ -164,11 +177,11 @@
       "kind": "codex",
       "model": "gpt-6-sol"
     },
-    "gpt61-terra-candidate": {
+    "gpt61-terra": {
       "kind": "codex",
       "model": "gpt-6.1-terra"
     },
-    "gpt61-sol-candidate": {
+    "gpt61-sol": {
       "kind": "codex",
       "model": "gpt-6.1-sol"
     },
@@ -182,7 +195,7 @@
     "auto_apply": false
   },
   "orchestration": {
-    "_": "ЛПР 06.11.2026: восстановить исходный coding-mode 0.11.11-rc.2: native executor dispatch через script/Luna/Sol/Astra действительно пишет код; затем factual judge и независимый Anthropic Sonnet/Opus. Два параллельных read-only subagents плюс leader доступны opt-in через orchestrate -subagents 2, но не заменяют coding-executor. Прежние guards и receipts сохраняются.",
+    "_": "ЛПР 06.11.2026: восстановить исходный coding-mode 0.11.11-rc.2: native executor dispatch через script/Luna/Terra6.1/Sol6/Sol6.1/Astra использует Codex для реального кода; затем factual judge и независимый Anthropic Sonnet/Opus/Fable по классу, Haiku только предварительный triage. Два параллельных read-only subagents плюс leader доступны opt-in через orchestrate -subagents 2, но не заменяют coding-executor. Прежние guards и receipts сохраняются.",
     "enabled": false,
     "subagents": 2,
     "require_native_subagents": false,
