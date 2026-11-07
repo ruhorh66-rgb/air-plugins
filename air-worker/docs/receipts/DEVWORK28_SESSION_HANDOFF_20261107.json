@@ -1,0 +1,130 @@
+{
+  "schema": "air-worker.devwork28.session-handoff/v1",
+  "created_date_sgt": "2026-11-07",
+  "owner": "Dev Work 28 / SRVLM01",
+  "trigger": "LPR requests save, reconcile existing plan, train AirWorker learning, commit/push and handoff to new session",
+  "product": "AirWorker",
+  "current_state": "SOURCE_ONLY_SESSION_HANDOFF",
+  "source": {
+    "repository": "ruhorh66-rgb/air-plugins",
+    "branch": "dev/airworker-native-orch-pilot-20261104",
+    "accepted_before_handoff_sha": "5f9c3b127cb0470f11dc08f39cb8474afc0fd5d7",
+    "handoff_document": "docs/handoff/HANDOFF_DEVWORK28_TO_NEXT_SESSION_20261107.md",
+    "source_final_handoff_commit": "Read git HEAD after commit; document intentionally cannot self-reference own final Git SHA"
+  },
+  "production_plan": {
+    "repository": "ruhorh66-rgb/AirWorker_Wiki",
+    "branch": "dev/airworker-curator-0.10.14",
+    "active_projection": "00_STRATEGY/AIRWORKER_PRODUCTION_PLAN.md",
+    "authoritative_plan": "air-worker/PLAN.md",
+    "plan_lint_rc": 0
+  },
+  "native_plan_nodes": [
+    {
+      "node": "N-135",
+      "state": "CLOSED",
+      "evidence": "DEVWORK28_N135_RESTORED_CODING_LIVE_20261106.json"
+    },
+    {
+      "node": "N-137",
+      "state": "CLOSED SOURCE_ONLY",
+      "evidence": "DEVWORK28_N137_INSTALLER_STANDARDS_SBR_PACKAGE_PROOF_20261107.json"
+    },
+    {
+      "node": "N-138",
+      "state": "OPEN",
+      "criterion": "Native Windows installed-program registration, owned uninstall, rollback, isolated registry fixture"
+    },
+    {
+      "node": "N-130",
+      "state": "OPEN",
+      "criterion": "Correct S->B release, signed package, official installer and installed readback"
+    },
+    {
+      "node": "N-136",
+      "state": "OPEN",
+      "criterion": "Interrupted running-job resume and actual ladder escalation not proven"
+    },
+    {
+      "node": "N-123",
+      "state": "OPEN",
+      "criterion": "Durable jobs recovery"
+    },
+    {
+      "node": "N-126",
+      "state": "OPEN",
+      "criterion": "Broader native orchestration acceptance"
+    }
+  ],
+  "installed": {
+    "version": "0.11.11-rc.2",
+    "cli_sha256": "495d1d274c04aae41189579e368356c9a15bcb1c057227db538c93aa41acefbe",
+    "tray_sha256": "c8a12b362975349c3c376e830b61f5858ed3c3439650374dc56f53f40442f67b",
+    "updated_during_handoff": false,
+    "live_registry_modified": false
+  },
+  "release": {
+    "published_previous_rc4": true,
+    "published_version": "0.11.11-rc.4",
+    "published_source_sha": "0cb69306e0c4dd1cd388cd7a498e3f0ec4ea2a60",
+    "native_install_attempt_result": "RC1, rollback to rc.2 PASS",
+    "signed_payload_of_source_tree_invalid_for_installed_plugin": true,
+    "do_not_reuse_published_release_tag": true,
+    "new_version_publication_approved_in_this_turn": false,
+    "new_install_approved_in_this_turn": false
+  },
+  "isolated_SBR_candidate": {
+    "S": "1c264c797868c31b40ce516ce0ebe003d0ad8441",
+    "B": "18f45d8bb1359b4799284a61bb0006f5c78194b0",
+    "branch": "devwork28/n137-sbr-package-proof-20261107",
+    "location": "D:/Devbox/AirWorker/temp/DevWork28/N137/sbr-package-snapshot-20261107",
+    "status": "LOCAL_ONLY_NOT_PUBLISHED",
+    "cli_sha256": "496d5ed981c1598b68f9eb858f509b0e894b00c404e05f4f2d028a46580eb394",
+    "tray_sha256": "9804aa1e20d6a025224e7733f3ae26dfec76dc29b511da32dae45eb773d15bed",
+    "payload_sha256": "92d367441987bd42f946461cd253085561d5afa70366dd70f1015f46aacf245c",
+    "payload_file_count": 925,
+    "tag_collision_guard_expected_rc": 1
+  },
+  "N138_latest": {
+    "reviewed_source_sha": "5f9c3b127cb0470f11dc08f39cb8474afc0fd5d7",
+    "source_only_policy_and_status": true,
+    "native_registry_writer_or_delete_active": false,
+    "seven_targeted_tests_rc": 0,
+    "go_vet_rc": 0,
+    "independent_anthropic": "PASS_SOURCE_ONLY, TASK_READ_OK",
+    "independent_read_code_citations": 9,
+    "previous_bug": "FAIL_P1 unsafe Restore(absent) could delete foreign key on read/write race",
+    "p1_removed_and_negative_tested": true,
+    "full_install_lifecycle": "OPEN_NOT_PROVEN",
+    "full_go_suite": "NOT_RUN_ON_LATEST_SOURCE",
+    "receipts": [
+      "docs/receipts/DEVWORK28_N138_ARP_SOURCE_SLICE_20261107.json",
+      "docs/receipts/DEVWORK28_N138_ARP_P1_RACE_CORRECTION_20261107.json"
+    ]
+  },
+  "learning": {
+    "method": "air-worker learn event -product <root>",
+    "recorded_event_ids": [
+      "LR-20261107T002044Z-220dc4fd",
+      "LR-20261107T010224Z-fc3de69f",
+      "LR-20261107T010928Z-33fa7cb4",
+      "LR-20261107T014549Z-9063de03"
+    ],
+    "final_event_request_id": "acmd-8fa507af-fb8b-45ee-a2b9-d3a17e1951b3",
+    "final_event_rc": 0,
+    "journal_path": "learn/events.jsonl",
+    "status": "CAPTURED_ONLY; not demonstrated as an applied or used learned procedure",
+    "pending_LPR_count": 0
+  },
+  "standards": [
+    "DEV-139: keep accepted host-native/portable; no forced MSI/Inno",
+    "DEV-070 source/package/installed separate; signed identity and rollback",
+    "DEV-135 small release and resume-safe steps",
+    "DEV-130 factual verification and fail-closed on incomplete rollback",
+    "DEV-136 one canonical PLAN and native-only node/journal",
+    "DEV-137 own temp/cache paths",
+    "PRODUCTS_INSTALL_REGISTRATION_20260921: one ARP entry, accurate version and real owned uninstall"
+  ],
+  "next": "Use AIR Commander explicit SRVLM01; read authoritative plan and this handoff. Implement real race-safe native registry backend ONLY in isolated fixture, then owned uninstall and update rollback, independently review, then prepare exact new S->B package and request new release/install approval; preserve installed rc.2.",
+  "permissions": "No live install, no UAC/reboot/foreign service stop, no SSH or GitHub repo settings change, no signed rc.4 asset modification in this handoff."
+}
