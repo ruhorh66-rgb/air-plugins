@@ -1,0 +1,91 @@
+{
+    "schema":  "air-worker.devwork31.p0-g05c-salvage/v1",
+    "owner":  "Dev Work 31 / ChatGPT coordinator / SRVLM01",
+    "observed_sgt_date":  "2026-11-08",
+    "original_source_head":  "2f6aa11592738474edf89688e1f242ba87b1287a",
+    "worker_baseline_head":  "028bff3e923dcbf340a663242829793b3a4e8250",
+    "handoff_path":  "D:\\Devbox\\AirWorker\\worktrees\\.airworker-coding-workspaces\\awlrn-orch-pilot-20261104\\e446540ac0ff9c1628\\handoff.json",
+    "handoff_sha256":  "6f0b945a103c59887cfa36796fa70d4ebc5a6c3c815a12e4953986d8c5f8eb0f",
+    "integration_status":  "APPLIED_TO_SOURCE_WORKTREE",
+    "coordinator":  "current ChatGPT conversation Dev Work 31",
+    "codex_writers":  [
+                          {
+                              "index":  1,
+                              "job_id":  "gpt__dw30g05c__1794114152126054100__d473bfaf",
+                              "model":  "gpt-6.1-terra",
+                              "runner":  "codex",
+                              "role":  "coding-subagent/worker",
+                              "status":  "DONE",
+                              "exit_code":  0,
+                              "source_head":  "028bff3e923dcbf340a663242829793b3a4e8250",
+                              "changed":  "air-worker/cmd/source_review.go",
+                              "patch_sha256":  "cf6864c6758c1272c513195ad392c051c8c09868a05ad5c0ec6e7c95926bbd18",
+                              "receipt_sha256":  "e6aeec361867b43a7580e2ea5364af5f7ab667d92cd8b90d02f862e3df3b6be3"
+                          },
+                          {
+                              "index":  2,
+                              "job_id":  "gpt__dw30g05c__1794114152126719400__19771374",
+                              "model":  "gpt-6.1-terra",
+                              "runner":  "codex",
+                              "role":  "coding-subagent/worker",
+                              "status":  "DONE",
+                              "exit_code":  0,
+                              "source_head":  "028bff3e923dcbf340a663242829793b3a4e8250",
+                              "changed":  "air-worker/cmd/source_review_test.go",
+                              "patch_sha256":  "89b50cc45bd910029b4aa287bece299eff252153a028148a30fb9c0c3468fef2",
+                              "receipt_sha256":  "9b8ee5e07dd52198f1da40b051564b92cf0133869d10ec995a270600098842a0"
+                          }
+                      ],
+    "patch_precheck_rc":  [
+                              0,
+                              0
+                          ],
+    "source_code_drift_after_baseline":  false,
+    "changed_files":  [
+                          "cmd/source_review.go",
+                          "cmd/source_review_test.go"
+                      ],
+    "targeted_qa":  {
+                        "source_review_tests_rc":  0,
+                        "source_review_go_vet_rc":  0,
+                        "git_diff_check_rc":  0,
+                        "source_review_product_prefix_test":  "PASS",
+                        "symlink_escape_case":  "SKIP_NO_WINDOWS_SYMLINK_PRIVILEGE",
+                        "go_version":  "go1.26.8 windows/amd64",
+                        "gotmpdir":  "D:\\Devbox\\AirWorker\\temp\\devwork31-g05c-go",
+                        "qa_output_remote_process_id":  17068
+                    },
+    "p0":  {
+               "accepted":  4,
+               "total":  8,
+               "native_nodes_closed":  0,
+               "gate_G07":  "OPEN_real_two_chat_disconnects_and_execution_unknown_unproven",
+               "gate_G06":  "OPEN_real_provider_failure_escalation_unproven",
+               "gate_G05":  "OPEN_final_frozen_SHA_N123_full_QA_Anthropic_and_Codex_Sol_low_rollback_missing",
+               "gate_G08":  "OPEN_0_of_4_native_nodes"
+           },
+    "self_learning":  {
+                          "procedure":  "LP-2dcd5e164b352092b65fbf08",
+                          "procedure_sha256":  "698d44b691c09d7a3e715ac330e206551b0db3b8846fec67e40b3e4698fcd165",
+                          "reused_without_new_proposal":  true,
+                          "operational_reuse":  "two saved Codex worktrees integrated after exact patch/receipt verification",
+                          "causal_prevention_effect":  "NOT_PROVEN"
+                      },
+    "chat_link":  {
+                      "own_session_ref":  "PRIVATE_ONLY",
+                      "recipient_session_ref":  "PRIVATE_ONLY",
+                      "hello_message_id":  "PRIVATE_ONLY",
+                      "queue_status_at_send":  "pending",
+                      "conversation_url":  "NOT_AVAILABLE_FROM_CONNECTOR",
+                      "reply":  "NOT_YET_OBSERVED"
+                  },
+    "release":  {
+                    "installed":  "0.11.11-rc.2",
+                    "candidate":  "0.11.11-rc.5",
+                    "status":  "SOURCE_ONLY_HOLD",
+                    "new_release":  false
+                },
+    "source_final_commit":  "REFER_TO_LIVE_GIT_AFTER_CHECKPOINT_COMMIT",
+    "next":  "G07 real cross-chat proof when available; G06 genuine causal failure when available; meanwhile freeze source and run G05 final SHA required QA and independent judges without repeating accepted G01-G04",
+    "notes":  "Source-only targeted PASS and worker DONE are not release QA or G05 PASS. No old workspaces, receipts, foreign WIP or processes were removed."
+}

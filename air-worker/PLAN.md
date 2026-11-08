@@ -1,5 +1,16 @@
 # PLAN — air-worker: механизм в бинарнике, скил — описание
 
+## Текущий checkpoint Dev Work 31 · 08.11.2026 · G05C salvaged (P0 всё ещё OPEN)
+
+**Прямое поручение ЛПР:** продолжить P0 по существующему PLAN, не делать третьего Codex-лидера; ChatGPT координирует ровно двух независимых Codex code writers. Ранее созданные Dev Work 30 две рабочие копии G05C восстановлены без повторного model dispatch из `D:/Devbox/AirWorker/worktrees/.airworker-coding-workspaces/awlrn-orch-pilot-20261104/e446540ac0ff9c1628/handoff.json`. Для обоих `DONE/exit=0`, две разные изменённые исходные Go-файла, patch SHA и sealed receipts совпали, `git apply --check` **2/2 RC0**. Координатор интегрировал оба патча: `cmd/source_review.go` и `cmd/source_review_test.go`; адресные `go test . -run TestSourceReview -count=1 -v -p 2`, `go vet -p 2 .` и `git diff --check` **RC0**. Windows symlink negative case **SKIP** из-за недостатка привилегии, не считать PASS. Точная машина/receipts: `docs/receipts/DEVWORK31_G05C_SALVAGE_20261108.json`. Старые G05C worktree/patch/receipt не удалять.
+
+**Актуальный P0:** 4/8 PASS, 4 OPEN; N123/N126/N136/N139 0/4 CLOSED. **G07 OPEN:** отсутствуют два реальных inter-GPT-chat disconnect у одного RUNNING job и живое `EXECUTION_UNKNOWN` с нулём новых запусков; unit-readback не подмена. **G06 OPEN:** vendor_limit только synthetic, нет настоящего same-TASK/SHA provider failure/stall. **G05 OPEN:** эти Go-тесты проверяют только адресную дельту, нужны чистый финальный source SHA, один required full N123 QA, Anthropic `TASK_READ_OK` PASS, независимый Codex Sol low PASS, обратимый rollback и GitHub readback. **G08 OPEN:** native close только после собственного done_when и квитанций. G01–G04 не повторять без новой причины. После точного checkpoint Git SHA source читать live; оперативную цель перепривязывать штатно, сохраняя исторический release-slices SHA.
+
+**Самообучение:** использовать уже `APPLIED` процедуру `LP-2dcd5e164b352092b65fbf08@698d44b691c09d7a3e715ac330e206551b0db3b8846fec67e40b3e4698fcd165`, не создавать дубль. В этой сессии она практически использована для контролируемой интеграции 2 настоящих worktree, targeted QA PASS; **измеренная причинная профилактика ошибки пока NOT_PROVEN**.
+
+**ChatLink:** текущая беседа получила собственный новый ChatLink session_ref; HELLO Vega отправлен, при отправке статус `pending`, подтверждённого ответа не было; chat URL инструмент не предоставляет — не выдумывать. Точные временные идентификаторы оставлены только в контексте частного чата, не публиковать в Git. Дальше G07→G06→G05→G08; когда межчатовые/live-failure proof недоступны, продолжать независимую source-only G05 QA. `rc.5` по-прежнему SOURCE_ONLY/HOLD, installed `rc.2` не менять.
+
+
 ## Актуальный checkpoint / 08.11.2026 · Dev Work 30 → следующая сессия
 
 **Основание:** ЛПР приказал зафиксировать наработки, привести существующие планы к реальным квитанциям, обучить штатную базу AirWorker и передать чистое дерево. Это checkpoint **не является** G05/G06/G07/G08 PASS, выпуском или установкой. **Источник правды:** `git rev-parse HEAD` текущей ветки, `tools/p0-progress.ps1` и штатные native receipts; observed baseline до handoff `028bff3e923dcbf340a663242829793b3a4e8250`. Финальный HEAD после коммита handoff считывать заново.

@@ -1,5 +1,14 @@
 # AirWorker · Dev Work 30 → следующая GPT-сессия · 08.11.2026
 
+## Дополнение Dev Work 31 · 08.11.2026 · G05C integration и последующая приёмка
+
+У новой беседы свой отдельный ChatLink session_ref; не наследовать Work 30. Точный идентификатор передан Vega приватным транспортом и не публикуется в Git. Загружено из двух уже созданных code-writing worktree `e446540ac0ff9c1628`, исходный baseline `028bff3`; два job `gpt__dw30g05c__1794114152126054100__d473bfaf` и `gpt__dw30g05c__1794114152126719400__19771374` DONE/RC0, патчи SHA `cf6864c6758c1272c513195ad392c051c8c09868a05ad5c0ec6e7c95926bbd18` и `89b50cc45bd910029b4aa287bece299eff252153a028148a30fb9c0c3468fef2`. Оба `git apply --check` RC0 на исходном `2f6aa1159`. ChatGPT-координатор интегрировал `cmd/source_review.go` и `cmd/source_review_test.go`, `go test . -run TestSourceReview -count=1 -v -p 2`/ `go vet -p 2 .`/ `git diff --check` RC0. **Symlink security case SKIP, не PASS**, Windows privilege absent. Source receipt `docs/receipts/DEVWORK31_G05C_SALVAGE_20261108.json`; final committed SHA всегда читать из Git, а не из старой записи.
+
+Это подтверждает G05C **адресную QA**, но не закрывает G05 и не отменяет G07→G06→G05→G08. P0 всё ещё 4/8, четыре native nodes OPEN. G07 нужна пара настоящих отдельных GPT-chat disconnect и EXECUTION_UNKNOWN/zero replay; G06 нужен реальный failure/stall вместо synthetic vendor_limit; для G05 — полный N123 QA + independent Anthropic и Codex Sol low + rollback на clean SHA. G01–G04 не повторять.
+
+ChatLink HELLO к Vega поставлен в очередь со своим новым session_ref; подтверждение ответа отдельно. Временные идентификаторы не включать в публичный Git. URL беседы недоступен в имеющемся connector, не угадывать. Рабочие G05C копии и квитанции оставить целыми. Shared-learning процедуру `LP-2dcd5e164b352092b65fbf08` не дублировать, G05C является реальным применением процедуры, но причинное предотвращение ошибки в новой сессии не доказано. `rc.5` SOURCE_ONLY/HOLD, installed `rc.2` unchanged.
+
+
 ## 0. Краткий статус и граница
 
 **Решение ЛПР:** сохранить сделанное, обновить **существующие** планы по фактам, оставить оба собственных Git-дерева чистыми, обучить действующую базу самообучения AirWorker результатам кодинга, закрепить последнюю схему оркестрации, продолжить P0 уже в новой сессии.

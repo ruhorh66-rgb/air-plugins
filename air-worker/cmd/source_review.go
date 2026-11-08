@@ -150,6 +150,26 @@ func sourceReviewCodeCitation(path string) bool {
 	}
 }
 
+func canonicalReviewPath(root, path string) (string, error) {
+	path = strings.ReplaceAll(strings.TrimSpace(path), `\`, "/")
+	if path == "" || strings.HasPrefix(path, "/") || strings.Contains(path, ":") {
+		return "", fmt.Errorf("invalid review citation path %q", path)
+	}
+	for _, part := range strings.Split(path, "/") {
+		if part == ".." {
+			return "", fmt.Errorf("invalid review citation path %q", path)
+		}
+	}
+	prefix := filepath.Base(filepath.Clean(root)) + "/"
+	if prefix == "air-worker/" && strings.HasPrefix(path, prefix) {
+		path = strings.TrimPrefix(path, prefix)
+		if strings.HasPrefix(filepath.ToSlash(filepath.Clean(path)), prefix) {
+			return "", fmt.Errorf("invalid review citation path %q", path)
+		}
+	}
+	return path, nil
+}
+
 func parseSourceReviewVerdict(raw, root, sourceSHA, taskSHA string) (sourceReviewVerdict, error) {
 	dec := json.NewDecoder(strings.NewReader(strings.TrimSpace(raw)))
 	dec.DisallowUnknownFields()
@@ -171,8 +191,14 @@ func parseSourceReviewVerdict(raw, root, sourceSHA, taskSHA string) (sourceRevie
 		return v, errors.New("source review evidence is missing or unbounded")
 	}
 	seen := make(map[string]bool)
-	for _, c := range v.Checked {
-		if err := verifyReviewCitation(root, c); err != nil {
+	for i := range v.Checked {
+		c := &v.Checked[i]
+		var err error
+		c.Path, err = canonicalReviewPath(root, c.Path)
+		if err != nil {
+			return v, err
+		}
+		if err := verifyReviewCitation(root, *c); err != nil {
 			return v, err
 		}
 		if !sourceReviewCodeCitation(c.Path) {
@@ -186,7 +212,13 @@ func parseSourceReviewVerdict(raw, root, sourceSHA, taskSHA string) (sourceRevie
 		}
 		seen[strings.ToLower(filepath.Clean(resolved))] = true
 	}
-	for _, finding := range v.Findings {
+	for i := range v.Findings {
+		finding := &v.Findings[i]
+		var err error
+		finding.Path, err = canonicalReviewPath(root, finding.Path)
+		if err != nil {
+			return v, err
+		}
 		if finding.Severity != "P0" && finding.Severity != "P1" &&
 			finding.Severity != "P2" && finding.Severity != "P3" {
 			return v, errors.New("invalid finding severity")
@@ -246,6 +278,7 @@ Output exactly ONE JSON object and no Markdown, in this contract:
  "findings":[{"severity":"P0|P1|P2|P3","path":"relative/file.go","line":15,
  "quote":"exact substring from that line","detail":"specific verified issue","next":"optional concise fix"}],
  "next":"concrete next action"}
+Citation paths must be relative to the product root, e.g. cmd/source_review.go, not air-worker/cmd/source_review.go.
 PASS_SOURCE_ONLY requires 0 findings and at least three distinct source-code citations.
 For PASS_SOURCE_ONLY, include EXACTLY THREE checked citations, one per DISTINCT
 source code file. Do not add a ninth or fourth redundant citation. Each line

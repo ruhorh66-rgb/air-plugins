@@ -475,3 +475,112 @@ func TestSourceReviewStructuredEnvelopeFailsClosed(t *testing.T) {
 		}
 	}
 }
+
+func TestSourceReviewProductPrefixCitations(t *testing.T) {
+	fixture, commit, task, refs := sourceReviewFixture(t)
+	root := filepath.Join(t.TempDir(), "air-worker")
+	for _, ref := range refs {
+		path := filepath.Join(root, filepath.FromSlash(ref.Path))
+		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+			t.Fatal(err)
+		}
+		data, err := os.ReadFile(filepath.Join(fixture, filepath.FromSlash(ref.Path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, data, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	valid := sourceReviewVerdict{Verdict: "PASS_SOURCE_ONLY", SourceCommit: commit, TaskSHA256: task,
+		TaskRead: "TASK_READ_OK", Checked: refs, Next: "review complete"}
+	for _, mixed := range []bool{false, true} {
+		v := valid
+		v.Checked = append([]sourceReviewLocation(nil), refs...)
+		for i := range v.Checked {
+			if !mixed || i != 1 {
+				v.Checked[i].Path = "air-worker/" + v.Checked[i].Path
+			}
+		}
+		got, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, task)
+		if err != nil {
+			t.Fatalf("mixed=%v: %v", mixed, err)
+		}
+		for i := range refs {
+			if got.Checked[i].Path != refs[i].Path {
+				t.Fatalf("citation not normalized: %+v", got.Checked[i])
+			}
+		}
+	}
+	for _, path := range []string{
+		"foreign/cmd/executor.go", "air-worker/air-worker/cmd/executor.go",
+		filepath.Join(root, "cmd", "executor.go"), "../cmd/executor.go", "air-worker/../cmd/executor.go",
+	} {
+		v := valid
+		v.Checked = append([]sourceReviewLocation(nil), refs...)
+		v.Checked[0].Path = path
+		if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, task); err == nil {
+			t.Errorf("accepted invalid path %q", path)
+		}
+	}
+	for _, mutate := range []func(*sourceReviewVerdict){
+		func(v *sourceReviewVerdict) { v.Checked[0].Quote = "invented quote" },
+		func(v *sourceReviewVerdict) { v.Checked[0].Line = 2 },
+		func(v *sourceReviewVerdict) { v.SourceCommit = strings.Repeat("c", 40) },
+		func(v *sourceReviewVerdict) { v.TaskSHA256 = strings.Repeat("d", 64) },
+		func(v *sourceReviewVerdict) {
+			v.Checked[1], v.Checked[2] = v.Checked[0], v.Checked[0]
+			v.Checked[1].Path = refs[0].Path
+			v.Checked[2].Path = "./" + refs[0].Path
+		},
+	} {
+		v := valid
+		v.Checked = append([]sourceReviewLocation(nil), refs...)
+		v.Checked[0].Path = "air-worker/" + v.Checked[0].Path
+		mutate(&v)
+		if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, task); err == nil {
+			t.Errorf("accepted invalid evidence: %+v", v)
+		}
+	}
+	payload := sourceReviewJSON(t, valid)
+	for _, raw := range []string{"prose " + payload, payload + " prose", payload + " {}"} {
+		if _, err := parseSourceReviewVerdict(raw, root, commit, task); err == nil {
+			t.Error("accepted extra prose or JSON")
+		}
+	}
+	v := valid
+	v.Verdict = "FAIL_P1"
+	v.Findings = []sourceReviewFinding{{Severity: "P1", Path: "air-worker/" + refs[0].Path, Line: refs[0].Line, Quote: refs[0].Quote, Detail: "verified finding"}}
+	got, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, task)
+	if err != nil || got.Findings[0].Path != refs[0].Path {
+		t.Fatalf("finding normalization: %+v %v", got, err)
+	}
+	v.Verdict = "PASS_SOURCE_ONLY"
+	if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, task); err == nil {
+		t.Error("P1 promoted to PASS")
+	}
+	v.Verdict, v.Findings[0].Severity = "FAIL_P1", "P0"
+	if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, task); err == nil {
+		t.Error("P0 downgraded to P1")
+	}
+	v.Verdict, v.Findings[0].Severity, v.Findings[0].Quote = "FAIL_P0", "P0", "invented quote"
+	if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, task); err == nil {
+		t.Error("accepted forged P0 citation")
+	}
+
+	outside := filepath.Join(t.TempDir(), "outside.go")
+	if err := os.WriteFile(outside, []byte(refs[0].Quote+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "cmd", "escape.go")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Logf("symlink unavailable: %v", err)
+		return
+	}
+	v = valid
+	v.Checked = append([]sourceReviewLocation(nil), refs...)
+	v.Checked[0].Path = "air-worker/cmd/escape.go"
+	if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, task); err == nil {
+		t.Error("accepted symlink escape")
+	}
+}
