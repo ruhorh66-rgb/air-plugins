@@ -74,6 +74,10 @@ func jobLockKind(step, operation string) string {
 // receipt; независимый scope (другая сессия, другой продукт) получает свой замок и не
 // блокируется.
 func startJobReceipt(scope sessionScope, step, operation, receiptPath, outputPath string) (*jobReceipt, *osLock, error) {
+	return startJobReceiptWithPreflight(scope, step, operation, receiptPath, outputPath, nil)
+}
+
+func startJobReceiptWithPreflight(scope sessionScope, step, operation, receiptPath, outputPath string, preflight func() error) (*jobReceipt, *osLock, error) {
 	canonicalReceipt, canonicalOutput := jobReceiptPaths(scope, step, operation)
 	if filepath.Clean(receiptPath) == filepath.Clean(canonicalReceipt) || filepath.Clean(outputPath) == filepath.Clean(canonicalOutput) {
 		if err := validateJobDir(scope.Root); err != nil {
@@ -84,6 +88,12 @@ func startJobReceipt(scope sessionScope, step, operation, receiptPath, outputPat
 	if !ok {
 		return nil, nil, fmt.Errorf("ОТКАЗ: job %s/%s уже запущен в scope %s — duplicate start внутри owned scope запрещён",
 			step, operation, scope.key())
+	}
+	if preflight != nil {
+		if err := preflight(); err != nil {
+			lock.release()
+			return nil, nil, err
+		}
 	}
 
 	// The path is deterministic across reconnects. A per-process lock alone only
@@ -350,6 +360,14 @@ func writeOwnedJobOutput(product, path string, data []byte) error {
 }
 
 func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operation string, cmd *exec.Cmd, meta jobReceiptMeta) ([]byte, error) {
+	return runReceiptedWithMetaAndPreflight(ctx, scope, step, operation, cmd, meta, nil)
+}
+
+func runReceiptedWithPreflight(ctx context.Context, scope sessionScope, step, operation string, cmd *exec.Cmd, preflight func() error) ([]byte, error) {
+	return runReceiptedWithMetaAndPreflight(ctx, scope, step, operation, cmd, jobReceiptMeta{}, preflight)
+}
+
+func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, step, operation string, cmd *exec.Cmd, meta jobReceiptMeta, preflight func() error) ([]byte, error) {
 	receiptPath, outputPath := jobReceiptPaths(scope, step, operation)
 	if err := validateJobDir(scope.Root); err != nil {
 		return nil, err
@@ -362,7 +380,7 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 	if err := root.MkdirAll(filepath.Join(".woody", "jobs"), 0o755); err != nil {
 		return nil, err
 	}
-	r, lock, err := startJobReceipt(scope, step, operation, receiptPath, outputPath)
+	r, lock, err := startJobReceiptWithPreflight(scope, step, operation, receiptPath, outputPath, preflight)
 	if err != nil {
 		return nil, err
 	}

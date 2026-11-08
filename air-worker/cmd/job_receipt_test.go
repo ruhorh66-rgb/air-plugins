@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -848,5 +849,123 @@ func TestExitCodeRejectsErrorAfterSuccessfulProcess(t *testing.T) {
 	}
 	if code := exitCode(cmd, nil); code != 0 {
 		t.Errorf("successful process without error returned exit code %d", code)
+	}
+}
+
+func TestJobReceiptPreflightRunsUnderNativeLock(t *testing.T) {
+	root := setupSessionProduct(t)
+	scope := newScope(root, sessionIdentity{"gpt", "preflight-lock"})
+	dir := t.TempDir()
+	receiptPath, outputPath := filepath.Join(dir, "receipt.json"), filepath.Join(dir, "output")
+	called := 0
+	preflight := func() error {
+		called++
+		if lock, ok := acquireLock(scopedLockName(jobLockKind("preflight", "locked"), scope)); ok {
+			lock.release()
+			return fmt.Errorf("native job lock was not held")
+		}
+		for _, path := range []string{receiptPath, outputPath} {
+			if _, err := os.Lstat(path); !os.IsNotExist(err) {
+				return fmt.Errorf("evidence existed during preflight at %s: %v", path, err)
+			}
+		}
+		return nil
+	}
+	r, lock, err := startJobReceiptWithPreflight(scope, "preflight", "locked", receiptPath, outputPath, preflight)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.release()
+	if r == nil || called != 1 {
+		t.Fatalf("preflight calls=%d receipt=%+v", called, r)
+	}
+	if _, secondLock, err := startJobReceiptWithPreflight(scope, "preflight", "locked", filepath.Join(dir, "second.json"), filepath.Join(dir, "second.out"), preflight); err == nil {
+		if secondLock != nil {
+			secondLock.release()
+		}
+		t.Fatal("parallel start acquired the original native job lock")
+	} else if called != 1 {
+		t.Fatalf("busy start called preflight: %d", called)
+	}
+}
+
+func TestJobReceiptPreflightFailureLeavesNoEvidenceOrChild(t *testing.T) {
+	root := setupSessionProduct(t)
+	scope := newScope(root, sessionIdentity{"gpt", "preflight-failure"})
+	receiptPath, outputPath := jobReceiptPaths(scope, "preflight", "failure")
+	marker := filepath.Join(t.TempDir(), "child-started")
+	t.Setenv("AW_N123_CHILD_MARKER", marker)
+	cmd := exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$")
+	called := 0
+	want := fmt.Errorf("shared preflight refused")
+	output, err := runReceiptedWithPreflight(context.Background(), scope, "preflight", "failure", cmd, func() error {
+		called++
+		return want
+	})
+	if !errors.Is(err, want) || called != 1 || len(output) != 0 {
+		t.Fatalf("preflight failure: calls=%d output=%q err=%v", called, output, err)
+	}
+	for _, path := range []string{receiptPath, outputPath, marker} {
+		if _, err := os.Lstat(path); !os.IsNotExist(err) {
+			t.Fatalf("preflight failure created %s: %v", path, err)
+		}
+	}
+	if cmd.Process != nil {
+		t.Fatal("child process started after preflight failure")
+	}
+	r, lock, err := startJobReceipt(scope, "preflight", "failure", receiptPath, outputPath)
+	if err != nil {
+		t.Fatalf("ordinary start after preflight failure: %v", err)
+	}
+	lock.release()
+	if r.Status != jobStatusRunning {
+		t.Fatalf("ordinary start changed semantics: %+v", r)
+	}
+}
+
+func TestJobReceiptPreflightRejectsBusySharedLock(t *testing.T) {
+	root := setupSessionProduct(t)
+	scope := newScope(root, sessionIdentity{"gpt", "shared-busy"})
+	receiptPath, outputPath := jobReceiptPaths(scope, "preflight", "busy")
+	shared, ok := acquireLock("preflight-shared-busy")
+	if !ok {
+		t.Fatal("could not arrange busy shared lock")
+	}
+	defer shared.release()
+	called := 0
+	_, lock, err := startJobReceiptWithPreflight(scope, "preflight", "busy", receiptPath, outputPath, func() error {
+		called++
+		if other, ok := acquireLock("preflight-shared-busy"); ok {
+			other.release()
+			return fmt.Errorf("busy shared lock was acquired")
+		}
+		return fmt.Errorf("shared lock busy")
+	})
+	if lock != nil {
+		lock.release()
+	}
+	if err == nil || err.Error() != "shared lock busy" || called != 1 {
+		t.Fatalf("busy shared lock: calls=%d err=%v", called, err)
+	}
+	for _, path := range []string{receiptPath, outputPath} {
+		if _, err := os.Lstat(path); !os.IsNotExist(err) {
+			t.Fatalf("busy shared lock created %s: %v", path, err)
+		}
+	}
+}
+
+func TestRunReceiptedNilPreflightKeepsLegacyBehavior(t *testing.T) {
+	root := setupSessionProduct(t)
+	scope := newScope(root, sessionIdentity{"gpt", "nil-preflight"})
+	t.Setenv("AW_N123_CHILD_MARKER", filepath.Join(t.TempDir(), "child-started"))
+	cmd := exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$")
+	output, err := runReceiptedWithPreflight(context.Background(), scope, "preflight", "nil", cmd, nil)
+	if err != nil || string(output) != jobReceiptStdoutMarker {
+		t.Fatalf("nil preflight output=%q err=%v", output, err)
+	}
+	receiptPath, outputPath := jobReceiptPaths(scope, "preflight", "nil")
+	r, err := readJobReceipt(receiptPath)
+	if err != nil || r.Status != jobStatusDone || r.OutputPath != outputPath {
+		t.Fatalf("nil preflight receipt=%+v err=%v", r, err)
 	}
 }
