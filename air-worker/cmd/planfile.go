@@ -107,6 +107,8 @@ type workStep struct {
 	Cmd   string
 	Judge string
 	Gate  bool
+	// CodingTask is an explicitly supplied, prevalidated in-memory two-worker task.
+	CodingTask string
 }
 
 const protectedPlanPipe = "\uE000"

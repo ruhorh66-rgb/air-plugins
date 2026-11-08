@@ -179,6 +179,11 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 	if c.WhatIf {
 		return stepResult{Ok: true, Session: "whatif", Subtype: "whatif"}
 	}
+	if c.Orchestrate && runner.Kind == "codex" && c.Cfg.Orchestration.RequireNativeSubagents {
+		if _, err := parseCodingMicrosteps(step.CodingTask); err != nil {
+			return stepResult{Subtype: "invalid_coding_task", Detail: err.Error()}
+		}
+	}
 	if runner.Kind == "openai" {
 		return c.invokeOpenAI(prompt, runner, step.Num)
 	}
@@ -203,6 +208,9 @@ func (c *loopCtx) runModelStep(step workStep, tier, judgeText string, runner run
 	}
 	if runner.Kind == "codex" {
 		if c.Orchestrate {
+			if c.Cfg.Orchestration.RequireNativeSubagents {
+				return c.invokeCodexOrchestrated(exePath, step.CodingTask, runner, step.Num)
+			}
 			return c.invokeCodexOrchestrated(exePath, prompt, runner, step.Num)
 		}
 		return c.invokeCodex(exePath, prompt, runner, step.Num)
