@@ -1,0 +1,77 @@
+{
+  "schema": "air-worker.devwork31.g05-independent-review-conflict/v1",
+  "observed_sgt_date": "2026-11-08",
+  "source_sha": "cd81e46205cf834996acf33f801f75d75a06d889",
+  "source_clean_at_both_reviews": true,
+  "shared_task_path": ".woody/qa/devwork31-final-g05/N123_SOURCE_REVIEW_FINAL_SHA.md",
+  "shared_task_sha256": "5dc1d4b40c889acdbcd88b54110d092fd6c39661d38d3bad17aeec772a33c625",
+  "anthropic_native": {
+    "reviewer": "claude-sonnet-5-5",
+    "native_cli": "air-worker review source",
+    "source_sha": "cd81e46205cf834996acf33f801f75d75a06d889",
+    "state": "PASS_SOURCE_ONLY",
+    "task_read": "TASK_READ_OK",
+    "terminal_status": "DONE",
+    "exit_code": 0,
+    "native_receipt_sha256": "3876f05042e3c005c37688703ed6debd34ecd23f353566c9a6a3f2ab823456f5",
+    "native_output_sha256": "ddab899e607a2f178cb127a2e9c694f845c0640bcf40274848d91f4821cba5a4",
+    "report_sha256": "56217c12c301b575feb225a97b31ddbfd54d530288892268b4c9e10814eb17d4",
+    "citation_files": [
+      "cmd/job_receipt.go",
+      "cmd/job_status.go",
+      "cmd/judge.go"
+    ],
+    "limitations": "source-only reviewer did not read N123/N124 unit-test files; not G05 acceptance"
+  },
+  "codex_independent": {
+    "reviewer": "gpt-6-sol",
+    "effort": "low",
+    "sandbox": "read-only",
+    "cli": "codex exec --sandbox read-only --ephemeral --output-schema",
+    "process_exit": 0,
+    "source_sha": "cd81e46205cf834996acf33f801f75d75a06d889",
+    "task_read": "TASK_READ_OK",
+    "verdict": "FAIL_P1",
+    "answer_sha256": "cba69b7ff97353e2a2573ea8fcce425562d8333d5ec168eb3d79edef1783292b",
+    "events_sha256": "4619ad487e8a0287239ba7b554f600405d89ac9800da5bbfb0d5612befb6b0e4",
+    "prompt_sha256": "0015d107f0ae19e23a88816bd7d5aacf9ba81bb428dd0fbe2a9c810dea251ffc",
+    "schema_sha256": "36fc86a2c56b758d517b72ad206c6e20b7f0e6b5fb2c460671406f0b2123d461",
+    "findings": [
+      {
+        "severity": "P1",
+        "code_path": "cmd/job_receipt.go",
+        "line": 226,
+        "quote": "if err := os.MkdirAll(filepath.Dir(receiptPath), 0o755); err != nil {",
+        "problem": "Before journal mkdir/write there is no proof that .woody/jobs resolves inside product; symlink/reparse redirects writes to foreign path."
+      },
+      {
+        "severity": "P1",
+        "code_path": "cmd/job_receipt.go",
+        "line": 142,
+        "quote": "if statErr == nil && info.Mode().IsRegular() && info.Size() <= (32<<20) {",
+        "problem": "Actual child successful exit with >32MiB output can record DONE without an output SHA; terminal state false-positive while readback refuses unsealed evidence."
+      }
+    ],
+    "notes": "Independent model verdict alone not closure; source citations read independently in current conversation, production tests pending."
+  },
+  "p0": {
+    "passed": 4,
+    "total": 8,
+    "open": [
+      "G05",
+      "G06",
+      "G07",
+      "G08"
+    ],
+    "native_closed": 0,
+    "accepted_no_rework": [
+      "G01",
+      "G02",
+      "G03",
+      "G04",
+      "N123 previously accepted source-only targeted tests",
+      "G05C source review implementation"
+    ]
+  },
+  "next": "Target exactly two new verified P1 defects via two Codex coding microsteps and independent negative tests; no N123/G05C reimplementation, no UAC/foreign writes. On corrected final SHA recheck source/security judges."
+}
