@@ -1,0 +1,20 @@
+{
+  "schema": "air-worker.coding-microsteps/v1",
+  "context": "P0 AirWorker 2026-11-08. Investigated concrete defect: Windows atomic write creates os.CreateTemp(dir,'.'+basename+'.*.tmp'); accepted native receipt basename 235 chars produces temporary component 250 (PASS), newer basename 243 produces temporary component 258 (FAIL; NTFS limit 255). Hence 2 native Codex writer jobs in failed LONG-NAMED scope yielded NOT_PROVEN, no receipt and no provider call. Original failing handoff/worktrees must remain untouched. This SHORT-NAMED task is a distinct source-only corrective slice on clean source HEAD 01127910355799158142dcc4f70d7d46267509b8. ChatGPT coordinator; exactly two Codex code-writing workers each writes one file in separate Git worktree; no third Codex leader. Do not release/install, alter privileges, clean foreign/old workspace or invoke full QA. Reuse existing atomic writer; preserve crash-safe/immutable receipt and durable intent semantics.",
+  "workers": [
+    {
+      "index": 1,
+      "title": "Fix Windows atomic publication temp filename length without weakening atomicity",
+      "file": "cmd/lock_windows.go",
+      "done_when": "Both writeFileAtomic and writeFileAtomicDurable can safely publish valid near-max-length receipt paths (e.g. base filename length 243) without creating an over-255-character temporary basename; tmp stays inside destination directory, same-volume atomic replacement, unique O_EXCL CreateTemp, no overwrite of foreign evidence or weakening durable flush. Existing shorter paths work and existing writeFileAtomic failure/security semantics unchanged.",
+      "instructions": "ONLY MODIFY cmd/lock_windows.go. Current functions both call os.CreateTemp(dir, \".\"+filepath.Base(path)+\".*.tmp\"), so 243-char basename generates 258-byte final temp component and fails Windows NTFS even though target filename is valid. Add small deterministic helper e.g. atomicTempPattern(path string) whose ordinary short basename keeps the historical pattern; for long names (safe conservative threshold about 220 bytes) use SHA256 of filepath.Base(path) as a bounded anonymous temporary prefix (e.g. '.aw-' + first 16 hex + '-*.tmp'). Use the SAME helper in writeFileAtomic and writeFileAtomicDurable, no new filesystem/bridge or privilege. Never truncate or rewrite final destination basename or receipt contents. Use os.CreateTemp to generate random unique same-directory temp; keep existing replaceFileAtomicWindows, cleanup, durability and ACL. Do not change lockName, acquireLock, any other file, PLAN, installed binary, old receipt evidence. Small scoped source diff; no full Go suite."
+    },
+    {
+      "index": 2,
+      "title": "Prove near-max NTFS receipt names round-trip through atomic and durable writes",
+      "file": "cmd/lock_windows_test.go",
+      "done_when": "New targeted Windows Go tests for existing native atomic/durable writers create valid long target component (around 243 chars), show both writeFileAtomic and writeFileAtomicDurable succeed, preserve byte-exact reads after overwrite and no temp-file leak; test also confirms no changes outside t.TempDir and existing short-name atomic regressions still pass. Before worker1 code integration these new tests should fail with overlong temporary-name error (do not report PASS).",
+      "instructions": "ONLY MODIFY cmd/lock_windows_test.go. Create one or two bounded Windows-specific tests using t.TempDir and filepath.Join with a 243-character **single filename component** (e.g. strings.Repeat('n',230)+'.receipt.json' exact 243). Test writeFileAtomic twice with separate contents and file readback, writeFileAtomicDurable twice similarly, verify no '.aw-*' or original temp suffix remains and destination file length remains 243. If OS cannot support 243-character final file at that location, show NOT_PROVEN, not PASS. May test atomicTempPattern directly if worker1 exports unexported helper to same package, but prefer externally observed behavior. No external files, no privileged actions, no other test files. Targeted test only, not full Go suite."
+    }
+  ]
+}
