@@ -172,6 +172,11 @@ func codingWorkerTask(task codingMicrosteps, w codingMicrostep, taskSHA, head st
 	return fmt.Sprintf("CODING WORKER %d OF 2. You are a CODE WRITER in your OWN isolated Git worktree. Edit only your assigned file. Do not modify other workspaces, shared source, PLAN, Git metadata or credentials. Do not commit. The ChatGPT conversation is your coordinator.\n\nCOORDINATOR TASK:\n%s\n", w.Index, raw)
 }
 
+func codingWorkerPrompt(taskPath, fullTask string) string {
+	return "AUTHORITATIVE WORKER TASK (also saved at " + taskPath + " for audit):\n" + fullTask +
+		"\nEdit the actual files inside YOUR worktree, run bounded checks if needed, and give a concise report. Your actual Git diff, not your prose, is the evidence."
+}
+
 func gitCodingOutput(root string, args ...string) (string, error) {
 	argv := append([]string{"-C", root}, args...)
 	cmd := exec.Command("git", argv...)
@@ -368,8 +373,7 @@ func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner ru
 				ch <- outcome{work}
 				return
 			}
-			prompt := "READ THIS WORKER TASK FILE FIRST: " + taskPath +
-				"\nEdit the actual files inside YOUR worktree, run bounded checks if needed, and give a concise report. Your actual Git diff, not your prose, is the evidence."
+			prompt := codingWorkerPrompt(taskPath, fullTask)
 			cmd := codexCommandForSandbox(exePath, dirs[i-1], prompt, runner, "workspace-write")
 			agentStep := fmt.Sprintf("%s-coding-worker-%d", step, i)
 			operation := runnerReceiptOperation("executor-codex-subagent", runner, c.iter) + "-task-" + shaCodingBytes([]byte(task))
@@ -989,9 +993,14 @@ func cmdCodingEscalate(argv []string) int {
 			if err != nil || string(actual) != fullTask {
 				return errors.New("original worker task mismatch")
 			}
-			prompt := "READ THIS WORKER TASK FILE FIRST: " + taskPath + "\nEdit the actual files inside YOUR worktree, run bounded checks if needed, and give a concise report. Your actual Git diff, not your prose, is the evidence."
-			if jobCommandFingerprint(codexCommandForSandbox(exe, workerRoot, prompt, runner, "workspace-write")) != snap.ArgsSHA256 {
+			prompt := codingWorkerPrompt(taskPath, fullTask)
+			expectedCmd := codexCommandForSandbox(exe, workerRoot, prompt, runner, "workspace-write")
+			if jobCommandFingerprint(expectedCmd) != snap.ArgsSHA256 {
 				return errors.New("original command fingerprint mismatch")
+			}
+			expectedStdin := jobStdinFingerprint(expectedCmd)
+			if expectedStdin == "" || r.StdinSHA256 == "" || r.StdinSHA256 != expectedStdin {
+				return errors.New("original measured stdin fingerprint mismatch")
 			}
 			changes, err := gitCodingOutput(workerRoot, "status", "--porcelain", "--", ".", ":(exclude).woody")
 			if err != nil || changes != "" {

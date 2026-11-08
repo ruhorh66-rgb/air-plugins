@@ -581,7 +581,7 @@ func TestCodingEscalation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("requires local Git worktrees")
 	}
-	for _, scenario := range []string{"vendor_limit", "narrative", "running", "unknown", "task_changed", "head_changed"} {
+	for _, scenario := range []string{"vendor_limit", "narrative", "running", "unknown", "stdin_forged", "stdin_missing", "task_changed", "worker_task_changed", "head_changed"} {
 		t.Run(scenario, func(t *testing.T) {
 			root, state := t.TempDir(), t.TempDir()
 			for name, body := range map[string]string{
@@ -658,19 +658,28 @@ func TestCodingEscalation(t *testing.T) {
 			}
 			for _, w := range original.Workers {
 				r, err := readJobReceipt(w.Receipt)
-				if err != nil || r == nil || r.SourceHead != head || r.ArgsSHA256 == "" || r.OutputSHA256 == "" || r.ExitCode == nil || r.RecoveryRef == "" {
+				if err != nil || r == nil || r.SourceHead != head || r.ArgsSHA256 == "" || r.StdinSHA256 == "" || r.OutputSHA256 == "" || r.ExitCode == nil || r.RecoveryRef == "" {
 					t.Fatalf("unsealed receipt: %+v %v", r, err)
 				}
 				if scenario != "narrative" && (r.Status != jobStatusFailed || *r.ExitCode == 0) {
 					t.Fatalf("expected failed receipt: %+v", r)
 				}
+				output, err := os.ReadFile(r.OutputPath)
+				if err != nil || !strings.Contains(string(output), "INLINE_TASK_PRESENT") {
+					t.Fatalf("original task was not supplied inline: %v %s", err, output)
+				}
 			}
-			if scenario == "running" || scenario == "unknown" {
+			if scenario == "running" || scenario == "unknown" || scenario == "stdin_forged" || scenario == "stdin_missing" {
 				r, _ := readJobReceipt(original.Workers[0].Receipt)
-				if scenario == "running" {
+				switch scenario {
+				case "running":
 					r.Status = jobStatusRunning
-				} else {
+				case "unknown":
 					r.OutputSHA256 = ""
+				case "stdin_forged":
+					r.StdinSHA256 = strings.Repeat("0", 64)
+				case "stdin_missing":
+					r.StdinSHA256 = ""
 				}
 				if err := writeJobReceipt(original.Workers[0].Receipt, r); err != nil {
 					t.Fatal(err)
@@ -678,6 +687,12 @@ func TestCodingEscalation(t *testing.T) {
 			}
 			if scenario == "task_changed" {
 				if err := os.WriteFile(taskPath, []byte("different task\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if scenario == "worker_task_changed" {
+				workerTask := filepath.Join(original.Workers[0].Product, ".woody", "TASK-CODE-WORKER.md")
+				if err := os.WriteFile(workerTask, []byte("different worker task\n"), 0600); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -770,6 +785,10 @@ func TestCodingEscalation(t *testing.T) {
 func TestCodingEscalationHelper(t *testing.T) {
 	if os.Getenv("AW_ESCALATION_HELPER") != "1" {
 		return
+	}
+	input, _ := io.ReadAll(os.Stdin)
+	if task, err := os.ReadFile(filepath.Join(".woody", "TASK-CODE-WORKER.md")); err == nil && strings.Contains(string(input), string(task)) {
+		fmt.Println(`{"type":"item.completed","item":{"type":"agent_message","text":"INLINE_TASK_PRESENT"}}`)
 	}
 	mode := ""
 	if len(os.Args) >= 2 {
