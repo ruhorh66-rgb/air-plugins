@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -79,6 +80,16 @@ func runN139Step(c *loopCtx, goal operationalGoal, verify func(string, operation
 		line("NOT_PROVEN: ORPHAN_JOB_OUTPUT; do not redispatch")
 		return 2
 	}
+	if c.Orchestrate && c.Cfg.Orchestration.RequireNativeSubagents {
+		task, err := selectN139CodingTask(c.Root, goal)
+		if err != nil {
+			line("NOT_PROVEN: N139_CODING_TASK_UNBOUND: " + err.Error())
+			return 2
+		}
+		step.CodingTask = task
+		step.Title = "N139 execute the source-bound two-worker coding task"
+		step.Judge = "ChatGPT coordinates two isolated code writers; factual and semantic acceptance remain independent"
+	}
 	before, err := n139SourceDigest(c.Root)
 	if err != nil {
 		line("NOT_PROVEN: SOURCE_BEFORE: " + err.Error())
@@ -116,6 +127,17 @@ func runN139Step(c *loopCtx, goal operationalGoal, verify func(string, operation
 			absent = append(absent, path)
 		} else {
 			line("NOT_PROVEN: PROTECTED_SNAPSHOT: " + readErr.Error())
+			return 2
+		}
+	}
+	if step.CodingTask != "" {
+		if err := verify(c.Root, goal); err != nil {
+			line("NOT_PROVEN: SELECTOR_CHANGED: " + err.Error())
+			return 2
+		}
+		task, err := selectN139CodingTask(c.Root, goal)
+		if err != nil || task != step.CodingTask {
+			line(fmt.Sprintf("NOT_PROVEN: N139_CODING_TASK_CHANGED: %v", err))
 			return 2
 		}
 	}
@@ -177,6 +199,77 @@ func runN139Step(c *loopCtx, goal operationalGoal, verify func(string, operation
 	}
 	line("NOT_PROVEN: N139_FULL_DONE_WHEN_UNPROVEN: source write, factual Go and semantic PASS are evidence; native node remains open")
 	return 2
+}
+
+var n139TaskMarker = regexp.MustCompile(`(?m)^<!-- air-worker-coding-task: (docs/tasks/[A-Za-z0-9_][A-Za-z0-9_.-]*\.json) sha256=([0-9a-f]{64}) -->\r?$`)
+
+// selectN139CodingTask accepts only the live bytes of regular files tracked at the selected HEAD.
+func selectN139CodingTask(root string, goal operationalGoal) (string, error) {
+	nodePath, err := planNodePathByID(root, goal.NodeID)
+	if err != nil {
+		return "", err
+	}
+	if err := verifyPlanRephaseControlledPaths(root, nodePath); err != nil {
+		return "", err
+	}
+	node, err := os.ReadFile(nodePath)
+	if err != nil || len(node) > 1<<20 {
+		return "", errors.New("node missing or oversized")
+	}
+	matches := n139TaskMarker.FindAllSubmatch(node, -1)
+	if len(matches) != 1 || bytes.Count(node, []byte("air-worker-coding-task:")) != 1 {
+		return "", errors.New("exactly one valid N139 coding task marker required")
+	}
+	relTask := string(matches[0][1])
+	taskPath := filepath.Join(root, filepath.FromSlash(relTask))
+	if err := verifyPlanRephaseControlledPaths(root, filepath.Join(root, "docs"), filepath.Join(root, "docs", "tasks"), taskPath); err != nil {
+		return "", err
+	}
+	info, err := os.Lstat(taskPath)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > 48*1024 {
+		return "", errors.New("task missing, non-regular, or oversized")
+	}
+	task, err := os.ReadFile(taskPath)
+	if err != nil || len(task) > 48*1024 {
+		return "", errors.New("task unreadable or oversized")
+	}
+	if fmt.Sprintf("%x", sha256.Sum256(task)) != string(matches[0][2]) {
+		return "", errors.New("task SHA256 mismatch")
+	}
+	if _, err := parseCodingMicrosteps(string(task)); err != nil {
+		return "", err
+	}
+	head, err := gitCodingOutput(root, "rev-parse", "HEAD")
+	if err != nil || head != goal.SourceHead {
+		return "", errors.New("source HEAD changed")
+	}
+	for _, item := range []struct {
+		path string
+		live []byte
+	}{{filepath.ToSlash(filepath.Join("plan", filepath.Base(nodePath))), node}, {relTask, task}} {
+		state, stateErr := gitCodingOutput(root, "status", "--porcelain=v1", "--untracked-files=all", "--", item.path)
+		if stateErr != nil || state != "" {
+			return "", fmt.Errorf("tracked file is not clean: %s", item.path)
+		}
+		mode, err := gitCodingOutput(root, "ls-tree", "HEAD", "--", item.path)
+		if err != nil || (!strings.HasPrefix(mode, "100644 blob ") && !strings.HasPrefix(mode, "100755 blob ")) || !strings.HasSuffix(mode, "\t"+item.path) {
+			return "", fmt.Errorf("file is not a regular tracked HEAD blob: %s", item.path)
+		}
+		size, err := gitCodingOutput(root, "cat-file", "-s", "HEAD:"+item.path)
+		if err != nil || size != fmt.Sprint(len(item.live)) {
+			return "", fmt.Errorf("HEAD blob size differs from live file: %s", item.path)
+		}
+		blob := exec.Command("git", "-C", root, "show", "HEAD:"+item.path)
+		committed, err := blob.Output()
+		if err != nil || !bytes.Equal(committed, item.live) {
+			return "", fmt.Errorf("live file differs from HEAD: %s", item.path)
+		}
+	}
+	head, err = gitCodingOutput(root, "rev-parse", "HEAD")
+	if err != nil || head != goal.SourceHead {
+		return "", errors.New("source HEAD changed during task selection")
+	}
+	return string(task), nil
 }
 
 func n139SourceDigest(root string) ([]byte, error) {
