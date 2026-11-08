@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -255,25 +256,60 @@ func lastRouteEvidence(path string) routerRouteEvidence {
 }
 
 type loggedProcess struct {
-	cmd *exec.Cmd
-	log *os.File
+	cmd  *exec.Cmd
+	log  *os.File
+	tree *routerOwnedTree
+
+	mu     sync.Mutex
+	done   chan struct{}
+	err    error
+	waited bool
 }
+
+// Retain owned handles when cleanup fails or times out so they can be reconciled.
+var routerProcesses = struct {
+	sync.Mutex
+	pending map[*loggedProcess]struct{}
+}{pending: make(map[*loggedProcess]struct{})}
 
 func stopProcess(p *loggedProcess) error {
 	if p == nil {
 		return nil
 	}
-	done := make(chan error, 1)
-	go func() {
-		err := terminateLearningProcessTree(p.cmd)
-		_ = p.cmd.Wait()
-		if closeErr := p.log.Close(); err == nil {
-			err = closeErr
-		}
-		done <- err
-	}()
+	p.mu.Lock()
+	if p.done == nil {
+		p.done = make(chan struct{})
+		done := p.done
+		go func() {
+			err := stopRouterOwnedTree(p.tree)
+			if err == nil {
+				if !p.waited {
+					_ = p.cmd.Wait()
+					p.waited = true
+				}
+				err = p.log.Close()
+			}
+			p.mu.Lock()
+			p.err = err
+			if err == nil {
+				routerProcesses.Lock()
+				delete(routerProcesses.pending, p)
+				routerProcesses.Unlock()
+			}
+			close(done)
+			p.mu.Unlock()
+		}()
+	}
+	done := p.done
+	p.mu.Unlock()
 	select {
-	case err := <-done:
+	case <-done:
+		p.mu.Lock()
+		err := p.err
+		if err != nil && !p.waited {
+			p.done = nil
+		}
+		p.mu.Unlock()
 		return err
 	case <-time.After(5 * time.Second):
 		return fmt.Errorf("process cleanup timed out")
@@ -331,12 +367,26 @@ func startLogged(cmd *exec.Cmd, logPath string) (*loggedProcess, error) {
 	}
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
-	prepareLearningProcessTree(cmd)
-	if err := cmd.Start(); err != nil {
-		_ = logFile.Close()
+	tree, err := startRouterOwnedTree(cmd)
+	if err != nil {
+		if tree == nil {
+			_ = logFile.Close()
+			return nil, err
+		}
+		p := &loggedProcess{cmd: cmd, log: logFile, tree: tree}
+		routerProcesses.Lock()
+		routerProcesses.pending[p] = struct{}{}
+		routerProcesses.Unlock()
+		if cleanupErr := stopProcess(p); cleanupErr != nil {
+			return nil, fmt.Errorf("%v; owned process cleanup: %w", err, cleanupErr)
+		}
 		return nil, err
 	}
-	return &loggedProcess{cmd: cmd, log: logFile}, nil
+	p := &loggedProcess{cmd: cmd, log: logFile, tree: tree}
+	routerProcesses.Lock()
+	routerProcesses.pending[p] = struct{}{}
+	routerProcesses.Unlock()
+	return p, nil
 }
 
 func openCodeServerEnv(configPath, dataDir, cacheDir, modelsURL string) []string {
@@ -546,12 +596,11 @@ func (c *loopCtx) invokeRouter(openCodePath, prompt string, runner runnerSpec, s
 		return stepResult{Session: session.ID, Subtype: "runner_error", Detail: err.Error()}
 	}
 	for _, process := range []**loggedProcess{&server, &bridge} {
-		p := *process
-		*process = nil
-		if err := stopProcess(p); err != nil {
+		if err := stopProcess(*process); err != nil {
 			cleanupOK = false
 			return stepResult{Session: session.ID, Subtype: "runner_error", Detail: "process cleanup: " + err.Error()}
 		}
+		*process = nil
 	}
 	if err := finishJobReceipt(receiptPath, jobStatusDone); err != nil {
 		return stepResult{Session: session.ID, Subtype: "runner_error", Detail: err.Error()}

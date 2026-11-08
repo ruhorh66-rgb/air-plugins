@@ -1,0 +1,17 @@
+{
+  "schema": "air-worker.devwork32.router-job-object/v1",
+  "baseline": "7c3e066b7659f04cb9c9f72d56cc755333c82864",
+  "trigger": "Codex Sol low FAIL_P1 on 191c156: root may exit before taskkill, leaving an owned descendant",
+  "integration_patch": "55355db553b4787d08650167f25c084b6d8ca638220d76c1d07aa987c3cb74d8",
+  "windows_patch": "979bae94f71cdaedbd12a050cb24becad35dbbf39a139685724feb76aa6e7d0e",
+  "test_patch": "8da30da383bd280e162975e10271d04b2dbde32363462d48093d287bc442e6e7",
+  "followup_task_sha256": "0f095c01c9a07c039ae2cc1e7d1e35b40f2b7639f472c0ed028a141a555a7284",
+  "coordinator_edits": "non-Windows process-group adapter; retain helper tree on startup error; test last Job Object handle close",
+  "code_sha256": "7ca28145e9098bcc22f9906233a9534dd884dc5b39fbe759e1cc17158186b1b3",
+  "windows_sha256": "3519d469d96611061acb108f96191f5b43179a83294129a858002653657e3951",
+  "tests_sha256": "be558951a0e383dca5b5d32282859c8e16dc6bcc2ae30bd6fe29c7131f3c8276",
+  "targeted": "PASS RC0: TestRouterOwnedTreeStopsChildAfterParentExit, TestRouterOwnedTreeStartStop, TestRouterOwnedTreeInvalidExecutable, TestRouterOwnedTreeKillsOnLastHandleClose, TestRouterStopProcessKillsOwnedTree, TestRouterMetadataWriteFailureStopsLaunch, TestCriterion66RouterExecutorCodexJudge",
+  "linux_cross_compile": "RC0",
+  "vet": "RC0",
+  "limits": "Tests under ordinary Windows Medium token, no UAC. Windows startup failure/cleanup failure branches and independent exact-SHA review remain required; previous FAIL_P1 not automatically converted to PASS. N124 deferred."
+}
