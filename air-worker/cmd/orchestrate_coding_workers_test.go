@@ -133,6 +133,9 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 		if err != nil || receipt == nil || receipt.Role != "coding-subagent/worker" {
 			t.Fatalf("worker %d receipt role: %+v, %v", i+1, receipt, err)
 		}
+		if !strings.Contains(receipt.Operation, "-v2-task-"+doc.TaskSHA256) || len(filepath.Base(w.Receipt)) > 255 {
+			t.Fatalf("worker %d operation or receipt name: %+v", i+1, receipt)
+		}
 		if w.Status != "CODE_WRITTEN_IN_OWN_WORKTREE" || w.PatchSHA256 == "" ||
 			w.Receipt == "" || w.Patch == "" || len(w.Changed) != 1 ||
 			!strings.HasSuffix(w.Changed[0], fmt.Sprintf("%c.go", 'a'+i)) {
@@ -209,6 +212,8 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 		{"missing arguments SHA", "", func(r *jobReceipt, value string) { r.ArgsSHA256 = value }},
 		{"malformed arguments SHA", "not-a-sha256", func(r *jobReceipt, value string) { r.ArgsSHA256 = value }},
 		{"nonhex arguments SHA", strings.Repeat("g", 64), func(r *jobReceipt, value string) { r.ArgsSHA256 = value }},
+		{"missing stdin SHA", "", func(r *jobReceipt, value string) { r.StdinSHA256 = value }},
+		{"forged stdin SHA", strings.Repeat("0", 64), func(r *jobReceipt, value string) { r.StdinSHA256 = value }},
 		{"missing recovery ref", "", func(r *jobReceipt, value string) { r.RecoveryRef = value }},
 		{"wrong recovery ref", "wrong-recovery-ref", func(r *jobReceipt, value string) { r.RecoveryRef = value }},
 	} {
@@ -220,12 +225,15 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 		if err := writeJobReceipt(doc.Workers[0].Receipt, &damaged); err != nil {
 			t.Fatal(err)
 		}
-		_, result := status(task, id.SessionKey)
+		rc, result := status(task, id.SessionKey)
 		if err := os.WriteFile(doc.Workers[0].Receipt, provenanceBytes, 0600); err != nil {
 			t.Fatal(err)
 		}
-		if strings.Contains(fmt.Sprint(result), "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION") {
-			t.Fatalf("%s accepted: %+v", test.name, result)
+		if strings.Contains(fmt.Sprint(result), "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION") || jobs.Load() != 2 {
+			t.Fatalf("%s accepted or launched jobs: rc=%d result=%+v jobs=%d", test.name, rc, result, jobs.Load())
+		}
+		if strings.Contains(test.name, "stdin SHA") && !strings.Contains(fmt.Sprint(result), "EXECUTION_UNKNOWN") {
+			t.Fatalf("%s did not preserve uncertainty: %+v", test.name, result)
 		}
 	}
 	assertRecovered()
@@ -350,6 +358,39 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 	_, unknownPID := status(task, id.SessionKey)
 	if !strings.Contains(fmt.Sprint(unknownPID), "EXECUTION_UNKNOWN") || strings.Contains(fmt.Sprint(unknownPID), "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION") {
 		t.Fatalf("missing PID recovery: %+v", unknownPID)
+	}
+	if err := os.WriteFile(doc.Workers[0].Receipt, receiptBytes, 0600); err != nil {
+		t.Fatal(err)
+	}
+	var legacy jobReceipt
+	if err := json.Unmarshal(receiptBytes, &legacy); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(legacy.Operation, "-v2-task-"+doc.TaskSHA256) {
+		t.Fatalf("new receipt lacks v2 marker: %s", legacy.Operation)
+	}
+	legacy.Operation = strings.Replace(legacy.Operation, "-v2-task-", "-task-", 1)
+	legacy.StdinSHA256 = ""
+	legacyPath, legacyOutput := jobReceiptPaths(ctx.scope(), legacy.Step, legacy.Operation)
+	oldOutput := legacy.OutputPath
+	if err := os.Rename(oldOutput, legacyOutput); err != nil { t.Fatal(err) }
+	legacy.OutputPath = legacyOutput
+	if legacyPath == doc.Workers[0].Receipt || len(filepath.Base(legacyPath)) > 255 {
+		t.Fatalf("invalid legacy receipt path: %s", legacyPath)
+	}
+	legacy.RecoveryRef = filepath.ToSlash(legacyPath) + "#job_id=" + legacy.JobID
+	if err := os.Remove(doc.Workers[0].Receipt); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeJobReceipt(legacyPath, &legacy); err != nil {
+		t.Fatal(err)
+	}
+	if rc, result := status(task, id.SessionKey); rc != 0 || !strings.Contains(fmt.Sprint(result), "LEGACY_UNMEASURED") || strings.Contains(fmt.Sprint(result), "NOT_PROVEN") || jobs.Load() != 2 {
+		t.Fatalf("legacy receipt readback: rc=%d result=%+v jobs=%d", rc, result, jobs.Load())
+	}
+	if err := os.Rename(legacyOutput, oldOutput); err != nil { t.Fatal(err) }
+	if err := os.Remove(legacyPath); err != nil {
+		t.Fatal(err)
 	}
 	if err := os.WriteFile(doc.Workers[0].Receipt, receiptBytes, 0600); err != nil {
 		t.Fatal(err)
@@ -542,7 +583,7 @@ func TestCodingMicrostepDispatch(t *testing.T) {
 	}
 	for _, w := range doc.Workers {
 		r, err := readJobReceipt(w.Receipt)
-		if err != nil || r == nil || !strings.HasSuffix(r.Operation, "-task-"+shaCodingBytes([]byte(valid))) || r.SourceHead != doc.SourceHead {
+		if err != nil || r == nil || !strings.HasSuffix(r.Operation, "-v2-task-"+shaCodingBytes([]byte(valid))) || r.SourceHead != doc.SourceHead || len(filepath.Base(w.Receipt)) > 255 {
 			t.Fatalf("lost receipt identity: %+v, %v", r, err)
 		}
 	}
@@ -658,7 +699,7 @@ func TestCodingEscalation(t *testing.T) {
 			}
 			for _, w := range original.Workers {
 				r, err := readJobReceipt(w.Receipt)
-				if err != nil || r == nil || r.SourceHead != head || r.ArgsSHA256 == "" || r.StdinSHA256 == "" || r.OutputSHA256 == "" || r.ExitCode == nil || r.RecoveryRef == "" {
+				if err != nil || r == nil || r.SourceHead != head || !strings.HasSuffix(r.Operation, "-v2-task-"+shaCodingBytes(body)) || r.ArgsSHA256 == "" || r.StdinSHA256 == "" || r.OutputSHA256 == "" || r.ExitCode == nil || r.RecoveryRef == "" || len(filepath.Base(w.Receipt)) > 255 {
 					t.Fatalf("unsealed receipt: %+v %v", r, err)
 				}
 				if scenario != "narrative" && (r.Status != jobStatusFailed || *r.ExitCode == 0) {

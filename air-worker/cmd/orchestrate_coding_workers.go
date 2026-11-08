@@ -35,6 +35,7 @@ type codingWorkerEvidence struct {
 	Status          string
 	Changed         []string
 	Error           string
+	Measurement     string `json:"measurement,omitempty"`
 }
 
 type codingWorkersHandoff struct {
@@ -376,7 +377,7 @@ func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner ru
 			prompt := codingWorkerPrompt(taskPath, fullTask)
 			cmd := codexCommandForSandbox(exePath, dirs[i-1], prompt, runner, "workspace-write")
 			agentStep := fmt.Sprintf("%s-coding-worker-%d", step, i)
-			operation := runnerReceiptOperation("executor-codex-subagent", runner, c.iter) + "-task-" + shaCodingBytes([]byte(task))
+			operation := runnerReceiptOperation("executor-codex-subagent", runner, c.iter) + "-v2-task-" + shaCodingBytes([]byte(task))
 			output, runErr := runReceiptedWithMeta(context.Background(), c.scope(), agentStep, operation,
 				cmd, codexReceiptMeta(runner, "coding-subagent/worker", "workspace-write"))
 			receiptPath, _ := jobReceiptPaths(c.scope(), agentStep, operation)
@@ -573,8 +574,13 @@ func cmdOrchestrateCode(argv []string) int {
 }
 
 // codingStatus reads only the original scope's durable evidence; it never starts a job.
-func codingStatus(root string, scope sessionScope, step, taskSHA string) (codingWorkersHandoff, error) {
+func codingStatus(root string, scope sessionScope, step, task string) (codingWorkersHandoff, error) {
 	doc := codingWorkersHandoff{Schema: "air-worker.chatgpt-coordinated-codex-workers/v1", Status: "NOT_FOUND", SourceProduct: root, WorkerCount: 2}
+	parsed, err := parseCodingMicrosteps(task)
+	if err != nil {
+		return doc, err
+	}
+	taskSHA := shaCodingBytes([]byte(task))
 	top, err := gitCodingOutput(root, "rev-parse", "--show-toplevel")
 	if err != nil {
 		return doc, err
@@ -649,6 +655,7 @@ func codingStatus(root string, scope sessionScope, step, taskSHA string) (coding
 		workerStep := fmt.Sprintf("%s-coding-worker-%d", step, i)
 		prefix := reNonWord.ReplaceAllString(scope.ID.namespace()+"__"+workerStep+"__executor-codex-subagent", "-")
 		var snap jobStatusSnapshot
+		var receipt *jobReceipt
 		found := false
 		for _, entry := range entries {
 			name := entry.Name()
@@ -677,6 +684,7 @@ func codingStatus(root string, scope sessionScope, step, taskSHA string) (coding
 				return doc, errors.New("foreign worker receipt")
 			}
 			found = true
+			receipt = r
 		}
 		if !found {
 			if w.JobID != "" {
@@ -708,6 +716,25 @@ func codingStatus(root string, scope sessionScope, step, taskSHA string) (coding
 			doc.SourceHead = snap.SourceHead
 		} else if snap.SourceHead != "" && doc.SourceHead != snap.SourceHead {
 			return doc, errors.New("receipt source mismatch")
+		}
+		if strings.HasSuffix(receipt.Operation, "-v2-task-"+taskSHA) || receipt.StdinSHA256 != "" {
+			product := filepath.Join(base, fmt.Sprintf("worker-%d", i), rel)
+			taskPath := filepath.Join(product, ".woody", "TASK-CODE-WORKER.md")
+			fullTask := codingWorkerTask(parsed, parsed.Workers[i-1], taskSHA, snap.SourceHead)
+			expected := shaCodingBytes([]byte(ponytailPrompt(codingWorkerPrompt(taskPath, fullTask))))
+			ownedErr := jobOwnedEvidencePath(base, taskPath)
+			var actual []byte
+			var readErr error
+			if ownedErr == nil {
+				actual, readErr = os.ReadFile(taskPath)
+			}
+			if ownedErr != nil || readErr != nil || string(actual) != fullTask || receipt.StdinSHA256 != expected {
+				w.Status = "EXECUTION_UNKNOWN"
+			} else {
+				w.Measurement = "STDIN_SHA256_VERIFIED"
+			}
+		} else {
+			w.Measurement = "LEGACY_UNMEASURED"
 		}
 		if w.Patch != "" {
 			product := filepath.Join(base, fmt.Sprintf("worker-%d", i), rel)
@@ -784,26 +811,22 @@ func cmdCodingStatus(argv []string) int {
 	if err == nil {
 		taskPath, err = taskFileInsideProduct(root, *task)
 	}
-	var taskSHA string
+	var taskBody []byte
 	if err == nil {
 		var f *os.File
 		f, err = os.Open(taskPath)
 		if err == nil {
-			var body []byte
-			body, err = io.ReadAll(io.LimitReader(f, 48*1024+1))
+			taskBody, err = io.ReadAll(io.LimitReader(f, 48*1024+1))
 			_ = f.Close()
-			if err == nil && (len(body) == 0 || len(body) > 48*1024) {
+			if err == nil && (len(taskBody) == 0 || len(taskBody) > 48*1024) {
 				err = errors.New("task must be readable and bounded (1..49152 bytes)")
-			}
-			if err == nil {
-				taskSHA = shaCodingBytes(body)
 			}
 		}
 	}
 	if err == nil {
-		doc, err = codingStatus(root, scope, "coord-"+filepath.Base(taskPath), taskSHA)
+		doc, err = codingStatus(root, scope, "coord-"+filepath.Base(taskPath), string(taskBody))
 		if err == nil {
-			retry, retryErr := codingStatus(root, scope, "coord-"+filepath.Base(taskPath)+"-retry-1", taskSHA)
+			retry, retryErr := codingStatus(root, scope, "coord-"+filepath.Base(taskPath)+"-retry-1", string(taskBody))
 			if retryErr != nil {
 				err = retryErr
 			} else if retry.Status != "NOT_FOUND" {
@@ -911,7 +934,7 @@ func cmdCodingEscalate(argv []string) int {
 			return errors.New("escalation already being inspected or launched")
 		}
 		defer lock.release()
-		original, err := codingStatus(root, scope, step, trace.TaskSHA256)
+		original, err := codingStatus(root, scope, step, string(body))
 		if err != nil {
 			return err
 		}
@@ -1013,7 +1036,7 @@ func cmdCodingEscalate(argv []string) int {
 		}
 		trace.Cause = "vendor_limit"
 		retryStep := step + "-retry-1"
-		retry, err := codingStatus(root, scope, retryStep, trace.TaskSHA256)
+		retry, err := codingStatus(root, scope, retryStep, string(body))
 		if err != nil {
 			return err
 		}
