@@ -1,0 +1,63 @@
+{
+    "schema":  "air-worker.devwork30.p0-g07-recovery-source-only/v1",
+    "owner":  "Dev Work 30 / SRVLM01",
+    "observed_sgt":  "2026-11-08",
+    "source_baseline":  "fdc6572e7bff6f62101b80377ba157aa4feef511",
+    "source_final_commit":  "PENDING_COMMIT_AFTER_QA",
+    "mode":  "ChatGPT coordinator + TWO native GPT-6.1 Terra code-writing workers (own Git worktrees); NO third model leader",
+    "native_worker_handoff_status":  "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION",
+    "native_workers":  [
+                           {
+                               "worker":  1,
+                               "job_id":  "gpt__devwork30-p0-g07-recovery-20261108__1794112346637950600__ab1bf587",
+                               "model":  "gpt-6.1-terra",
+                               "source_head":  "fdc6572e7bff6f62101b80377ba157aa4feef511",
+                               "receipt_path":  "D:\\Devbox\\AirWorker\\worktrees\\awlrn-orch-pilot-20261104\\air-worker\\.woody\\jobs\\gpt-devwork30-p0-g07-recovery-20261108-coord-DEVWORK30-P0-G07-TWO-CODERS-RECOVERY-20261108-md-coding-worker-1-executor-codex-subagent-gpt-6-1-terra-low.receipt.json",
+                               "receipt_sha256":  "4d3e49b2a454c96aae8d1c4dabfa07c47b5ac32105de47c0d4dc4f789658a2b3",
+                               "output_sha256":  "99d16e537a64735b3e008dc7d7239a5f3aaacd19ec406a1e7f12c52eb3a28574",
+                               "exit_code":  0,
+                               "patch_sha256":  "e9cac63796919cda45c2d618d8541d34f8d5a050781d99034bbb62d1d1683b39",
+                               "file":  "air-worker/cmd/orchestrate_coding_workers.go"
+                           },
+                           {
+                               "worker":  2,
+                               "job_id":  "gpt__devwork30-p0-g07-recovery-20261108__1794112346637265600__8b4b58b7",
+                               "model":  "gpt-6.1-terra",
+                               "source_head":  "fdc6572e7bff6f62101b80377ba157aa4feef511",
+                               "receipt_path":  "D:\\Devbox\\AirWorker\\worktrees\\awlrn-orch-pilot-20261104\\air-worker\\.woody\\jobs\\gpt-devwork30-p0-g07-recovery-20261108-coord-DEVWORK30-P0-G07-TWO-CODERS-RECOVERY-20261108-md-coding-worker-2-executor-codex-subagent-gpt-6-1-terra-low.receipt.json",
+                               "receipt_sha256":  "97bcfc8cdeb399d9c3cd886a75f3f4ce6190cf7a8973ee7584259e338a0f6389",
+                               "output_sha256":  "a7c70ee5281b9fd01c1de81c0fc2e9e7967cefdcdf3b605b8b11416f69ae1f46",
+                               "exit_code":  0,
+                               "patch_sha256":  "c27e5ca2bf5dc9b70c845e4acaa5bda5553baaf85a232c547a2fa59985f38465",
+                               "file":  "air-worker/cmd/orchestrate_coding_workers_test.go"
+                           }
+                       ],
+    "merged_factual":  {
+                           "g07_targeted_go_rc":  0,
+                           "go_vet_rc":  0,
+                           "gofmt_clean":  true,
+                           "independent_process_status_read_rc":  0,
+                           "readback_same_original_jobs":  true,
+                           "no_model_jobs_from_status":  true
+                       },
+    "newly_added_read_only_command":  "air-worker orchestrate code status -product \u003croot\u003e -task-file \u003coriginal\u003e -principal gpt -session-key \u003coriginal\u003e -json",
+    "validation":  "isolated unit simulated RUNNING, EXECUTION_UNKNOWN/unsealed output, tampered patch SHA, wrong task/session, repeat after changed Git HEAD",
+    "strict_limits":  {
+                          "actual_chat_disconnections":  0,
+                          "requires_actual_GPT_chat_session_disconnects":  2,
+                          "execution_unknown_gpt_interrupted_live_recovery":  "NOT_PROVEN",
+                          "G07_gate":  "OPEN",
+                          "n123_native_status":  "open",
+                          "full_n123_qa":  "NOT_RUN",
+                          "independent_final_sha_reviews":  "NOT_RUN",
+                          "P0_passed":  4,
+                          "P0_total":  8
+                      },
+    "release":  {
+                    "installed":  "0.11.11-rc.2",
+                    "candidate":  "0.11.11-rc.5 SOURCE_ONLY",
+                    "dist_B_a96e2a2":  "STALE",
+                    "published_new_release":  false
+                },
+    "next":  "Keep G07 OPEN until two real GPT chat/message disconnects and EXECUTION_UNKNOWN zero duplicate; continue G06 causal ladder single-TASK, then G05 final SHA and G08 nodes"
+}

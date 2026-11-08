@@ -319,6 +319,9 @@ func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner ru
 }
 
 func cmdOrchestrateCode(argv []string) int {
+	if len(argv) > 0 && argv[0] == "status" {
+		return cmdCodingStatus(argv[1:])
+	}
 	fs := flag.NewFlagSet("orchestrate code", flag.ContinueOnError)
 	product := fs.String("product", ".", "canonical product root")
 	task := fs.String("task-file", "", "original bounded task file inside product")
@@ -401,4 +404,224 @@ func cmdOrchestrateCode(argv []string) int {
 		return 0 // handoff prepared, NEVER a completed/factually judged product step
 	}
 	return 2
+}
+
+// codingStatus reads only the original scope's durable evidence; it never starts a job.
+func codingStatus(root string, scope sessionScope, step string) (codingWorkersHandoff, error) {
+	doc := codingWorkersHandoff{Schema: "air-worker.chatgpt-coordinated-codex-workers/v1", Status: "NOT_FOUND", SourceProduct: root, WorkerCount: 2}
+	top, err := gitCodingOutput(root, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return doc, err
+	}
+	top, err = filepath.Abs(top)
+	if err != nil {
+		return doc, err
+	}
+	rel, err := filepath.Rel(top, root)
+	if err != nil || (rel != "." && !isCodingProductPath(rel)) {
+		return doc, errors.New("product outside repository")
+	}
+	id := shaCodingBytes([]byte(top + "|" + scope.key() + "|" + step))[:18]
+	base := filepath.Join(filepath.Dir(top), ".airworker-coding-workspaces", filepath.Base(top), id)
+	_, baseErr := os.Lstat(base)
+	if baseErr != nil && !os.IsNotExist(baseErr) {
+		return doc, baseErr
+	}
+	if baseErr == nil {
+		// An attacker-controlled workspace link must not redirect evidence reads.
+		realBase, err := filepath.EvalSymlinks(base)
+		if err != nil || !strings.EqualFold(filepath.Clean(realBase), filepath.Clean(base)) {
+			return doc, errors.New("workspace path is not canonical")
+		}
+	}
+	report := filepath.Join(base, "handoff.json")
+	if _, err := os.Lstat(report); err == nil {
+		if err := jobOwnedEvidencePath(base, report); err != nil {
+			return doc, err
+		}
+		raw, err := os.ReadFile(report)
+		if err != nil || len(raw) > 1024*1024 {
+			return doc, errors.New("invalid handoff")
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			return doc, err
+		}
+		if doc.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" && doc.Status != "NOT_PROVEN" {
+			return doc, errors.New("invalid handoff status")
+		}
+		if doc.Schema != "air-worker.chatgpt-coordinated-codex-workers/v1" || doc.SourceProduct != root || doc.WorkerCount != 2 || len(doc.Workers) != 2 || doc.SourceHead == "" || filepath.Clean(doc.Report) != report {
+			return doc, errors.New("handoff identity mismatch")
+		}
+	} else if !os.IsNotExist(err) {
+		return doc, err
+	} else {
+		doc.Report = report
+		doc.Workers = []codingWorkerEvidence{{Index: 1, Status: "EXECUTION_UNKNOWN"}, {Index: 2, Status: "EXECUTION_UNKNOWN"}}
+	}
+	entries, err := os.ReadDir(filepath.Join(root, ".woody", "jobs"))
+	if err != nil && !os.IsNotExist(err) {
+		return doc, err
+	}
+	anyReceipt := false
+	for i := 1; i <= 2; i++ {
+		w := &doc.Workers[i-1]
+		workerProduct := filepath.Join(base, fmt.Sprintf("worker-%d", i), rel)
+		if real, e := filepath.EvalSymlinks(workerProduct); e == nil && strings.EqualFold(filepath.Clean(real), filepath.Clean(workerProduct)) {
+			if head, e := gitCodingOutput(workerProduct, "rev-parse", "HEAD"); e == nil {
+				if doc.SourceHead != "" && doc.SourceHead != head {
+					return doc, errors.New("worker source mismatch")
+				}
+				doc.SourceHead = head
+			}
+		}
+		if w.Index != i {
+			return doc, errors.New("handoff worker order mismatch")
+		}
+		workerStep := fmt.Sprintf("%s-coding-worker-%d", step, i)
+		prefix := reNonWord.ReplaceAllString(scope.ID.namespace()+"__"+workerStep+"__executor-codex-subagent", "-")
+		var snap jobStatusSnapshot
+		found := false
+		for _, entry := range entries {
+			name := entry.Name()
+			if !strings.HasPrefix(name, prefix+"-") || !strings.HasSuffix(name, ".receipt.json") {
+				continue
+			}
+			path := filepath.Join(root, ".woody", "jobs", name)
+			if err := jobOwnedEvidencePath(root, path); err != nil {
+				return doc, err
+			}
+			r, err := readJobReceipt(path)
+			if err != nil {
+				return doc, err
+			}
+			if r.Step != workerStep || !strings.HasPrefix(r.Operation, "executor-codex-subagent-") {
+				return doc, errors.New("receipt identity mismatch")
+			}
+			if found {
+				return doc, errors.New("ambiguous worker receipts")
+			}
+			snap, err = inspectOwnedJob(scope, workerStep, r.Operation)
+			if err != nil {
+				return doc, err
+			}
+			if snap.ReceiptPath != path || r.Role != "coding-subagent/worker" {
+				return doc, errors.New("foreign worker receipt")
+			}
+			found = true
+		}
+		if !found {
+			if w.JobID != "" {
+				return doc, errors.New("handoff receipt missing")
+			}
+			w.Status = "EXECUTION_UNKNOWN"
+			continue
+		}
+		anyReceipt = true
+		if w.JobID != "" && (w.JobID != snap.JobID || filepath.Clean(w.Receipt) != snap.ReceiptPath) {
+			return doc, errors.New("handoff receipt mismatch")
+		}
+		w.JobID, w.Receipt = snap.JobID, snap.ReceiptPath
+		w.Status = snap.Status
+		if snap.Terminal && snap.OutputSHA256 == "" {
+			w.Status = "EXECUTION_UNKNOWN"
+		}
+		if doc.SourceHead == "" {
+			doc.SourceHead = snap.SourceHead
+		} else if snap.SourceHead != "" && doc.SourceHead != snap.SourceHead {
+			return doc, errors.New("receipt source mismatch")
+		}
+		if w.Patch != "" {
+			product := filepath.Join(base, fmt.Sprintf("worker-%d", i), rel)
+			realProduct, evalErr := filepath.EvalSymlinks(product)
+			if evalErr != nil || !strings.EqualFold(filepath.Clean(realProduct), filepath.Clean(product)) {
+				return doc, errors.New("unsafe worker product")
+			}
+			patch := filepath.Join(base, fmt.Sprintf("worker-%d.patch", i))
+			if filepath.Clean(w.Product) != filepath.Clean(product) || filepath.Clean(w.Patch) != patch || jobOwnedEvidencePath(base, patch) != nil {
+				return doc, errors.New("unsafe patch path")
+			}
+			data, err := os.ReadFile(patch)
+			if err != nil || len(data) == 0 || len(data) > 256*1024 || shaCodingBytes(data) != w.PatchSHA256 {
+				return doc, errors.New("patch hash mismatch")
+			}
+			if head, err := gitCodingOutput(product, "rev-parse", "HEAD"); err != nil || head != doc.SourceHead {
+				return doc, errors.New("worker source mismatch")
+			}
+			untracked, err := gitCodingOutput(product, "ls-files", "--others", "--exclude-standard")
+			if err != nil {
+				return doc, err
+			}
+			for _, name := range strings.Split(untracked, "\n") {
+				if name != "" && name != ".woody" && !strings.HasPrefix(filepath.ToSlash(name), ".woody/") {
+					return doc, errors.New("untracked worker changes")
+				}
+			}
+			files, err := gitCodingOutput(product, "diff", "--name-only", "HEAD", "--", ".")
+			if err != nil || strings.Join(w.Changed, "\n") != files {
+				return doc, errors.New("worker changed files mismatch")
+			}
+			cmd := exec.Command("git", "-C", product, "diff", "--no-ext-diff", "--binary", "HEAD", "--", ".")
+			actual, err := cmd.Output()
+			if err != nil || shaCodingBytes(actual) != w.PatchSHA256 {
+				return doc, errors.New("worker patch mismatch")
+			}
+		} else if w.PatchSHA256 != "" || len(w.Changed) != 0 || doc.Status == "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" {
+			return doc, errors.New("incomplete patch evidence")
+		}
+	}
+	if !anyReceipt && os.IsNotExist(baseErr) {
+		doc.Status = "NOT_FOUND"
+		doc.Workers = nil
+		return doc, nil
+	}
+	doc.Status = "EXECUTION_UNKNOWN"
+	if len(doc.Workers) == 2 && doc.Workers[0].Status == jobStatusDone && doc.Workers[1].Status == jobStatusDone && doc.Workers[0].PatchSHA256 != "" && doc.Workers[1].PatchSHA256 != "" {
+		doc.Status = "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION"
+	}
+	return doc, nil
+}
+
+func cmdCodingStatus(argv []string) int {
+	fs := flag.NewFlagSet("orchestrate code status", flag.ContinueOnError)
+	product := fs.String("product", ".", "product root")
+	task := fs.String("task-file", "", "original task file")
+	principal := fs.String("principal", "", "original principal")
+	session := fs.String("session-key", "", "original session")
+	state := fs.String("state-dir", "", "native session state")
+	asJSON := fs.Bool("json", false, "machine output")
+	if fs.Parse(argv) != nil {
+		return 2
+	}
+	doc := codingWorkersHandoff{Schema: "air-worker.chatgpt-coordinated-codex-workers/v1", Status: "NOT_PROVEN"}
+	root, cfg, err := loadExecutorConfig(*product, "")
+	if err == nil && (!cfg.Orchestration.Enabled || !cfg.Orchestration.RequireNativeSubagents || !cfg.Orchestration.RequireAnthropicReviewer || cfg.Orchestration.Subagents != 2) {
+		err = errors.New("managed two-worker configuration required")
+	}
+	var scope sessionScope
+	if err == nil {
+		scope, err = executorScopeForSession(root, *principal, *session, *state)
+	}
+	var taskPath string
+	if err == nil {
+		taskPath, err = taskFileInsideProduct(root, *task)
+	}
+	if err == nil {
+		doc, err = codingStatus(root, scope, "coord-"+filepath.Base(taskPath))
+	}
+	if err != nil {
+		doc.Status = "NOT_PROVEN"
+		doc.Error = err.Error()
+	}
+	if *asJSON {
+		_ = json.NewEncoder(os.Stdout).Encode(doc)
+	} else {
+		fmt.Printf("%s source=%s recovery=%s error=%s\n", doc.Status, doc.SourceHead, doc.Report, doc.Error)
+		for _, w := range doc.Workers {
+			fmt.Printf("worker%d %s job_id=%s receipt=%s patch_sha256=%s\n", w.Index, w.Status, w.JobID, w.Receipt, w.PatchSHA256)
+		}
+	}
+	if err != nil {
+		return 2
+	}
+	return 0
 }
