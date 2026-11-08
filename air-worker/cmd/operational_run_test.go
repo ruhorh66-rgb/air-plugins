@@ -52,66 +52,84 @@ func wrapN139TaskMarker(input string) string {
 
 func TestN139CodingTaskSelection(t *testing.T) {
 	const taskPath = "docs/tasks/N139.json"
-	for _, tc := range []struct {
-		name   string
-		marker func(string) string
-		task   string
-		mutate func(*testing.T, string)
-		want   bool
-	}{
-		{"exact binding", func(h string) string { return "coding_task: " + taskPath + " sha256=" + h + "\n" }, "", nil, true},
-		{"no marker", func(string) string { return "" }, "", nil, false},
-		{"duplicate marker", func(h string) string { return strings.Repeat("coding_task: "+taskPath+" sha256="+h+"\n", 2) }, "", nil, false},
-		{"wrong hash", func(string) string { return "coding_task: " + taskPath + " sha256=" + strings.Repeat("0", 64) + "\n" }, "", nil, false},
-		{"malformed JSON", func(h string) string { return "coding_task: " + taskPath + " sha256=" + h + "\n" }, `{`, nil, false},
-		{"untracked task", func(h string) string { return "coding_task: " + taskPath + " sha256=" + h + "\n" }, "", func(t *testing.T, root string) { n124Git(t, root, "rm", "--cached", taskPath) }, false},
-		{"modified task", func(h string) string { return "coding_task: " + taskPath + " sha256=" + h + "\n" }, "", func(t *testing.T, root string) {
-			os.WriteFile(filepath.Join(root, filepath.FromSlash(taskPath)), []byte(`{}`), 0o644)
-		}, false},
-		{"mismatched source HEAD", func(h string) string { return "coding_task: " + taskPath + " sha256=" + h + "\n" }, "", func(t *testing.T, root string) {
-			os.WriteFile(filepath.Join(root, "extra.txt"), []byte("next"), 0o644)
-			n124Git(t, root, "add", "extra.txt")
-			n124Git(t, root, "commit", "-m", "next")
-		}, false},
-		{"path traversal", func(h string) string { return "coding_task: docs/tasks/../../outside.json sha256=" + h + "\n" }, "", nil, false},
-		{"node modification", func(h string) string { return "coding_task: " + taskPath + " sha256=" + h + "\n" }, "", func(t *testing.T, root string) {
-			os.WriteFile(filepath.Join(root, "plan", n139ID+".md"), []byte("changed\n"), 0o644)
-		}, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			c := n139Fixture(t)
-			if err := os.MkdirAll(filepath.Join(c.Root, "docs", "tasks"), 0o755); err != nil {
-				t.Fatal(err)
+	for _, nested := range []bool{false, true} {
+		for _, tc := range []struct {
+			name   string
+			marker func(string) string
+			task   string
+			mutate func(*testing.T, string)
+			want   bool
+		}{
+			{"exact binding", func(h string) string { return "coding_task: " + taskPath + " sha256=" + h + "\n" }, "", nil, true},
+			{"no marker", func(string) string { return "" }, "", nil, false},
+			{"duplicate marker", func(h string) string { return strings.Repeat("coding_task: "+taskPath+" sha256="+h+"\n", 2) }, "", nil, false},
+			{"wrong hash", func(string) string { return "coding_task: " + taskPath + " sha256=" + strings.Repeat("0", 64) + "\n" }, "", nil, false},
+			{"malformed JSON", func(h string) string { return "coding_task: " + taskPath + " sha256=" + h + "\n" }, `{`, nil, false},
+			{"untracked task", func(h string) string { return "coding_task: " + taskPath + " sha256=" + h + "\n" }, "", func(t *testing.T, root string) { n124Git(t, root, "rm", "--cached", taskPath) }, false},
+			{"modified task", func(h string) string { return "coding_task: " + taskPath + " sha256=" + h + "\n" }, "", func(t *testing.T, root string) {
+				os.WriteFile(filepath.Join(root, filepath.FromSlash(taskPath)), []byte(`{}`), 0o644)
+			}, false},
+			{"mismatched source HEAD", func(h string) string { return "coding_task: " + taskPath + " sha256=" + h + "\n" }, "", func(t *testing.T, root string) {
+				os.WriteFile(filepath.Join(root, "extra.txt"), []byte("next"), 0o644)
+				n124Git(t, root, "add", "extra.txt")
+				n124Git(t, root, "commit", "-m", "next")
+			}, false},
+			{"path traversal", func(h string) string { return "coding_task: docs/tasks/../../outside.json sha256=" + h + "\n" }, "", nil, false},
+			{"node modification", func(h string) string { return "coding_task: " + taskPath + " sha256=" + h + "\n" }, "", func(t *testing.T, root string) {
+				os.WriteFile(filepath.Join(root, "plan", n139ID+".md"), []byte("changed\n"), 0o644)
+			}, false},
+		} {
+			name := tc.name
+			if nested {
+				name = "nested product/" + name
 			}
-			task := codingMicrostepTask(t)
-			if tc.task != "" {
-				task = tc.task
-			}
-			if err := os.WriteFile(filepath.Join(c.Root, filepath.FromSlash(taskPath)), []byte(task), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			node := fmt.Sprintf("---\nid: %q\nparent: %q\nstatus: open\nowner: test\n---\n%s", n139ID, "N-136_prove-autonomous-plan-coding-factual-anthropic-c", wrapN139TaskMarker(tc.marker(sha256Hex([]byte(task)))))
-			if err := os.WriteFile(filepath.Join(c.Root, "plan", n139ID+".md"), []byte(node), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			n124Git(t, c.Root, "init")
-			n124Git(t, c.Root, "config", "user.name", "N139")
-			n124Git(t, c.Root, "config", "user.email", "n139@test.local")
-			n124Git(t, c.Root, "add", ".")
-			n124Git(t, c.Root, "commit", "-m", "bound task")
-			goal := operationalGoal{NodeID: n139ID, SourceHead: n124Git(t, c.Root, "rev-parse", "HEAD")}
-			if tc.mutate != nil {
-				tc.mutate(t, c.Root)
-			}
-			got, err := selectN139CodingTask(c.Root, goal)
-			if tc.want {
-				if err != nil || got != task {
-					t.Fatalf("selected task = %q, err = %v", got, err)
+			t.Run(name, func(t *testing.T) {
+				c := n139Fixture(t)
+				repoRoot := c.Root
+				if nested {
+					c.Root = filepath.Join(repoRoot, "air-worker")
+					if err := os.Mkdir(c.Root, 0o755); err != nil {
+						t.Fatal(err)
+					}
+					for _, name := range []string{"cmd", "plan", "goal", "PLAN.md"} {
+						if err := os.Rename(filepath.Join(repoRoot, name), filepath.Join(c.Root, name)); err != nil {
+							t.Fatal(err)
+						}
+					}
 				}
-			} else if err == nil || got != "" {
-				t.Fatalf("invalid binding selected task = %q, err = %v", got, err)
-			}
-		})
+				if err := os.MkdirAll(filepath.Join(c.Root, "docs", "tasks"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				task := codingMicrostepTask(t)
+				if tc.task != "" {
+					task = tc.task
+				}
+				if err := os.WriteFile(filepath.Join(c.Root, filepath.FromSlash(taskPath)), []byte(task), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				node := fmt.Sprintf("---\nid: %q\nparent: %q\nstatus: open\nowner: test\n---\n%s", n139ID, "N-136_prove-autonomous-plan-coding-factual-anthropic-c", wrapN139TaskMarker(tc.marker(sha256Hex([]byte(task)))))
+				if err := os.WriteFile(filepath.Join(c.Root, "plan", n139ID+".md"), []byte(node), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				n124Git(t, repoRoot, "init")
+				n124Git(t, c.Root, "config", "user.name", "N139")
+				n124Git(t, c.Root, "config", "user.email", "n139@test.local")
+				n124Git(t, c.Root, "add", ".")
+				n124Git(t, c.Root, "commit", "-m", "bound task")
+				goal := operationalGoal{NodeID: n139ID, SourceHead: n124Git(t, c.Root, "rev-parse", "HEAD")}
+				if tc.mutate != nil {
+					tc.mutate(t, c.Root)
+				}
+				got, err := selectN139CodingTask(c.Root, goal)
+				if tc.want {
+					if err != nil || got != task {
+						t.Fatalf("selected task = %q, err = %v", got, err)
+					}
+				} else if err == nil || got != "" {
+					t.Fatalf("invalid binding selected task = %q, err = %v", got, err)
+				}
+			})
+		}
 	}
 }
 

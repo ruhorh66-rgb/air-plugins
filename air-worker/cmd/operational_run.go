@@ -243,6 +243,19 @@ func selectN139CodingTask(root string, goal operationalGoal) (string, error) {
 	if err != nil || head != goal.SourceHead {
 		return "", errors.New("source HEAD changed")
 	}
+	top, err := gitCodingOutput(root, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return "", errors.New("Git worktree root unavailable")
+	}
+	physicalRoot, rootErr := filepath.EvalSymlinks(root)
+	physicalTop, topErr := filepath.EvalSymlinks(top)
+	if rootErr != nil || topErr != nil {
+		return "", errors.New("Git worktree paths unavailable")
+	}
+	prefix, err := filepath.Rel(physicalTop, physicalRoot)
+	if err != nil || filepath.IsAbs(prefix) || prefix == ".." || strings.HasPrefix(prefix, ".."+string(filepath.Separator)) {
+		return "", errors.New("product root is outside Git worktree")
+	}
 	for _, item := range []struct {
 		path string
 		live []byte
@@ -255,11 +268,12 @@ func selectN139CodingTask(root string, goal operationalGoal) (string, error) {
 		if err != nil || (!strings.HasPrefix(mode, "100644 blob ") && !strings.HasPrefix(mode, "100755 blob ")) || !strings.HasSuffix(mode, "\t"+item.path) {
 			return "", fmt.Errorf("file is not a regular tracked HEAD blob: %s", item.path)
 		}
-		size, err := gitCodingOutput(root, "cat-file", "-s", "HEAD:"+item.path)
+		blobPath := filepath.ToSlash(filepath.Join(prefix, filepath.FromSlash(item.path)))
+		size, err := gitCodingOutput(root, "cat-file", "-s", "HEAD:"+blobPath)
 		if err != nil || size != fmt.Sprint(len(item.live)) {
 			return "", fmt.Errorf("HEAD blob size differs from live file: %s", item.path)
 		}
-		blob := exec.Command("git", "-C", root, "show", "HEAD:"+item.path)
+		blob := exec.Command("git", "-C", root, "show", "HEAD:"+blobPath)
 		committed, err := blob.Output()
 		if err != nil || !bytes.Equal(committed, item.live) {
 			return "", fmt.Errorf("live file differs from HEAD: %s", item.path)
