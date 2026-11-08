@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,6 +14,78 @@ import (
 	"testing"
 	"time"
 )
+
+func TestJobStdinFingerprint(t *testing.T) {
+	command := func(input *strings.Reader) *exec.Cmd {
+		cmd := exec.Command("example", "same-argv")
+		cmd.Stdin = input
+		return cmd
+	}
+	first := command(strings.NewReader("first prompt"))
+	second := command(strings.NewReader("second prompt"))
+	firstHash, secondHash := jobStdinFingerprint(first), jobStdinFingerprint(second)
+	if firstHash == "" || secondHash == "" || firstHash == secondHash {
+		t.Fatalf("distinct stdin must have distinct hashes: %q, %q", firstHash, secondHash)
+	}
+	if jobCommandFingerprint(first) != jobCommandFingerprint(second) {
+		t.Fatal("stdin changed the existing argv fingerprint")
+	}
+
+	reader := strings.NewReader("prefix remaining")
+	if _, err := reader.Seek(int64(len("prefix ")), 0); err != nil {
+		t.Fatal(err)
+	}
+	cmd := command(reader)
+	want := fmt.Sprintf("%x", sha256.Sum256([]byte("remaining")))
+	if got := jobStdinFingerprint(cmd); got != want {
+		t.Fatalf("remaining stdin hash = %q, want %q", got, want)
+	}
+	if reader.Len() != len("remaining") {
+		t.Fatal("fingerprinting consumed stdin")
+	}
+	if got := jobStdinFingerprint(command(strings.NewReader(""))); got != fmt.Sprintf("%x", sha256.Sum256(nil)) {
+		t.Fatalf("empty stdin was not measured: %q", got)
+	}
+	if got := jobStdinFingerprint(command(strings.NewReader(strings.Repeat("x", 128<<10)))); got == "" {
+		t.Fatal("128 KiB stdin was not measured")
+	}
+	if got := jobStdinFingerprint(command(strings.NewReader(strings.Repeat("x", (128<<10)+1)))); got != "" {
+		t.Fatalf("oversized stdin was measured: %q", got)
+	}
+}
+
+func TestJobStdinFingerprintUnsupported(t *testing.T) {
+	if got := jobStdinFingerprint(nil); got != "" {
+		t.Fatalf("nil command hash = %q", got)
+	}
+	cmd := exec.Command("example")
+	if got := jobStdinFingerprint(cmd); got != "" {
+		t.Fatalf("nil stdin hash = %q", got)
+	}
+	var typedNil *strings.Reader
+	cmd.Stdin = typedNil
+	if got := jobStdinFingerprint(cmd); got != "" {
+		t.Fatalf("typed nil stdin hash = %q", got)
+	}
+	reader := bytes.NewBufferString("must remain unread")
+	cmd.Stdin = reader
+	if got := jobStdinFingerprint(cmd); got != "" {
+		t.Fatalf("unsupported stdin hash = %q", got)
+	}
+	if reader.Len() != len("must remain unread") {
+		t.Fatal("unsupported stdin was read")
+	}
+}
+
+func TestJobReceiptLegacyStdinSHA256(t *testing.T) {
+	var receipt jobReceipt
+	if err := json.Unmarshal([]byte(`{"job_id":"legacy","args_sha256":"old"}`), &receipt); err != nil {
+		t.Fatal(err)
+	}
+	if receipt.JobID != "legacy" || receipt.ArgsSHA256 != "old" || receipt.StdinSHA256 != "" {
+		t.Fatalf("legacy receipt changed: %+v", receipt)
+	}
+}
 
 // К42/шаг 73: planner/judge/executor до запуска любой долгой команды создают durable job
 // receipt (`job_id`/PID/`started_at`/`status`/`output_path`/product/principal/session/

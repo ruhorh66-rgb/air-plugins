@@ -53,6 +53,7 @@ type jobReceipt struct {
 	OutputBytes    int64     `json:"output_bytes,omitempty"`
 	SourceHead     string    `json:"source_head,omitempty"`
 	ArgsSHA256     string    `json:"args_sha256,omitempty"`
+	StdinSHA256    string    `json:"stdin_sha256,omitempty"`
 	ExitCode       *int      `json:"exit_code,omitempty"`
 	RecoveryRef    string    `json:"recovery_ref,omitempty"`
 	DeadlineUTC    string    `json:"deadline_utc,omitempty"`
@@ -362,6 +363,7 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 	r.Sandbox = meta.Sandbox
 	r.SourceHead = jobSourceHead(scope.Root)
 	r.ArgsSHA256 = jobCommandFingerprint(cmd)
+	r.StdinSHA256 = jobStdinFingerprint(cmd)
 	if deadline, ok := ctx.Deadline(); ok {
 		r.DeadlineUTC = deadline.UTC().Format(time.RFC3339Nano)
 	}
@@ -470,6 +472,24 @@ func jobCommandFingerprint(cmd *exec.Cmd) string {
 		_, _ = fmt.Fprintf(h, "%d:", len(part))
 		_, _ = h.Write([]byte(part))
 		_, _ = h.Write([]byte{0})
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// jobStdinFingerprint measures bounded remaining strings.Reader input before Start.
+// It does not establish that the child consumed those bytes.
+func jobStdinFingerprint(cmd *exec.Cmd) string {
+	if cmd == nil {
+		return ""
+	}
+	reader, ok := cmd.Stdin.(*strings.Reader)
+	if !ok || reader == nil || reader.Len() > 128<<10 {
+		return ""
+	}
+	copy := *reader
+	h := sha256.New()
+	if _, err := io.Copy(h, &copy); err != nil {
+		return ""
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }
