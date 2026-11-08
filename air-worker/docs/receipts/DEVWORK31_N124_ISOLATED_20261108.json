@@ -1,0 +1,44 @@
+{
+  "schema": "air-worker.devwork31.p0-n124-isolated-diagnostic/v1",
+  "owner": "Dev Work 31 / ChatGPT coordinator / SRVLM01",
+  "date_sgt": "2026-11-08",
+  "source_sha": "ef9f0a57d97b039f26847630a8ffbe0909579a36",
+  "test": "TestN124PlanRephaseJournalSnapshotLinkedFileHold/node.before",
+  "command": "go test . -run '^TestN124PlanRephaseJournalSnapshotLinkedFileHold/node.before$' -count=1 -timeout=50s -p 2 -v",
+  "runner": "script-only; no LLM; single bounded process in own D:-TEMP",
+  "go_result": {
+    "process_rc": 0,
+    "subtest_status": "SKIP",
+    "test_body_safety_check_executed": false,
+    "elapsed_test_seconds": 7.67,
+    "reason": "Windows symbolic link fixture creation failed: A required privilege is not held by the client.",
+    "source_sha_verified": true
+  },
+  "log": {
+    "file_private": ".woody/qa/devwork31-ef9f-n124/n124-node-before.log",
+    "sha256": "20981d4056c4397125aa327006c71c6b6e76f3b56179fb8512c9e9451242f9b0",
+    "bytes": 2736,
+    "copy_verified": true
+  },
+  "historical_full_go": {
+    "source_sha": "8f51c819a1257eea35ce096adb5a769439064c1a",
+    "full_go_rc": 1,
+    "timed_out_after": "10m",
+    "observed_stack": "n124Git -> git add . within n124RephaseFixtureSetup",
+    "other_three_failures_now_passed_targeted": true
+  },
+  "conclusion": "The isolated test setup completed, then symlink-negative skipped; the full-suite 10-minute hang did not reproduce in this isolated run. This does not prove symlink security behavior or close the full N123 QA; do not repeat the expensive full suite without a concrete repro or fix.",
+  "next": "Use a bounded, owned fixture to isolate possible cross-test interference/environmental hang, if needed; wait for authorized Windows symlink capability or independently verifiable equivalent only by approved method; continue G07/G06/G05/G08 on real evidence.",
+  "p0": {
+    "status": "4/8 PASS; 4 OPEN; 0/4 native CLOSED",
+    "G07": "OPEN",
+    "G06": "OPEN",
+    "G05": "OPEN_N124_ISOLATED_SKIP_FULL_QA_AND_JUDGES_UNPROVEN",
+    "G08": "OPEN"
+  },
+  "release": {
+    "installed": "0.11.11-rc.2",
+    "candidate": "0.11.11-rc.5 SOURCE_ONLY/HOLD",
+    "no_install": true
+  }
+}
