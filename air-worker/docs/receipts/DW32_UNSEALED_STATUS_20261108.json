@@ -1,0 +1,28 @@
+{
+  "schema": "air-worker.devwork32.unsealed-status/v1",
+  "base_head": "a83dc3a94291078667e3146c4e52c90ff9672dd0",
+  "task_sha256": "66bacbdcb4cf5b7429e7035137fac9eb07a79f5c379806298b3069b3b80a8cbe",
+  "workers": [
+    {
+      "index": 1,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794168153450239600__c0de99a3",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "8de266563a7077a59c393afd8e17eed4c1763cd909f1913bc50aff7462dd26a1",
+      "patch_sha256": "d3fbafed46438f73b814a842687dcd5fc71d35dc1a945fba440ad4e985495937"
+    },
+    {
+      "index": 2,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794168153445676500__d1b31266",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "7e3777ac38b86430853f0eeb6f9c405dd982d6bf593a1a6f427cf6fbb7baa0ce",
+      "patch_sha256": "1822658813fa31817f90d121e74a57054b3d00d47d3ae7f672a2b4dcd816f6a2"
+    }
+  ],
+  "change": "Unsealed recorded DONE/FAILED is returned with Terminal=false and unproven reason; codingStatus maps it to EXECUTION_UNKNOWN while preserving no replay",
+  "baseline": "Isolated DONE without seal returned terminal=true and unproven reason",
+  "targeted_log_sha256": "7db3a2bf445a288172209cdff7b053aceeae29ec6b0bf041a1acccd581866dbf",
+  "targeted": "Both unsealed statuses remain immutable and reject duplicate start; sealed, running, foreign and coding recovery tests PASS; go vet ./... exit 0",
+  "limits": "Tests simulate reattachment and do not prove actual two ordinary chat disconnects or G07. Alias lock split, acquireLock errors and fresh report remain open; no final P0, installed binary or rights changes."
+}

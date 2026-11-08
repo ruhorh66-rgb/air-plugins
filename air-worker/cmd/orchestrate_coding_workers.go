@@ -687,7 +687,7 @@ func codingStatus(root string, scope sessionScope, step, taskSHA string) (coding
 		}
 		w.JobID, w.Receipt = snap.JobID, snap.ReceiptPath
 		w.Status = snap.Status
-		if snap.Terminal && snap.OutputSHA256 == "" {
+		if snap.Status != jobStatusRunning && snap.OutputSHA256 == "" {
 			w.Status = "EXECUTION_UNKNOWN"
 		}
 		if doc.SourceHead == "" {
