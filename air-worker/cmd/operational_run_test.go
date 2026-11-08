@@ -538,6 +538,100 @@ func n139BoundHandoffFixture(t *testing.T) (*loopCtx, operationalGoal, string) {
 	return c, operationalGoal{NodeID: n139ID, SourceHead: n124Git(t, c.Root, "rev-parse", "HEAD")}, task
 }
 
+func TestN139ManagedExistingWorkDoesNotRedispatch(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		handoff string
+	}{
+		{name: "incomplete workspace without handoff"},
+		{name: "malformed handoff", handoff: "{invalid json"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, goal, task := n139BoundHandoffFixture(t)
+			top, err := gitCodingOutput(c.Root, "rev-parse", "--show-toplevel")
+			if err != nil {
+				t.Fatal(err)
+			}
+			top, err = filepath.Abs(top)
+			if err != nil {
+				t.Fatal(err)
+			}
+			id := shaCodingBytes([]byte(top + "|" + c.scope().key() + "|" + goal.NodeID))[:18]
+			base := filepath.Join(filepath.Dir(top), ".airworker-coding-workspaces", filepath.Base(top), id)
+			if err := os.MkdirAll(base, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			evidence := filepath.Join(base, "handoff.json")
+			if tc.handoff != "" {
+				if err := os.WriteFile(evidence, []byte(tc.handoff), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			status, statusErr := codingStatus(c.Root, c.scope(), goal.NodeID, task)
+			if statusErr == nil && status.Status == "NOT_FOUND" {
+				t.Fatal("existing workspace reported as fresh")
+			}
+			models, factuals, reviews := 0, 0, 0
+			oldFactual := n139FactualJudge
+			n139FactualJudge = func(*loopCtx, workStep) (semanticFactualPacket, error) {
+				factuals++
+				return semanticFactualPacket{}, nil
+			}
+			t.Cleanup(func() { n139FactualJudge = oldFactual })
+			if rc := runN139Step(c, goal, func(string, operationalGoal) error { return nil },
+				func(workStep, string, string, runnerSpec) stepResult {
+					models++
+					return stepResult{Subtype: "coordinator_handoff"}
+				},
+				func(workStep, runnerSpec, semanticFactualPacket, string) semanticRun {
+					reviews++
+					return semanticRun{}
+				}); rc != 2 || models != 0 || factuals != 0 || reviews != 0 {
+				t.Fatalf("existing work redispatched: rc=%d models=%d factuals=%d reviews=%d", rc, models, factuals, reviews)
+			}
+			if tc.handoff != "" {
+				got, err := os.ReadFile(evidence)
+				if err != nil || string(got) != tc.handoff {
+					t.Fatalf("existing evidence changed: %q, %v", got, err)
+				}
+			} else if _, err := os.Lstat(evidence); !os.IsNotExist(err) {
+				t.Fatalf("incomplete workspace gained handoff: %v", err)
+			}
+		})
+	}
+}
+
+func TestN139ManagedCleanFirstDispatch(t *testing.T) {
+	c, goal, task := n139BoundHandoffFixture(t)
+	status, err := codingStatus(c.Root, c.scope(), goal.NodeID, task)
+	if err != nil || status.Status != "NOT_FOUND" {
+		t.Fatalf("clean coding status = %q, %v", status.Status, err)
+	}
+	oldWait, oldFactual := n139CoordinatorWait, n139FactualJudge
+	n139CoordinatorWait = func(*loopCtx, workStep) error { return errors.New("coordinator pending") }
+	factuals := 0
+	n139FactualJudge = func(*loopCtx, workStep) (semanticFactualPacket, error) {
+		factuals++
+		return semanticFactualPacket{}, nil
+	}
+	t.Cleanup(func() { n139CoordinatorWait, n139FactualJudge = oldWait, oldFactual })
+	models, reviews := 0, 0
+	if rc := runN139Step(c, goal, func(string, operationalGoal) error { return nil },
+		func(step workStep, _, _ string, _ runnerSpec) stepResult {
+			models++
+			if step.CodingTask != task {
+				t.Fatal("model received wrong source-bound task")
+			}
+			return stepResult{Subtype: "coordinator_handoff"}
+		},
+		func(workStep, runnerSpec, semanticFactualPacket, string) semanticRun {
+			reviews++
+			return semanticRun{}
+		}); rc != 2 || models != 1 || factuals != 0 || reviews != 0 {
+		t.Fatalf("clean dispatch: rc=%d models=%d factuals=%d reviews=%d", rc, models, factuals, reviews)
+	}
+}
+
 func TestN139CoordinatorHandoffWaitAndProtection(t *testing.T) {
 	for _, tc := range []struct {
 		name       string

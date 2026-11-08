@@ -113,6 +113,17 @@ func runN139Step(c *loopCtx, goal operationalGoal, verify func(string, operation
 		step.CodingTask = task
 		step.Title = "N139 execute the source-bound two-worker coding task"
 		step.Judge = "ChatGPT coordinates two isolated code writers; factual and semantic acceptance remain independent"
+		status, statusErr := codingStatus(c.Root, c.scope(), step.Num, task)
+		if statusErr != nil || status.Status != "NOT_FOUND" {
+			var jobs []string
+			for _, worker := range status.Workers {
+				if worker.JobID != "" {
+					jobs = append(jobs, fmt.Sprintf("worker%d=%s", worker.Index, worker.JobID))
+				}
+			}
+			line(fmt.Sprintf("EXECUTION_UNKNOWN: N139_CODING_WORK_EXISTS: status=%s jobs=%v error=%v", status.Status, jobs, statusErr))
+			return 2
+		}
 	}
 	before, err := n139SourceDigest(c.Root)
 	if err != nil {
@@ -194,12 +205,12 @@ func runN139Step(c *loopCtx, goal operationalGoal, verify func(string, operation
 			return 2
 		}
 		if err := n139CoordinatorWait(c, step); err != nil {
-			line("NOT_PROVEN: COORDINATOR_WAIT: " + err.Error())
+			line("EXECUTION_UNKNOWN: COORDINATOR_WAIT: " + err.Error())
 			return 2
 		}
 		ack, err := n139CoordinatorVerify(c.Root, c.scope(), step.Num, step.CodingTask)
 		if err != nil || ack.Status != "ACK_RECORDED" {
-			line(fmt.Sprintf("NOT_PROVEN: COORDINATOR_ACK_UNVERIFIED: status=%q error=%v", ack.Status, err))
+			line(fmt.Sprintf("EXECUTION_UNKNOWN: COORDINATOR_ACK_UNVERIFIED: status=%q error=%v", ack.Status, err))
 			return 2
 		}
 		for path, before := range guard.files {
