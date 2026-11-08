@@ -1,0 +1,20 @@
+{
+  "schema": "air-worker.coding-microsteps/v1",
+  "context": "Dev Work 31 P0 isolated QA failures, only source-only work. Two independent tiny tasks on same clean source HEAD; ONE real Codex code writer per task, each in its OWN Git worktree, no third leader. ChatGPT coordinator validates receipts, file scope, patches, targeted tests and integration. Do not run the full Go suite (N124 known hang). No installed rc.2, release, auth, secrets, PLAN, native node closure, or foreign worker changes.",
+  "workers": [
+    {
+      "index": 1,
+      "title": "Give each PowerShell selector check its own native durable receipt scope",
+      "file": "cmd/criteria.go",
+      "done_when": "TestPowerShellSelectorParameterReachesScript passes independently in Go on Windows for both RunnerWrites and -RunnerWrites without reusing an already-terminal job identity; runSelectedCheck still returns accurate original check status and its native fail-closed receipt behavior remains unchanged. Only cmd/criteria.go source is modified.",
+      "instructions": "Study current cmd/criteria.go runSelectedCheckWithInventory and cmd/judge.go runScriptCheck, and TestPowerShellSelectorParameterReachesScript. Previous full QA found failure ONLY on second selector -RunnerWrites: {State:1 Detail:probe (код -1)}. A separate direct PowerShell invocation passed for both inputs, so diagnose whether both calls reuse a persistent receipt name (legacyScope/root + step=judge + operation=probe). Change ONLY cmd/criteria.go to give each distinct selected script invocation a safe deterministic per-selector receipt operation/name, while preserving checkResultState result lookup, 1-based selector flags and signed/hardened PowerShell execution. Must not delete/overwrite previous receipts, remove guard or change generic judge.go. Run only targeted TestPowerShellSelectorParameterReachesScript and related small selection tests; Go full suite forbidden. Do not pretend success without actual Go RC0."
+    },
+    {
+      "index": 2,
+      "title": "Update stale native startup-contract assertions for two real code-writing workers",
+      "file": "cmd/native_route_contract_test.go",
+      "done_when": "TestN129CodexAndHermesPluginStartupGuidanceUsesNativeKernel validates the current supported two real Codex workspace-write writers with ChatGPT coordinator and independent Claude review, no third Codex leader; no longer demands obsolete -subagents 2/unified source patch semantics. Targeted test passes once the compact canonical Hermes skill is updated by the coordinator as a separate script-first step.",
+      "instructions": "Study cmd/native_route_contract_test.go TestN129CodexAndHermesPluginStartupGuidanceUsesNativeKernel and the actual .codex-plugin/plugin.json defaultPrompt plus .hermes/plugins/air-worker/skills/operate-air-worker/SKILL.md. Current test's old literals '-subagents 2' and 'unified source patch' represent rejected pre-November-8 third-leader read-only patch architecture. Change ONLY cmd/native_route_contract_test.go to check the actual current contract: string 'air-worker orchestrate code', 'workspace-write', two independent code writers, separate Git worktrees, 'ChatGPT' coordinator, explicit no third Codex leader, independent Claude reviewer, no direct executor dispatch. For Hermes skill use bounded exact phrases to be provided by the coordinator's deterministic compacting step: 'action: run', 'air-worker loop', 'air-worker orchestrate code', 'two Codex code writers', 'separate Git worktrees', 'ChatGPT coordinator', 'no third Codex leader', 'independent Claude'. Do not weaken protection against old architecture or replace production code with mocks. No changes outside this single Go test file. The coordinator will compact the Hermes skill (<2048 bytes) via script-first before final targeted Go test; if your private test fails before that, report expected dependency."
+    }
+  ]
+}
