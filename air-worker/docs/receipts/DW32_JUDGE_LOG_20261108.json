@@ -1,0 +1,14 @@
+{
+  "schema":"air-worker.devwork32.judge-log/v1",
+  "source_head_before":"48a39921b7fc60c5a8560cc5886e9657029a2887",
+  "task_sha256":"8cb27e3876b7f8f2bc3d9935739957cf138e44826006a6681debd8fadc63a1f3",
+  "workers":[
+    {"index":1,"job_id":"gpt__devwork32-pilot-priority-20261108__1794161314564120100__374aa728","model":"gpt-6-luna","effort":"low","status":"DONE","exit":0,"receipt_sha256":"443f2e5df373fcab99be8c50acbdf4f22d6188e87e61f27bb9fcf25f643192dd","output_sha256":"254bff6122a947d5cdf8a99780eb7b8c790c4ecd1051fc993778c13d11885998","patch_sha256":"2929bb7cfb31f735618c0f87438f0a97d2f39bdd01b70250f2a1e7f3e0873811"},
+    {"index":2,"job_id":"gpt__devwork32-pilot-priority-20261108__1794161314550580400__c343f73c","model":"gpt-6-luna","effort":"low","status":"DONE","exit":0,"receipt_sha256":"c5482b3b7a34427b0ca6c43feb673fadeb3271fd9a9e13bb99fe92ce1d6d007c","output_sha256":"46c36b956befc126a0d827537ebbe6f3b4f4cee173f476c056f54412875f05b1","patch_sha256":"38785e002686b527ea9ba8d229dd5421a0712d6a7774b9f45ab245fcd9ed2909"}
+  ],
+  "coordinator_integration":"Corrected test fixture directories and reconciled verdict precedence: a failed child remains FAIL while log error is included in its diagnostic; successful child with log failure is UNKNOWN. Added explicit no-log and exit-9009 tests.",
+  "validation":{"targeted_tests_exit":0,"targeted_log":"DW32_JUDGE_LOG_TARGETED_48a3992.log","targeted_log_sha256":"4e237ddc998350a22c39800d87bcfeedec1ce59207704761b174c002f03fff12","go_vet_exit":0,"go_vet_log_sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+  "observations":"A proposed test assuming an unknown cmd.exe command returns 9009 failed because this host returns 1; final test explicitly exercises exit 9009 as a test fixture. Both real Luna jobs succeeded; there was no genuine vendor failure or tier escalation.",
+  "preliminary_review":"Scoped reviewer returned PASS_SOURCE_ONLY with no P1 but omitted the required TASK_READ_OK marker; do not treat it as final independent acceptance.",
+  "limitations":"No final full QA, G05, G06, G07 or P0 acceptance. Deferred N124 symlink test not run. Existing configured-log path semantics are unchanged. Installed 0.11.11-rc.2 remains unchanged."
+}

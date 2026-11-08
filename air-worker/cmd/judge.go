@@ -457,10 +457,18 @@ func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope,
 	out, err := runReceipted(context.Background(), scope, "judge", name, cmd)
 	code := exitCode(cmd, err)
 	text := decodeOutput(out)
+	var logErr error
 	if chk.Log != "" {
-		_ = os.WriteFile(filepath.Join(root, chk.Log), []byte(text), 0o644)
+		logPath := filepath.Join(root, chk.Log)
+		if err := os.WriteFile(logPath, []byte(text), 0o644); err != nil {
+			logErr = fmt.Errorf("%s — не удалось записать лог проверки %s: %w", name, logPath, err)
+		}
 	}
 	if code == 0 {
+		if logErr != nil {
+			r.Unknown = append(r.Unknown, logErr.Error())
+			return
+		}
 		r.Passed = append(r.Passed, name)
 		return
 	}
@@ -472,6 +480,9 @@ func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope,
 	}
 	if why != "" {
 		why = " — " + why
+	}
+	if logErr != nil {
+		why += " — " + logErr.Error()
 	}
 	r.Failed = append(r.Failed, fmt.Sprintf("%s (код %d)%s", name, code, why))
 }
@@ -606,24 +617,39 @@ func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope
 	out, err := runReceipted(ctx, scope, "judge", n123GoJudgeOperation(root, name, cmd), cmd)
 	code := exitCode(cmd, err)
 	text := decodeOutput(out)
+	var logErr error
 	if chk.Log != "" {
-		_ = os.WriteFile(filepath.Join(root, chk.Log), []byte(text), 0o644)
+		logPath := filepath.Join(root, chk.Log)
+		if err := os.WriteFile(logPath, []byte(text), 0o644); err != nil {
+			logErr = fmt.Errorf("%s — не удалось записать лог проверки %s: %w", name, logPath, err)
+		}
 	}
 	if code == 0 {
+		if logErr != nil {
+			r.Unknown = append(r.Unknown, logErr.Error())
+			return
+		}
 		r.Passed = append(r.Passed, name)
 		return
 	}
 	// 9009 — «команда не найдена» у интерпретатора: процесс НЕ исполнился. Второй рубеж
 	// после проверки заглушки — он ловит и те обманки, о которых мы ещё не знаем.
 	if code == 9009 {
-		r.Unknown = append(r.Unknown, fmt.Sprintf(
+		why := fmt.Sprintf(
 			"%s — нечем: команда '%s' не исполнилась (код 9009: не найдена, хотя и резолвилась)",
-			name, chk.Command))
+			name, chk.Command)
+		if logErr != nil {
+			why += " — " + logErr.Error()
+		}
+		r.Unknown = append(r.Unknown, why)
 		return
 	}
 	why := firstMatch(text, reCmdFailLine)
 	if why != "" {
 		why = " — " + why
+	}
+	if logErr != nil {
+		why += " — " + logErr.Error()
 	}
 	r.Failed = append(r.Failed, fmt.Sprintf("%s (код %d)%s", name, code, why))
 }
