@@ -1,0 +1,28 @@
+{
+  "schema": "air-worker.devwork32.lockheld-error/v1",
+  "base_head": "4e9d7b2d235b33d7ea97ea9d7cf694c6d664c746",
+  "task_sha256": "cdd8e4e3a72f79270de74d885d161ead7db69fc9b7090d6609f7e89a80afc17a",
+  "workers": [
+    {
+      "index": 1,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794167747344119400__982305d2",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "03b61cdd8d481f3b4271883f98607896702956c3bb502b63bb91100176ca1cc0",
+      "patch_sha256": "c45b85d76c5ef70418b65598e824d4ea97afc576ddc331e439d1790d5131d3ce"
+    },
+    {
+      "index": 2,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794167747337604700__7cd990c6",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "007a9fb98bfca76460be5a5c4a17831b70fb41332a6c928c6f05bb8921feece3",
+      "patch_sha256": "540a7035c4ca3e4df36391712a05a74457096df53a9ce17304e1e4de75af12ea"
+    }
+  ],
+  "change": "lockHeld returns free only for ERROR_FILE_NOT_FOUND; invalid UTF16, other Windows API errors and ambiguity fail closed",
+  "baseline": "real ERROR_PATH_NOT_FOUND was incorrectly reported free",
+  "targeted_log_sha256": "a52fd6f4c878bf76d3c1b27e23d42b534e5cc7c22fc929f5dc6e9590a22cbf25",
+  "targeted": "four named lock and loop tests PASS; go vet ./... exit 0",
+  "limits": "Does not fix distinct acquireLock error task, DOS/GUID/extended alias split, report freshness, G05/G07, or full P0. No rights, settings or installed binary changes."
+}

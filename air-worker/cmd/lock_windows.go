@@ -128,11 +128,14 @@ func (l *osLock) release() {
 func lockHeld(name string) bool {
 	n, err := syscall.UTF16PtrFromString(name)
 	if err != nil {
-		return false
+		return true
 	}
-	h, _, _ := procOpenMutexW.Call(mutexAllAccess, 0, uintptr(unsafe.Pointer(n)))
+	h, _, callErr := procOpenMutexW.Call(mutexAllAccess, 0, uintptr(unsafe.Pointer(n)))
 	if h == 0 {
-		return false
+		if errno, ok := callErr.(syscall.Errno); ok && errno == syscall.Errno(2) {
+			return false
+		}
+		return true
 	}
 	procCloseHandleLock.Call(h)
 	return true
