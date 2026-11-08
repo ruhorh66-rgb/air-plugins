@@ -1,0 +1,20 @@
+{
+  "schema": "air-worker.coding-microsteps/v1",
+  "context": "P0 N123 source-only atomic improvement to make native Go factual judge job identity account for source HEAD and exact executable arguments. Existing sealed receipts must remain immutable and readable. ChatGPT coordinator, exactly TWO genuine Codex code writers, each own Git worktree and one file. No third model leader. No full Go QA yet (only narrow tests), no release, no install, no native-node closure, no edits to any foreign product or existing job receipt.",
+  "workers": [
+    {
+      "index": 1,
+      "title": "Give native Go judge checks source- and argv-bound durable operation identity",
+      "file": "cmd/judge.go",
+      "done_when": "An AirWorker native Go command check on a clean Git-backed product generates a deterministic SAFE operation identity incorporating exact source Git HEAD, logical check name and actual executable+argv SHA-256. The same HEAD/args/name yields the same identity and blocks duplicate launches; changed source or argv generates a different receipt/output path without overwriting older evidence. The reported check display name and pass/fail semantics remain unchanged; non-Go checks and Git-less fixtures retain their existing operation identity.",
+      "instructions": "ONLY EDIT cmd/judge.go. Define exactly `func n123GoJudgeOperation(root, displayName string, cmd *exec.Cmd) string` and call from `runCommandCheck` to provide the operation parameter of `runReceipted`, leaving judgeResult Passed/Failed/Unknown display name unchanged. For Go command on a real repository derive key from `jobSourceHead(root)` plus `jobCommandFingerprint(cmd)` and displayName using sha256 with unambiguous separators; emit bounded lowercase safe operation such as `n123-go-` + 64 hex characters. Keep old operation when not a Go command or when HEAD cannot be verified (legacy fixtures), and never output raw arguments/credentials. Preserve existing duplicate-start lock, immutable sealed receipt and source log path; don't manually touch jobs. Do not change `runReceipted`, claim deadline bounded, or weaken child environment; this is one small identity-only slice. No edits to tests, PLAN or other source files. Run tiny compile check only, not full suite."
+    },
+    {
+      "index": 2,
+      "title": "Prove deterministic N123 Go job identities across source and command changes",
+      "file": "cmd/judge_observe_test.go",
+      "done_when": "Small Go test uses an isolated disposable Git fixture to prove `n123GoJudgeOperation` yields identical key/path for identical HEAD+name+argv, a different key when argv changes, a different key after Git HEAD advances, and original key remains addressable; non-Go or Gitless fixtures preserve legacy check name. No real full QA, provider call, receipt overwrite or production path modification.",
+      "instructions": "ONLY EDIT cmd/judge_observe_test.go. Add `TestN123GoJudgeOperationBoundToSourceAndArguments` using fixed helper `n123GoJudgeOperation(root, displayName string, cmd *exec.Cmd)` to be implemented by worker 1 in judge.go. Use t.TempDir and git init/config/add/commit (existing Go test helper if accessible), no remote, no Go full suite. Compute deterministic operation and jobReceiptPaths under `legacyScope` for same root; assert same source, name, argv => same operation; changed argv => diff; advancing Git HEAD => diff; non-Go command or non-Git root => legacy operation unchanged; ensure safe bounded operation string and no raw args. The old source prior to integration may fail compile; mark as pending, not PASS. Preserve existing tests. Do not modify production code, other tests or plans."
+    }
+  ]
+}
