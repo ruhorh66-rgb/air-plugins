@@ -1,0 +1,56 @@
+{
+    "schema":  "air-worker.devwork30.p0-g05-structured-claude-source-only/v1",
+    "owner":  "Dev Work 30 / SRVLM01",
+    "observed_sgt":  "2026-11-08",
+    "source_baseline":  "df9540fd9031bd206c98c2e8a0a729ec5f7bf91a",
+    "native_two_coding_workers":  [
+                                      {
+                                          "index":  1,
+                                          "job_id":  "gpt__devwork30-p0-g05-sonnet-json-20261108__1794113640036528900__62a3821e",
+                                          "model":  "gpt-6.1-terra",
+                                          "receipt_status":  "DONE",
+                                          "exit_code":  0,
+                                          "source_head":  "df9540fd9031bd206c98c2e8a0a729ec5f7bf91a",
+                                          "receipt_sha256":  "fb2af3dc765bd5202e535925166d3ba4a4125a247f634e2177c5482d23a9306b",
+                                          "output_sha256":  "75641e4875fc3eb285e464d5b323e03896aac406fd9d69301def0981679444e5",
+                                          "patch_sha256":  "bf2e0fe0eec35501a2af61234a4fc41b967a5a0fa777183941f80bc175e1d1b1",
+                                          "changed_file":  "air-worker/cmd/source_review.go"
+                                      },
+                                      {
+                                          "index":  2,
+                                          "job_id":  "gpt__devwork30-p0-g05-sonnet-json-20261108__1794113640037964900__8b91bdd4",
+                                          "model":  "gpt-6.1-terra",
+                                          "receipt_status":  "DONE",
+                                          "exit_code":  0,
+                                          "source_head":  "df9540fd9031bd206c98c2e8a0a729ec5f7bf91a",
+                                          "receipt_sha256":  "abf9af34f592356c5204b7629ddcb2fb2c32422e65e410c9bad0829bf4884ee6",
+                                          "output_sha256":  "73a03c6265c26505acf9891579db3882198a23fc5e57b478234d2a502a12fd1e",
+                                          "patch_sha256":  "d7843213df4e9808c1b1b35a9320a3de016634f75a322d9a7288c90b873ae875",
+                                          "changed_file":  "air-worker/cmd/source_review_test.go"
+                                      }
+                                  ],
+    "coord_role":  "ChatGPT current conversation integrated two actual code changes, no third Codex leader",
+    "source_change":  "Dedicated native source reviewer uses Claude Code 2.1.319 --json-schema and existing semantic-reviewer job receipt, strict structured_output/result envelope; ordinary prose not accepted, citation SHA checks preserved",
+    "qa":  {
+               "strict_source_review_tests_rc":  0,
+               "bad_prose_prefix_rejected":  true,
+               "bad_prose_suffix_rejected":  true,
+               "malformed_json_rejected":  true,
+               "model_nonzero_exit_rejected":  true,
+               "wrong_source_task_sha_rejected":  true,
+               "missing_TASK_READ_OK_rejected":  true,
+               "missing_three_citations_rejected":  true,
+               "go_vet_rc":  0
+           },
+    "constraints":  {
+                        "native_sonnet_final_sha_live_review":  "PENDING_AFTER_SOURCE_COMMIT",
+                        "full_N123_final_SHA_QA":  "OPEN",
+                        "independent_Codex_Sol_low":  "OPEN",
+                        "rollback":  "OPEN",
+                        "G05":  "OPEN",
+                        "P0":  "4/8",
+                        "release":  "NOT_PUBLISHED",
+                        "installed":  "0.11.11-rc.2"
+                    },
+    "next":  "Commit+push exact SHA, native Sonnet independent source security review with schema, one required full QA when source frozen, independent Sol low and rollback; no G05 pass before all"
+}

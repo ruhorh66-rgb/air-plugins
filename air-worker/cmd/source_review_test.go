@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -314,5 +316,162 @@ func TestSourceReviewRejectsOneBadCitationEvenWithThreeValid(t *testing.T) {
 	}
 	if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, taskSHA); err == nil {
 		t.Fatal("one mismatched extra citation must invalidate PASS rather than being ignored")
+	}
+}
+
+func TestSourceReviewClaudeCommandUsesStrictSchemaAndReadOnlyTools(t *testing.T) {
+	cmd := sourceReviewClaudeCommand("claude", t.TempDir(), "review task", runnerSpec{Model: "sonnet"})
+	args := cmd.Args
+	value := func(flag string) string {
+		t.Helper()
+		for i := 0; i+1 < len(args); i++ {
+			if args[i] == flag {
+				return args[i+1]
+			}
+		}
+		t.Fatalf("missing %s in %v", flag, args)
+		return ""
+	}
+	if !containsArg(args, "-p") || value("--output-format") != "json" || value("--allowed-tools") != "Read,Glob,Grep" {
+		t.Fatalf("unexpected source review command: %v", args)
+	}
+	raw := value("--json-schema")
+	var schema map[string]any
+	if err := json.Unmarshal([]byte(raw), &schema); err != nil {
+		t.Fatal(err)
+	}
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, []byte(raw)); err != nil || compact.String() != raw {
+		t.Fatalf("schema must be compact JSON: %s", raw)
+	}
+	checkSourceReviewSchema(t, schema, map[string]bool{
+		"verdict": true, "source_commit": true, "task_sha256": true, "task_read": true,
+		"checked": true, "findings": true, "next": true,
+	}, nil)
+	props := schema["properties"].(map[string]any)
+	for _, tc := range []struct {
+		name               string
+		required, optional map[string]bool
+	}{
+		{"checked", map[string]bool{"path": true, "line": true, "quote": true}, nil},
+		{"findings", map[string]bool{"severity": true, "path": true, "line": true, "quote": true, "detail": true}, map[string]bool{"next": true}},
+	} {
+		array, ok := props[tc.name].(map[string]any)
+		if !ok || array["type"] != "array" {
+			t.Fatalf("%s is not an array schema", tc.name)
+		}
+		items, ok := array["items"].(map[string]any)
+		if !ok {
+			t.Fatalf("%s has no item schema", tc.name)
+		}
+		checkSourceReviewSchema(t, items, tc.required, tc.optional)
+	}
+}
+
+func containsArg(args []string, want string) bool {
+	for _, arg := range args {
+		if arg == want {
+			return true
+		}
+	}
+	return false
+}
+
+func checkSourceReviewSchema(t *testing.T, schema map[string]any, required, optional map[string]bool) {
+	t.Helper()
+	for key := range schema {
+		if key != "type" && key != "properties" && key != "required" && key != "additionalProperties" {
+			t.Fatalf("unsupported object schema key %q", key)
+		}
+	}
+	if schema["type"] != "object" || schema["additionalProperties"] != false {
+		t.Fatalf("not a closed object schema: %v", schema)
+	}
+	props, ok := schema["properties"].(map[string]any)
+	if !ok || len(props) != len(required)+len(optional) {
+		t.Fatalf("unexpected properties: %v", schema["properties"])
+	}
+	for key := range props {
+		if !required[key] && !optional[key] {
+			t.Fatalf("unexpected property %q", key)
+		}
+	}
+	list, ok := schema["required"].([]any)
+	if !ok || len(list) != len(required) {
+		t.Fatalf("unexpected required fields: %v", schema["required"])
+	}
+	seen := map[string]bool{}
+	for _, item := range list {
+		name, ok := item.(string)
+		if !ok || !required[name] || seen[name] {
+			t.Fatalf("unexpected required field %v", item)
+		}
+		seen[name] = true
+	}
+}
+
+func TestSourceReviewStructuredEnvelopeFailsClosed(t *testing.T) {
+	root, commit, task, refs := sourceReviewFixture(t)
+	valid := sourceReviewVerdict{Verdict: "PASS_SOURCE_ONLY", SourceCommit: commit, TaskSHA256: task,
+		TaskRead: "TASK_READ_OK", Checked: refs, Findings: []sourceReviewFinding{}, Next: "review complete"}
+	payload := sourceReviewJSON(t, valid)
+	envelope := func(fields map[string]any) string {
+		t.Helper()
+		fields["type"] = "result"
+		raw, err := json.Marshal(fields)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(raw)
+	}
+	for _, raw := range []string{
+		envelope(map[string]any{"structured_output": json.RawMessage(payload), "is_error": false}),
+		envelope(map[string]any{"result": payload, "is_error": false}),
+	} {
+		reply, _, err := parseClaudeStructuredSourceResult(raw, nil)
+		if err != nil {
+			t.Fatalf("valid envelope: %v", err)
+		}
+		if got, err := parseSourceReviewVerdict(reply, root, commit, task); err != nil || got.Verdict != "PASS_SOURCE_ONLY" {
+			t.Fatalf("valid structured verdict rejected: %+v %v", got, err)
+		}
+	}
+	for _, tc := range []struct {
+		name, raw string
+		runErr    error
+	}{
+		{"prose prefix", envelope(map[string]any{"result": "Here is the review: " + payload}), nil},
+		{"prose suffix", envelope(map[string]any{"result": payload + " done"}), nil},
+		{"malformed envelope", `{`, nil},
+		{"missing payload", envelope(map[string]any{"is_error": false}), nil},
+		{"malformed structured object", envelope(map[string]any{"structured_output": map[string]any{"verdict": "PASS_SOURCE_ONLY"}}), nil},
+		{"error result", envelope(map[string]any{"structured_output": json.RawMessage(payload), "is_error": true}), nil},
+		{"nonzero process", envelope(map[string]any{"structured_output": json.RawMessage(payload)}), errors.New("exit status 1")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reply, _, err := parseClaudeStructuredSourceResult(tc.raw, tc.runErr)
+			if err == nil {
+				if _, err = parseSourceReviewVerdict(reply, root, commit, task); err == nil {
+					t.Fatal("invalid result accepted as PASS")
+				}
+			}
+		})
+	}
+	for _, mutate := range []func(*sourceReviewVerdict){
+		func(v *sourceReviewVerdict) { v.SourceCommit = strings.Repeat("c", 40) },
+		func(v *sourceReviewVerdict) { v.TaskSHA256 = strings.Repeat("d", 64) },
+		func(v *sourceReviewVerdict) { v.TaskRead = "TASK_READ_FAIL" },
+		func(v *sourceReviewVerdict) { v.Checked = v.Checked[:2] },
+	} {
+		v := valid
+		mutate(&v)
+		raw := envelope(map[string]any{"structured_output": json.RawMessage(sourceReviewJSON(t, v))})
+		reply, _, err := parseClaudeStructuredSourceResult(raw, nil)
+		if err == nil {
+			_, err = parseSourceReviewVerdict(reply, root, commit, task)
+		}
+		if err == nil {
+			t.Fatal("invalid source evidence accepted")
+		}
 	}
 }
