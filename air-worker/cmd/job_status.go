@@ -10,8 +10,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"unicode/utf8"
 )
+
+var reJobOperation = regexp.MustCompile(`\A[\pL\pN ., _-]+\z`)
 
 // job status is a read-only recovery path for a deterministic owned job identity.
 // It does not restart or finalize a RUNNING job and does not infer success from
@@ -67,7 +71,8 @@ func inspectOwnedJob(scope sessionScope, step, operation string) (jobStatusSnaps
 		Principal: scope.ID.Principal, SessionKey: scope.ID.SessionKey,
 		Step: step, Operation: operation}
 	if len(step) < 1 || len(step) > 200 || !reIdentityPart.MatchString(step) ||
-		len(operation) < 1 || len(operation) > 200 || !reIdentityPart.MatchString(operation) {
+		len(operation) < 1 || len(operation) > 200 || !utf8.ValidString(operation) ||
+		!reJobOperation.MatchString(operation) || strings.Contains(operation, "..") {
 		return s, errors.New("step and operation must use bounded safe native identifiers")
 	}
 	receiptPath, outputPath := jobReceiptPaths(scope, step, operation)

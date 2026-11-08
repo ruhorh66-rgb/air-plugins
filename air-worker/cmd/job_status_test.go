@@ -1,13 +1,56 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestJobStatusReadsRealJudgeNamesAndSeals(t *testing.T) {
+	for _, operation := range []string{"тесты", "двигатель достижим, потолки объявлены, планировщик ОС не нужен"} {
+		t.Run(operation, func(t *testing.T) {
+			root := setupSessionProduct(t)
+			scope := newScope(root, sessionIdentity{"gpt", "real-judge-name"})
+			const step = "judge"
+			t.Setenv("AW_N123_CHILD_MARKER", filepath.Join(root, "child-started"))
+			output, err := runReceipted(context.Background(), scope, step, operation,
+				exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$"))
+			if err != nil || string(output) != jobReceiptStdoutMarker {
+				t.Fatalf("run real judge name: output=%q err=%v", output, err)
+			}
+			receiptPath, outputPath := jobReceiptPaths(scope, step, operation)
+			receipt, err := readJobReceipt(receiptPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := inspectOwnedJob(scope, step, operation)
+			if err != nil {
+				t.Fatal(err)
+			}
+			seal := sha256.Sum256(output)
+			wantSHA := hex.EncodeToString(seal[:])
+			if got.Product != root || got.Principal != scope.ID.Principal || got.SessionKey != scope.ID.SessionKey ||
+				got.Step != step || got.Operation != operation || got.JobID != receipt.JobID ||
+				got.ReceiptPath != receiptPath || got.OutputPath != outputPath ||
+				got.Status != jobStatusDone || !got.Terminal || got.OutputSHA256 != wantSHA ||
+				got.OutputBytes != int64(len(output)) || receipt.OutputSHA256 != wantSHA ||
+				receipt.OutputBytes != int64(len(output)) {
+				t.Fatalf("sealed judge readback mismatch: snapshot=%+v receipt=%+v", got, receipt)
+			}
+			if err := os.WriteFile(outputPath, []byte("altered output"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := inspectOwnedJob(scope, step, operation); err == nil {
+				t.Fatal("changed terminal output accepted")
+			}
+		})
+	}
+}
 
 func TestN123JobStatusReadOnlyTerminalRecovery(t *testing.T) {
 	root := setupSessionProduct(t)
@@ -116,9 +159,11 @@ func TestN123JobStatusRejectsForeignReceiptAndMissingLog(t *testing.T) {
 func TestN123JobStatusRejectsMalformedIdentifiers(t *testing.T) {
 	root := setupSessionProduct(t)
 	scope := newScope(root, sessionIdentity{"gpt", "bad-identifiers"})
-	for _, pair := range [][2]string{{"../foreign", "native-codex"}, {"N123", "../../foreign"}, {"N123", ""}} {
-		if _, err := inspectOwnedJob(scope, pair[0], pair[1]); err == nil {
-			t.Fatalf("unsafe step/operation was accepted: %q / %q", pair[0], pair[1])
+	for _, bad := range []string{"", "a/b", `a\b`, "..", "a..b", "a\n", "a\t", "a\x00", string([]byte{0xff})} {
+		for _, pair := range [][2]string{{bad, "native-codex"}, {"N123", bad}} {
+			if _, err := inspectOwnedJob(scope, pair[0], pair[1]); err == nil {
+				t.Fatalf("unsafe step/operation was accepted: %q / %q", pair[0], pair[1])
+			}
 		}
 	}
 }
