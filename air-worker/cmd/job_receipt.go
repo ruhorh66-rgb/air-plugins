@@ -71,6 +71,12 @@ func jobLockKind(step, operation string) string {
 // receipt; независимый scope (другая сессия, другой продукт) получает свой замок и не
 // блокируется.
 func startJobReceipt(scope sessionScope, step, operation, receiptPath, outputPath string) (*jobReceipt, *osLock, error) {
+	canonicalReceipt, canonicalOutput := jobReceiptPaths(scope, step, operation)
+	if filepath.Clean(receiptPath) == filepath.Clean(canonicalReceipt) || filepath.Clean(outputPath) == filepath.Clean(canonicalOutput) {
+		if err := validateJobDir(scope.Root); err != nil {
+			return nil, nil, err
+		}
+	}
 	lock, ok := acquireLock(scopedLockName(jobLockKind(step, operation), scope))
 	if !ok {
 		return nil, nil, fmt.Errorf("ОТКАЗ: job %s/%s уже запущен в scope %s — duplicate start внутри owned scope запрещён",
@@ -135,19 +141,22 @@ func finishJobReceiptWithExit(receiptPath, status string, code *int) error {
 	if r.Status != jobStatusRunning {
 		return fmt.Errorf("job %s already terminal (%s); status cannot be overwritten", r.JobID, r.Status)
 	}
+	r.OutputSHA256, r.OutputBytes = "", 0
 	output, openErr := os.Open(r.OutputPath)
 	if openErr == nil {
 		defer output.Close()
 		info, statErr := output.Stat()
-		if statErr == nil && info.Mode().IsRegular() && info.Size() <= (32<<20) {
+		linkInfo, linkErr := os.Lstat(r.OutputPath)
+		if statErr == nil && linkErr == nil && info.Mode().IsRegular() && linkInfo.Mode().IsRegular() && os.SameFile(info, linkInfo) && info.Size() <= (32<<20) {
 			h := sha256.New()
-			n, readErr := io.Copy(h, output)
-			if readErr == nil && n == info.Size() {
+			n, readErr := io.Copy(h, io.LimitReader(output, (32<<20)+1))
+			if readErr == nil && n == info.Size() && n <= (32<<20) {
 				r.OutputSHA256, r.OutputBytes = hex.EncodeToString(h.Sum(nil)), n
-			} else if status == jobStatusDone {
-				return fmt.Errorf("cannot seal terminal output")
 			}
 		}
+	}
+	if status == jobStatusDone && (r.ProcessStarted || code != nil) && r.OutputSHA256 == "" {
+		return errors.New("cannot seal terminal output")
 	}
 	r.Status = status
 	r.ExitCode = code
@@ -221,8 +230,37 @@ func runReceipted(ctx context.Context, scope sessionScope, step, operation strin
 	return runReceiptedWithMeta(ctx, scope, step, operation, cmd, jobReceiptMeta{})
 }
 
+// validateJobDir rejects existing linked ancestors before any directory creation.
+func validateJobDir(root string) error {
+	physicalRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return err
+	}
+	for _, part := range []string{".woody", filepath.Join(".woody", "jobs")} {
+		path := filepath.Join(root, part)
+		info, err := os.Lstat(path)
+		if os.IsNotExist(err) {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() || info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+			return fmt.Errorf("unsafe job directory: %s", path)
+		}
+		physical, err := filepath.EvalSymlinks(path)
+		if err != nil || !pathWithinRoot(physicalRoot, physical) || !strings.EqualFold(filepath.Clean(physical), filepath.Clean(filepath.Join(physicalRoot, part))) {
+			return fmt.Errorf("redirected job directory: %s", path)
+		}
+	}
+	return nil
+}
+
 func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operation string, cmd *exec.Cmd, meta jobReceiptMeta) ([]byte, error) {
 	receiptPath, outputPath := jobReceiptPaths(scope, step, operation)
+	if err := validateJobDir(scope.Root); err != nil {
+		return nil, err
+	}
 	if err := os.MkdirAll(filepath.Dir(receiptPath), 0o755); err != nil {
 		return nil, err
 	}

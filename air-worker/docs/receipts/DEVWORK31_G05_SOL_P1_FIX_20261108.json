@@ -1,0 +1,100 @@
+{
+  "schema": "air-worker.devwork31.g05-sol-p1-correction/v1",
+  "observed_sgt_date": "2026-11-08",
+  "source_before": "3905d4700250990bde189045541ad9af1e2d93a4",
+  "review_evidence": "docs/receipts/DEVWORK31_G05_INDEPENDENT_SOL_P1_20261108.json",
+  "prior_source_sha": "cd81e46205cf834996acf33f801f75d75a06d889",
+  "prior_independent_review": {
+    "anthropic": "PASS_SOURCE_ONLY on old SHA with unreviewed N123 tests",
+    "codex_model": "gpt-6-sol",
+    "effort": "low",
+    "verdict": "FAIL_P1",
+    "two_findings": [
+      "own .woody/jobs redirection could create foreign job output",
+      "actual successful child >32MiB output could become unsealed DONE"
+    ]
+  },
+  "task": {
+    "file": "docs/tasks/DW31_G05_SOL_P1.json",
+    "sha256": "3a240d3a760f6ee7db6f000371f7599bd73c7419ee3bffe9811a38943e2f7c80"
+  },
+  "native_handoff": {
+    "status": "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION",
+    "sha256": "bd852e4374b78195cfe9355da10174e9e732d297d89f3e6a9c219667d992de12"
+  },
+  "orchestration": {
+    "coordinator": "current ChatGPT conversation",
+    "real_codex_code_writers": 2,
+    "third_codex_leader": 0,
+    "separate_git_worktrees": true,
+    "main_tree_clean_before_merge": true,
+    "git_apply_check_rc": [
+      0,
+      0
+    ],
+    "coordinator_integrated": true,
+    "changed_files_exact": [
+      "cmd/job_receipt.go",
+      "cmd/job_receipt_test.go"
+    ],
+    "workers": [
+      {
+        "index": 1,
+        "role": "coding-subagent/worker",
+        "model": "gpt-6.1-terra",
+        "status": "DONE",
+        "exit_code": 0,
+        "file": "cmd/job_receipt.go",
+        "job_id_suffix": "c9e56e7f",
+        "patch_sha256": "1927e3f80a38631a490ae9828f88ac100f8d5d40f1d19302601721609f2958a2",
+        "output_sha256": "f8d85ea1ffa6a78cbf89e53a90629700c984d2e2ee8d40b39f692adc68e5585b",
+        "microstep_sha256": "b465c2b8e35b18cdbc0ff12a70e0fab0f6cc6e9e98768ab75a3883d0dd53d58e"
+      },
+      {
+        "index": 2,
+        "role": "coding-subagent/worker",
+        "model": "gpt-6.1-terra",
+        "status": "DONE",
+        "exit_code": 0,
+        "file": "cmd/job_receipt_test.go",
+        "job_id_suffix": "adf8655e",
+        "patch_sha256": "3387ba0e4f4df2fd0eea4e124ec70540777195612d59b622341188906fe4ddb2",
+        "output_sha256": "8002862c8ad572878bc73def0b799e927a3b96e1634a5b50dba51b07358f1a12",
+        "microstep_sha256": "4ef8379a5deffccf262880cc6de1c048291dc8a9f8100c6bf8ba718b541aa85d"
+      }
+    ]
+  },
+  "source_delta": "validateJobDir validates preexisting canonical .woody/jobs ancestors and refuses links or redirected canonical path before job startup; actual successful job DONE now requires a bounded ordinary output file and a verified output SHA, otherwise fail closed without false DONE; legacy fixture no-real-child completion retained.",
+  "targeted_qa": {
+    "selection": "^(TestN123OwnedJobsDirectoryJunctionFailsBeforeLaunch|TestN123OversizeNativeOutputCannotRecordUnsealedDone|TestRunReceiptedFailsClosedWhenPIDRegistrationFails|TestCriterion42Pending)$",
+    "go_test_rc": 0,
+    "tests_passed": [
+      "TestN123OwnedJobsDirectoryJunctionFailsBeforeLaunch",
+      "TestN123OversizeNativeOutputCannotRecordUnsealedDone",
+      "TestRunReceiptedFailsClosedWhenPIDRegistrationFails",
+      "TestCriterion42Pending"
+    ],
+    "tested_owned_unprivileged_windows_junction": true,
+    "oversize_bytes": 33554433,
+    "sparse_test_file": true,
+    "go_test_log_sha256": "2f5de4f71750de64fc2e59ec9c7781922dc76f95996ecc7ff311565f894ccb7b",
+    "go_vet_rc": 0,
+    "go_vet_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gofmt_normalized_lf_clean": true,
+    "git_diff_check_rc": 0
+  },
+  "boundaries": {
+    "n124_symlink": "OPEN: file symlink fixture still SKIP due Windows privilege. Own NTFS junction PASS does NOT replace N124 file symlink.",
+    "g05": "OPEN: independent final-SHA Anthropic and Sol low verdicts and full native QA required after corrected SHA; a previous Codex FAIL_P1 is not magically overwritten by targeted tests.",
+    "g06": "OPEN: actual vendor failure/stall not proven",
+    "g07": "OPEN: two real ordinary GPT chat disconnects and EXECUTION_UNKNOWN not proven",
+    "g08": "OPEN: no native nodes closed",
+    "p0": "4/8 PASS"
+  },
+  "release": {
+    "installed": "0.11.11-rc.2 unchanged",
+    "candidate": "0.11.11-rc.5 SOURCE_ONLY/HOLD",
+    "no_install": true
+  },
+  "next": "Commit/push exact source, operational-goal advance, source-only independent re-review on new SHA, finish G05 native full QA and rollback without repeating earlier accepted G01-G04/N123/G05C."
+}

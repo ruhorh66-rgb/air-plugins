@@ -1,5 +1,14 @@
 # AirWorker · Dev Work 30 → следующая GPT-сессия · 08.11.2026
 
+## Dev Work31 · адресное устранение 2 P1 G05 · 08.11.2026
+
+После независимого нативного Anthropic Sonnet 5.5 `PASS_SOURCE_ONLY` на `cd81e46` модель `Codex GPT-6 Sol low` реально прочла тот же source/task и вернула `FAIL_P1` (риск `.woody/jobs` junction redirect за продукт, неверный `DONE` без SHA для real stdout >32 MiB). Отчёт исходного Sol low `docs/receipts/DEVWORK31_G05_INDEPENDENT_SOL_P1_20261108.json`; QA/права не подменять.
+
+В существующей штатной оркестрации два реальных Codex `gpt-6.1-terra:low` writer в отдельных Git worktree `473f9db91dfbb7e6dc` завершили `DONE/exit0`, edited exactly `cmd/job_receipt.go` и `cmd/job_receipt_test.go` с patch SHA `1927e3f80a38631a490ae9828f88ac100f8d5d40f1d19302601721609f2958a2` и `3387ba0e4f4df2fd0eea4e124ec70540777195612d59b622341188906fe4ddb2` на baseline `3905d4700250990bde189045541ad9af1e2d93a4`; source handoff SHA `bd852e4374b78195cfe9355da10174e9e732d297d89f3e6a9c219667d992de12`. ChatGPT проверил patches SHA/isolated file scope, `git apply --check` 2/2 и интегрировал. Недопустимый `.woody/jobs` junction отвергается до запуска child; actual successful output >32 MiB не принимается как `DONE` без seal. Адресные тесты нового негативного собственного Windows junction и sparse 32MiB+1 + прежние PID/transport negative **RC0**, `go vet RC0`, log SHA `2f5de4f71750de64fc2e59ec9c7781922dc76f95996ecc7ff311565f894ccb7b`. Квитанция `docs/receipts/DEVWORK31_G05_SOL_P1_FIX_20261108.json`.
+
+Открыто: независимая проверка исправленного **нового exact SHA** Anthropic TASK_READ_OK + Codex Sol low PASS, завершающий full native Go QA и безопасный rollback. Ранее `FAIL_P1` не скрывать; N124 file symlink `SKIP` остаётся NOT_PROVEN несмотря на собственный junction PASS. Состояние P0 4/8, 0/4 nodes CLOSED. Installed rc.2 неизменна, source candidate rc.5 HOLD; не повторять принятые N123/G05C и G01–G04.
+
+
 ## Dev Work31 · N139 owned parent/child termination verified · 08.11.2026
 
 Исходная N139 таска с длинным filename была `NOT_PROVEN` до старта Codex из-за NTFS temp-file component=258; источник исправлен коммитом `1e6d5c0858918cda017336b3061c5822e972b1a7`. Исторический старый handoff `ecc372f0b8d2516e46/handoff.json` SHA `2e6b58c7d1f0577cf396bd04051b2b872c972b59b06f93a1dcacb0fbf4495971` и чистые worker worktrees НЕ удалены. Новая длинная task identity `docs/tasks/DEVWORK31_P0_N139_OWNED_TREE_POST_FIX_MICROSTEPS_20261108.json` содержит **точно те же байты/TaskSHA** `8c22ea71be7be82082de3f77d19d10d8f9f902e9ffd179e654ef75a4ff04cd36`, но новую уникальную step/scope и исходный source `975ca1c5e71299f52273e94c3e89e16a58f02203`. Source-only CLI `rc.5` SHA `a716e9ca57014f3d334af6067d2690299b5b2a54cc5141e0de015deb3a8f3364`, installed `rc.2` не тронута.

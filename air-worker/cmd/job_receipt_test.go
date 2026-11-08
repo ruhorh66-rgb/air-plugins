@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -414,5 +415,78 @@ func TestN123FinishedReceiptIsImmutableAgainstSecondFinalization(t *testing.T) {
 	after, err := os.ReadFile(receiptPath)
 	if err != nil || string(after) != string(before) {
 		t.Fatalf("terminal receipt modified after finalization: %v", err)
+	}
+}
+
+func TestN123OwnedJobsDirectoryJunctionFailsBeforeLaunch(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows junction fixture only")
+	}
+	root, outside := t.TempDir(), t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".woody"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	sentinel := filepath.Join(outside, "sentinel")
+	if err := os.WriteFile(sentinel, []byte("untouched"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	junction := filepath.Join(root, ".woody", "jobs")
+	if out, err := exec.Command("cmd.exe", "/c", "mklink", "/J", junction, outside).CombinedOutput(); err != nil {
+		t.Skipf("junction creation unavailable; NOT_PROVEN: %v: %s", err, out)
+	}
+	scope := newScope(root, sessionIdentity{"gpt", "junction"})
+	receiptPath, outputPath := jobReceiptPaths(scope, "N123", "junction")
+	marker := filepath.Join(root, "child-started")
+	command := exec.Command("cmd.exe", "/c", "echo started > \""+marker+"\"")
+	_, err := runReceipted(context.Background(), scope, "N123", "junction", command)
+	if err == nil {
+		t.Error("junction-backed jobs directory was accepted")
+	}
+	if data, err := os.ReadFile(sentinel); err != nil || string(data) != "untouched" {
+		t.Errorf("outside sentinel changed: %q: %v", data, err)
+	}
+	for _, path := range []string{marker, receiptPath, outputPath} {
+		if _, err := os.Lstat(path); !os.IsNotExist(err) {
+			t.Errorf("unexpected child marker or job evidence %s: %v", path, err)
+		}
+	}
+	entries, err := os.ReadDir(outside)
+	if err != nil || len(entries) != 1 || entries[0].Name() != "sentinel" {
+		t.Errorf("outside directory changed: %v: %v", entries, err)
+	}
+}
+
+func TestN123OversizeNativeOutputCannotRecordUnsealedDone(t *testing.T) {
+	root := t.TempDir()
+	scope := newScope(root, sessionIdentity{"gpt", "oversize"})
+	receiptPath, outputPath := jobReceiptPaths(scope, "N123", "oversize")
+	if err := os.MkdirAll(filepath.Dir(receiptPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	r, lock, err := startJobReceipt(scope, "N123", "oversize", receiptPath, outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.release()
+	r.ProcessStarted = true
+	if err := writeJobReceipt(receiptPath, r); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(outputPath, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Truncate(outputPath, (32<<20)+1); err != nil {
+		t.Fatal(err)
+	}
+	zero := 0
+	if err := finishJobReceiptWithExit(receiptPath, jobStatusDone, &zero); err == nil {
+		t.Error("oversize output must not be accepted as DONE without a seal")
+	}
+	finished, err := readJobReceipt(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished.Status == jobStatusDone && finished.OutputSHA256 == "" {
+		t.Error("receipt recorded DONE without output SHA256")
 	}
 }
