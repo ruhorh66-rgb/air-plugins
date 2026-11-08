@@ -270,7 +270,23 @@ func cmdJudge(argv []string) int {
 	configPath := fs.String("config", "", "путь к run-config.json")
 	minFacts := fs.Int("min-facts", -1, "перекрыть требуемое число фактов")
 	asJSON := fs.Bool("json", false, "структурированный factual result без второго прогона")
+	principal := fs.String("principal", "", "session principal")
+	sessionKey := fs.String("session-key", "", "session key")
+	stateDir := fs.String("state-dir", "", "session state dir override")
 	if err := fs.Parse(argv); err != nil {
+		return 2
+	}
+	var hasPrincipal, hasSessionKey bool
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "principal":
+			hasPrincipal = true
+		case "session-key":
+			hasSessionKey = true
+		}
+	})
+	if hasPrincipal != hasSessionKey {
+		fmt.Fprint(os.Stderr, "ОТКАЗ: principal and session-key must be provided together"+lineEnding)
 		return 2
 	}
 	root, err := filepath.Abs(*product)
@@ -293,7 +309,15 @@ func cmdJudge(argv []string) int {
 	if _, code, ok := requirePlan(root, cfg, "судья"); !ok {
 		return code
 	}
-	res := runJudge(root, cfg, *minFacts, legacyScope(root))
+	scope := legacyScope(root)
+	if hasPrincipal {
+		scope, err = executorScopeForSession(root, *principal, *sessionKey, *stateDir)
+		if err != nil {
+			fmt.Fprint(os.Stderr, "ОТКАЗ: "+err.Error()+lineEnding)
+			return 2
+		}
+	}
+	res := runJudge(root, cfg, *minFacts, scope)
 	planPath := nativePlanPath(root, cfg)
 	res.InputFingerprint = judgeInputFingerprint(root, cfg, cfgPath, planPath)
 	code, text := verdict(res)

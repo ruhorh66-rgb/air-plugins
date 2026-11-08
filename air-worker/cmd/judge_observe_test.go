@@ -252,6 +252,102 @@ func readCounter(t *testing.T, path string) int {
 	return n
 }
 
+func TestJudgeSessionScope(t *testing.T) {
+	root, counter := writeObservabilityFixture(t, 0)
+	state := t.TempDir()
+	id := sessionIdentity{Principal: "chatgpt", SessionKey: "judge-fixture"}
+	if err := writeStateJSON(sessionModePath(state, id), sessionModeState{Enabled: true, Principal: id.Principal, SessionKey: id.SessionKey}); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeStateJSON(sessionProductPath(state, id), sessionProductState{Path: root, Principal: id.Principal, SessionKey: id.SessionKey}); err != nil {
+		t.Fatal(err)
+	}
+	base := []string{"-product", root, "-state-dir", state}
+	run := func(args ...string) int {
+		_, code := captureStdout(t, func() int { return cmdJudge(append(append([]string{}, base...), args...)) })
+		return code
+	}
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"missing session key", []string{"-principal", id.Principal}},
+		{"missing principal", []string{"-session-key", id.SessionKey}},
+		{"unknown session", []string{"-principal", id.Principal, "-session-key", "unknown"}},
+		{"foreign principal", []string{"-principal", "claude", "-session-key", id.SessionKey}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if code := run(tc.args...); code != 2 || readCounter(t, counter) != 0 {
+				t.Fatalf("code=%d, check count=%d", code, readCounter(t, counter))
+			}
+		})
+	}
+	if err := writeStateJSON(sessionProductPath(state, id), sessionProductState{Path: t.TempDir(), Principal: id.Principal, SessionKey: id.SessionKey}); err != nil {
+		t.Fatal(err)
+	}
+	identity := []string{"-principal", id.Principal, "-session-key", id.SessionKey}
+	if code := run(identity...); code != 2 || readCounter(t, counter) != 0 {
+		t.Fatalf("foreign product: code=%d, check count=%d", code, readCounter(t, counter))
+	}
+	if err := writeStateJSON(sessionProductPath(state, id), sessionProductState{Path: root, Principal: id.Principal, SessionKey: id.SessionKey}); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeStateJSON(sessionModePath(state, id), sessionModeState{Enabled: false}); err != nil {
+		t.Fatal(err)
+	}
+	if code := run(identity...); code != 2 || readCounter(t, counter) != 0 {
+		t.Fatalf("inactive session: code=%d, check count=%d", code, readCounter(t, counter))
+	}
+	if err := writeStateJSON(sessionModePath(state, id), sessionModeState{Enabled: true, Principal: id.Principal, SessionKey: id.SessionKey}); err != nil {
+		t.Fatal(err)
+	}
+	planPath := filepath.Join(root, "PLAN.md")
+	plan, err := os.ReadFile(planPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(planPath, []byte("invalid plan\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if code := run(identity...); code != 2 || readCounter(t, counter) != 0 {
+		t.Fatalf("invalid plan: code=%d, check count=%d", code, readCounter(t, counter))
+	}
+	if err := os.WriteFile(planPath, plan, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "windows" {
+		t.Skip("fixture check requires Windows PowerShell")
+	}
+	if code := run(identity...); code != 0 || readCounter(t, counter) != 1 {
+		t.Fatalf("scoped judge: code=%d, check count=%d", code, readCounter(t, counter))
+	}
+	receipt, output := jobReceiptPaths(newScope(root, id), "judge", "probe")
+	beforeReceipt, err := os.ReadFile(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeOutput, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code := run(identity...); code == 0 || readCounter(t, counter) != 1 {
+		t.Fatalf("duplicate judge: code=%d, check count=%d", code, readCounter(t, counter))
+	}
+	afterReceipt, receiptErr := os.ReadFile(receipt)
+	afterOutput, outputErr := os.ReadFile(output)
+	if receiptErr != nil || outputErr != nil || string(beforeReceipt) != string(afterReceipt) || string(beforeOutput) != string(afterOutput) {
+		t.Fatal("duplicate judge changed receipt or output")
+	}
+	_, code := captureStdout(t, func() int { return cmdJudge([]string{"-product", root}) })
+	if code != 0 || readCounter(t, counter) != 2 {
+		t.Fatalf("legacy judge: code=%d, check count=%d", code, readCounter(t, counter))
+	}
+	legacyReceipt, _ := jobReceiptPaths(legacyScope(root), "judge", "probe")
+	if _, err := os.Stat(legacyReceipt); err != nil {
+		t.Fatalf("legacy receipt: %v", err)
+	}
+}
+
 func TestJudgeJSONReportDoesNotRerunChecks(t *testing.T) {
 	root, counter := writeObservabilityFixture(t, 0)
 	var cfg runConfig

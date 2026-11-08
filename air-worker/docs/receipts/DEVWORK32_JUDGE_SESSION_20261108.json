@@ -1,0 +1,19 @@
+{
+  "schema": "air-worker.devwork32.judge-session/v1",
+  "baseline": "5fb0ebabd41b5d237ce41cae8c4ecb9777695290",
+  "trigger": "Legacy judge scope has 12 immutable receipts including historical RUNNING; new current-source full QA requires an explicitly registered session, no deletion or overwrite",
+  "task_sha256": "04e5b596deba463edd070814ccb08a80ad87719002982db35f29e1dc0e2ae997",
+  "patch_sha256": [
+    "d2491f52b62fff10164e24f0a96cc5d0e8355f1a3128e521dec4ec81b3d6be2c",
+    "45eaac92c25593f5b1fa9a0138f83ab6c1131d2c78e7b7d0657f1335223d5fdc"
+  ],
+  "worker_receipts": [
+    "gpt__devwork32-pilot-priority-20261108__1794152263820443600__0c6a129b",
+    "gpt__devwork32-pilot-priority-20261108__1794152263818526800__14c07552"
+  ],
+  "source_sha256": "4b9d5500e5651d1dd338ea5bc2313d9a677c520395375ea444dfe59307ce92aa",
+  "tests_sha256": "30acced0e3abf9be556c5b09e27a83b1a7f0efe3c88079eb43fb4d97d4e62a5e",
+  "targeted": "PASS RC0: TestJudgeSessionScope, TestN123GoJudgeDuration, TestN123GoJudgeOperationBoundToSourceAndArguments, TestN123GoJudgeTimeoutSealsOwnedProcess, TestJudgeJSONReportDoesNotRerunChecks",
+  "vet": "RC0",
+  "limits": "Opt-in registered session only; PLAN guard retained, legacy unchanged. Tests ran under ordinary Windows Medium token; no UAC. Full QA, independent reviews, real G06/G07 and native closes remain OPEN. N124 deferred."
+}
