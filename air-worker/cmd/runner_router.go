@@ -254,11 +254,30 @@ func lastRouteEvidence(path string) routerRouteEvidence {
 	return routerRouteEvidence{}
 }
 
-func stopProcess(cmd *exec.Cmd) {
-	if cmd == nil || cmd.Process == nil {
-		return
+type loggedProcess struct {
+	cmd *exec.Cmd
+	log *os.File
+}
+
+func stopProcess(p *loggedProcess) error {
+	if p == nil {
+		return nil
 	}
-	_ = cmd.Process.Kill()
+	done := make(chan error, 1)
+	go func() {
+		err := terminateLearningProcessTree(p.cmd)
+		_ = p.cmd.Wait()
+		if closeErr := p.log.Close(); err == nil {
+			err = closeErr
+		}
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(5 * time.Second):
+		return fmt.Errorf("process cleanup timed out")
+	}
 }
 
 func readLogTail(path string) string {
@@ -305,22 +324,19 @@ func writeRouterConfig(path, baseURL string) error {
 	return os.WriteFile(path, raw, 0o600)
 }
 
-func startLogged(cmd *exec.Cmd, logPath string) error {
+func startLogged(cmd *exec.Cmd, logPath string) (*loggedProcess, error) {
 	logFile, err := os.Create(logPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
+	prepareLearningProcessTree(cmd)
 	if err := cmd.Start(); err != nil {
 		_ = logFile.Close()
-		return err
+		return nil, err
 	}
-	go func() {
-		_ = cmd.Wait()
-		_ = logFile.Close()
-	}()
-	return nil
+	return &loggedProcess{cmd: cmd, log: logFile}, nil
 }
 
 func openCodeServerEnv(configPath, dataDir, cacheDir, modelsURL string) []string {
@@ -363,8 +379,6 @@ func (c *loopCtx) invokeRouter(openCodePath, prompt string, runner runnerSpec, s
 	if err != nil {
 		return stepResult{Subtype: "runner_error", Detail: err.Error()}
 	}
-	receipt.Runner = "router"
-	_ = writeJobReceipt(receiptPath, receipt)
 	finished := false
 	defer func() {
 		if !finished {
@@ -372,6 +386,10 @@ func (c *loopCtx) invokeRouter(openCodePath, prompt string, runner runnerSpec, s
 		}
 		lock.release()
 	}()
+	receipt.Runner = "router"
+	if err := writeJobReceiptFunc(receiptPath, receipt); err != nil {
+		return stepResult{Subtype: "runner_error", Detail: err.Error()}
+	}
 
 	pythonPath, err := resolvePythonTool()
 	if err != nil {
@@ -390,7 +408,12 @@ func (c *loopCtx) invokeRouter(openCodePath, prompt string, runner runnerSpec, s
 	if err != nil {
 		return stepResult{Subtype: "runner_error", Detail: err.Error()}
 	}
-	defer os.RemoveAll(workDir)
+	cleanupOK := true
+	defer func() {
+		if cleanupOK {
+			_ = os.RemoveAll(workDir)
+		}
+	}()
 	bridgePort, err := freeLoopbackPort()
 	if err != nil {
 		return stepResult{Subtype: "runner_error", Detail: err.Error()}
@@ -410,10 +433,21 @@ func (c *loopCtx) invokeRouter(openCodePath, prompt string, runner runnerSpec, s
 	bridgeCmd := exec.Command(pythonPath, bridgeScript)
 	bridgeCmd.Dir = c.Root
 	bridgeCmd.Env = routerBridgeEnv(routerScript, routeReceipt, bridgePort)
-	if err := startLogged(bridgeCmd, filepath.Join(workDir, "bridge.log")); err != nil {
+	bridge, err := startLogged(bridgeCmd, filepath.Join(workDir, "bridge.log"))
+	if err != nil {
 		return stepResult{Subtype: "runner_error", Detail: "bridge: " + err.Error()}
 	}
-	defer stopProcess(bridgeCmd)
+	var server *loggedProcess
+	defer func() {
+		for _, p := range []*loggedProcess{server, bridge} {
+			if err := stopProcess(p); err != nil {
+				cleanupOK = false
+				result.Ok = false
+				result.Subtype = "runner_error"
+				result.Detail += "\nprocess cleanup: " + err.Error()
+			}
+		}
+	}()
 
 	client := &http.Client{Timeout: 60 * time.Second}
 	if err := waitRouterHTTP(client, bridgeURL+"/v1/models", 10*time.Second); err != nil {
@@ -423,10 +457,10 @@ func (c *loopCtx) invokeRouter(openCodePath, prompt string, runner runnerSpec, s
 	serverCmd := exec.Command(openCodePath, "serve", "--pure", "--hostname", "127.0.0.1", "--port", strconv.Itoa(serverPort), "--print-logs", "--log-level", "DEBUG")
 	serverCmd.Dir = c.Root
 	serverCmd.Env = openCodeServerEnv(configPath, filepath.Join(workDir, "data"), filepath.Join(workDir, "cache"), bridgeURL)
-	if err := startLogged(serverCmd, filepath.Join(workDir, "opencode.log")); err != nil {
+	server, err = startLogged(serverCmd, filepath.Join(workDir, "opencode.log"))
+	if err != nil {
 		return stepResult{Subtype: "runner_error", Detail: "opencode: " + err.Error()}
 	}
-	defer stopProcess(serverCmd)
 	if err := waitRouterHTTP(client, serverURL+"/provider", 75*time.Second); err != nil {
 		return stepResult{Subtype: "runner_error", Detail: err.Error() + "\nopencode.log:\n" + readLogTail(filepath.Join(workDir, "opencode.log"))}
 	}
@@ -505,9 +539,19 @@ func (c *loopCtx) invokeRouter(openCodePath, prompt string, runner runnerSpec, s
 	receipt.Model = ev.Model
 	cost := ev.Cost
 	receipt.Cost = &cost
-	_ = writeJobReceipt(receiptPath, receipt)
+	if err := writeJobReceiptFunc(receiptPath, receipt); err != nil {
+		return stepResult{Session: session.ID, Subtype: "runner_error", Detail: err.Error()}
+	}
 	if err := writeOwnedJobOutput(c.Root, outputPath, []byte(detail+"\n")); err != nil {
 		return stepResult{Session: session.ID, Subtype: "runner_error", Detail: err.Error()}
+	}
+	for _, process := range []**loggedProcess{&server, &bridge} {
+		p := *process
+		*process = nil
+		if err := stopProcess(p); err != nil {
+			cleanupOK = false
+			return stepResult{Session: session.ID, Subtype: "runner_error", Detail: "process cleanup: " + err.Error()}
+		}
 	}
 	if err := finishJobReceipt(receiptPath, jobStatusDone); err != nil {
 		return stepResult{Session: session.ID, Subtype: "runner_error", Detail: err.Error()}

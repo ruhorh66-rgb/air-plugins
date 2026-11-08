@@ -1,11 +1,15 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCriterion64RouterRunnerBoundary(t *testing.T) {
@@ -133,6 +137,9 @@ func TestCriterion66RouterExecutorCodexJudge(t *testing.T) {
 	if err := writeJobReceipt(receiptPath, r); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(outputPath, []byte("router fixture output"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	if err := finishJobReceipt(receiptPath, jobStatusDone); err != nil {
 		t.Fatal(err)
 	}
@@ -149,5 +156,111 @@ func TestCriterion66RouterExecutorCodexJudge(t *testing.T) {
 	}
 	if strings.Contains(strings.ToLower(string(data)), "invokecodex") {
 		t.Fatal("router executor must not invoke Codex; Codex remains external semantic judge")
+	}
+}
+
+func TestRouterTreeHelper(t *testing.T) {
+	mode := os.Getenv("AW_ROUTER_TREE_HELPER")
+	if mode == "" {
+		return
+	}
+	if mode == "parent" {
+		exe, err := os.Executable()
+		if err != nil {
+			os.Exit(2)
+		}
+		child := exec.Command(exe, "-test.run=^TestRouterTreeHelper$")
+		child.Env = append(os.Environ(), "AW_ROUTER_TREE_HELPER=child")
+		if err := child.Start(); err != nil {
+			os.Exit(2)
+		}
+	} else if mode == "child" {
+		if err := os.WriteFile(os.Getenv("AW_ROUTER_TREE_PID"), []byte(strconv.Itoa(os.Getpid())), 0o600); err != nil {
+			os.Exit(2)
+		}
+	} else {
+		os.Exit(2)
+	}
+	time.Sleep(30 * time.Second)
+}
+
+func TestRouterStopProcessKillsOwnedTree(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("process handle waiting is tested on Windows")
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	pidPath := filepath.Join(dir, "child.pid")
+	cmd := exec.Command(exe, "-test.run=^TestRouterTreeHelper$")
+	cmd.Env = append(os.Environ(), "AW_ROUTER_TREE_HELPER=parent", "AW_ROUTER_TREE_PID="+pidPath)
+	process, err := startLogged(cmd, filepath.Join(dir, "helper.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cmd.Process.Kill() })
+	parent, err := os.FindProcess(cmd.Process.Pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer parent.Release()
+	var child *os.Process
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if b, err := os.ReadFile(pidPath); err == nil {
+			pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			child, err = os.FindProcess(pid)
+			if err != nil {
+				t.Fatal(err)
+			}
+			break
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	if child == nil {
+		t.Fatal("owned descendant did not publish its PID")
+	}
+	t.Cleanup(func() { _ = child.Kill(); _ = child.Release() })
+	stopped := make(chan struct{})
+	go func() { _ = stopProcess(process); close(stopped) }()
+	select {
+	case <-stopped:
+	case <-time.After(5 * time.Second):
+		t.Fatal("stopProcess did not return")
+	}
+	for name, process := range map[string]*os.Process{"parent": parent, "child": child} {
+		done := make(chan error, 1)
+		go func() { _, err := process.Wait(); done <- err }()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Errorf("waiting for %s: %v", name, err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Errorf("owned %s survived cleanup", name)
+		}
+	}
+}
+
+func TestRouterMetadataWriteFailureStopsLaunch(t *testing.T) {
+	root := t.TempDir()
+	oldWriter := writeJobReceiptFunc
+	t.Cleanup(func() { writeJobReceiptFunc = oldWriter })
+	metadataAttempted := false
+	writeJobReceiptFunc = func(path string, receipt *jobReceipt) error {
+		if receipt.Runner == "router" && receipt.Status == jobStatusRunning {
+			metadataAttempted = true
+			return errors.New("router metadata write failed")
+		}
+		return oldWriter(path, receipt)
+	}
+	result := (&loopCtx{Root: root}).invokeRouter("missing-opencode", "test", runnerSpec{Kind: "router"}, "metadata-failure")
+	if !metadataAttempted || result.Ok || result.Subtype != "runner_error" || !strings.Contains(result.Detail, "router metadata write failed") {
+		t.Fatalf("metadata failure did not stop launch: attempted=%v result=%+v", metadataAttempted, result)
 	}
 }

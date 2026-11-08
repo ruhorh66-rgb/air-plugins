@@ -1,0 +1,20 @@
+{
+  "schema": "air-worker.devwork32.router-cleanup/v1",
+  "baseline": "a7b036ab394862de0a8446b5dc348e9be192b1b4",
+  "trigger": "Anthropic source-review TASK_READ_OK FAIL_P1: router cleanup killed only root PID; P2 ignored metadata errors",
+  "first_task_sha256": "4080e2587ba0a3ce7784f7598134187669f2187f850e16193c90a7d036de1254",
+  "first_handoff": "NOT_PROVEN: worker-1 omitted P1, worker-2 created Go cache inside worktree; original trees preserved",
+  "task_sha256": "6ae69a9cabd513a3b1aeb2d8a72f6ba5d36ab4381c00065761dfd249163a6425",
+  "patch_sha256": [
+    "28727dbb339d3326c26c5369c8d5df0e53b3a77ee7f15aef62b23db1855e0ff8",
+    "0a3ae959b45edf197a129fff8c2868beb587ea2a70b6077a0d9a60bbe92d1e25"
+  ],
+  "worker_status": "two native workers DONE exit 0; scoped diffs checked",
+  "coordinator_edits": "adapted test to startLogged/stopProcess interface; fixed old router fixture to create output before DONE",
+  "source_sha256": "96500d28d779b8f4156a9064dfa6a131f52bbcf3a88dc314d5ce1125f6cd5040",
+  "tests_sha256": "f3a50d905da50fe6420c6a42c3fcd6e2a2e36435b41da901484f8f1421fc446c",
+  "targeted": "PASS RC0: TestRouterStopProcessKillsOwnedTree, TestRouterMetadataWriteFailureStopsLaunch, TestCriterion64RouterRunnerBoundary, TestCriterion66RouterExecutorCodexJudge, TestRequestStartedDoneRequiresSealedOutput, TestN123ReturnedOutputMustMatchTerminalSeal",
+  "initial_qa": "RC1: old router fixture lacked output; taskkill denied by Codex sandbox. Fixture corrected; rerun outside Codex sandbox with same Windows admin_loc Medium token PASS, no UAC or privilege changes",
+  "vet": "RC0",
+  "limitations": "Targeted tests only; full QA, independent final reviews, G06, G07 and native close remain OPEN. N124 deferred by user."
+}
