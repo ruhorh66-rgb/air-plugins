@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -171,7 +172,42 @@ func writeJobReceipt(path string, r *jobReceipt) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(path, data)
+	scope := newScope(r.Product, sessionIdentity{Principal: r.Principal, SessionKey: r.Session})
+	canonical, _ := jobReceiptPaths(scope, r.Step, r.Operation)
+	if filepath.Clean(path) != filepath.Clean(canonical) {
+		return writeFileAtomic(path, data)
+	}
+	root, err := os.OpenRoot(scope.Root)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	jobs, err := root.OpenRoot(filepath.Join(".woody", "jobs"))
+	if err != nil {
+		return err
+	}
+	defer jobs.Close()
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return err
+	}
+	temp := ".receipt-" + hex.EncodeToString(random[:]) + ".tmp"
+	f, err := jobs.OpenFile(temp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer jobs.Remove(temp)
+	_, err = f.Write(data)
+	if err == nil {
+		err = f.Sync()
+	}
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return err
+	}
+	return jobs.Rename(temp, filepath.Base(path))
 }
 
 func readJobReceipt(path string) (*jobReceipt, error) {
@@ -261,7 +297,12 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 	if err := validateJobDir(scope.Root); err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(receiptPath), 0o755); err != nil {
+	root, err := os.OpenRoot(scope.Root)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	if err := root.MkdirAll(filepath.Join(".woody", "jobs"), 0o755); err != nil {
 		return nil, err
 	}
 	r, lock, err := startJobReceipt(scope, step, operation, receiptPath, outputPath)
@@ -284,7 +325,7 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 		lock.release()
 		return nil, err
 	}
-	outFile, err := os.Create(outputPath)
+	outFile, err := root.OpenFile(filepath.Join(".woody", "jobs", filepath.Base(outputPath)), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o666)
 	if err != nil {
 		_ = finishJobReceipt(receiptPath, jobStatusFailed)
 		lock.release()

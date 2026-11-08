@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"os/exec"
@@ -488,5 +489,119 @@ func TestN123OversizeNativeOutputCannotRecordUnsealedDone(t *testing.T) {
 	}
 	if finished.Status == jobStatusDone && finished.OutputSHA256 == "" {
 		t.Error("receipt recorded DONE without output SHA256")
+	}
+}
+
+func TestN123ReceiptChildHelper(t *testing.T) {
+	marker := os.Getenv("AW_N123_CHILD_MARKER")
+	if marker == "" {
+		return
+	}
+	if err := os.WriteFile(marker, []byte("started"), 0o600); err != nil {
+		os.Exit(1)
+	}
+	fmt.Print(jobReceiptStdoutMarker)
+	os.Exit(0)
+}
+
+func TestN123RacedOwnedOutputHardlinkNeverTruncatesForeignFile(t *testing.T) {
+	fixture := t.TempDir()
+	root := filepath.Join(fixture, "product")
+	if err := os.Mkdir(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(fixture, "outside")
+	const sentinel = "foreign evidence must survive"
+	if err := os.WriteFile(outside, []byte(sentinel), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	scope := newScope(root, sessionIdentity{"gpt", "hardlink-race"})
+	_, outputPath := jobReceiptPaths(scope, "N123", "hardlink-race")
+	marker := filepath.Join(fixture, "child-started")
+	t.Setenv("AW_N123_CHILD_MARKER", marker)
+	command := exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$")
+
+	oldWriter := writeJobReceiptFunc
+	t.Cleanup(func() { writeJobReceiptFunc = oldWriter })
+	writes := 0
+	var linkErr error
+	writeJobReceiptFunc = func(path string, receipt *jobReceipt) error {
+		writes++
+		if writes == 2 {
+			linkErr = os.Link(outside, outputPath)
+			if linkErr != nil {
+				return linkErr
+			}
+		}
+		return oldWriter(path, receipt)
+	}
+	_, err := runReceipted(context.Background(), scope, "N123", "hardlink-race", command)
+	if linkErr != nil {
+		t.Skipf("hardlink creation unavailable; NOT_PROVEN: %v", linkErr)
+	}
+	if writes < 2 {
+		t.Fatalf("injection point was not reached: %v", err)
+	}
+	if err == nil {
+		t.Error("raced hardlink must reject the job")
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Errorf("child started or marker could not be checked: %v", err)
+	}
+	for _, path := range []string{outside, outputPath} {
+		if data, err := os.ReadFile(path); err != nil || string(data) != sentinel {
+			t.Errorf("foreign evidence changed at %s: %q: %v", path, data, err)
+		}
+	}
+}
+
+func TestN123RootedReceiptUpdateAndTerminalSeal(t *testing.T) {
+	root := t.TempDir()
+	scope := newScope(root, sessionIdentity{"gpt", "rooted-seal"})
+	receiptPath, outputPath := jobReceiptPaths(scope, "N123", "rooted-seal")
+	marker := filepath.Join(root, "child-started")
+	t.Setenv("AW_N123_CHILD_MARKER", marker)
+	command := exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$")
+	oldWriter := writeJobReceiptFunc
+	t.Cleanup(func() { writeJobReceiptFunc = oldWriter })
+	sawRunning := false
+	writeJobReceiptFunc = func(path string, receipt *jobReceipt) error {
+		err := oldWriter(path, receipt)
+		if err == nil && receipt.Status == jobStatusRunning {
+			onDisk, readErr := readJobReceipt(path)
+			sawRunning = sawRunning || (readErr == nil && onDisk.Status == jobStatusRunning)
+		}
+		return err
+	}
+	output, err := runReceipted(context.Background(), scope, "N123", "rooted-seal", command)
+	if err != nil || !sawRunning || string(output) != jobReceiptStdoutMarker {
+		t.Fatalf("job did not complete from RUNNING: output=%q running=%v err=%v", output, sawRunning, err)
+	}
+	if data, err := os.ReadFile(marker); err != nil || string(data) != "started" {
+		t.Fatalf("child marker: %q: %v", data, err)
+	}
+	receipt, err := readJobReceipt(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seal := fmt.Sprintf("%x", sha256.Sum256(output))
+	if receipt.Status != jobStatusDone || receipt.OutputSHA256 != seal || receipt.OutputBytes != int64(len(output)) {
+		t.Fatalf("terminal output was not sealed: %+v", receipt)
+	}
+	beforeReceipt, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeOutput, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runReceipted(context.Background(), scope, "N123", "rooted-seal", exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$")); err == nil {
+		t.Error("duplicate terminal job was accepted")
+	}
+	for path, before := range map[string][]byte{receiptPath: beforeReceipt, outputPath: beforeOutput} {
+		if after, err := os.ReadFile(path); err != nil || string(after) != string(before) {
+			t.Errorf("terminal evidence changed at %s: %v", path, err)
+		}
 	}
 }

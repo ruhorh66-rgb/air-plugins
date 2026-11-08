@@ -1,5 +1,14 @@
 # AirWorker · Dev Work 30 → следующая GPT-сессия · 08.11.2026
 
+## Dev Work31 · G05 recovered Codex FAIL_P1 after chat break, rooted TOCTOU fix
+
+Source baseline `9c6c5588f23371cf7f4a59172eec2b8d6d2a043c` был CLEAN. Во время обрыва реально завершилось read-only `Codex GPT-6 Sol low` review, terminal events SHA `60c53022f796343d922575463682eab92f48d36822530529d27b1816bb20fc8a`, answer SHA `3651690c3d197ca7fa765380123926471402d4b14ff76626c7fddfa7eee6ede0`, **FAIL_P1** на `cmd/job_receipt.go:287 os.Create(outputPath)`: TOCTOU с leaf hardlink / directory replacement. Модель повторно НЕ запускали; это не полноценная native G07 two-chat acceptance. Source-only receipt `docs/receipts/DEVWORK31_G05_DISCONNECT_RECOVERED_RACE_20261108.json`.
+
+Следующий task `docs/tasks/DW31_G05_RACE.json` source baseline `93dda806fdc1dc959e0c47b85225a0d1ab30d100` native started exactly 2 real Codex `gpt-6.1-terra:low` code writers, terminal `DONE/RC0` in separate Git worktree. Patch SHA `deccb61b407713991cda156b7cdf8adddbf3e02b15edea17b54ec0067e14fe07` (`cmd/job_receipt.go`), `15003708fedeb0054e5ccfa77c83389ad62da2acfffae94122bd8d828a96072a` (`cmd/job_receipt_test.go`), handoff SHA `bed8be6bd4c74fb45caa8de2009741b832730c784cfa4ae918716a3461663e3c`. Coordinator verified patch SHA and changed file scope, `git apply --check` 2/2 RC0. Go 1.26 stdlib `os.Root` anchored receipt temp+atomic rename, exclusive Root.OpenFile output, no foreign path follow; old noncanonical fixture behavior preserved. New raced-hardlink/ordinary terminal tests plus existing junction/oversize/PID/transport tests **Go RC0**, `go vet RC0`, test log SHA `60f76b6e5b9764354ff08ffd993c49ad1de16de511181aa735220954c697952c`; evidence `docs/receipts/DEVWORK31_G05_ROOTED_TOCTOU_20261108.json`. Source commit after this handoff must be read from Git LIVE. Historical overlong filename receipts need extended Windows `\\?\` path to read; their SHA and two DONE/exit0 were verified, no cleanup performed.
+
+**Gates:** P0=4/8, G05/G06/G07/G08 OPEN, native 0/4 CLOSED. Old Anthropic on 9c6c returned `NOT_PROVEN` (invalid citation); independent Sol on 9c6c `FAIL_P1`, so no final SHA PASS. Need new exact SHA independent review; inspect direct output writers in `runner_openai.go` / `runner_router.go` before claiming global fix, native full QA, N124 symlink skip, rollback, actual chat/model failure evidence. Installed rc2 retained; rc5 SOURCE_ONLY/HOLD. No repeat old accepted N123/G05C/G01–G04.
+
+
 ## Dev Work31 · адресное устранение 2 P1 G05 · 08.11.2026
 
 После независимого нативного Anthropic Sonnet 5.5 `PASS_SOURCE_ONLY` на `cd81e46` модель `Codex GPT-6 Sol low` реально прочла тот же source/task и вернула `FAIL_P1` (риск `.woody/jobs` junction redirect за продукт, неверный `DONE` без SHA для real stdout >32 MiB). Отчёт исходного Sol low `docs/receipts/DEVWORK31_G05_INDEPENDENT_SOL_P1_20261108.json`; QA/права не подменять.

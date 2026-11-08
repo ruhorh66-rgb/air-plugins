@@ -1,0 +1,93 @@
+{
+  "schema": "air-worker.devwork31.p0-g05-rooted-atomic-toctou/v1",
+  "date_sgt": "2026-11-08",
+  "source_before": "93dda806fdc1dc959e0c47b85225a0d1ab30d100",
+  "trigger": "Independent Codex GPT-6 Sol low FAIL_P1 recovered after user-reported chat disconnect; actual cited cmd/job_receipt.go:287 os.Create(outputPath) TOCTOU. See DEVWORK31_G05_DISCONNECT_RECOVERED_RACE_20261108.json.",
+  "task": {
+    "file": "docs/tasks/DW31_G05_RACE.json",
+    "sha256": "988d3807d03a200c79df8fcd185d04467e5ac73f09c10069e29689c9c7508965"
+  },
+  "native_handoff": {
+    "status": "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION",
+    "sha256": "bed8be6bd4c74fb45caa8de2009741b832730c784cfa4ae918716a3461663e3c",
+    "two_code_writers": true,
+    "no_third_codex_leader": true
+  },
+  "workers": [
+    {
+      "index": 1,
+      "role": "coding-subagent/worker",
+      "file": "cmd/job_receipt.go",
+      "model": "gpt-6.1-terra",
+      "terminal": "DONE",
+      "exit_code": 0,
+      "job_id_suffix": "57bab500",
+      "microstep_sha256": "c7f2e7eb9ecd5a0f142f4e81a3252dde34516938a7b7990315d19700cb171739",
+      "patch_sha256": "deccb61b407713991cda156b7cdf8adddbf3e02b15edea17b54ec0067e14fe07",
+      "model_receipt_sha256": "04f23a668ad8624ce98f433d5583fb6da5c7d08dc2434e396b2c82bf4bd865d2",
+      "model_output_sha256": "fc32f4cb8dfc43a584c78747173c677f3bd214653633872dfc293afb3d46f777"
+    },
+    {
+      "index": 2,
+      "role": "coding-subagent/worker",
+      "file": "cmd/job_receipt_test.go",
+      "model": "gpt-6.1-terra",
+      "terminal": "DONE",
+      "exit_code": 0,
+      "job_id_suffix": "e22d9d8b",
+      "microstep_sha256": "5d6fa14af7ad761f2273200e8b54a470d4ab48f56c4b19c11013ef279e953a86",
+      "patch_sha256": "15003708fedeb0054e5ccfa77c83389ad62da2acfffae94122bd8d828a96072a",
+      "model_receipt_sha256": "a56288838f5df40686ae5ed8df10afcf3af0d7c3d788150fc69919cf662428db",
+      "model_output_sha256": "0137986e8510efff45dfd5f55529be7430fb7301ea74cb4adfbf19fe5048ab03"
+    }
+  ],
+  "code_change": {
+    "file": "cmd/job_receipt.go",
+    "language": "Go 1.26 standard library",
+    "canonical_receipt": "uses os.OpenRoot(product) and OpenRoot('.woody/jobs'), random exclusive same-directory temporary file, File.Sync, and Root.Rename to atomically replace receipt; previous noncanonical fixture path retains writer",
+    "canonical_output": "uses os.OpenRoot(product).OpenFile(rel jobs basename, os.O_WRONLY|os.O_CREATE|os.O_EXCL) and Root.MkdirAll for directory; race-inserted hardlink/symlink cannot truncate existing foreign target",
+    "preserved": [
+      "RUNNING until actual wait",
+      "terminal exit/output SHA validation",
+      "same job duplicate refusal",
+      "older receipt immutability",
+      "already accepted G01-G04/N123/G05C targeted tests"
+    ]
+  },
+  "targeted_QA": {
+    "go_test_regex": "^(TestN123RacedOwnedOutputHardlinkNeverTruncatesForeignFile|TestN123RootedReceiptUpdateAndTerminalSeal|TestN123OwnedJobsDirectoryJunctionFailsBeforeLaunch|TestN123OversizeNativeOutputCannotRecordUnsealedDone|TestRunReceiptedFailsClosedWhenPIDRegistrationFails|TestCriterion42Pending)$",
+    "go_test_rc": 0,
+    "tests_passed": 6,
+    "test_log_sha256": "60f76b6e5b9764354ff08ffd993c49ad1de16de511181aa735220954c697952c",
+    "go_vet_rc": 0,
+    "go_vet_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gofmt_LF_normalized_clean": true,
+    "git_diff_check_rc": 0,
+    "raced_link_negative": true,
+    "raced_link_child_not_started": true,
+    "foreign_sentinel_unchanged": true,
+    "normal_terminal_sealed": true,
+    "duplicate_same_identity_rejected": true,
+    "ntfs_junction_negative_pass": true,
+    "oversize_output_negative_pass": true
+  },
+  "limitations": {
+    "G05": "OPEN until independent fresh exact final SHA judges, final native full QA and reversible rollback",
+    "G07": "OPEN; a user-reported connection break plus Codex event recovery lacks two genuine ordinary GPT chat sessions and native RUNNING/EXECUTION_UNKNOWN with exact same job_id",
+    "G06": "OPEN; no genuine provider stall/failure",
+    "G08": "OPEN; N123/N126/N136/N139 native 0/4 closed",
+    "symlink_N124": "SKIP NOT PASS on current Windows privilege; existing junction negative is separate",
+    "other_direct_runner_output_writers": "runner_openai.go and runner_router.go use direct os.WriteFile; review separately before claiming global own-job output path hardening; not modified in this code slice."
+  },
+  "release": {
+    "installed": "0.11.11-rc.2",
+    "candidate": "0.11.11-rc.5 SOURCE_ONLY/HOLD",
+    "no_install_or_publish": true
+  },
+  "p0": {
+    "passed": 4,
+    "total": 8,
+    "native_closed": 0
+  },
+  "next": "Commit and push exact source, goal advance, fresh independent Sol low/Anthropic review on the corrected SHA. No repeat of completed reviewer or accepted G01-G04/N123/G05C. Address direct sibling writers if independent review flags them."
+}
