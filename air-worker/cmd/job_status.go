@@ -129,6 +129,10 @@ func inspectOwnedJob(scope sessionScope, step, operation string) (jobStatusSnaps
 		s.Terminal = false
 		s.Reason = "terminal process exit is unproven: receipt has no exit code"
 	}
+	if r.ProcessStarted && r.PID <= 0 {
+		s.Terminal = false
+		s.Reason = "terminal process identity is unproven: receipt has no valid PID"
+	}
 	return s, nil
 }
 

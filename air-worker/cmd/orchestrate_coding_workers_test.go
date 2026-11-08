@@ -302,6 +302,21 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 	if !strings.Contains(fmt.Sprint(unknownExit), "EXECUTION_UNKNOWN") || strings.Contains(fmt.Sprint(unknownExit), "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION") {
 		t.Fatalf("missing exit recovery: %+v", unknownExit)
 	}
+	var missingPID jobReceipt
+	if err := json.Unmarshal(receiptBytes, &missingPID); err != nil {
+		t.Fatal(err)
+	}
+	if !missingPID.ProcessStarted || missingPID.ExitCode == nil {
+		t.Fatal("fixture missing started process exit")
+	}
+	missingPID.PID = 0
+	if err := writeJobReceipt(doc.Workers[0].Receipt, &missingPID); err != nil {
+		t.Fatal(err)
+	}
+	_, unknownPID := status(task, id.SessionKey)
+	if !strings.Contains(fmt.Sprint(unknownPID), "EXECUTION_UNKNOWN") || strings.Contains(fmt.Sprint(unknownPID), "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION") {
+		t.Fatalf("missing PID recovery: %+v", unknownPID)
+	}
 	if err := os.WriteFile(doc.Workers[0].Receipt, receiptBytes, 0600); err != nil {
 		t.Fatal(err)
 	}

@@ -1,0 +1,28 @@
+{
+  "schema": "air-worker.devwork32.missing-process-pid/v1",
+  "base_head": "14583faa1e98062fec365acdde90367ed7a78a21",
+  "task_sha256": "7b45c14e0234ff03eaa2c64dbadaaf301eea115383e13c0ba1a3cde3dbd1efde",
+  "workers": [
+    {
+      "index": 1,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794168996883177700__5eb9fed6",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "b9efd62059f5732e77af172776b0db72f73828f9f89f03cd29c6b90b45c16e65",
+      "patch_sha256": "4e747885a4c877f6d8c6e1d14a8e5faab8023ca99fa51b1bd519514ed1948111"
+    },
+    {
+      "index": 2,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794168996883177700__7083ad3a",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "c2f0902ff0c7f5bf60c5fcef7ae2f04b49caa38288f0ba273f83e1c79d2787c8",
+      "patch_sha256": "168be365419e68f9d330a4c24e037955739dd10397f57c42171c0eabf416b868"
+    }
+  ],
+  "change": "Sealed terminal receipt claiming started process with PID<=0 is unproven; recorded status and output hash are retained",
+  "baseline": "Fixture with started process, zero PID and exit zero returned terminal=true",
+  "tests": "Zero/negative PID, positive PID, API-only receipt, missing exit, status recovery, no duplicate, and codingStatus missing PID simulation PASS; go vet ./... exit 0",
+  "targeted_log_sha256": "7265299b68eebe27b139787629c548c356bc0e817b54594221a1a1ed60e9e705",
+  "limits": "Positive PID is a required field, not proof of current process identity or liveness. Synthetic reattachments do not prove G07. Lock alias, acquisition failure, fresh report, final QA and P0 remain open; no rights/settings/installed binary changes."
+}
