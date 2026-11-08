@@ -1,0 +1,54 @@
+{
+  "schema": "air-worker.devwork31.p0-g05-disconnect-recovered-codex-race/v1",
+  "date_sgt": "2026-11-08",
+  "source_head": "9c6c5588f23371cf7f4a59172eec2b8d6d2a043c",
+  "user_observation": "User explicitly reported a chat interruption after Codex Sol low review was invoked.",
+  "recovery": {
+    "kind": "read existing files only, no codex redispatch",
+    "agent_events": "D:/Devbox/AirWorker/temp/devwork31-g05-final-9c6c558/codex-sol-final-events.jsonl",
+    "events_sha256": "60c53022f796343d922575463682eab92f48d36822530529d27b1816bb20fc8a",
+    "event_terminal": "turn.completed",
+    "answer_file": "D:/Devbox/AirWorker/temp/devwork31-g05-final-9c6c558/codex-sol-final-answer.json",
+    "answer_sha256": "3651690c3d197ca7fa765380123926471402d4b14ff76626c7fddfa7eee6ede0",
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "task_sha256": "2b95f76dae13a7eba26e4d4183d970f97277d7491a8b4944b42194b0b8c9029f",
+    "task_read": "TASK_READ_OK",
+    "verdict": "FAIL_P1",
+    "duplicate_launch_during_recovery": false,
+    "native_N123_job_id_proven": false
+  },
+  "finding": {
+    "severity": "P1",
+    "source": "cmd/job_receipt.go",
+    "line_at_base": 287,
+    "quote": "outFile, err := os.Create(outputPath)",
+    "detail": "TOCTOU between path validation/Lstat and write/open can follow a raced file link or replaced jobs directory outside product; this can truncate foreign file despite precheck. Need truly rooted file opening, exclusive leaf creation, rooted atomic publication."
+  },
+  "native_root_capability": {
+    "go": "go1.26.8 windows/amd64",
+    "feature": "os.OpenRoot, Root.OpenFile, Root.MkdirAll, Root.Rename",
+    "root_rename_overwrite_windows_probe": "PASS_RC0",
+    "root_exclusive_existing_probe": "PASS_RC0",
+    "fixture": "D:/Devbox/AirWorker/temp/devwork31-os-root-proof/probe.go",
+    "privileges_changed": false
+  },
+  "G07": {
+    "state": "OPEN",
+    "reason": "One user-reported disconnect and Codex event-file readback do not establish two ordinary GPT-chat session disconnections of one native job with same job_id, RUNNING/EXECUTION_UNKNOWN and zero duplicates."
+  },
+  "G05": {
+    "state": "OPEN",
+    "anthropic_on_same_head": "NOT_PROVEN due citation placeholder",
+    "sol_same_head": "FAIL_P1",
+    "previous_two_P1_targeted_tests": "PASS, but TOCTOU uncovered after"
+  },
+  "p0": {
+    "passed": 4,
+    "total": 8,
+    "native_nodes_closed": 0,
+    "release": "SOURCE_ONLY/HOLD",
+    "installed": "0.11.11-rc.2"
+  },
+  "next": "Two small native Codex code writer steps: rooted owned receipt/output writes in cmd/job_receipt.go, and deterministic raced-hardlink/junction negative fixture in cmd/job_receipt_test.go. No full QA or node close before independent review."
+}
