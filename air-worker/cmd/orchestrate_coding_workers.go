@@ -821,6 +821,115 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 	return doc, nil
 }
 
+// verifyCodingIntegrated compares verified worker patches with the current Git diff. Coordinator review and final
+// product acceptance remain separate decisions.
+func verifyCodingIntegrated(root string, scope sessionScope, step, task string) (codingWorkersHandoff, error) {
+	doc, err := codingStatus(root, scope, step, task)
+	if err != nil {
+		return doc, err
+	}
+	fail := func(reason string) (codingWorkersHandoff, error) {
+		return doc, errors.New(reason)
+	}
+	parsed, err := parseCodingMicrosteps(task)
+	if err != nil {
+		return doc, err
+	}
+	if doc.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" || len(doc.Workers) != 2 || doc.TaskSHA256 != shaCodingBytes([]byte(task)) {
+		return fail("two verified worker edits are not ready")
+	}
+	if err := jobOwnedEvidencePath(filepath.Dir(doc.Report), doc.Report); err != nil {
+		return fail("unsafe original handoff")
+	}
+	var original codingWorkersHandoff
+	raw, err := os.ReadFile(doc.Report)
+	if err != nil || json.Unmarshal(raw, &original) != nil || original.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" {
+		return fail("original handoff was not ready")
+	}
+	head, err := gitCodingOutput(root, "rev-parse", "HEAD")
+	if err != nil || head != doc.SourceHead {
+		return fail("original source HEAD changed")
+	}
+	top, err := gitCodingOutput(root, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return doc, err
+	}
+	relRoot, err := filepath.Rel(top, root)
+	if err != nil || relRoot == ".." || strings.HasPrefix(relRoot, ".."+string(filepath.Separator)) {
+		return fail("product outside repository")
+	}
+	seenJobs := map[string]bool{}
+	expected := map[string]string{}
+	for i, w := range doc.Workers {
+		microRaw, _ := json.Marshal(parsed.Workers[i])
+		if w.Index != i+1 || w.File != parsed.Workers[i].File || w.DoneWhen != parsed.Workers[i].DoneWhen ||
+			w.MicrostepSHA256 != shaCodingBytes(microRaw) || w.Status != jobStatusDone ||
+			w.Measurement != "STDIN_SHA256_VERIFIED" || w.JobID == "" || seenJobs[w.JobID] ||
+			len(w.Changed) != 1 || w.Changed[0] != filepath.ToSlash(filepath.Join(relRoot, filepath.FromSlash(w.File))) {
+			return fail("worker identity, scope or measured input mismatch")
+		}
+		seenJobs[w.JobID] = true
+		receipt, err := readJobReceipt(w.Receipt)
+		if err != nil || !receipt.ProcessStarted || receipt.Status != jobStatusDone ||
+			!strings.HasSuffix(receipt.Operation, "-v2-task-"+doc.TaskSHA256) || receipt.StdinSHA256 == "" {
+			return fail("worker receipt is not sealed v2 evidence")
+		}
+		snap, err := inspectOwnedJob(scope, fmt.Sprintf("%s-coding-worker-%d", step, i+1), receipt.Operation)
+		if err != nil || !snap.Terminal || snap.Status != jobStatusDone || snap.JobID != w.JobID ||
+			snap.ReceiptPath != w.Receipt || snap.SourceHead != head || snap.ArgsSHA256 == "" ||
+			snap.RecoveryRef != filepath.ToSlash(snap.ReceiptPath)+"#job_id="+snap.JobID {
+			return fail("worker receipt is not sealed or owned")
+		}
+		workerFile := filepath.Join(w.Product, filepath.FromSlash(w.File))
+		if err := jobOwnedEvidencePath(w.Product, workerFile); err != nil {
+			return fail("unsafe worker file")
+		}
+		_, err = os.ReadFile(workerFile)
+		if err != nil {
+			return doc, err
+		}
+		expected[filepath.ToSlash(filepath.Join(relRoot, filepath.FromSlash(w.File)))] = w.PatchSHA256
+	}
+	// Porcelain -z retains unusual path bytes and exposes untracked files. Only
+	// unstaged edits to the two already tracked files are acceptable.
+	status, err := exec.Command("git", "-C", top, "status", "--porcelain=v1", "-z", "--untracked-files=all").Output()
+	if err != nil {
+		return doc, err
+	}
+	seenFiles := map[string]bool{}
+	for _, entry := range strings.Split(strings.TrimSuffix(string(status), "\x00"), "\x00") {
+		if len(entry) < 4 || entry[2] != ' ' || entry[:2] != " M" {
+			return fail("source contains unrelated or unsupported changes")
+		}
+		name := entry[3:]
+		if _, ok := expected[name]; !ok || seenFiles[name] {
+			return fail("source changed file scope mismatch")
+		}
+		seenFiles[name] = true
+	}
+	if len(seenFiles) != 2 {
+		return fail("source does not contain both worker edits")
+	}
+	for name, hash := range expected {
+		if _, err := gitCodingOutput(top, "ls-files", "--error-unmatch", "--", name); err != nil {
+			return fail("integrated file is not tracked")
+		}
+		file := filepath.Join(top, filepath.FromSlash(name))
+		if err := jobOwnedEvidencePath(root, file); err != nil {
+			return fail("unsafe integrated file")
+		}
+		rel, err := filepath.Rel(root, file)
+		if err != nil {
+			return fail("integrated path cannot be resolved")
+		}
+		diff, err := exec.Command("git", "-C", root, "diff", "--no-ext-diff", "--binary", "HEAD", "--", filepath.ToSlash(rel)).Output()
+		if err != nil || len(diff) == 0 || len(diff) > 256*1024 || shaCodingBytes(diff) != hash {
+			return fail("integrated bytes differ from worker edit")
+		}
+	}
+	return doc, nil
+}
+
 func cmdCodingStatus(argv []string) int {
 	fs := flag.NewFlagSet("orchestrate code status", flag.ContinueOnError)
 	product := fs.String("product", ".", "product root")

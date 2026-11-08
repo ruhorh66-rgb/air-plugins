@@ -350,6 +350,9 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 	if err := os.WriteFile(doc.Workers[0].Patch, append(patchBytes, 'x'), 0600); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := verifyCodingIntegrated(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+		t.Fatal("verifier accepted damaged worker patch")
+	}
 	if rc, result := status(task, id.SessionKey); rc != 2 || !strings.Contains(fmt.Sprint(result), "NOT_PROVEN") {
 		t.Fatalf("tampered patch: rc=%d %+v", rc, result)
 	}
@@ -464,6 +467,9 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 	if rc, result := status(task, id.SessionKey); rc != 0 || !strings.Contains(fmt.Sprint(result), "LEGACY_UNMEASURED") || strings.Contains(fmt.Sprint(result), "NOT_PROVEN") || jobs.Load() != 2 {
 		t.Fatalf("legacy receipt readback: rc=%d result=%+v jobs=%d", rc, result, jobs.Load())
 	}
+	if _, err := verifyCodingIntegrated(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+		t.Fatal("verifier accepted unmeasured legacy receipt")
+	}
 	if err := os.Rename(legacyOutput, oldOutput); err != nil {
 		t.Fatal(err)
 	}
@@ -479,12 +485,82 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 	if jobs.Load() != 2 {
 		t.Fatalf("recovery launched model jobs: %d", jobs.Load())
 	}
+	verify := func(want bool, label string) {
+		t.Helper()
+		beforeJobs := jobs.Load()
+		beforeReport, err := os.ReadFile(doc.Report)
+		if err != nil {
+			t.Fatal(err)
+		}
+		beforeReceipt, err := os.ReadFile(doc.Workers[0].Receipt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = verifyCodingIntegrated(root, ctx.scope(), "coord-TASK.md", base)
+		if (err == nil) != want {
+			t.Fatalf("%s: integration verification error = %v, want success %v", label, err, want)
+		}
+		afterReport, reportErr := os.ReadFile(doc.Report)
+		afterReceipt, receiptErr := os.ReadFile(doc.Workers[0].Receipt)
+		if reportErr != nil || receiptErr != nil || string(afterReport) != string(beforeReport) || string(afterReceipt) != string(beforeReceipt) || jobs.Load() != beforeJobs {
+			t.Fatalf("%s: verifier changed evidence or launched a job", label)
+		}
+	}
+	verify(false, "before integration")
 	// ChatGPT coordinator now integrates real files from independent workers,
 	// without dispatching a third model process.
-	for _, w := range doc.Workers {
+	for i, w := range doc.Workers {
 		codingFixtureGit(t, root, "apply", "--check", w.Patch)
 		codingFixtureGit(t, root, "apply", w.Patch)
+		verify(i == 1, fmt.Sprintf("after %d patches", i+1))
 	}
+	for _, name := range []string{"a.go", "b.go"} {
+		path := filepath.Join(root, name)
+		body, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, append(append([]byte(nil), body...), 'x'), 0600); err != nil {
+			t.Fatal(err)
+		}
+		verify(false, "changed byte in "+name)
+		if err := os.WriteFile(path, body, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "unrelated.go"), []byte("package demo\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	verify(false, "unrelated untracked file")
+	codingFixtureGit(t, root, "add", "unrelated.go")
+	verify(false, "unrelated tracked file")
+	codingFixtureGit(t, root, "reset", "--", "unrelated.go")
+	if err := os.Remove(filepath.Join(root, "unrelated.go")); err != nil {
+		t.Fatal(err)
+	}
+	verify(true, "restored exact integration")
+	if err := os.WriteFile(doc.Workers[0].Patch, append(append([]byte(nil), patchBytes...), 'x'), 0600); err != nil {
+		t.Fatal(err)
+	}
+	verify(false, "damaged patch after integration")
+	if err := os.WriteFile(doc.Workers[0].Patch, patchBytes, 0600); err != nil {
+		t.Fatal(err)
+	}
+	verify(true, "restored worker patch")
+	legacyReceipt, err := readJobReceipt(doc.Workers[0].Receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyReceipt.Operation = strings.Replace(legacyReceipt.Operation, "-v2-task-", "-task-", 1)
+	legacyReceipt.StdinSHA256 = ""
+	if err := writeJobReceipt(doc.Workers[0].Receipt, legacyReceipt); err != nil {
+		t.Fatal(err)
+	}
+	verify(false, "unmeasured legacy after integration")
+	if err := os.WriteFile(doc.Workers[0].Receipt, receiptBytes, 0600); err != nil {
+		t.Fatal(err)
+	}
+	verify(true, "restored measured receipt")
 	afterA, _ := os.ReadFile(filepath.Join(root, "a.go"))
 	afterB, _ := os.ReadFile(filepath.Join(root, "b.go"))
 	if !strings.Contains(string(afterA), "NEW_A") || !strings.Contains(string(afterB), "NEW_B") {
@@ -492,6 +568,7 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 	}
 	codingFixtureGit(t, root, "add", "a.go", "b.go")
 	codingFixtureGit(t, root, "commit", "-m", "integrate workers")
+	verify(false, "changed HEAD")
 	afterCommit := ctx.runIsolatedCodingWorkers("codex", base, "coord-TASK.md", runnerSpec{
 		Kind: "codex", Model: "gpt-6.1-terra", Effort: "low"})
 	if afterCommit.SourceHead == doc.SourceHead || afterCommit.Status != "NOT_PROVEN" || !strings.Contains(afterCommit.Error, "already exists") {
@@ -949,5 +1026,76 @@ func TestCodingEscalationHelper(t *testing.T) {
 	}
 	fmt.Println(`{"type":"item.completed","item":{"type":"agent_message","text":"Edited"}}`)
 	fmt.Println(`{"type":"turn.completed"}`)
+	os.Exit(0)
+}
+
+func TestDW32IntegrationNestedProduct(t *testing.T) {
+	repo := t.TempDir()
+	root := filepath.Join(repo, "air-worker")
+	if err := os.MkdirAll(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for n, b := range map[string]string{".gitignore": ".woody/\n", "a.go": "package demo\nfunc A() string { return \"OLD_A\" }\n", "b.go": "package demo\nfunc B() string { return \"OLD_B\" }\n"} {
+		if err := os.WriteFile(filepath.Join(root, n), []byte(b), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	codingFixtureGit(t, repo, "init")
+	codingFixtureGit(t, repo, "config", "--local", "user.name", "Test")
+	codingFixtureGit(t, repo, "config", "--local", "user.email", "test@example.invalid")
+	codingFixtureGit(t, repo, "add", ".")
+	codingFixtureGit(t, repo, "commit", "-m", "base")
+	t.Setenv("AW_DW32_NESTED_HELPER", "1")
+	old := runnerCommand
+	defer func() { runnerCommand = old }()
+	runnerCommand = func(string, ...string) *exec.Cmd {
+		return exec.Command(os.Args[0], "-test.run=TestDW32NestedHelperProcess")
+	}
+	c := &loopCtx{Root: root, Subagents: 2, Principal: "gpt", SessionKey: "nested-fixture", Cfg: runConfig{Orchestration: orchestrationSpec{Enabled: true, Subagents: 2, RequireNativeSubagents: true, RequireAnthropicReviewer: true}}}
+	task := codingMicrostepTask(t)
+	step := "nested-task"
+	doc := c.runIsolatedCodingWorkers("codex", task, step, runnerSpec{Kind: "codex", Model: "gpt-6-luna", Effort: "low"})
+	if doc.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" {
+		t.Fatalf("handoff: %+v", doc)
+	}
+	for _, w := range doc.Workers {
+		codingFixtureGit(t, repo, "apply", "--check", w.Patch)
+		codingFixtureGit(t, repo, "apply", w.Patch)
+	}
+	if _, err := verifyCodingIntegrated(root, c.scope(), step, task); err != nil {
+		t.Fatalf("exact nested integration rejected: %v", err)
+	}
+	codingFixtureGit(t, repo, "add", "air-worker/a.go")
+	if _, err := verifyCodingIntegrated(root, c.scope(), step, task); err == nil {
+		t.Fatal("staged source unexpectedly accepted")
+	}
+	codingFixtureGit(t, repo, "reset", "--", "air-worker/a.go")
+	if err := os.WriteFile(filepath.Join(repo, "outside.txt"), []byte("outside"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := verifyCodingIntegrated(root, c.scope(), step, task); err == nil {
+		t.Fatal("unrelated repository change accepted")
+	}
+}
+
+func TestDW32NestedHelperProcess(t *testing.T) {
+	if os.Getenv("AW_DW32_NESTED_HELPER") != "1" {
+		return
+	}
+	root, err := os.Getwd()
+	if err != nil {
+		os.Exit(3)
+	}
+	switch filepath.Base(filepath.Dir(root)) {
+	case "worker-1":
+		_ = os.WriteFile(filepath.Join(root, "a.go"), []byte("package demo\nfunc A() string { return \"NEW_A\" }\n"), 0600)
+	case "worker-2":
+		_ = os.WriteFile(filepath.Join(root, "b.go"), []byte("package demo\nfunc B() string { return \"NEW_B\" }\n"), 0600)
+	default:
+		os.Exit(4)
+	}
+	fmt.Println(`{"type":"thread.started","thread_id":"nested-helper"}`)
+	fmt.Println(`{"type":"item.completed","item":{"type":"agent_message","text":"Edited"}}`)
+	fmt.Println(`{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}`)
 	os.Exit(0)
 }
