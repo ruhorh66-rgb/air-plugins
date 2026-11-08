@@ -14,6 +14,50 @@ import (
 	"time"
 )
 
+func TestN123GoJudgeDuration(t *testing.T) {
+	if n123GoJudgeMaxDuration != 4*time.Minute {
+		t.Fatalf("default duration = %v, want 4m", n123GoJudgeMaxDuration)
+	}
+	for _, tc := range []struct {
+		name string
+		args []string
+		long bool
+		bad  bool
+	}{
+		{"no timeout", []string{"test", "./..."}, false, false},
+		{"equals", []string{"-C", "cmd", "test", "./...", "-timeout=12m"}, true, false},
+		{"separate", []string{"test", "./...", "-timeout", "12m"}, true, false},
+		{"build", []string{"build", "-timeout=12m", "./..."}, false, false},
+		{"unrelated argument", []string{"test", "-run", "timeout=12m", "./..."}, false, false},
+		{"malformed", []string{"test", "-timeout=invalid"}, false, true},
+		{"missing", []string{"test", "-timeout"}, false, true},
+		{"zero", []string{"test", "-timeout=0"}, false, true},
+		{"negative", []string{"test", "-timeout=-1m"}, false, true},
+		{"over limit", []string{"test", "-timeout=16m"}, false, true},
+		{"duplicate", []string{"test", "-timeout=12m", "-timeout", "12m"}, false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := n123GoJudgeDuration(tc.args)
+			if tc.bad {
+				if err == nil {
+					t.Fatalf("duration = %v, want error", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.long {
+				if got <= 12*time.Minute || got > 15*time.Minute {
+					t.Fatalf("duration = %v, want cleanup margin above 12m and at most 15m", got)
+				}
+			} else if got != n123GoJudgeMaxDuration {
+				t.Fatalf("duration = %v, want default %v", got, n123GoJudgeMaxDuration)
+			}
+		})
+	}
+}
+
 func TestN123GoJudgeTimeoutHelper(t *testing.T) {
 	if os.Getenv("AW_N123_TIMEOUT_HELPER") != "1" {
 		t.Skip("helper process only")

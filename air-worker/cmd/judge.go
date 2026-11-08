@@ -468,6 +468,69 @@ func n123GoJudgeOperation(root, displayName string, cmd *exec.Cmd) string {
 
 var n123GoJudgeMaxDuration = 4 * time.Minute
 
+func n123GoJudgeDuration(args []string) (time.Duration, error) {
+	if len(args) > 0 && args[0] == "-C" {
+		if len(args) < 2 || args[1] == "" {
+			return 0, fmt.Errorf("invalid go -C directory")
+		}
+		args = args[2:]
+	} else if len(args) > 0 && strings.HasPrefix(args[0], "-C=") {
+		if args[0] == "-C=" {
+			return 0, fmt.Errorf("invalid go -C directory")
+		}
+		args = args[1:]
+	}
+	if len(args) == 0 || args[0] != "test" {
+		return n123GoJudgeMaxDuration, nil
+	}
+	var timeout time.Duration
+	seen := false
+	// These flags consume the following argument when their value is not joined.
+	valueFlags := "|asmflags|bench|benchtime|blockprofile|blockprofilerate|buildmode|compiler|covermode|coverpkg|coverprofile|count|cpu|cpuprofile|exec|fuzz|fuzztime|fuzzminimizetime|gcflags|gccgoflags|installsuffix|ldflags|list|memprofile|memprofilerate|mod|modfile|mutexprofile|mutexprofilefraction|outputdir|overlay|p|parallel|pkgdir|run|shuffle|skip|tags|toolexec|trace|vet|"
+	boolFlags := "|a|asan|benchmem|c|cover|failfast|fullpath|i|json|msan|n|race|short|trimpath|v|work|x|"
+	for i := 1; i < len(args); i++ {
+		arg := args[i]
+		if arg == "-args" || arg == "--" {
+			break
+		}
+		if !strings.HasPrefix(arg, "-") {
+			continue
+		}
+		key, value, joined := strings.Cut(strings.TrimLeft(arg, "-"), "=")
+		key = strings.TrimPrefix(key, "test.")
+		if key == "timeout" {
+			if !joined {
+				i++
+				if i >= len(args) {
+					return 0, fmt.Errorf("missing go test timeout")
+				}
+				value = args[i]
+			}
+			d, err := time.ParseDuration(value)
+			if err != nil || d <= 0 || d > 14*time.Minute+30*time.Second || seen {
+				return 0, fmt.Errorf("invalid or conflicting go test timeout %q", value)
+			}
+			timeout, seen = d, true
+		} else if !joined && strings.Contains(valueFlags, "|"+key+"|") {
+			i++
+		} else if !joined && !strings.Contains(boolFlags, "|"+key+"|") {
+			// An unknown flag might consume a later timeout as its value.
+			for _, later := range args[i+1:] {
+				if later == "-args" || later == "--" {
+					break
+				}
+				if strings.HasPrefix(later, "-timeout") || strings.HasPrefix(later, "-test.timeout") || strings.HasPrefix(later, "--timeout") || strings.HasPrefix(later, "--test.timeout") {
+					return 0, fmt.Errorf("ambiguous go test flag %q", arg)
+				}
+			}
+		}
+	}
+	if seen && timeout > n123GoJudgeMaxDuration {
+		return timeout + 30*time.Second, nil
+	}
+	return n123GoJudgeMaxDuration, nil
+}
+
 // runCommandCheck — проверка произвольной командой.
 //
 // РЕЗОЛВ НЕ ДОКАЗЫВАЕТ НАЛИЧИЯ ИНСТРУМЕНТА, ДОКАЗЫВАЕТ ТОЛЬКО ОТВЕТ. В WindowsApps лежат
@@ -493,8 +556,13 @@ func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope
 	cmd := newChildCommand(resolved, chk.Args...)
 	ctx := context.Background()
 	if isGoCommand(resolved) {
+		duration, err := n123GoJudgeDuration(chk.Args)
+		if err != nil {
+			r.Unknown = append(r.Unknown, fmt.Sprintf("%s — %v", name, err))
+			return
+		}
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, n123GoJudgeMaxDuration)
+		ctx, cancel = context.WithTimeout(ctx, duration)
 		defer cancel()
 		goCmd := exec.CommandContext(ctx, resolved, chk.Args...)
 		goCmd.Env, goCmd.Err = cmd.Env, cmd.Err

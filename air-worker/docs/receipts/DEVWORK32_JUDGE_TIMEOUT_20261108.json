@@ -1,0 +1,20 @@
+{
+  "schema": "air-worker.devwork32.go-judge-timeout/v1",
+  "baseline": "a70918705232489113b6f5c3d113648208cca22a",
+  "trigger": "Full QA historical 600s package timeout while native Go judge outer deadline 4m",
+  "task_sha256": "fc94b5756e6fe0bc0e338b303cf54dd4d8cbad98ec61326c5e322ab501f4fab2",
+  "patch_sha256": [
+    "553550468082c758beac9f5499b4411083e8d070a51706b0efc5e8900a9df803",
+    "6d2a40706017fb56a48a53259798d49f19a8e1be6bea5fdf95ec8eafc89edcf1"
+  ],
+  "worker_receipts": [
+    "gpt__devwork32-pilot-priority-20261108__1794151905287847800__2d52cbd1",
+    "gpt__devwork32-pilot-priority-20261108__1794151905287847800__7c0a79ad"
+  ],
+  "coordinator_edit": "reject all duplicate timeout flags, matching task and test",
+  "source_sha256": "b2a0cff72c9d18d3be5d62247425a3010f2ca77e6e006962e0760a9368f932ad",
+  "tests_sha256": "7cd256180e7e2e41cf8c7a4c6e4ab605765f840838ada47a182ad109e862dc96",
+  "targeted": "PASS RC0: TestN123GoJudgeDuration, TestN123GoJudgeOperationBoundToSourceAndArguments, TestN123GoJudgeTimeoutSealsOwnedProcess",
+  "vet": "RC0",
+  "limits": "Default 4m; explicit positive go test timeout can extend outer bound to at most 15m including cleanup margin; plan guard unchanged. Tests used Windows Medium token, no UAC. This is targeted QA, not full or independent review. N124 deferred by user."
+}
