@@ -234,6 +234,7 @@ func lastNonEmpty(text string) string {
 }
 
 type judgeResult struct {
+	scope   *sessionScope
 	Passed  []string
 	Failed  []string
 	Unknown []string
@@ -331,7 +332,7 @@ func cmdJudge(argv []string) int {
 }
 
 func runJudge(root string, cfg runConfig, minFactsOverride int, scope sessionScope) judgeResult {
-	var r judgeResult
+	r := judgeResult{scope: &scope}
 
 	for _, chk := range cfg.Judge.Checks {
 		name := chk.Name

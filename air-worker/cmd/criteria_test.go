@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -463,5 +466,80 @@ func TestSelectedGoArgsRejectArgsTerminator(t *testing.T) {
 	chk := checkSpec{Name: "unit", Command: "go", Args: []string{"test", ".", "-args", "-test.run=TestSafe"}, Select: "-run ^{}$", Env: map[string]string{"GOFLAGS": ""}}
 	if _, err := selectedGoCheck(chk, "TestBad"); err == nil || !strings.Contains(err.Error(), "-args") {
 		t.Fatalf("-args selected execution must be UNKNOWN, err=%v", err)
+	}
+}
+
+func TestSelectedCheckReceiptScopes(t *testing.T) {
+	for _, kind := range []string{"command", "script"} {
+		t.Run(kind, func(t *testing.T) {
+			root := t.TempDir()
+			selector := "Selected"
+			chk := checkSpec{Name: "probe", Select: "{}"}
+			operation := chk.Name
+			if kind == "script" {
+				shell := "powershell.exe"
+				if runtime.GOOS != "windows" {
+					shell = "pwsh"
+				}
+				if _, err := exec.LookPath(shell); err != nil {
+					t.Skip(shell + " is unavailable")
+				}
+				chk.Script = "selector.ps1"
+				if err := os.WriteFile(filepath.Join(root, chk.Script), []byte("exit 0\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				operation = fmt.Sprintf("selector-%x", sha256.Sum256([]byte(fmt.Sprintf("%q %q", chk.Name, selector))))
+			} else if runtime.GOOS == "windows" {
+				chk.Command, chk.Args = "cmd.exe", []string{"/c", "exit", "0"}
+			} else {
+				chk.Command, chk.Args = "sh", []string{"-c", "exit 0"}
+			}
+
+			first := newScope(root, sessionIdentity{Principal: "chatgpt", SessionKey: "one"})
+			second := newScope(root, sessionIdentity{Principal: "chatgpt", SessionKey: "two"})
+			foreign := newScope(t.TempDir(), first.ID)
+			if got := runSelectedCheckWithInventory(root, chk, selector, judgeResult{scope: &foreign}); got.State == measurePass {
+				t.Fatalf("foreign product scope passed: %+v", got)
+			}
+			for _, scope := range []sessionScope{foreign, legacyScope(root)} {
+				path, _ := jobReceiptPaths(scope, "judge", operation)
+				if _, err := os.Stat(path); !os.IsNotExist(err) {
+					t.Fatalf("foreign scope created receipt %s: %v", path, err)
+				}
+			}
+
+			for _, scope := range []sessionScope{legacyScope(root), first, second} {
+				base := judgeResult{}
+				if scope.ID.Principal != "legacy" {
+					base.scope = &scope
+				}
+				if got := runSelectedCheckWithInventory(root, chk, selector, base); got.State != measurePass {
+					t.Fatalf("scope %s: %+v", scope.key(), got)
+				}
+				receipt, output := jobReceiptPaths(scope, "judge", operation)
+				beforeReceipt, err := os.ReadFile(receipt)
+				if err != nil {
+					t.Fatal(err)
+				}
+				beforeOutput, err := os.ReadFile(output)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got := runSelectedCheckWithInventory(root, chk, selector, base); got.State == measurePass {
+					t.Fatalf("duplicate scope passed: %+v", got)
+				}
+				afterReceipt, err := os.ReadFile(receipt)
+				if err != nil {
+					t.Fatal(err)
+				}
+				afterOutput, err := os.ReadFile(output)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !bytes.Equal(beforeReceipt, afterReceipt) || !bytes.Equal(beforeOutput, afterOutput) {
+					t.Fatal("duplicate execution changed existing evidence")
+				}
+			}
+		})
 	}
 }

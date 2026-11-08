@@ -392,6 +392,13 @@ func runSelectedCheck(root string, chk checkSpec, selector string) measureResult
 }
 
 func runSelectedCheckWithInventory(root string, chk checkSpec, selector string, base judgeResult) measureResult {
+	scope := legacyScope(root)
+	if base.scope != nil {
+		if base.scope.Root != scope.Root {
+			return measureResult{State: measureUnknown, Detail: "judge scope root mismatch"}
+		}
+		scope = *base.scope
+	}
 	var clone checkSpec
 	if selector != "" && isGoCommand(chk.Command) {
 		if inventory, ok := base.SelectorInventory[chk.Name]; ok {
@@ -438,12 +445,12 @@ func runSelectedCheckWithInventory(root string, chk checkSpec, selector string, 
 			}
 		}
 		operation := fmt.Sprintf("selector-%x", sha256.Sum256([]byte(fmt.Sprintf("%q %q", chk.Name, selector))))
-		runScriptCheck(root, clone, operation, legacyScope(root), &r, namedIndices...)
+		runScriptCheck(root, clone, operation, scope, &r, namedIndices...)
 		result := checkResultState(r, operation)
 		result.Detail = chk.Name + strings.TrimPrefix(result.Detail, operation)
 		return result
 	} else if clone.Command != "" {
-		runCommandCheck(root, clone, chk.Name, legacyScope(root), &r)
+		runCommandCheck(root, clone, chk.Name, scope, &r)
 	} else {
 		return measureResult{State: measureUnknown, Detail: fmt.Sprintf("проверка %q не имеет script/command", chk.Name)}
 	}

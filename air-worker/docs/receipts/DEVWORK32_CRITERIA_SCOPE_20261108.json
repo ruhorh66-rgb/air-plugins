@@ -1,0 +1,17 @@
+{
+  "schema": "air-worker.devwork32.criteria-scope/v1",
+  "baseline": "191c156baebdea7c2af4a7572ec9f0a7e75f94c7",
+  "trigger": "Full judge RC1 revealed nested selector executions hardcoded legacyScope despite session-scoped parent; 80 legacy selector receipts produced",
+  "task_sha256": "80a308bd5102f8b75867bbd33d31e0ade0e8f3452468bf2a0b120541339b01ee",
+  "patch_sha256": [
+    "9d6c269b7d0685ab360055cdb23df356f62d3f1101a357d3d59ecf9cf868dd39",
+    "18d1d0ce14f2d3b890d1a201bcc9a4846c6c008f7f1aaba3221a2cc495e81344"
+  ],
+  "coordinator_edit": "Add unexported scope to judgeResult and initialize it in runJudge",
+  "code_sha256": "7f20caf2204715fd19c175b2fe43d5c4e3b31e0c3939c5140cf51c82c0e5e33b",
+  "tests_sha256": "08cf1ce8a2af22972ae986a7007a02465cd77f35dc851a999046f4a44ea581f9",
+  "judge_sha256": "582ce250e1293c87910a7223a34a7b3b54f32ba2aac1c3972fd9bf57f89f39ae",
+  "targeted": "PASS RC0: TestSelectedCheckReceiptScopes, TestJudgeSessionScope, TestN123GoJudgeDuration, TestJudgeJSONReportDoesNotRerunChecks, TestPowerShellSelectorParameterReachesScript",
+  "vet": "RC0",
+  "limitations": "Full judge still OPEN; report default duplicate-check behavior unresolved. Historical legacy receipts retained. Tests used ordinary Windows token without UAC. N124 deferred."
+}
