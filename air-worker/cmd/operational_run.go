@@ -205,6 +205,11 @@ const n139GoSelector = "^(TestOperationalGoal|TestN139|TestN123|TestCriterion42P
 // Its receipt/output are deterministic for this scoped step. It can be
 // inspected after connection loss, and an existing terminal/orphan receipt
 // refuses duplicate execution rather than being silently overwritten.
+func configureN139OwnedGoCommand(cmd *exec.Cmd) {
+	cmd.Cancel = func() error { return terminateLearningProcessTree(cmd) }
+	cmd.WaitDelay = 3 * time.Second
+}
+
 func runN139FactualGo(c *loopCtx, step workStep) (semanticFactualPacket, error) {
 	var factual semanticFactualPacket
 	if step.Num != "N-139_n136-native-operational-goal-selector-for-real-a" {
@@ -235,6 +240,7 @@ func runN139FactualGo(c *loopCtx, step workStep) (semanticFactualPacket, error) 
 	// Fixed literal selector and arguments only. No plan text or model output
 	// becomes an executable command. Timeout only affects this owned child.
 	cmd := exec.CommandContext(ctx, "go", "-C", "cmd", "test", "-run", n139GoSelector, "-count=1", ".")
+	configureN139OwnedGoCommand(cmd)
 	cmd.Dir = c.Root
 	cmd.Env = append(os.Environ(), "GOCACHE="+goCache, "GOTMPDIR="+goTmp, "TEMP="+goTmp, "TMP="+goTmp)
 	operation := n123GoJudgeOperation(c.Root, "factual-go-test", cmd)

@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 const n139ID = "N-139_n136-native-operational-goal-selector-for-real-a"
@@ -250,5 +254,112 @@ func TestN139TerminalOutputIntegrityRejectsTamper(t *testing.T) {
 	}
 	if got, err := inspectOwnedJob(scope, n139ID, operation); err == nil {
 		t.Fatalf("changed terminal output accepted as original job: %+v", got)
+	}
+}
+
+func TestN139OwnedGoTreeDeadlineHelper(t *testing.T) {
+	switch os.Getenv("AW_N139_TREE_HELPER") {
+	case "":
+		t.Skip("helper process only")
+	case "parent":
+		exe, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		child := exec.Command(exe, "-test.run=^TestN139OwnedGoTreeDeadlineHelper$")
+		child.Env = append(os.Environ(), "AW_N139_TREE_HELPER=child")
+		if err := child.Start(); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(os.Getenv("AW_N139_TREE_PID"), []byte(strconv.Itoa(child.Process.Pid)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(30 * time.Second)
+	case "child":
+		time.Sleep(30 * time.Second)
+	default:
+		t.Fatal("unknown helper mode")
+	}
+}
+
+func TestN139OwnedGoTreeDeadlineFailsWithoutDuplicate(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("NOT_PROVEN: Windows process-tree termination requires Windows")
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	pidPath := filepath.Join(root, "child.pid")
+	scope := newScope(root, sessionIdentity{"gpt", "n139-tree-deadline"})
+	const step, operation = "N139", "factual-go-test"
+	ctx, cancel := context.WithTimeout(context.Background(), 600*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, exe, "-test.run=^TestN139OwnedGoTreeDeadlineHelper$")
+	cmd.Env = append(os.Environ(), "AW_N139_TREE_HELPER=parent", "AW_N139_TREE_PID="+pidPath)
+	configureN139OwnedGoCommand(cmd)
+	result := make(chan error, 1)
+	go func() {
+		_, err := runReceiptedWithMeta(ctx, scope, step, operation, cmd, jobReceiptMeta{})
+		result <- err
+	}()
+	receiptPath, outputPath := jobReceiptPaths(scope, step, operation)
+	var childPID string
+	var parentPID int
+	until := time.Now().Add(550 * time.Millisecond)
+	for time.Now().Before(until) {
+		if b, err := os.ReadFile(pidPath); err == nil {
+			childPID = strings.TrimSpace(string(b))
+		}
+		if r, err := readJobReceipt(receiptPath); err == nil && r.Status == jobStatusRunning && r.ProcessStarted {
+			parentPID = r.PID
+		}
+		if childPID != "" && parentPID > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if childPID == "" || parentPID <= 0 {
+		t.Fatal("NOT_PROVEN: owned tree was not observed RUNNING before deadline")
+	}
+	select {
+	case err := <-result:
+		if err == nil || ctx.Err() != context.DeadlineExceeded {
+			t.Fatalf("timeout credited as success: %v, context=%v", err, ctx.Err())
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("NOT_PROVEN: deadline did not return")
+	}
+	_ = pollReceiptStatus(t, receiptPath, jobStatusFailed, 5*time.Second)
+	view, err := inspectOwnedJob(scope, step, operation)
+	if err != nil || !view.Terminal || view.Status != jobStatusFailed || view.ExitCode == nil || *view.ExitCode == 0 {
+		t.Fatalf("NOT_PROVEN: timeout receipt was not failed: %+v %v", view, err)
+	}
+	for _, pid := range []string{strconv.Itoa(parentPID), childPID} {
+		out, err := exec.Command("tasklist.exe", "/FI", "PID eq "+pid, "/FO", "CSV", "/NH").CombinedOutput()
+		if err != nil || strings.Contains(string(out), `"`+pid+`"`) {
+			t.Fatalf("NOT_PROVEN: owned process %s survived or could not be checked: %v %s", pid, err, out)
+		}
+	}
+	beforeReceipt, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeOutput, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again := exec.Command(exe, "-test.run=^TestN139OwnedGoTreeDeadlineHelper$")
+	if _, err := runReceiptedWithMeta(context.Background(), scope, step, operation, again, jobReceiptMeta{}); err == nil {
+		t.Fatal("failed timeout was credited or dispatched twice")
+	}
+	afterReceipt, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterOutput, err := os.ReadFile(outputPath)
+	if err != nil || string(beforeReceipt) != string(afterReceipt) || string(beforeOutput) != string(afterOutput) {
+		t.Fatalf("duplicate changed timeout evidence: %v", err)
 	}
 }

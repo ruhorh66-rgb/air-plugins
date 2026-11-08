@@ -1,0 +1,113 @@
+{
+  "schema": "air-worker.devwork31.p0-n139-owned-process-tree/v1",
+  "date_sgt": "2026-11-08",
+  "owner": "Dev Work31 / ChatGPT coordinator / SRVLM01",
+  "source_before": "975ca1c5e71299f52273e94c3e89e16a58f02203",
+  "original_failed_task": {
+    "path": "docs/tasks/DEVWORK31_P0_N139_OWNED_PROCESS_TREE_MICROSTEPS_20261108.json",
+    "sha256": "8c22ea71be7be82082de3f77d19d10d8f9f902e9ffd179e654ef75a4ff04cd36",
+    "old_handoff_status": "NOT_PROVEN",
+    "old_handoff_sha256": "2e6b58c7d1f0577cf396bd04051b2b872c972b59b06f93a1dcacb0fbf4495971",
+    "cause": "Windows os.CreateTemp temp component 258 > NTFS 255 in unpatched CLI; 0 model receipts and 0 provider starts; preserved old worktree"
+  },
+  "corrective_atomic_fix_commit": "1e6d5c0858918cda017336b3061c5822e972b1a7",
+  "task": {
+    "path": "docs/tasks/DEVWORK31_P0_N139_OWNED_TREE_POST_FIX_MICROSTEPS_20261108.json",
+    "sha256": "8c22ea71be7be82082de3f77d19d10d8f9f902e9ffd179e654ef75a4ff04cd36",
+    "byte_identical_to_original": true,
+    "scope": "new immutable task filename and distinct native worktrees; original failed scope never re-dispatched",
+    "file_basename_length": 62
+  },
+  "candidate_binary": {
+    "version": "0.11.11-rc.5",
+    "build_from_source_with_atomic_fix": true,
+    "sha256": "a716e9ca57014f3d334af6067d2690299b5b2a54cc5141e0de015deb3a8f3364",
+    "installed_version_unchanged": "0.11.11-rc.2"
+  },
+  "handoff": {
+    "status": "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION",
+    "sha256": "2ab9e9463dec4c7638478e45009421163b12c73c905c1416f9bb730877825d8a",
+    "worker_count": 2,
+    "coordinator": "ChatGPT current ordinary conversation",
+    "third_codex_leader_count": 0
+  },
+  "workers": [
+    {
+      "index": 1,
+      "file": "cmd/operational_run.go",
+      "role": "coding-subagent/worker",
+      "sandbox": "workspace-write",
+      "model": "gpt-6.1-terra",
+      "status": "DONE",
+      "exit_code": 0,
+      "job_id_suffix": "013106a0",
+      "patch_sha256": "7b1a469dffd6561105f860abbbb839ca1b4d50509507ade91557af8087dae988",
+      "output_sha256": "18472826a862e86192d9b5d42956d7ff46a98fb119d071643b6be04c3005f71c",
+      "microstep_sha256": "94816fb8754fee9501885ee7e7cc77d7d849615c1830ac7cbeb0ff55092a5c13"
+    },
+    {
+      "index": 2,
+      "file": "cmd/operational_run_test.go",
+      "role": "coding-subagent/worker",
+      "sandbox": "workspace-write",
+      "model": "gpt-6.1-terra",
+      "status": "DONE",
+      "exit_code": 0,
+      "job_id_suffix": "0f592957",
+      "patch_sha256": "cc13d1f3fc821ab7ac0f82673bc3c353416585460e414100134d4ca1b16da962",
+      "output_sha256": "6c325f4c48195b4862fa1b1e44cec89d2d658e7808e62775a5e2ce3637d42e3b",
+      "microstep_sha256": "336af5e8e5544bf5e4896dd263000c407b3a079f1974cb03729d53effabe7bfe"
+    }
+  ],
+  "integration": {
+    "git_apply_check_rc": [
+      0,
+      0
+    ],
+    "changed_files": [
+      "cmd/operational_run.go",
+      "cmd/operational_run_test.go"
+    ],
+    "source_head_matches_baseline": true,
+    "source_clean_before_merge": true,
+    "coordinator_glue": "worker-2 test expected configureN139OwnedGoCommand(*exec.Cmd) while worker-1 inlined identical setup; coordinator extracted existing cmd.Cancel and WaitDelay to shared helper in cmd/operational_run.go and invoked in runtime; no new model",
+    "worktrees_preserved": true,
+    "failed_original_handoff_preserved": true
+  },
+  "code": "runN139FactualGo configures cmd.Cancel to terminateLearningProcessTree(cmd) of its owned exec.CommandContext child only, cmd.WaitDelay=3s, source-bound immutable receipt preserved. Test uses same production helper and own parent+child helper process.",
+  "targeted_qa": {
+    "go_test_regex": "^(TestN139OwnedGoTreeDeadlineFailsWithoutDuplicate|TestN139FactualGoReceiptAndNoDuplicate|TestN139OwnedGoTreeDeadlineHelper)$",
+    "go_test_rc": 0,
+    "real_tests_passed": 2,
+    "helper_skip_intentional": true,
+    "go_test_log_sha256": "c6fc67e8e05ea7eedf6c2d03f32179c91aa609ec203a5c0ddb6f4838c4239879",
+    "go_vet_rc": 0,
+    "go_vet_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "git_diff_check_rc": 0,
+    "lf_normalized_gofmt_clean": true,
+    "owned_parent_and_descendant_process_killed_and_verified_by_tasklist": true,
+    "failed_terminal_receipt_preserved_and_duplicate_denied": true
+  },
+  "p0": {
+    "status": "OPEN",
+    "accepted": 4,
+    "total": 8,
+    "native_closed": 0,
+    "open": [
+      "G07",
+      "G06",
+      "G05",
+      "G08"
+    ],
+    "G07": "two actual ordinary GPT-chat disconnections and EXECUTION_UNKNOWN still unproven",
+    "G06": "no genuine provider fail or stall observed",
+    "G05": "full N123 Go QA, final fresh independent Anthropic and Codex Sol low, reversible rollback still missing",
+    "G08": "native node closes require each own done_when"
+  },
+  "release": {
+    "installed": "0.11.11-rc.2",
+    "candidate": "0.11.11-rc.5 SOURCE_ONLY/HOLD",
+    "installation_or_publish": false
+  },
+  "next": "Publish clean source HEAD, advance existing operational-goal without altering release-slices, update existing Wiki and handoff; proceed to bounded final G05 QA and independent judges and live G07/G06 tests when actual events available."
+}
