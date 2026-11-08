@@ -1,0 +1,517 @@
+{
+    "schema":  "air-worker.devwork31.owned-codex-worktree-cleanup/v1",
+    "session":  "Dev Work31 / 2026-11-08",
+    "source_sha":  "6ed303e143bffa24cd0354489a9f2eb11ad74ef4",
+    "policy":  "Only AirWorker-owned detached coding worktrees; before restore byte-accurate backups and optional original native patch copied to own evidence. No git worktree remove/prune or branch deletion. Foreign worktrees not touched.",
+    "evidence_root":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108",
+    "own_worktrees":  36,
+    "already_clean":  4,
+    "restored_with_verified_backups":  32,
+    "preserved_unrecognized":  0,
+    "files":  [
+                  {
+                      "worktree":  "0fd03de14e4f5bb306/worker-1",
+                      "base_sha":  "747ba5ced6948a0973f42452670943289eb28d39",
+                      "initial_status":  " M air-worker/cmd/lock_windows.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/lock_windows.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\0fd03de14e4f5bb306\\worker-1\\air-worker\\cmd\\lock_windows.go",
+                      "archive_original_sha256":  "b9694cb326770a60353a73db027f51bce69cba91573f3d8e204ef16e0102f3d9",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\0fd03de14e4f5bb306\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "a65d8c7b0e8ddbfd7d2a8cb7fda913905bd940895d5b955f1fda37c0faf11d5d",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "0fd03de14e4f5bb306/worker-2",
+                      "base_sha":  "747ba5ced6948a0973f42452670943289eb28d39",
+                      "initial_status":  " M air-worker/cmd/lock_windows_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/lock_windows_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\0fd03de14e4f5bb306\\worker-2\\air-worker\\cmd\\lock_windows_test.go",
+                      "archive_original_sha256":  "1548fe5f218f65e1ee2cbaaf983132041c14ff2f44f4d517fdda49123c30d7d9",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\0fd03de14e4f5bb306\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "67d8fd3a67d75778ab321858e2d4a6d7148d9efa0bc0b5a705c0aa36822b4e58",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "1d187c6614231c8123/worker-1",
+                      "base_sha":  "fdc6572e7bff6f62101b80377ba157aa4feef511",
+                      "initial_status":  " M air-worker/cmd/orchestrate_coding_workers.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/orchestrate_coding_workers.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\1d187c6614231c8123\\worker-1\\air-worker\\cmd\\orchestrate_coding_workers.go",
+                      "archive_original_sha256":  "692ef19121f4af4794e10446da626d1af3210df449adb2f040dee8cacbd840a4",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\1d187c6614231c8123\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "e9cac63796919cda45c2d618d8541d34f8d5a050781d99034bbb62d1d1683b39",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "1d187c6614231c8123/worker-2",
+                      "base_sha":  "fdc6572e7bff6f62101b80377ba157aa4feef511",
+                      "initial_status":  " M air-worker/cmd/orchestrate_coding_workers_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/orchestrate_coding_workers_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\1d187c6614231c8123\\worker-2\\air-worker\\cmd\\orchestrate_coding_workers_test.go",
+                      "archive_original_sha256":  "9e46354e51370c0f7c760be47266a50d9ab64bd7b6d99cc138e97cad2a072c76",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\1d187c6614231c8123\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "c27e5ca2bf5dc9b70c845e4acaa5bda5553baaf85a232c547a2fa59985f38465",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "44ec55b7e9fe3643fe/worker-1",
+                      "base_sha":  "640deb8437faa4957d2c661ed23e2a15ce992d55",
+                      "initial_status":  " M air-worker/cmd/orchestrate_coding_workers.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/orchestrate_coding_workers.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\44ec55b7e9fe3643fe\\worker-1\\air-worker\\cmd\\orchestrate_coding_workers.go",
+                      "archive_original_sha256":  "b34cab4534f21345ca32bdc77e050e8ab5e22b8e3b38d68e91ffa500d6880f96",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\44ec55b7e9fe3643fe\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "411798ee15391ab56329b274fb2d74b597dcaa5637b37702b441420be0b0575e",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "44ec55b7e9fe3643fe/worker-2",
+                      "base_sha":  "640deb8437faa4957d2c661ed23e2a15ce992d55",
+                      "initial_status":  " M air-worker/cmd/orchestrate_coding_workers_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/orchestrate_coding_workers_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\44ec55b7e9fe3643fe\\worker-2\\air-worker\\cmd\\orchestrate_coding_workers_test.go",
+                      "archive_original_sha256":  "e8f2f43e7ea2887dec9d8a071bb43a0777765d729849a945989ca9c42a5740a1",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\44ec55b7e9fe3643fe\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "ae99bf8ad4ca58be73ed9c11274b484f9919a729037053d69b9b0eee0e3c15b8",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "473f9db91dfbb7e6dc/worker-1",
+                      "base_sha":  "3905d4700250990bde189045541ad9af1e2d93a4",
+                      "initial_status":  " M air-worker/cmd/job_receipt.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/job_receipt.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\473f9db91dfbb7e6dc\\worker-1\\air-worker\\cmd\\job_receipt.go",
+                      "archive_original_sha256":  "8aa4af2a88ddb212a68f05176c01a1124f91c32f9cb9bda3ec2204b85f251a10",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\473f9db91dfbb7e6dc\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "1927e3f80a38631a490ae9828f88ac100f8d5d40f1d19302601721609f2958a2",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "473f9db91dfbb7e6dc/worker-2",
+                      "base_sha":  "3905d4700250990bde189045541ad9af1e2d93a4",
+                      "initial_status":  " M air-worker/cmd/job_receipt_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/job_receipt_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\473f9db91dfbb7e6dc\\worker-2\\air-worker\\cmd\\job_receipt_test.go",
+                      "archive_original_sha256":  "a59af26714a77ddc16ef3a0919dad0354e1cad799dcdc4195b99d91456c08949",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\473f9db91dfbb7e6dc\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "3387ba0e4f4df2fd0eea4e124ec70540777195612d59b622341188906fe4ddb2",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "4997716e206dcd1121/worker-1",
+                      "base_sha":  "e0932e5d2b10acb2b19dd6cefdaebf6164a27789",
+                      "initial_status":  " M air-worker/cmd/operational_run.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/operational_run.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\4997716e206dcd1121\\worker-1\\air-worker\\cmd\\operational_run.go",
+                      "archive_original_sha256":  "383cf363bf43e0940c0b6574c4db0a9dcf82767c8a65156bcfe21f15a8cf980d",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\4997716e206dcd1121\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "01353c654dc595044737b05f53127d6fc76e93ca6a646c320c953ba8e49960ed",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "4997716e206dcd1121/worker-2",
+                      "base_sha":  "e0932e5d2b10acb2b19dd6cefdaebf6164a27789",
+                      "initial_status":  " M air-worker/cmd/operational_run_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/operational_run_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\4997716e206dcd1121\\worker-2\\air-worker\\cmd\\operational_run_test.go",
+                      "archive_original_sha256":  "466023a705831e1cf4c3e9a9794d295eb7e9eaadcf4394cde421584aff12d5a3",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\4997716e206dcd1121\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "55b0bc9b654e313723dfbdb8587786e1297530b4a6f9a491b06cac41b0ca68fc",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "595edbd8b8892dfac6/worker-1",
+                      "base_sha":  "82ae8c43562589caccda5b12c317bf0ca954f8d7",
+                      "initial_status":  " M air-worker/cmd/orchestrate_coding_workers.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/orchestrate_coding_workers.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\595edbd8b8892dfac6\\worker-1\\air-worker\\cmd\\orchestrate_coding_workers.go",
+                      "archive_original_sha256":  "c3a1e2afaadbd36d5c1fe6dbc2bcc8f7f4e04ade33275a806dd9c654047bd602",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\595edbd8b8892dfac6\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "8ca049577beafc7170c5fb9901de71ff8a767ab044614a6127d7d1c6d597dd36",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "595edbd8b8892dfac6/worker-2",
+                      "base_sha":  "82ae8c43562589caccda5b12c317bf0ca954f8d7",
+                      "initial_status":  " M air-worker/cmd/orchestrate_coding_workers_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/orchestrate_coding_workers_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\595edbd8b8892dfac6\\worker-2\\air-worker\\cmd\\orchestrate_coding_workers_test.go",
+                      "archive_original_sha256":  "fbedc2eebebb56ebce4eeba0cb5c62ec1a25a2314cf3d572c188031e2c4ff0db",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\595edbd8b8892dfac6\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "99284b171a3283be1f35f1dfc0efba0a24d3060f4f54f7bc3380d7cb1a7c0ac6",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "68d743a1050a1ea058/worker-1",
+                      "base_sha":  "df9540fd9031bd206c98c2e8a0a729ec5f7bf91a",
+                      "initial_status":  " M air-worker/cmd/source_review.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/source_review.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\68d743a1050a1ea058\\worker-1\\air-worker\\cmd\\source_review.go",
+                      "archive_original_sha256":  "28b2dc6a1434cd2b721732d78f640e7173080187cda9dd87ab422f303a3b6fff",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\68d743a1050a1ea058\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "bf2e0fe0eec35501a2af61234a4fc41b967a5a0fa777183941f80bc175e1d1b1",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "68d743a1050a1ea058/worker-2",
+                      "base_sha":  "df9540fd9031bd206c98c2e8a0a729ec5f7bf91a",
+                      "initial_status":  " M air-worker/cmd/source_review_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/source_review_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\68d743a1050a1ea058\\worker-2\\air-worker\\cmd\\source_review_test.go",
+                      "archive_original_sha256":  "a894fdc5498ec1d2d300f31886518a579c2f0f2d702754bc2f406659dfbc7769",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\68d743a1050a1ea058\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "d7843213df4e9808c1b1b35a9320a3de016634f75a322d9a7288c90b873ae875",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "6c2f58e8c0688c4273/worker-1",
+                      "base_sha":  "07f45762f6ff7ddcc56cd3f0ae7c72a9c5e2dcc4",
+                      "initial_status":  " M air-worker/cmd/orchestrate_coding_workers.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/orchestrate_coding_workers.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\6c2f58e8c0688c4273\\worker-1\\air-worker\\cmd\\orchestrate_coding_workers.go",
+                      "archive_original_sha256":  "1ef5f770de97443bfb515d12dea5ba81837760fdb6d2d0f943791c54552978d3",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\6c2f58e8c0688c4273\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "c6aa884a2331466ae862eec57801f3bab2dfea3fd539acc553199b8a7b742aff",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "6c2f58e8c0688c4273/worker-2",
+                      "base_sha":  "07f45762f6ff7ddcc56cd3f0ae7c72a9c5e2dcc4",
+                      "initial_status":  " M air-worker/cmd/orchestrate_coding_workers_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/orchestrate_coding_workers_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\6c2f58e8c0688c4273\\worker-2\\air-worker\\cmd\\orchestrate_coding_workers_test.go",
+                      "archive_original_sha256":  "94adaca752a1584ca876e1262c4201b2a14bb4b0a53921f9613523df14dc3b14",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\6c2f58e8c0688c4273\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "9131acc00f02e6ac26a60338f0b83fb1e8b882978b64b283cee7c776d454467a",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "74fb6515b59b1a4433/worker-1",
+                      "base_sha":  "92af990017aaafd45b3a54c356f8f430c875eea1",
+                      "initial_status":  "",
+                      "tracked_changes":  [
+
+                                          ],
+                      "archive_original":  "",
+                      "archive_original_sha256":  "",
+                      "native_patch_archived":  "",
+                      "native_patch_sha256":  "",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "74fb6515b59b1a4433/worker-2",
+                      "base_sha":  "92af990017aaafd45b3a54c356f8f430c875eea1",
+                      "initial_status":  "",
+                      "tracked_changes":  [
+
+                                          ],
+                      "archive_original":  "",
+                      "archive_original_sha256":  "",
+                      "native_patch_archived":  "",
+                      "native_patch_sha256":  "",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "97ed1ad551cc2c654a/worker-1",
+                      "base_sha":  "2371033df17d35fc127c3a76472f9742d4c1f243",
+                      "initial_status":  " M air-worker/cmd/criteria.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/criteria.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\97ed1ad551cc2c654a\\worker-1\\air-worker\\cmd\\criteria.go",
+                      "archive_original_sha256":  "2a01f5b5cfdffb1ed3c81f72a372ee0875ecc8112d8eb5f5ccab014cf24664d8",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\97ed1ad551cc2c654a\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "ef427710978355413936f1d6602ec4e5998893ae02dbc0e00749391a9ee0c5b1",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "97ed1ad551cc2c654a/worker-2",
+                      "base_sha":  "2371033df17d35fc127c3a76472f9742d4c1f243",
+                      "initial_status":  " M air-worker/cmd/native_route_contract_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/native_route_contract_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\97ed1ad551cc2c654a\\worker-2\\air-worker\\cmd\\native_route_contract_test.go",
+                      "archive_original_sha256":  "f36225ba61ae1fae597f50c5e4782d9a2e2213a1878a695e2c46885ad95dd792",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\97ed1ad551cc2c654a\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "65bd9c6f124f588418089411151942a6a7fa772d631332a0e08d97aa14992794",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "99fccbefe3400adcfd/worker-1",
+                      "base_sha":  "93dda806fdc1dc959e0c47b85225a0d1ab30d100",
+                      "initial_status":  " M air-worker/cmd/job_receipt.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/job_receipt.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\99fccbefe3400adcfd\\worker-1\\air-worker\\cmd\\job_receipt.go",
+                      "archive_original_sha256":  "1251192aa98cfbcfd79195366abcdeb73d79fa513d96a7dae19cf30fc2edff17",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\99fccbefe3400adcfd\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "deccb61b407713991cda156b7cdf8adddbf3e02b15edea17b54ec0067e14fe07",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "99fccbefe3400adcfd/worker-2",
+                      "base_sha":  "93dda806fdc1dc959e0c47b85225a0d1ab30d100",
+                      "initial_status":  " M air-worker/cmd/job_receipt_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/job_receipt_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\99fccbefe3400adcfd\\worker-2\\air-worker\\cmd\\job_receipt_test.go",
+                      "archive_original_sha256":  "1d7662c5f95f4136bbff2c5f442dc80cd8c01a3dc21a4d5a5a0d2d5f2c6eaa7d",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\99fccbefe3400adcfd\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "15003708fedeb0054e5ccfa77c83389ad62da2acfffae94122bd8d828a96072a",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "a25122b1d5c6ad84de/worker-1",
+                      "base_sha":  "941e21ae1841599563a8141c797323752db907ff",
+                      "initial_status":  " M air-worker/cmd/orchestrate_coding_workers.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/orchestrate_coding_workers.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\a25122b1d5c6ad84de\\worker-1\\air-worker\\cmd\\orchestrate_coding_workers.go",
+                      "archive_original_sha256":  "4f72936709ab08f92dda5eec48cdb9315f21f5d00f6365ea163ae4983e3709f9",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\a25122b1d5c6ad84de\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "c428cfc17dc1d0a705c0af8f8409ba83baf901a25fd6d036898cc5c1927fd907",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "a25122b1d5c6ad84de/worker-2",
+                      "base_sha":  "941e21ae1841599563a8141c797323752db907ff",
+                      "initial_status":  " M air-worker/cmd/orchestrate_coding_workers_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/orchestrate_coding_workers_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\a25122b1d5c6ad84de\\worker-2\\air-worker\\cmd\\orchestrate_coding_workers_test.go",
+                      "archive_original_sha256":  "842741cf34e3681651d8c2d4cbbcaeda82cc8d90bf5a7176bddb34676b159a81",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\a25122b1d5c6ad84de\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "0d27b96afed2f5ea15bce5c2f962f61d03c3f53d3fd01f211c3a1825f9ca5ee1",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "c02af18f6570316697/worker-1",
+                      "base_sha":  "d1b02c7218da637292e3b16013cbcc4985875efc",
+                      "initial_status":  " M air-worker/cmd/judge.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/judge.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\c02af18f6570316697\\worker-1\\air-worker\\cmd\\judge.go",
+                      "archive_original_sha256":  "6d337e8dda6582d999e8632b134eac6343808bca4675168f9be34e0e632598cd",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\c02af18f6570316697\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "f153931e0f0fff5667e0e0a7d8de9f11bb578d7f9c8b24b030dbd5bec619de6f",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "c02af18f6570316697/worker-2",
+                      "base_sha":  "d1b02c7218da637292e3b16013cbcc4985875efc",
+                      "initial_status":  " M air-worker/cmd/judge_observe_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/judge_observe_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\c02af18f6570316697\\worker-2\\air-worker\\cmd\\judge_observe_test.go",
+                      "archive_original_sha256":  "52aea09d97b9f2b180a742c890f9d0c5ac2df5022bfa76276afcabf9b6676005",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\c02af18f6570316697\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "c90e1ab8c44bf8db3d9270cd144f4582ac6706e5f234a66a8eb889e153752227",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "c81ab5c109348602ec/worker-1",
+                      "base_sha":  "975ca1c5e71299f52273e94c3e89e16a58f02203",
+                      "initial_status":  " M air-worker/cmd/operational_run.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/operational_run.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\c81ab5c109348602ec\\worker-1\\air-worker\\cmd\\operational_run.go",
+                      "archive_original_sha256":  "4146b0c92cdc06afa3f7bd9abd806e2f7e69e1375679319afb1e40312795541c",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\c81ab5c109348602ec\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "7b1a469dffd6561105f860abbbb839ca1b4d50509507ade91557af8087dae988",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "c81ab5c109348602ec/worker-2",
+                      "base_sha":  "975ca1c5e71299f52273e94c3e89e16a58f02203",
+                      "initial_status":  " M air-worker/cmd/operational_run_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/operational_run_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\c81ab5c109348602ec\\worker-2\\air-worker\\cmd\\operational_run_test.go",
+                      "archive_original_sha256":  "6dd0fc8554001419f81d1abfc68c1494854c78e00b43d3ad1a2490d046352fd5",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\c81ab5c109348602ec\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "cc13d1f3fc821ab7ac0f82673bc3c353416585460e414100134d4ca1b16da962",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "d971715de71b8ffe7b/worker-1",
+                      "base_sha":  "5c352cced97cd3bcce10932672d85ab8f3f6baa0",
+                      "initial_status":  " M air-worker/cmd/runner_openai.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/runner_openai.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\d971715de71b8ffe7b\\worker-1\\air-worker\\cmd\\runner_openai.go",
+                      "archive_original_sha256":  "3ccdfccae63104cac005f2c09d5123c1dd177c2f0548c115dab68765c48587fd",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\d971715de71b8ffe7b\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "3ac10a1ab1cd28f0ee53bf98b83961881e6ad2c02ded154e4333b5c14740bbbe",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "d971715de71b8ffe7b/worker-2",
+                      "base_sha":  "5c352cced97cd3bcce10932672d85ab8f3f6baa0",
+                      "initial_status":  " M air-worker/cmd/runner_router.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/runner_router.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\d971715de71b8ffe7b\\worker-2\\air-worker\\cmd\\runner_router.go",
+                      "archive_original_sha256":  "aec480dc2ed6ee65a525af69a10186acf0cef5a0e7be0ddcc5e86d34aaf324ef",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\d971715de71b8ffe7b\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "23c2cc50fdae00e810e81a2cd9c15c1aeac50b1ee857a2ab41e846ae21744ad4",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "e446540ac0ff9c1628/worker-1",
+                      "base_sha":  "028bff3e923dcbf340a663242829793b3a4e8250",
+                      "initial_status":  " M air-worker/cmd/source_review.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/source_review.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\e446540ac0ff9c1628\\worker-1\\air-worker\\cmd\\source_review.go",
+                      "archive_original_sha256":  "184391b0f8f19ba9c74097b8d086ef5d207a59f30ccab253ddfe4693931a92b6",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\e446540ac0ff9c1628\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "cf6864c6758c1272c513195ad392c051c8c09868a05ad5c0ec6e7c95926bbd18",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "e446540ac0ff9c1628/worker-2",
+                      "base_sha":  "028bff3e923dcbf340a663242829793b3a4e8250",
+                      "initial_status":  " M air-worker/cmd/source_review_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/source_review_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\e446540ac0ff9c1628\\worker-2\\air-worker\\cmd\\source_review_test.go",
+                      "archive_original_sha256":  "e120e81d4d63dd862cad3b54cf22f26cd95eee2c497fe9924e409d40948ce62f",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\e446540ac0ff9c1628\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "89b50cc45bd910029b4aa287bece299eff252153a028148a30fb9c0c3468fef2",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "ecc372f0b8d2516e46/worker-1",
+                      "base_sha":  "01127910355799158142dcc4f70d7d46267509b8",
+                      "initial_status":  "",
+                      "tracked_changes":  [
+
+                                          ],
+                      "archive_original":  "",
+                      "archive_original_sha256":  "",
+                      "native_patch_archived":  "",
+                      "native_patch_sha256":  "",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "ecc372f0b8d2516e46/worker-2",
+                      "base_sha":  "01127910355799158142dcc4f70d7d46267509b8",
+                      "initial_status":  "",
+                      "tracked_changes":  [
+
+                                          ],
+                      "archive_original":  "",
+                      "archive_original_sha256":  "",
+                      "native_patch_archived":  "",
+                      "native_patch_sha256":  "",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "f73346902b8dea2f77/worker-1",
+                      "base_sha":  "a741848d211a672ff221d7372bd1d8b8980587e7",
+                      "initial_status":  " M air-worker/cmd/judge.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/judge.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\f73346902b8dea2f77\\worker-1\\air-worker\\cmd\\judge.go",
+                      "archive_original_sha256":  "19b1ef87d4a79ce6be7c32d8e5ff4c39d35d3299c3a26a10daa187bd3059c354",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\f73346902b8dea2f77\\worker-1\\worker-1.patch",
+                      "native_patch_sha256":  "a6993e97463589451878f36071971f280bb3d43471c192dee92a75ed84fb86f7",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  },
+                  {
+                      "worktree":  "f73346902b8dea2f77/worker-2",
+                      "base_sha":  "a741848d211a672ff221d7372bd1d8b8980587e7",
+                      "initial_status":  " M air-worker/cmd/judge_observe_test.go",
+                      "tracked_changes":  [
+                                              "air-worker/cmd/judge_observe_test.go"
+                                          ],
+                      "archive_original":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\f73346902b8dea2f77\\worker-2\\air-worker\\cmd\\judge_observe_test.go",
+                      "archive_original_sha256":  "abd6cc695a1d193b2949f87353fc77695c02035f8972f86696e65dceffa45733",
+                      "native_patch_archived":  "D:\\Devbox\\AirWorker\\evidence\\DEVWORK31_SESSION_CLOSE_20261108\\worktree_originals\\f73346902b8dea2f77\\worker-2\\worker-2.patch",
+                      "native_patch_sha256":  "75e81dacf91a71fe33449c1721b4afb847db73701d7dfe3913812361312789a8",
+                      "cleaned":  true,
+                      "preserved_original_worktree":  true
+                  }
+              ]
+}
