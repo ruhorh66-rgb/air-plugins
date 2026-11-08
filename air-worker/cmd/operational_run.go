@@ -237,7 +237,7 @@ func runN139FactualGo(c *loopCtx, step workStep) (semanticFactualPacket, error) 
 	cmd := exec.CommandContext(ctx, "go", "-C", "cmd", "test", "-run", n139GoSelector, "-count=1", ".")
 	cmd.Dir = c.Root
 	cmd.Env = append(os.Environ(), "GOCACHE="+goCache, "GOTMPDIR="+goTmp, "TEMP="+goTmp, "TMP="+goTmp)
-	const operation = "factual-go-test"
+	operation := n123GoJudgeOperation(c.Root, "factual-go-test", cmd)
 	out, err := runReceiptedWithMeta(ctx, c.scope(), step.Num, operation, cmd, jobReceiptMeta{
 		Runner: "script", Provider: "local", Model: "go-test", Effort: "none",
 		Role: "factual-judge", Sandbox: "owned-product",

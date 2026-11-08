@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -156,6 +157,56 @@ func TestN139FactualGoReceiptAndNoDuplicate(t *testing.T) {
 	after, err := os.ReadFile(snapshot.ReceiptPath)
 	if err != nil || string(after) != string(raw) {
 		t.Fatalf("repeat changed terminal factual receipt: %v", err)
+	}
+}
+
+func TestN139FactualGoSourceHeadAllowsNewImmutableReceipt(t *testing.T) {
+	c := n139Fixture(t)
+	n124Git(t, c.Root, "init")
+	n124Git(t, c.Root, "config", "user.name", "N139")
+	n124Git(t, c.Root, "config", "user.email", "n139@test.local")
+	n124Git(t, c.Root, "add", "cmd", "PLAN.md", "plan")
+	n124Git(t, c.Root, "commit", "-m", "first source")
+	operation := func() string {
+		return n123GoJudgeOperation(c.Root, "factual-go-test", exec.Command("go", "-C", "cmd", "test", "-run", n139GoSelector, "-count=1", "."))
+	}
+	step := workStep{Num: n139ID}
+	first := operation()
+	if _, err := runN139FactualGo(c, step); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := inspectOwnedJob(c.scope(), step.Num, first)
+	if err != nil || snapshot.Status != jobStatusDone || !snapshot.Terminal || snapshot.OutputSHA256 == "" {
+		t.Fatalf("first receipt is not sealed DONE: %+v %v", snapshot, err)
+	}
+	raw, err := os.ReadFile(snapshot.ReceiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runN139FactualGo(c, step); err == nil {
+		t.Fatal("same HEAD ran twice")
+	}
+	if after, err := os.ReadFile(snapshot.ReceiptPath); err != nil || string(after) != string(raw) {
+		t.Fatalf("duplicate changed receipt: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(c.Root, "PLAN.md"), []byte("new source generation\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	n124Git(t, c.Root, "add", "PLAN.md")
+	n124Git(t, c.Root, "commit", "-m", "second source")
+	second := operation()
+	if second == first {
+		t.Fatal("new HEAD retained the same operation")
+	}
+	if _, err := runN139FactualGo(c, step); err != nil {
+		t.Fatal(err)
+	}
+	next, err := inspectOwnedJob(c.scope(), step.Num, second)
+	if err != nil || next.Status != jobStatusDone || !next.Terminal || next.OutputSHA256 == "" || next.ReceiptPath == snapshot.ReceiptPath {
+		t.Fatalf("second receipt is not distinct sealed DONE: %+v %v", next, err)
+	}
+	if after, err := os.ReadFile(snapshot.ReceiptPath); err != nil || string(after) != string(raw) {
+		t.Fatalf("new HEAD changed original receipt: %v", err)
 	}
 }
 

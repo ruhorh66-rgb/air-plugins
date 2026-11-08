@@ -1,0 +1,85 @@
+{
+  "schema": "air-worker.devwork31.p0-n139-source-keyed-factual-go/v1",
+  "owner": "Dev Work 31 / ChatGPT coordinator / SRVLM01",
+  "observed_sgt_date": "2026-11-08",
+  "source_baseline": "e0932e5d2b10acb2b19dd6cefdaebf6164a27789",
+  "source_task": "docs/tasks/DEVWORK31_P0_N139_SOURCE_JOB_MICROSTEPS_20261108.json",
+  "task_sha256": "e4418b3102bb64237837464942c2f97de1a719aa2abb76aafdd99b1df4754204",
+  "native_cli": {
+    "version": "0.11.11-rc.5",
+    "source_only": true,
+    "binary_sha256": "6abb0449f55a2d21de062e5a964b76a6715c768bd1819f0b7cda99bccdad37e3",
+    "installed_untouched": "0.11.11-rc.2"
+  },
+  "handoff": {
+    "status": "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION",
+    "sha256": "16d7cbabb0542f2a7e79adaced8bfa0fdae653751198cbceed1d6985a181eec6",
+    "worker_count": 2,
+    "all_workers_code_written": true,
+    "source_head": "e0932e5d2b10acb2b19dd6cefdaebf6164a27789"
+  },
+  "coordinator": {
+    "kind": "ChatGPT current conversation",
+    "third_codex_leader": 0,
+    "verified_workspaces": 2,
+    "distinct_machine_microsteps": true,
+    "other_worker_instructions_visible": false,
+    "git_apply_check_rc": [
+      0,
+      0
+    ],
+    "code_merged_by_coordinator": true
+  },
+  "workers": [
+    {
+      "index": 1,
+      "model": "gpt-6.1-terra",
+      "role": "coding-subagent/worker",
+      "sandbox": "workspace-write",
+      "terminal": "DONE",
+      "exit_code": 0,
+      "file": "cmd/operational_run.go",
+      "microstep_sha256": "56a94cc5eeac883db572ab9ed9eef25544200bede5959983c3869212d53e54e0",
+      "patch_sha256": "01353c654dc595044737b05f53127d6fc76e93ca6a646c320c953ba8e49960ed"
+    },
+    {
+      "index": 2,
+      "model": "gpt-6.1-terra",
+      "role": "coding-subagent/worker",
+      "sandbox": "workspace-write",
+      "terminal": "DONE",
+      "exit_code": 0,
+      "file": "cmd/operational_run_test.go",
+      "microstep_sha256": "36f0a637533467816a9adb91e75b517d733e8c167d7a4d829be0be13428c76db",
+      "patch_sha256": "55b0bc9b654e313723dfbdb8587786e1297530b4a6f9a491b06cac41b0ca68fc"
+    }
+  ],
+  "code_change": "Native N139 runN139FactualGo operation now reuses preexisting n123GoJudgeOperation(c.Root,'factual-go-test',cmd), yielding source HEAD/name/argv-digest immutable receipt identity on Git-backed source; Gitless legacy stays constant.",
+  "targeted_qa": {
+    "pattern": "^(TestN139FactualGoSourceHeadAllowsNewImmutableReceipt|TestN139FactualGoReceiptAndNoDuplicate|TestN139FactualGoRejectsForeignStepWithoutStartingJob|TestN139TerminalOutputIntegrityRejectsTamper|TestN123GoJudgeOperationBoundToSourceAndArguments)$",
+    "tests_passed": 5,
+    "go_test_rc": 0,
+    "go_test_log_sha256": "7cbd3f8fbe6be4985ec17635091d55a3a9a8dc49d3149eeb3bdd39094d4afca9",
+    "go_vet_rc": 0,
+    "go_vet_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "git_diff_check_rc": 0,
+    "gofmt_lf_normalized_clean": true
+  },
+  "scope_guard": "Old N139 receipt from different SHA is preserved; no existing workspaces or receipts deleted and no other source files changed.",
+  "p0": {
+    "accepted": 4,
+    "total": 8,
+    "open": [
+      "G07",
+      "G06",
+      "G05",
+      "G08"
+    ],
+    "native_nodes_closed": 0,
+    "G07_missing": "two actual ordinary GPT-chat disconnects, live EXECUTION_UNKNOWN zero redispatch",
+    "G06_missing": "genuine provider failure/stall and causally justified next tier on identical TASK/SHA",
+    "G05_missing": "one bounded native full N123 Go QA on exact clean final HEAD, independent Anthropic and Codex Sol low reviews, reversible rollback",
+    "G08_missing": "independently evidenced native done_when and plan node close for N123/N126/N136/N139"
+  },
+  "next": "Commit/push this source-only change and advance operational goal to final SHA; then evaluate one bounded native full QA and final independent judges without new plans or repeated accepted G01-G04."
+}
