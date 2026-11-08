@@ -1,5 +1,14 @@
 # AirWorker · Dev Work 30 → следующая GPT-сессия · 08.11.2026
 
+## Dev Work31 · G05 two independent judges, sibling output P1 corrected
+
+On frozen `15b457e3bdd4bf85de786453b2fda02ca6b66536` native Anthropic Sonnet and separate read-only Codex Sol low both gave **FAIL_P1**, `TASK_READ_OK`, same TASK SHA `ffd52d311fb20ce0e19c0138debb48b8bc289d6e67289effeef7ab88dd59451f`: `runner_openai.go:110` and `runner_router.go:509` still published deterministic output via unrooted `os.WriteFile` after checking absence, router ignored failure. Source proof `docs/receipts/DEVWORK31_G05_TWO_JUDGES_SIBLING_P1_20261108.json`.
+
+On base `5c352cced97cd3bcce10932672d85ab8f3f6baa0`, two genuine native Codex `gpt-6.1-terra:low` wrote only `cmd/runner_openai.go` patch SHA `3ac10a1ab1cd28f0ee53bf98b83961881e6ad2c02ded154e4333b5c14740bbbe` and `cmd/runner_router.go` patch SHA `23c2cc50fdae00e810e81a2cd9c15c1aeac50b1ee857a2ab41e846ae21744ad4`, each `DONE/RC0` separate worktree; handoff SHA `dfd4d8fbd2145c53749d63fbfa6f81ce8bc14b1a2c5f722409b1cc3cc88820af`, git apply 2/2 RC0. Coordinator ChatGPT integrated, inserted minimal existing-core glue `ensureOwnedJobsDir` and `writeOwnedJobOutput` in `cmd/job_receipt.go`, added a focused hardlink/duplicate output negative in `cmd/job_receipt_test.go` without a third Codex. Both direct runners now use rooted O_EXCL output writes and router checks errors. Go tests focused (rooted link+race, OpenAI httptest, router boundary) PASS RC0, go vet RC0, log SHA `5b492460c372c43855515fe516abb9066881f908f5893536cb8d21b46f9c6991`. Receipt `docs/receipts/DEVWORK31_G05_SIBLING_ROOTED_OUTPUT_20261108.json`. Exact final source commit after checkpoint must be read LIVE; no release install, installed rc2 untouched. All former receipts/worktrees retained.
+
+G05 still OPEN — independent exact final SHA Anthropic/Sol reviews, native full QA, N124 symlink SKIP and reversible rollback. G06/G07 real native incidents and G08 four native node close still OPEN; P0 4/8. Avoid repeating accepted N123/G05C and G01–G04.
+
+
 ## Dev Work31 · G05 recovered Codex FAIL_P1 after chat break, rooted TOCTOU fix
 
 Source baseline `9c6c5588f23371cf7f4a59172eec2b8d6d2a043c` был CLEAN. Во время обрыва реально завершилось read-only `Codex GPT-6 Sol low` review, terminal events SHA `60c53022f796343d922575463682eab92f48d36822530529d27b1816bb20fc8a`, answer SHA `3651690c3d197ca7fa765380123926471402d4b14ff76626c7fddfa7eee6ede0`, **FAIL_P1** на `cmd/job_receipt.go:287 os.Create(outputPath)`: TOCTOU с leaf hardlink / directory replacement. Модель повторно НЕ запускали; это не полноценная native G07 two-chat acceptance. Source-only receipt `docs/receipts/DEVWORK31_G05_DISCONNECT_RECOVERED_RACE_20261108.json`.

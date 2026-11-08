@@ -356,7 +356,7 @@ func routerBridgeEnv(routerScript, receiptPath string, port int) []string {
 func (c *loopCtx) invokeRouter(openCodePath, prompt string, runner runnerSpec, stepID string) (result stepResult) {
 	scope := c.scope()
 	receiptPath, outputPath := jobReceiptPaths(scope, stepID, "executor-router")
-	if err := os.MkdirAll(filepath.Dir(receiptPath), 0o755); err != nil {
+	if err := ensureOwnedJobsDir(c.Root); err != nil {
 		return stepResult{Subtype: "runner_error", Detail: err.Error()}
 	}
 	receipt, lock, err := startJobReceipt(scope, stepID, "executor-router", receiptPath, outputPath)
@@ -506,7 +506,9 @@ func (c *loopCtx) invokeRouter(openCodePath, prompt string, runner runnerSpec, s
 	cost := ev.Cost
 	receipt.Cost = &cost
 	_ = writeJobReceipt(receiptPath, receipt)
-	_ = os.WriteFile(outputPath, []byte(detail+"\n"), 0o644)
+	if err := writeOwnedJobOutput(c.Root, outputPath, []byte(detail+"\n")); err != nil {
+		return stepResult{Session: session.ID, Subtype: "runner_error", Detail: err.Error()}
+	}
 	if err := finishJobReceipt(receiptPath, jobStatusDone); err != nil {
 		return stepResult{Session: session.ID, Subtype: "runner_error", Detail: err.Error()}
 	}

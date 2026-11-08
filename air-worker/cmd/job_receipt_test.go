@@ -605,3 +605,39 @@ func TestN123RootedReceiptUpdateAndTerminalSeal(t *testing.T) {
 		}
 	}
 }
+
+func TestN123OwnedRunnerOutputExclusiveLinkAndSeal(t *testing.T) {
+	product := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "foreign-sentinel.txt")
+	const sentinel = "must not be truncated"
+	if err := os.WriteFile(outside, []byte(sentinel), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureOwnedJobsDir(product); err != nil {
+		t.Fatal(err)
+	}
+	jobsDir := filepath.Join(product, ".woody", "jobs")
+	attacked := filepath.Join(jobsDir, "output-link.out")
+	if err := os.Link(outside, attacked); err != nil {
+		t.Skipf("hardlink race fixture unavailable, NOT_PROVEN: %v", err)
+	}
+	if err := writeOwnedJobOutput(product, attacked, []byte("corrupt")); err == nil {
+		t.Fatal("canonical runner output overwrote an existing hardlink")
+	}
+	if got, err := os.ReadFile(outside); err != nil || string(got) != sentinel {
+		t.Fatalf("foreign sentinel changed: %q err=%v", got, err)
+	}
+	good := filepath.Join(jobsDir, "safe.out")
+	if err := writeOwnedJobOutput(product, good, []byte("safe")); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(good); err != nil || string(got) != "safe" {
+		t.Fatalf("rooted output readback failed: %q err=%v", got, err)
+	}
+	if err := writeOwnedJobOutput(product, good, []byte("overwrite")); err == nil {
+		t.Fatal("existing terminal output accepted a second publication")
+	}
+	if err := writeOwnedJobOutput(product, filepath.Join(product, "foreign.out"), []byte("bad")); err == nil {
+		t.Fatal("noncanonical output path was accepted")
+	}
+}

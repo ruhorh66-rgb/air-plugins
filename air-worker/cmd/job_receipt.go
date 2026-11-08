@@ -292,6 +292,51 @@ func validateJobDir(root string) error {
 	return nil
 }
 
+// ensureOwnedJobsDir prepares only the canonical owned jobs directory.
+func ensureOwnedJobsDir(product string) error {
+	if err := validateJobDir(product); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(product)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	if err := root.MkdirAll(filepath.Join(".woody", "jobs"), 0o755); err != nil {
+		return err
+	}
+	return validateJobDir(product)
+}
+
+// writeOwnedJobOutput refuses existing targets and never opens outside the root.
+func writeOwnedJobOutput(product, path string, data []byte) error {
+	if filepath.Clean(filepath.Dir(path)) != filepath.Clean(filepath.Join(product, ".woody", "jobs")) {
+		return errors.New("job output is not inside canonical owned directory")
+	}
+	if len(data) > (32 << 20) {
+		return errors.New("job output exceeds 32MiB seal limit")
+	}
+	root, err := os.OpenRoot(product)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	out, err := root.OpenFile(filepath.Join(".woody", "jobs", filepath.Base(path)),
+		os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	_, writeErr := out.Write(data)
+	if writeErr == nil {
+		writeErr = out.Sync()
+	}
+	closeErr := out.Close()
+	if writeErr != nil {
+		return writeErr
+	}
+	return closeErr
+}
+
 func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operation string, cmd *exec.Cmd, meta jobReceiptMeta) ([]byte, error) {
 	receiptPath, outputPath := jobReceiptPaths(scope, step, operation)
 	if err := validateJobDir(scope.Root); err != nil {

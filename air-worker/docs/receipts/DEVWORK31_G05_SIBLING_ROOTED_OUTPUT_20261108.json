@@ -1,0 +1,89 @@
+{
+  "schema": "air-worker.devwork31.p0-g05-sibling-rooted-output/v1",
+  "date_sgt": "2026-11-08",
+  "source_baseline": "5c352cced97cd3bcce10932672d85ab8f3f6baa0",
+  "trigger": "Native Anthropic Sonnet 5.5 and independent Codex Sol low both returned source-verified FAIL_P1 for unrooted output writers in runner_openai.go:110 and runner_router.go:509 on identical SHA 15b457e3bdd4bf85de786453b2fda02ca6b66536.",
+  "trigger_receipt": "docs/receipts/DEVWORK31_G05_TWO_JUDGES_SIBLING_P1_20261108.json",
+  "task": {
+    "file": "docs/tasks/DW31_G05_SIBLING.json",
+    "sha256": "cbab2b9bd054264e1d20e5e1d85cea063df86d6e6a72905a41908b77a17a6335"
+  },
+  "orchestration": {
+    "coordinator": "ChatGPT current conversation",
+    "two_real_codex_writers": true,
+    "third_codex_leader": false,
+    "independent_git_worktrees": true,
+    "source_clean_before_merge": true,
+    "native_handoff_sha256": "dfd4d8fbd2145c53749d63fbfa6f81ce8bc14b1a2c5f722409b1cc3cc88820af",
+    "handoff_status": "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION",
+    "git_apply_check_rc": [
+      0,
+      0
+    ],
+    "workers": [
+      {
+        "index": 1,
+        "file": "cmd/runner_openai.go",
+        "model": "gpt-6.1-terra",
+        "status": "DONE",
+        "exit_code": 0,
+        "patch_sha256": "3ac10a1ab1cd28f0ee53bf98b83961881e6ad2c02ded154e4333b5c14740bbbe",
+        "output_sha256": "74ca53288eb500c9835d866eeb5b01bb5684848fbe321549cee00cfbac487336",
+        "microstep_sha256": "7d19a4ea34871f279d3f005688a1d79706ce54463c524d762cd6ac30d656215c"
+      },
+      {
+        "index": 2,
+        "file": "cmd/runner_router.go",
+        "model": "gpt-6.1-terra",
+        "status": "DONE",
+        "exit_code": 0,
+        "patch_sha256": "23c2cc50fdae00e810e81a2cd9c15c1aeac50b1ee857a2ab41e846ae21744ad4",
+        "output_sha256": "bbb6aacd0dd1c44e1cd170b944a2e000971b69795136930c385129544563e246",
+        "microstep_sha256": "8e3eb56a29735ff2f9856ad42439f1d71ca402661541d4105d911efb230b4c6f"
+      }
+    ]
+  },
+  "integration": {
+    "files": [
+      "cmd/runner_openai.go",
+      "cmd/runner_router.go",
+      "cmd/job_receipt.go",
+      "cmd/job_receipt_test.go"
+    ],
+    "coordinator_minimal_shared_helper": "ensureOwnedJobsDir(root) validates and Root.MkdirAll canonical jobs; writeOwnedJobOutput(root,path,data) verifies canonical parent, caps at 32MiB, Go os.Root.OpenFile O_CREATE|O_EXCL|O_WRONLY, File.Sync, checked error. Two workers used these exact helpers.",
+    "old_receipt_semantics_preserved": true,
+    "no_new_backend": true
+  },
+  "targeted_QA": {
+    "go_regex": "^(TestN123OwnedRunnerOutputExclusiveLinkAndSeal|TestN123RacedOwnedOutputHardlinkNeverTruncatesForeignFile|TestOpenAIAPIRunner|TestCriterion64RouterRunnerBoundary)$",
+    "go_test_rc": 0,
+    "tests_passed": [
+      "TestN123RacedOwnedOutputHardlinkNeverTruncatesForeignFile",
+      "TestN123OwnedRunnerOutputExclusiveLinkAndSeal",
+      "TestOpenAIAPIRunner/success_receipt",
+      "TestOpenAIAPIRunner/quota_advances",
+      "TestCriterion64RouterRunnerBoundary"
+    ],
+    "test_log_sha256": "5b492460c372c43855515fe516abb9066881f908f5893536cb8d21b46f9c6991",
+    "go_vet_rc": 0,
+    "go_vet_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gofmt_lf_normalized_clean": true,
+    "git_diff_check_rc": 0,
+    "external_provider_calls": "NONE, OpenAI API test uses httptest local in-process server",
+    "link_attack_refused": true,
+    "router_output_write_errors_propagated": true
+  },
+  "status": {
+    "p0": "4/8 PASS",
+    "G05": "OPEN until independent review on final SHA, native full QA, symlink N124 proof, rollback",
+    "G06": "OPEN genuine vendor stall not proven",
+    "G07": "OPEN two real GPT chat breaks and native EXECUTION_UNKNOWN still not proven",
+    "G08": "OPEN 0/4 native nodes"
+  },
+  "release": {
+    "installed": "0.11.11-rc.2",
+    "candidate": "0.11.11-rc.5 SOURCE_ONLY/HOLD",
+    "changed_installed": false
+  },
+  "next": "Publish clean final source, advance operational goal, seek independent exact SHA Source/Sol low review without repeating earlier models, then bounded final native QA and reversible rollback. Do not claim G05 accepted from targeted tests."
+}

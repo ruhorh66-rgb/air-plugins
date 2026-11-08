@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -88,7 +87,7 @@ func callOpenAIResponses(ctx context.Context, cfg openAIConfig, runner runnerSpe
 func (c *loopCtx) invokeOpenAI(prompt string, runner runnerSpec, stepID string) stepResult {
 	operation := runnerReceiptOperation("executor-openai", runner, c.iter)
 	receiptPath, outputPath := jobReceiptPaths(c.scope(), stepID, operation)
-	if err := os.MkdirAll(filepath.Dir(receiptPath), 0o755); err != nil {
+	if err := ensureOwnedJobsDir(c.Root); err != nil {
 		return stepResult{Subtype: "runner_error", Detail: err.Error()}
 	}
 	receipt, lock, err := startJobReceipt(c.scope(), stepID, operation, receiptPath, outputPath)
@@ -107,7 +106,7 @@ func (c *loopCtx) invokeOpenAI(prompt string, runner runnerSpec, stepID string) 
 	out, requestErr := callOpenAIResponses(ctx, c.Cfg.OpenAI, runner, prompt)
 	data, marshalErr := json.Marshal(out)
 	if marshalErr == nil {
-		marshalErr = os.WriteFile(outputPath, data, 0o644)
+		marshalErr = writeOwnedJobOutput(c.Root, outputPath, data)
 	}
 	status := jobStatusDone
 	if requestErr != nil || marshalErr != nil {
