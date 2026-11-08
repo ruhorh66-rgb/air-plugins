@@ -1,0 +1,20 @@
+{
+  "schema": "air-worker.coding-microsteps/v1",
+  "context": "AirWorker P0 N123/N139, preserve existing one PLAN and past receipts. ChatGPT is the ONLY coordinator, EXACTLY TWO real Codex code writers use separate Git worktrees and each writes only assigned source file. Preverified source HEAD de3d2e687d48aa31fbe5b6927e7077eee8972bb3 clean. Accepted N123 Go judge already uses cmd.Cancel = terminateLearningProcessTree(goCmd) + 3s WaitDelay. N139 native factual Go uses CommandContext with 4m timeout but lacks owned-child tree cancellation, so a `go test` subprocess can remain after timeout. Reuse approved helper, no foreign process kills, no third Codex leader, no new release/install, no G01-G04 QA reruns, no full Go suite inside worker jobs.",
+  "workers": [
+    {
+      "index": 1,
+      "title": "N139 reuse owned Go child-tree cancellation on its existing bounded command",
+      "file": "cmd/operational_run.go",
+      "done_when": "N139 factual Go on its existing source-bound job receipt operation has a bounded 4-minute deadline and on real runtime expiry terminates only its own cmd.Process tree using existing terminateLearningProcessTree, sets a short bounded WaitDelay, preserves RUNNING until native Wait seals FAILED/exit/log SHA. Non-expired success and previous source-keyed receipt semantics unchanged; no new process helper or foreign/privileged action.",
+      "instructions": "Edit ONLY cmd/operational_run.go. In runN139FactualGo, after `exec.CommandContext(ctx, \"go\", ...)` and before `runReceiptedWithMeta`, configure native `cmd.Cancel = func() error { return terminateLearningProcessTree(cmd) }` and `cmd.WaitDelay = 3*time.Second` (time already imported). If it improves testability define a small `configureN139OwnedGoCommand(cmd *exec.Cmd)` in this SAME file to set both properties, and call it there. DO NOT touch native `runReceiptedWithMeta`, context, source/argv job identity, temp directories, model routes, plan node lifecycle, or other files. No new third party library or process bridge; helper already exists Windows and Unix. Do NOT kill any PID not owned by the cmd passed in. Leave old receipts intact. Targeted compilation only, not full Go test suite."
+    },
+    {
+      "index": 2,
+      "title": "Prove N139 Go timeout does not leave an owned child process and cannot credit it as PASS",
+      "file": "cmd/operational_run_test.go",
+      "done_when": "A narrow Go test deterministically starts an owned helper process with a short context deadline, configures the SAME N139 owned child-tree timeout path, verifies that the command returns an error after deadline, the owned child is no longer alive, and no false PASS/duplicate credit is emitted. Existing N139 source SHA/immutable receipt and foreign-step tests continue to pass after integration. Test records NOT_PROVEN on unsupported Windows process-tree kill rather than silently passing.",
+      "instructions": "Edit ONLY cmd/operational_run_test.go. Use existing project helper for owning child process if available; add two narrowly named tests `TestN139OwnedGoTreeDeadline...` and helper guarded by env variable. Do not need to add a new package or change other test files. Call `configureN139OwnedGoCommand` from Worker 1; prepare own `exec.CommandContext` for the current test binary via os.Executable with env for a sleeping helper, deadline ~300-600ms, assert it was RUNNING then terminated with an error and a bounded Wait; use Windows tasklist or process state (no user elevation, only own child). If possible include one owned grandchild and ensure it cannot survive; record a strong test when supported, fail or report NOT_PROVEN if not. Do not fake a cross-chat disconnect. Avoid race with native Wait/finalize; poll bounded. All fixtures under t.TempDir, no network or foreign PID operation. Full Go test suite forbidden: one or two selected test functions only. If helper naming differs, coordinate via expected function `configureN139OwnedGoCommand(*exec.Cmd)`."
+    }
+  ]
+}
