@@ -125,6 +125,10 @@ func inspectOwnedJob(scope sessionScope, step, operation string) (jobStatusSnaps
 	if s.OutputSHA256 != r.OutputSHA256 || s.OutputBytes != r.OutputBytes {
 		return s, errors.New("terminal output changed after completion seal")
 	}
+	if r.ProcessStarted && r.ExitCode == nil {
+		s.Terminal = false
+		s.Reason = "terminal process exit is unproven: receipt has no exit code"
+	}
 	return s, nil
 }
 

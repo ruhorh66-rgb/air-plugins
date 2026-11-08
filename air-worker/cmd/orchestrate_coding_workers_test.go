@@ -287,6 +287,21 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 	if !strings.Contains(fmt.Sprint(unknown), "EXECUTION_UNKNOWN") || strings.Contains(fmt.Sprint(unknown), "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION") {
 		t.Fatalf("unsealed recovery: %+v", unknown)
 	}
+	var missingExit jobReceipt
+	if err := json.Unmarshal(receiptBytes, &missingExit); err != nil {
+		t.Fatal(err)
+	}
+	if !missingExit.ProcessStarted || missingExit.OutputSHA256 == "" {
+		t.Fatal("fixture did not start and seal process")
+	}
+	missingExit.ExitCode = nil
+	if err := writeJobReceipt(doc.Workers[0].Receipt, &missingExit); err != nil {
+		t.Fatal(err)
+	}
+	_, unknownExit := status(task, id.SessionKey)
+	if !strings.Contains(fmt.Sprint(unknownExit), "EXECUTION_UNKNOWN") || strings.Contains(fmt.Sprint(unknownExit), "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION") {
+		t.Fatalf("missing exit recovery: %+v", unknownExit)
+	}
 	if err := os.WriteFile(doc.Workers[0].Receipt, receiptBytes, 0600); err != nil {
 		t.Fatal(err)
 	}

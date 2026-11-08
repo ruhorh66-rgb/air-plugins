@@ -1,0 +1,28 @@
+{
+  "schema": "air-worker.devwork32.missing-process-exit/v1",
+  "base_head": "24db87ac16525259012756fba3c457103f48085c",
+  "task_sha256": "ee10ffdd44cea3ba47199a246e7012a3c5446d5e09c7342fb0b5a398e0cb932c",
+  "workers": [
+    {
+      "index": 1,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794168670032256000__c7c65815",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "c873641c928821f4d1999fd36759f0fb602fb58cf933071429958646a55c809a",
+      "patch_sha256": "8718d9c364606813ca08536c65cfcda65552c9dce8f615565ce3f484130c76f0"
+    },
+    {
+      "index": 2,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794168670032256000__9d75d106",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "c610b52c50eb9db7f3cb618dc564d628790cbd5e1684474459ed3c68e63f2fae",
+      "patch_sha256": "5ace3a8dfcc64a788b791f3476601fb09ec0a59d52ae5be40b69c8276b9fad4b"
+    }
+  ],
+  "change": "A sealed terminal receipt with ProcessStarted and no ExitCode is unproven; codingStatus maps all non-running unproven results to EXECUTION_UNKNOWN",
+  "baseline": "Sealed DONE process with missing exit returned terminal=true in isolated fixture",
+  "tests": "Process DONE/FAILED missing exit, API-only nil exit, no mutation/replay, previous status/exit regressions and codingStatus missing-exit recovery PASS; go vet ./... exit 0",
+  "targeted_log_sha256": "e5058c8686bb725cc078195c921abf4731ffe5e1800b94d0d7a899f2716cb384",
+  "limits": "API-only receipt semantics preserved. Synthetic reconnect is not actual G07. Lock aliases, acquisition error, fresh report, final QA and P0 remain open; no permissions/settings/installed binary changes."
+}
