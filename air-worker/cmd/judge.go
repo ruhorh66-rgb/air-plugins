@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -435,6 +436,18 @@ func powerShellScriptTail(args []string, namedIndices []int) string {
 	}
 	return tail.String()
 }
+func judgeCheckUnconfirmed(name string, cmd *exec.Cmd, err error, r *judgeResult) bool {
+	if errors.Is(err, errJobStillRunning) {
+		r.Unknown = append(r.Unknown, fmt.Sprintf("%s — результат не подтверждён, проверьте квитанцию: %v", name, err))
+		return true
+	}
+	if err != nil && (cmd == nil || cmd.Process == nil) {
+		r.Unknown = append(r.Unknown, fmt.Sprintf("%s — проверка не запущена: %v", name, err))
+		return true
+	}
+	return false
+}
+
 func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope, r *judgeResult, namedIndices ...int) {
 	scriptPath := filepath.Join(root, chk.Script)
 	if _, err := os.Stat(scriptPath); err != nil {
@@ -455,6 +468,9 @@ func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope,
 	// timeout здесь не наступает (ctx без дедлайна), поэтому вызов, как и раньше, ждёт
 	// завершения синхронно — только теперь ещё и оставляет receipt/output_path на диске.
 	out, err := runReceipted(context.Background(), scope, "judge", name, cmd)
+	if judgeCheckUnconfirmed(name, cmd, err, r) {
+		return
+	}
 	code := exitCode(cmd, err)
 	text := decodeOutput(out)
 	var logErr error
@@ -615,6 +631,9 @@ func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope
 		cmd.Env, cmd.Err = configuredChildEnvironment(resolved, cmd.Env)
 	}
 	out, err := runReceipted(ctx, scope, "judge", n123GoJudgeOperation(root, name, cmd), cmd)
+	if judgeCheckUnconfirmed(name, cmd, err, r) {
+		return
+	}
 	code := exitCode(cmd, err)
 	text := decodeOutput(out)
 	var logErr error

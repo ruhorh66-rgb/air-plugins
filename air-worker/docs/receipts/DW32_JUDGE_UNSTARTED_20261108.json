@@ -1,0 +1,14 @@
+{
+  "schema":"air-worker.devwork32.judge-unstarted/v1",
+  "source_head_before":"2ba8cf111adf1dab9eeed58711020449e960b66d",
+  "task_sha256":"6b2103edefb22e7995ab8958474dccf2720377d1e4973230da229ebf5ad6e693",
+  "workers":[
+    {"index":1,"job_id":"gpt__devwork32-pilot-priority-20261108__1794162282140899400__3a06f5ad","model":"gpt-6-luna","effort":"low","status":"DONE","exit":0,"receipt_sha256":"e885a18b12717a69bc93664631fde8f9e5b93b92fd6c360a01f995b578ef1cad","output_sha256":"bd8209b074f97934a77eae3effe6ef1718ccdbe27c5848f851d9918697b55e13","patch_sha256":"1ed1ef3f3cf0b6ace09f6564cace96a76c130a0413f8408bc5d6ff27d5508ee9"},
+    {"index":2,"job_id":"gpt__devwork32-pilot-priority-20261108__1794162282147988400__0068f5cb","model":"gpt-6-luna","effort":"low","status":"DONE","exit":0,"receipt_sha256":"2679758fc871ee09648c44d32934a6526141ace2bf4d05bb9d338452dd2fd2ec","output_sha256":"61ea670a0c80cf5cfecc8732fb78002351e04230b1ec2561c5807816a25e3fe1","patch_sha256":"640b3f454e68c184abe32fd8d0fa938b7ca7a6caacd18a99f171a7fa85761c8b"}
+  ],
+  "coordinator_integration":"Separated unconfirmed-running wording from never-started wording, corrected the Windows command test fixture, factored shared classification and added actual launch-failure plus synthetic error-classification coverage.",
+  "validation":{"targeted_exit":0,"targeted_log":"DW32_JUDGE_UNSTARTED_TARGETED_2ba8cf1.log","targeted_log_sha256":"ed9daeb0d36a8289166daaf1d24aa3a377c575be56260eb4c551a306978398aa","go_vet_exit":0,"go_vet_log_sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","includes":"two real local duplicate-refusal fixtures, actual invalid executable, existing real bounded timeout, tampered-output guard and log-error regressions"},
+  "prior_scoped_review":{"verdict":"PASS_SOURCE_ONLY","task_read":"TASK_READ_OK","answer_sha256":"dde3f4e9aaa421377c1481943e09416552108ffb026cc2d2565a30e0e42f579e","scope":"before equivalent classifier refactoring and added tests; not an exact-final-SHA review"},
+  "still_failing":"TestГодныйПланНеМешаетСудьеДвигателюИОтчёту: expected fresh report PASS, actual UNKNOWN from immutable duplicate guard. Reproduction after classification change exited 1; log SHA256 c55329f17a5ae3a661ef17c1a789489afacc8e1e324c3237c05aa8f4f6f97451.",
+  "limitations":"This corrects classification, not fresh report execution or recovery acceptance. Both Luna workers succeeded; no genuine escalation occurred. Synthetic fixtures and local timeout are not G07 evidence. N124 symlink test deferred. No final G05/G06/G07/P0 acceptance; installed rc.2 unchanged."
+}
