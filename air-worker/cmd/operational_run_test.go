@@ -504,7 +504,118 @@ func TestN139ManagedSelectionControlsModelDispatch(t *testing.T) {
 		}
 		return stepResult{Subtype: "coordinator_handoff"}
 	}
+	oldWait := n139CoordinatorWait
+	n139CoordinatorWait = func(*loopCtx, workStep) error { return errors.New("coordinator unavailable") }
+	t.Cleanup(func() { n139CoordinatorWait = oldWait })
 	if rc := runN139Step(c, goal, verify, model, review); rc != 2 || calls != 1 || reviews != 0 {
 		t.Fatalf("handoff incorrectly treated as acceptance: rc=%d calls=%d reviews=%d", rc, calls, reviews)
+	}
+}
+
+func n139BoundHandoffFixture(t *testing.T) (*loopCtx, operationalGoal, string) {
+	t.Helper()
+	c := n139Fixture(t)
+	c.Orchestrate = true
+	c.Subagents = 2
+	c.Cfg.Orchestration = orchestrationSpec{Enabled: true, Subagents: 2, RequireNativeSubagents: true, RequireAnthropicReviewer: true}
+	task := codingMicrostepTask(t)
+	path := filepath.Join(c.Root, "docs", "tasks", "N139.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(task), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	node := "<!-- air-worker-coding-task: docs/tasks/N139.json sha256=" + sha256Hex([]byte(task)) + " -->\n"
+	if err := os.WriteFile(filepath.Join(c.Root, "plan", n139ID+".md"), []byte(node), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	n124Git(t, c.Root, "init")
+	n124Git(t, c.Root, "config", "user.name", "N139")
+	n124Git(t, c.Root, "config", "user.email", "n139@test.local")
+	n124Git(t, c.Root, "add", ".")
+	n124Git(t, c.Root, "commit", "-m", "bound task")
+	return c, operationalGoal{NodeID: n139ID, SourceHead: n124Git(t, c.Root, "rev-parse", "HEAD")}, task
+}
+
+func TestN139CoordinatorHandoffWaitAndProtection(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		waitErr    error
+		ackStatus  string
+		mutatePlan bool
+		wantJudges int
+	}{
+		{name: "wait error", waitErr: errors.New("coordinator failed")},
+		{name: "timeout", waitErr: context.DeadlineExceeded},
+		{name: "verified acknowledgement", ackStatus: "ACK_RECORDED", wantJudges: 1},
+		{name: "protected mutation during wait", ackStatus: "ACK_RECORDED", mutatePlan: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, goal, task := n139BoundHandoffFixture(t)
+			oldWait, oldVerify, oldFactual := n139CoordinatorWait, n139CoordinatorVerify, n139FactualJudge
+			t.Cleanup(func() {
+				n139CoordinatorWait, n139CoordinatorVerify, n139FactualJudge = oldWait, oldVerify, oldFactual
+			})
+			plan := filepath.Join(c.Root, "PLAN.md")
+			const changedPlan = "coordinator changed protected plan\n"
+			waits, acks, models, factuals, reviews := 0, 0, 0, 0, 0
+			n139CoordinatorWait = func(_ *loopCtx, step workStep) error {
+				waits++
+				if step.CodingTask != task {
+					t.Fatal("wait received wrong task")
+				}
+				if tc.mutatePlan {
+					if err := os.WriteFile(plan, []byte(changedPlan), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+				return tc.waitErr
+			}
+			n139CoordinatorVerify = func(root string, scope sessionScope, step, gotTask string) (codingIntegrationAck, error) {
+				acks++
+				if root != c.Root || step != n139ID || gotTask != task {
+					t.Fatal("ack verification received wrong binding")
+				}
+				return codingIntegrationAck{Status: tc.ackStatus}, nil
+			}
+			n139FactualJudge = func(*loopCtx, workStep) (semanticFactualPacket, error) {
+				factuals++
+				return semanticFactualPacket{Scope: "step", Code: 0, Passed: []string{"fixture factual PASS"}}, nil
+			}
+			model := func(step workStep, _, _ string, _ runnerSpec) stepResult {
+				models++
+				if step.CodingTask != task {
+					t.Fatal("model received wrong task")
+				}
+				path := filepath.Join(c.Root, "cmd", "main.go")
+				if err := os.WriteFile(path, []byte("package main\nfunc main() { println(1) }\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				return stepResult{Subtype: "coordinator_handoff"}
+			}
+			review := func(workStep, runnerSpec, semanticFactualPacket, string) semanticRun {
+				reviews++
+				return semanticRun{Reviewer: runnerSpec{Kind: "claude"}, Verdict: semanticVerdict{Verdict: "PASS"}}
+			}
+			if rc := runN139Step(c, goal, func(string, operationalGoal) error { return nil }, model, review); rc != 2 {
+				t.Fatalf("run RC = %d", rc)
+			}
+			if models != 1 || waits != 1 || factuals != tc.wantJudges || reviews != tc.wantJudges {
+				t.Fatalf("models=%d waits=%d factuals=%d reviews=%d", models, waits, factuals, reviews)
+			}
+			if tc.waitErr != nil && acks != 0 {
+				t.Fatalf("wait error still verified %d acknowledgements", acks)
+			}
+			if tc.waitErr == nil && !tc.mutatePlan && acks != 1 {
+				t.Fatalf("completed wait verified %d acknowledgements", acks)
+			}
+			if tc.mutatePlan {
+				got, err := os.ReadFile(plan)
+				if err != nil || string(got) != changedPlan {
+					t.Fatalf("protected change was restored: %q, %v", got, err)
+				}
+			}
+		})
 	}
 }

@@ -10,9 +10,33 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
+
+var n139CoordinatorWait = func(c *loopCtx, step workStep) error {
+	deadline := time.Now().Add(30 * time.Minute)
+	for {
+		ack, err := readCodingIntegrationAck(c.Root, c.scope(), step.Num, step.CodingTask)
+		if err != nil {
+			return err
+		}
+		switch ack.Status {
+		case "ACK_RECORDED":
+			return nil
+		case "WAIT_COORDINATOR_INTEGRATION":
+			if !time.Now().Before(deadline) {
+				return errors.New("coordinator acknowledgement timed out")
+			}
+			time.Sleep(time.Second)
+		default:
+			return fmt.Errorf("invalid coordinator acknowledgement status: %q", ack.Status)
+		}
+	}
+}
+
+var n139CoordinatorVerify = readCodingIntegrationAck
 
 // N139 is deliberately one source step. Its full done_when includes independent
 // acceptance beyond this bootstrap, so this runner never closes the node.
@@ -163,15 +187,56 @@ func runN139Step(c *loopCtx, goal operationalGoal, verify func(string, operation
 		line("NOT_PROVEN: TEST_INVENTORY_CHANGED")
 		return 2
 	}
-	if !result.Ok {
-		if result.Subtype == "coordinator_handoff" {
-			// Two real Codex workers have completed changes in independent
-			// worktrees; ChatGPT is responsible for merge+factual+Anthropic.
-			// This is not a Codex failure, must not auto-escalate/re-dispatch,
-			// and must not close N139 by treating a handoff as source PASS.
-			line("WAIT_COORDINATOR_INTEGRATION: " + result.Detail)
+	coordinatorIntegrated := false
+	if !result.Ok && result.Subtype == "coordinator_handoff" {
+		line("WAIT_COORDINATOR_INTEGRATION: " + result.Detail)
+		if step.CodingTask == "" {
 			return 2
 		}
+		if err := n139CoordinatorWait(c, step); err != nil {
+			line("NOT_PROVEN: COORDINATOR_WAIT: " + err.Error())
+			return 2
+		}
+		ack, err := n139CoordinatorVerify(c.Root, c.scope(), step.Num, step.CodingTask)
+		if err != nil || ack.Status != "ACK_RECORDED" {
+			line(fmt.Sprintf("NOT_PROVEN: COORDINATOR_ACK_UNVERIFIED: status=%q error=%v", ack.Status, err))
+			return 2
+		}
+		for path, before := range guard.files {
+			after, readErr := os.ReadFile(path)
+			if readErr != nil || !bytes.Equal(before, after) {
+				line("NOT_PROVEN: PROTECTED_FILE_TAMPER: " + path)
+				return 2
+			}
+		}
+		for _, path := range absent {
+			if _, err := os.Lstat(path); err == nil || !os.IsNotExist(err) {
+				line("NOT_PROVEN: PROTECTED_FILE_CREATED: " + path)
+				return 2
+			}
+		}
+		for dir, before := range guard.dirs {
+			entries, err := os.ReadDir(dir)
+			if err != nil || len(entries) != len(before) {
+				line("NOT_PROVEN: JUDGE_INVENTORY_CHANGED: " + dir)
+				return 2
+			}
+			for _, entry := range entries {
+				if !before[entry.Name()] {
+					line("NOT_PROVEN: JUDGE_INVENTORY_CHANGED: " + dir)
+					return 2
+				}
+			}
+		}
+		currentNodes, nodeErr := filepath.Glob(filepath.Join(c.Root, "plan", "N-*.md"))
+		currentTests, testErr := filepath.Glob(filepath.Join(c.Root, "cmd", "*_test.go"))
+		if nodeErr != nil || testErr != nil || !slices.Equal(currentNodes, nodes) || !slices.Equal(currentTests, tests) {
+			line("NOT_PROVEN: PROTECTED_INVENTORY_CHANGED")
+			return 2
+		}
+		coordinatorIntegrated = true
+	}
+	if !result.Ok && !coordinatorIntegrated {
 		line("NOT_PROVEN: CODEX_" + result.Subtype + ": " + result.Detail)
 		return 2
 	}
