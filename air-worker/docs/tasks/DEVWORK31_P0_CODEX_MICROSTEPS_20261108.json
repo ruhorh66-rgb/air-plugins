@@ -1,0 +1,20 @@
+{
+  "schema": "air-worker.coding-microsteps/v1",
+  "context": "P0 AirWorker. ChatGPT coordinates exactly two genuine Codex code writers in separate Git worktrees. This is one bounded source-only mechanization increment, NOT G05/G06/G07/G08 closure. Existing accepted receipts, installed rc.2, PLAN, N nodes, release and other products are out of scope. Use script-first for deterministic checks and do not call any third model.",
+  "workers": [
+    {
+      "index": 1,
+      "title": "Validate and route two distinct atomic worker microsteps",
+      "file": "cmd/orchestrate_coding_workers.go",
+      "done_when": "Before starting Codex/worktree, a strict schema-checked two-worker JSON task is parsed and validated. Each worker receives only own microstep + shared context, its file scope, acceptance criterion, original combined task identity and source SHA. Wrong/missing/duplicated index, overlap, unsafe file scope, empty/broad step or malformed/legacy task rejects before model launch. On return reject any worker edits outside its own declared single file scope; leave immutable receipts/workspaces for investigation, do not promote DONE to QA PASS.",
+      "instructions": "ONLY MODIFY cmd/orchestrate_coding_workers.go. Implement native parser/validator for schema air-worker.coding-microsteps/v1 {schema,context,workers:[{index,title,file,done_when,instructions}]}; strictly reject unknown keys, absent/extra workers, empty or excessive fields, repeated/ambiguous path, traversal, absolute/volume paths, .git/.woody/plan/secret targets, overlapping work scopes. Single file per worker is deliberate small-slice v1. Existing repo prefix (e.g. air-worker/cmd/...) in git diff must be normalized to product-root-relative before matching declared file. Before preparing worktrees call parser and fail closed. Worker-specific TASK-CODE-WORKER.md must exclude other worker instructions and expose only its own contract. Preserve original TaskSHA256 for read-only status/escalation/recovery. Store each microstep/file acceptance identity in handoff if feasible. Do not change API names, release policy, safety guard, repo, tests or PLAN. Avoid full Go suite; syntax/build proof only in your private worktree."
+    },
+    {
+      "index": 2,
+      "title": "Prove microstep isolation and fail-closed dispatch with targeted Go tests",
+      "file": "cmd/orchestrate_coding_workers_test.go",
+      "done_when": "Existing mock coding/recovery/escalation tests use two explicit microsteps; new tests reject missing/legacy/overlap/unsafe/duplicate steps without starting any workers and verify worker-1 receives only own instructions and worker-2 only own instructions, per-worker file scope, nonzero failure on out-of-scope writes, immutable receipt identity, and only two helper processes. Targeted tests must produce factual RC0 after integration, with original recovery behavior preserved.",
+      "instructions": "ONLY MODIFY cmd/orchestrate_coding_workers_test.go. Introduce a small test helper generating strict JSON microstep task with schema air-worker.coding-microsteps/v1 and two entries {index,title,file,done_when,instructions}. Migrate in this test file only the synthetic task strings used by TestCodingWorkersStatusRecovery, TestChatGPTCoordinatorTwoCodexWorkersOwnRealEdits and TestCodingEscalation to that strict schema; preserve source-identity checks and job-count checks. Add focused positive and negative test cases for parser and per-worker task routing/scope, including duplicate/overlap, invalid path, unstructured input. Use existing deterministic mock processes, no real LLM inside tests. Do not modify code file, releases, other test files, or PLAN. Running test before coordinator integration may fail because parser implementation is in worker 1; record this as expected pre-integration, not PASS."
+    }
+  ]
+}
