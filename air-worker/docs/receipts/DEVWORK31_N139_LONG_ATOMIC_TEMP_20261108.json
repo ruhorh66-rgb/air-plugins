@@ -1,0 +1,114 @@
+{
+  "schema": "air-worker.devwork31.p0-n139-long-atomic-temporary-file/v1",
+  "owner": "Dev Work31 / ChatGPT coordinator / SRVLM01",
+  "observed_sgt_date": "2026-11-08",
+  "source_before": "747ba5ced6948a0973f42452670943289eb28d39",
+  "historical_blocked_attempt": {
+    "task_path": "docs/tasks/DEVWORK31_P0_N139_OWNED_PROCESS_TREE_MICROSTEPS_20261108.json",
+    "task_sha256": "8c22ea71be7be82082de3f77d19d10d8f9f902e9ffd179e654ef75a4ff04cd36",
+    "native_status": "NOT_PROVEN_RC2",
+    "worker_errors": [
+      "runner_error",
+      "runner_error"
+    ],
+    "native_model_receipts_created": 0,
+    "native_model_launches": 0,
+    "source_dirty": false,
+    "preserved_handoff_sha256": "2e6b58c7d1f0577cf396bd04051b2b872c972b59b06f93a1dcacb0fbf4495971",
+    "workspaces_preserved": true,
+    "not_a_genuine_provider_failure": true
+  },
+  "root_cause": {
+    "file": "cmd/lock_windows.go",
+    "old_operation": "os.CreateTemp(dir, '.'+filepath.Base(path)+'.*.tmp')",
+    "go_probe": "D:/Devbox/AirWorker/temp/devwork31-long-component-proof/probe.go",
+    "old_receipt_basename_length": 235,
+    "old_temp_component_length": 250,
+    "old_create_temp": "PASS",
+    "failed_receipt_basename_length": 243,
+    "failed_temp_component_length": 258,
+    "failed_create_temp": "FAIL_FILENAME_SYNTAX_NTFS_MAX_COMPONENT_255",
+    "note": "Go repro under own D:-TEMP, no foreign files. Windows PowerShell may independently have MAX_PATH limitations; causality grounded on exact Go CreateTemp result."
+  },
+  "current_task": {
+    "path": "docs/tasks/DW31_N139_TMP.json",
+    "sha256": "3a191a7af763dea697e2b27712a69598c96149ebb149894783db489b19aac891",
+    "purpose": "two Codex workers repair atomic write temporary pattern; short task path is new bounded source slice not a replay of failed job"
+  },
+  "orchestration": {
+    "coordinator": "ChatGPT current conversation",
+    "exact_two_real_codex_code_writers": 2,
+    "third_codex_leader": 0,
+    "native_handoff_status": "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION",
+    "native_handoff_sha256": "c607d5550200653e1d80403729b8edffbe7448514a2beff07c9d28126c72d11d",
+    "independent_git_worktrees": true,
+    "original_main_clean_before_merge": true,
+    "git_apply_check_rc": [
+      0,
+      0
+    ],
+    "workers": [
+      {
+        "index": 1,
+        "file": "cmd/lock_windows.go",
+        "status": "DONE",
+        "exit_code": 0,
+        "model": "gpt-6.1-terra",
+        "microstep_sha256": "41509e0af3031a563c66295da7adf0454227503acbb33be720f3a31bc2359d56",
+        "patch_sha256": "a65d8c7b0e8ddbfd7d2a8cb7fda913905bd940895d5b955f1fda37c0faf11d5d",
+        "model_output_sha256": "f3dd756fc44aac3f1a0fb55e3cfea30b30d11978899edbe9bb206c5f975b5c63",
+        "model_job_rc": 0
+      },
+      {
+        "index": 2,
+        "file": "cmd/lock_windows_test.go",
+        "status": "DONE",
+        "exit_code": 0,
+        "model": "gpt-6.1-terra",
+        "microstep_sha256": "1819e4d1033d9fb66993d8de0b20fadef44678397eaa88d41b93bf37bcede537",
+        "patch_sha256": "67d8fd3a67d75778ab321858e2d4a6d7148d9efa0bc0b5a705c0aa36822b4e58",
+        "model_output_sha256": "d7ba1ed32364830d1e4c1e874e40796f15c0fdb5682ddddac046d6bca787792f",
+        "model_job_rc": 0
+      }
+    ]
+  },
+  "code_fix": "atomicTempPattern returns historical temp pattern for base <=220; for longer base builds short SHA256-derived prefix inside same directory and passes it to os.CreateTemp; both writeFileAtomic and writeFileAtomicDurable use helper; destination bytes, unique CreateTemp, durable Sync, atomic replace and old receipts unchanged.",
+  "targeted_qa": {
+    "pattern": "^(TestAtomicWritesLongReceiptName|TestWriteFileAtomicRepeatedReplacement)$",
+    "tests": [
+      "TestWriteFileAtomicRepeatedReplacement",
+      "TestAtomicWritesLongReceiptName/atomic",
+      "TestAtomicWritesLongReceiptName/durable"
+    ],
+    "go_test_rc": 0,
+    "test_log_sha256": "c66df56599f7aa95a9d13d1588396475dc1392265d26b8d383ca2a681e1f9e12",
+    "go_vet_rc": 0,
+    "vet_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gofmt_LF_normalized_clean": true,
+    "git_diff_check_rc": 0,
+    "no_temp_files_remaining_for_test": true,
+    "final_filename_component_length": 243,
+    "no_external_changes": true
+  },
+  "scope_boundary": {
+    "p0_passed": 4,
+    "p0_total": 8,
+    "native_nodes_closed": 0,
+    "open": [
+      "G07",
+      "G06",
+      "G05",
+      "G08"
+    ],
+    "G06": "NOT_PROVEN — failed attempted long task was a local filesystem filename bug, not vendor failure",
+    "G05": "full native N123 Go QA, independent reviewers, reversible rollback still OPEN",
+    "G07": "two genuine ordinary GPT chat disconnections and EXECUTION_UNKNOWN remain OPEN",
+    "G08": "all 4 native nodes still OPEN"
+  },
+  "release": {
+    "installed": "0.11.11-rc.2",
+    "candidate": "0.11.11-rc.5 SOURCE_ONLY/HOLD",
+    "new_install": false
+  },
+  "next": "Commit/push source and advance operational goal; build candidate if necessary, then resume remaining N139 owned process-tree microsteps via fresh short filename without rerunning old failed identity. Preserve failed handoff/worktrees and all accepted native receipts."
+}

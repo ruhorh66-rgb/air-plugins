@@ -114,6 +114,48 @@ func TestWriteFileAtomicRepeatedReplacement(t *testing.T) {
 	}
 }
 
+func TestAtomicWritesLongReceiptName(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		write func(string, []byte) error
+	}{
+		{"atomic", writeFileAtomic},
+		{"durable", writeFileAtomicDurable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			name := strings.Repeat("n", 230) + ".receipt.json"
+			if len(name) != 243 {
+				t.Fatalf("filename length = %d, want 243", len(name))
+			}
+			path := filepath.Join(dir, name)
+			if err := os.WriteFile(path, []byte("preflight"), 0o600); err != nil {
+				t.Fatalf("NOT_PROVEN: filesystem cannot create the destination: %v", err)
+			}
+			if err := os.Remove(path); err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				entries, err := os.ReadDir(dir)
+				if err != nil {
+					t.Error(err)
+				} else if len(entries) != 1 || entries[0].Name() != name {
+					t.Errorf("unexpected directory contents: %v", entries)
+				}
+			}()
+			for _, want := range []string{"first receipt\x00", "replacement receipt\n"} {
+				if err := tc.write(path, []byte(want)); err != nil {
+					t.Fatalf("write: %v", err)
+				}
+				got, err := os.ReadFile(path)
+				if err != nil || string(got) != want {
+					t.Fatalf("read = %q, err = %v; want %q", got, err, want)
+				}
+			}
+		})
+	}
+}
+
 // ЭТИ ПРОВЕРКИ ЗОВУТ ЗАМОК, А НЕ СМОТРЯТ НА НЕГО.
 //
 // Написаны после отказа 14.09.2026: `CreateMutexW` была взята из advapi32, где её нет

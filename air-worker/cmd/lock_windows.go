@@ -4,6 +4,7 @@ package main
 
 import (
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -137,12 +138,21 @@ func lockHeld(name string) bool {
 	return true
 }
 
+func atomicTempPattern(path string) string {
+	base := filepath.Base(path)
+	if len(base) > 220 {
+		sum := sha256.Sum256([]byte(base))
+		return ".aw-" + hex.EncodeToString(sum[:8]) + "-*.tmp"
+	}
+	return "." + base + ".*.tmp"
+}
+
 // writeFileAtomic — запись через временный файл и перенос. Перенос в пределах одного
 // тома неделим, и читатель никогда не увидит полузаписанного файла. Применяется к
 // вердикту: его читают и страж, и двигатель, и соседние сессии.
 func writeFileAtomic(path string, data []byte) error {
 	dir := filepath.Dir(path)
-	f, err := os.CreateTemp(dir, "."+filepath.Base(path)+".*.tmp")
+	f, err := os.CreateTemp(dir, atomicTempPattern(path))
 	if err != nil {
 		return err
 	}
@@ -165,7 +175,7 @@ func writeFileAtomic(path string, data []byte) error {
 // the release receipt rather than claiming a synthetic power-loss proof.
 func writeFileAtomicDurable(path string, data []byte) error {
 	dir := filepath.Dir(path)
-	f, err := os.CreateTemp(dir, "."+filepath.Base(path)+".*.tmp")
+	f, err := os.CreateTemp(dir, atomicTempPattern(path))
 	if err != nil {
 		return err
 	}
