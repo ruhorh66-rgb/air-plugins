@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -116,6 +117,15 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 	}
 	if jobs.Load() != 2 {
 		t.Fatalf("expected exactly two model jobs, got %d", jobs.Load())
+	}
+	ackAbsent := func(label string, scope sessionScope, task string) {
+		t.Helper()
+		if path, err := ackCodingIntegrated(root, scope, "coord-TASK.md", task); err == nil {
+			t.Fatalf("%s: acknowledgement accepted: %s", label, path)
+		}
+		if jobs.Load() != 2 {
+			t.Fatalf("%s: acknowledgement launched a job", label)
+		}
 	}
 	if doc.TaskSHA256 != shaCodingBytes([]byte(base)) {
 		t.Fatalf("original task identity changed: %+v", doc)
@@ -350,6 +360,7 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 	if err := os.WriteFile(doc.Workers[0].Patch, append(patchBytes, 'x'), 0600); err != nil {
 		t.Fatal(err)
 	}
+	ackAbsent("damaged patch", ctx.scope(), base)
 	if _, err := verifyCodingIntegrated(root, ctx.scope(), "coord-TASK.md", base); err == nil {
 		t.Fatal("verifier accepted damaged worker patch")
 	}
@@ -470,6 +481,7 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 	if _, err := verifyCodingIntegrated(root, ctx.scope(), "coord-TASK.md", base); err == nil {
 		t.Fatal("verifier accepted unmeasured legacy receipt")
 	}
+	ackAbsent("legacy unmeasured", ctx.scope(), base)
 	if err := os.Rename(legacyOutput, oldOutput); err != nil {
 		t.Fatal(err)
 	}
@@ -506,13 +518,67 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 			t.Fatalf("%s: verifier changed evidence or launched a job", label)
 		}
 	}
+	ackAbsent("before integration", ctx.scope(), base)
 	verify(false, "before integration")
 	// ChatGPT coordinator now integrates real files from independent workers,
 	// without dispatching a third model process.
 	for i, w := range doc.Workers {
 		codingFixtureGit(t, root, "apply", "--check", w.Patch)
 		codingFixtureGit(t, root, "apply", w.Patch)
+		if i == 0 {
+			ackAbsent("one integrated patch", ctx.scope(), base)
+		}
 		verify(i == 1, fmt.Sprintf("after %d patches", i+1))
+	}
+	ackAbsent("changed task", ctx.scope(), base+"\n")
+	wrongScope := ctx.scope()
+	wrongScope.ID.SessionKey += "-wrong"
+	ackAbsent("wrong scope", wrongScope, base)
+	output, err := os.ReadFile(doc.Workers[0].Receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sealed, err := readJobReceipt(doc.Workers[0].Receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	workerOutput, err := os.ReadFile(sealed.OutputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sealed.OutputPath, append(append([]byte(nil), workerOutput...), 'x'), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ackAbsent("damaged output", ctx.scope(), base)
+	if err := os.WriteFile(sealed.OutputPath, workerOutput, 0600); err != nil {
+		t.Fatal(err)
+	}
+	ackPath, err := ackCodingIntegrated(root, ctx.scope(), "coord-TASK.md", base)
+	if err != nil {
+		t.Fatalf("exact integration acknowledgement: %v", err)
+	}
+	ackBytes, err := os.ReadFile(ackPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{doc.TaskSHA256, doc.SourceHead, doc.Workers[0].JobID, doc.Workers[1].JobID, doc.Workers[0].PatchSHA256, doc.Workers[1].PatchSHA256, ctx.SessionKey} {
+		if !bytes.Contains(ackBytes, []byte(value)) {
+			t.Errorf("acknowledgement missing %q", value)
+		}
+	}
+	if bytes.Contains(ackBytes, []byte(base)) {
+		t.Fatal("acknowledgement embedded raw task")
+	}
+	if again, err := ackCodingIntegrated(root, ctx.scope(), "coord-TASK.md", base); err == nil && again != ackPath {
+		t.Fatalf("duplicate acknowledgement created: %s", again)
+	}
+	unchanged, err := os.ReadFile(ackPath)
+	if err != nil || !bytes.Equal(ackBytes, unchanged) || jobs.Load() != 2 {
+		t.Fatal("duplicate acknowledgement changed evidence or launched a job")
+	}
+	finalReceipt, err := os.ReadFile(doc.Workers[0].Receipt)
+	if err != nil || !bytes.Equal(output, finalReceipt) {
+		t.Fatal("acknowledgement changed worker receipt")
 	}
 	for _, name := range []string{"a.go", "b.go"} {
 		path := filepath.Join(root, name)
@@ -561,6 +627,16 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 		t.Fatal(err)
 	}
 	verify(true, "restored measured receipt")
+	if err := os.WriteFile(ackPath, []byte("{"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if path, err := ackCodingIntegrated(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+		t.Fatalf("partial acknowledgement accepted: %s", path)
+	}
+	partial, err := os.ReadFile(ackPath)
+	if err != nil || string(partial) != "{" || jobs.Load() != 2 {
+		t.Fatal("partial acknowledgement overwritten or launched a job")
+	}
 	afterA, _ := os.ReadFile(filepath.Join(root, "a.go"))
 	afterB, _ := os.ReadFile(filepath.Join(root, "b.go"))
 	if !strings.Contains(string(afterA), "NEW_A") || !strings.Contains(string(afterB), "NEW_B") {
@@ -1065,6 +1141,7 @@ func TestDW32IntegrationNestedProduct(t *testing.T) {
 	if _, err := verifyCodingIntegrated(root, c.scope(), step, task); err != nil {
 		t.Fatalf("exact nested integration rejected: %v", err)
 	}
+
 	codingFixtureGit(t, repo, "add", "air-worker/a.go")
 	if _, err := verifyCodingIntegrated(root, c.scope(), step, task); err == nil {
 		t.Fatal("staged source unexpectedly accepted")
@@ -1098,4 +1175,103 @@ func TestDW32NestedHelperProcess(t *testing.T) {
 	fmt.Println(`{"type":"item.completed","item":{"type":"agent_message","text":"Edited"}}`)
 	fmt.Println(`{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}`)
 	os.Exit(0)
+}
+
+func TestDW32N139BoundCoordinatorAck(t *testing.T) {
+	repo := t.TempDir()
+	root := filepath.Join(repo, "air-worker")
+	for _, d := range []string{"cmd", "plan", "goal", "docs/tasks"} {
+		if e := os.MkdirAll(filepath.Join(root, filepath.FromSlash(d)), 0700); e != nil {
+			t.Fatal(e)
+		}
+	}
+	task := codingMicrostepTask(t)
+	name := "docs/tasks/N139.json"
+	cfg := executorTestConfig()
+	cfg.Orchestration = orchestrationSpec{Enabled: true, Subagents: 2, RequireNativeSubagents: true, RequireAnthropicReviewer: true}
+	cfgRaw, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	release, e := os.ReadFile(filepath.Join("..", "plan", "release-slices.json"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	node := fmt.Sprintf("---\nid: %q\ntitle: \"N139\"\nparent: %q\ntrigger: \"test\"\nowner: \"test\"\ndone_when: \"test\"\nstatus: \"open\"\nreturn_to: \"test\"\ncreated_at: \"2026-11-07T03:07:15Z\"\nupdated_at: \"2026-11-07T03:07:15Z\"\nreceipts:\n---\n\n<!-- air-worker-coding-task: %s sha256=%s -->\n", n139ID, "N-136_prove-autonomous-plan-coding-factual-anthropic-c", name, sha256Hex([]byte(task)))
+	for n, b := range map[string][]byte{".gitignore": []byte(".woody/\n/goal/operational-goal.json\n"), "run-config.json": cfgRaw, "cmd/go.mod": []byte("module airos/air-worker\n\ngo 1.26\n"), "PLAN.md": []byte("[[" + n139ID + "]]\n"), "plan/" + n139ID + ".md": []byte(node), "plan/release-slices.json": release, name: []byte(task), "a.go": []byte("package demo\nfunc A() string { return \"OLD_A\" }\n"), "b.go": []byte("package demo\nfunc B() string { return \"OLD_B\" }\n")} {
+		if e := os.WriteFile(filepath.Join(root, filepath.FromSlash(n)), b, 0600); e != nil {
+			t.Fatal(e)
+		}
+	}
+	codingFixtureGit(t, repo, "init")
+	codingFixtureGit(t, repo, "config", "--local", "user.name", "Test")
+	codingFixtureGit(t, repo, "config", "--local", "user.email", "test@example.invalid")
+	codingFixtureGit(t, repo, "add", ".")
+	codingFixtureGit(t, repo, "commit", "-m", "bound plan")
+	head := n124Git(t, repo, "rev-parse", "HEAD")
+	goal, e := operationalGoalInputs(root, n139ID, head)
+	if e != nil {
+		t.Fatal(e)
+	}
+	raw, e := json.Marshal(goal)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = os.WriteFile(operationalGoalPath(root), raw, 0600); e != nil {
+		t.Fatal(e)
+	}
+	t.Setenv("AW_DW32_NESTED_HELPER", "1")
+	old := runnerCommand
+	defer func() { runnerCommand = old }()
+	runnerCommand = func(string, ...string) *exec.Cmd {
+		return exec.Command(os.Args[0], "-test.run=TestDW32NestedHelperProcess")
+	}
+	c := &loopCtx{Root: root, Subagents: 2, Principal: "gpt", SessionKey: "n139-fixture", Cfg: runConfig{Orchestration: orchestrationSpec{Enabled: true, Subagents: 2, RequireNativeSubagents: true, RequireAnthropicReviewer: true}}}
+	doc := c.runIsolatedCodingWorkers("codex", task, n139ID, runnerSpec{Kind: "codex", Model: "gpt-6-luna", Effort: "low"})
+	if doc.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" {
+		t.Fatalf("handoff: %+v", doc)
+	}
+	for _, w := range doc.Workers {
+		codingFixtureGit(t, repo, "apply", "--check", w.Patch)
+		codingFixtureGit(t, repo, "apply", w.Patch)
+	}
+	if _, e := ackCodingIntegrated(root, c.scope(), n139ID, task+" "); e == nil {
+		t.Fatal("modified task accepted")
+	}
+	selected, selectErr := selectN139CodingTask(root, goal)
+	if selectErr != nil || selected != task {
+		t.Fatalf("direct selector: %v", selectErr)
+	}
+	state := t.TempDir()
+	id := sessionIdentity{Principal: "gpt", SessionKey: "n139-fixture"}
+	if e = writeStateJSON(sessionModePath(state, id), sessionModeState{Enabled: true, Principal: id.Principal, SessionKey: id.SessionKey}); e != nil {
+		t.Fatal(e)
+	}
+	if e = writeStateJSON(sessionProductPath(state, id), sessionProductState{Path: root, Principal: id.Principal, SessionKey: id.SessionKey}); e != nil {
+		t.Fatal(e)
+	}
+	out, e := os.CreateTemp(t.TempDir(), "ack-output-*.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	oldStdout := os.Stdout
+	os.Stdout = out
+	rc := cmdOrchestrateCode([]string{"ack-integration", "-product", root, "-task-file", filepath.Join(root, filepath.FromSlash(name)), "-step", n139ID, "-principal", id.Principal, "-session-key", id.SessionKey, "-state-dir", state, "-json"})
+	os.Stdout = oldStdout
+	out.Close()
+	if rc != 0 {
+		t.Fatalf("native ack rc=%d", rc)
+	}
+	ack := filepath.Join(filepath.Dir(doc.Report), "coordinator-integration.json")
+	before, e := os.ReadFile(ack)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = ackCodingIntegrated(root, c.scope(), n139ID, task); e == nil {
+		t.Fatal("duplicate acknowledgement accepted")
+	}
+	after, e := os.ReadFile(ack)
+	if e != nil || !bytes.Equal(before, after) {
+		t.Fatal("acknowledgement changed")
+	}
 }

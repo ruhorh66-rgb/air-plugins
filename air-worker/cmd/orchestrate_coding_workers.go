@@ -483,6 +483,9 @@ func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner ru
 }
 
 func cmdOrchestrateCode(argv []string) int {
+	if len(argv) > 0 && argv[0] == "ack-integration" {
+		return cmdCodingAckIntegration(argv[1:])
+	}
 	if len(argv) > 0 && argv[0] == "escalate" {
 		return cmdCodingEscalate(argv[1:])
 	}
@@ -928,6 +931,180 @@ func verifyCodingIntegrated(root string, scope sessionScope, step, task string) 
 		}
 	}
 	return doc, nil
+}
+
+type codingIntegrationAck struct {
+	Schema        string    `json:"schema"`
+	Status        string    `json:"status"`
+	Step          string    `json:"step"`
+	Principal     string    `json:"principal"`
+	SessionKey    string    `json:"session_key"`
+	SourceHead    string    `json:"source_head"`
+	TaskSHA256    string    `json:"task_sha256"`
+	JobIDs        [2]string `json:"job_ids"`
+	PatchSHA256   [2]string `json:"patch_sha256"`
+	HandoffSHA256 string    `json:"handoff_sha256"`
+}
+
+// ackCodingIntegrated records a coordinator action; it does not certify human review or future source stability.
+func ackCodingIntegrated(root string, scope sessionScope, step, task string) (string, error) {
+	if scope.ID.Principal != "gpt" || !(strings.HasPrefix(step, "coord-") || step == "N-139_n136-native-operational-goal-selector-for-real-a") ||
+		len(step) > 240 || !codingScopePart.MatchString(step) || strings.Contains(step, "..") {
+		return "", errors.New("invalid original GPT coordinator step")
+	}
+	if step == "N-139_n136-native-operational-goal-selector-for-real-a" {
+		goal, err := readOperationalGoal(root)
+		if err != nil || goal.NodeID != step {
+			return "", errors.New("N139 operational goal is not verified")
+		}
+		bound, err := selectN139CodingTask(root, goal)
+		if err != nil || bound != task {
+			return "", errors.New("N139 task is not plan-bound")
+		}
+	}
+	if _, err := parseCodingMicrosteps(task); err != nil {
+		return "", err
+	}
+	doc, err := verifyCodingIntegrated(root, scope, step, task)
+	if err != nil {
+		return "", err
+	}
+	handoff, err := os.ReadFile(doc.Report)
+	if err != nil || len(handoff) == 0 || len(handoff) > 1024*1024 {
+		return "", errors.New("invalid verified handoff")
+	}
+	ack := codingIntegrationAck{Schema: "air-worker.coordinator-integration/v1", Status: "ACK_RECORDED",
+		Step: step, Principal: scope.ID.Principal, SessionKey: scope.ID.SessionKey,
+		SourceHead: doc.SourceHead, TaskSHA256: doc.TaskSHA256, HandoffSHA256: shaCodingBytes(handoff)}
+	for i, w := range doc.Workers {
+		ack.JobIDs[i], ack.PatchSHA256[i] = w.JobID, w.PatchSHA256
+	}
+	if ack.JobIDs[0] == "" || ack.JobIDs[1] == "" || ack.JobIDs[0] == ack.JobIDs[1] ||
+		ack.PatchSHA256[0] == "" || ack.PatchSHA256[1] == "" {
+		return "", errors.New("incomplete verified worker identity")
+	}
+	bytes, err := json.MarshalIndent(ack, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Dir(doc.Report)
+	if err := jobOwnedEvidencePath(dir, doc.Report); err != nil || filepath.Base(doc.Report) != "handoff.json" {
+		return "", errors.New("unsafe verified handoff path")
+	}
+	owned, err := os.OpenRoot(dir)
+	if err != nil {
+		return "", err
+	}
+	defer owned.Close()
+	file, err := owned.OpenFile("coordinator-integration.json", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, "coordinator-integration.json")
+	if n, err := file.Write(append(bytes, '\n')); err != nil || n != len(bytes)+1 {
+		_ = file.Close()
+		return "", errors.New("incomplete coordinator acknowledgement write")
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return "", err
+	}
+	if err := file.Close(); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func cmdCodingAckIntegration(argv []string) int {
+	fs := flag.NewFlagSet("orchestrate code ack-integration", flag.ContinueOnError)
+	product := fs.String("product", ".", "product root")
+	task := fs.String("task-file", "", "original task file")
+	step := fs.String("step", "", "original coordinator step")
+	principal := fs.String("principal", "", "original principal")
+	session := fs.String("session-key", "", "original session")
+	state := fs.String("state-dir", "", "native session state")
+	asJSON := fs.Bool("json", false, "machine output")
+	if fs.Parse(argv) != nil || fs.NArg() != 0 {
+		return 2
+	}
+	result := map[string]string{"status": "NOT_PROVEN"}
+	err := func() error {
+		root, cfg, err := loadExecutorConfig(*product, "")
+		if err != nil {
+			return err
+		}
+		if !cfg.Orchestration.Enabled || !cfg.Orchestration.RequireNativeSubagents ||
+			!cfg.Orchestration.RequireAnthropicReviewer || cfg.Orchestration.Subagents != 2 {
+			return errors.New("managed two-worker configuration required")
+		}
+		scope, err := executorScopeForSession(root, *principal, *session, *state)
+		if err != nil {
+			return err
+		}
+		taskPath, err := taskFileInsideProduct(root, *task)
+		if err != nil {
+			return err
+		}
+		if *step != "coord-"+filepath.Base(taskPath) && *step != "N-139_n136-native-operational-goal-selector-for-real-a" {
+			return errors.New("step does not match original task file")
+		}
+		body, err := os.ReadFile(taskPath)
+		if err != nil || len(body) == 0 || len(body) > 48*1024 {
+			return errors.New("invalid original task")
+		}
+		path, err := ackCodingIntegrated(root, scope, *step, string(body))
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		var ack codingIntegrationAck
+		if err := json.Unmarshal(data, &ack); err != nil {
+			return err
+		}
+		if len(data) == 0 || len(data) > 8192 || jobOwnedEvidencePath(filepath.Dir(path), path) != nil ||
+			ack.Schema != "air-worker.coordinator-integration/v1" || ack.Status != "ACK_RECORDED" ||
+			ack.Step != *step || ack.Principal != scope.ID.Principal || ack.SessionKey != scope.ID.SessionKey ||
+			ack.TaskSHA256 != shaCodingBytes(body) {
+			return errors.New("coordinator acknowledgement readback mismatch")
+		}
+		verified, err := verifyCodingIntegrated(root, scope, *step, string(body))
+		if err != nil || verified.SourceHead != ack.SourceHead || len(verified.Workers) != 2 {
+			return errors.New("integrated source changed during acknowledgement")
+		}
+		for i, worker := range verified.Workers {
+			if ack.JobIDs[i] != worker.JobID || ack.PatchSHA256[i] != worker.PatchSHA256 {
+				return errors.New("worker evidence changed during acknowledgement")
+			}
+		}
+		freshHandoff, err := os.ReadFile(verified.Report)
+		if err != nil || shaCodingBytes(freshHandoff) != ack.HandoffSHA256 {
+			return errors.New("handoff changed during acknowledgement")
+		}
+		result = map[string]string{"status": ack.Status, "path": path, "source_head": ack.SourceHead,
+			"task_sha256": ack.TaskSHA256, "handoff_sha256": ack.HandoffSHA256, "ack_sha256": shaCodingBytes(data),
+			"job_id_1": ack.JobIDs[0], "job_id_2": ack.JobIDs[1],
+			"patch_sha256_1": ack.PatchSHA256[0], "patch_sha256_2": ack.PatchSHA256[1]}
+		return nil
+	}()
+	if err != nil {
+		result["error"] = err.Error()
+	}
+	if *asJSON {
+		_ = json.NewEncoder(os.Stdout).Encode(result)
+	} else if err != nil {
+		fmt.Fprintln(os.Stderr, "NOT_PROVEN: "+err.Error())
+	} else {
+		fmt.Printf("ACK_RECORDED path=%s source_head=%s task_sha256=%s handoff_sha256=%s ack_sha256=%s job_id_1=%s patch_sha256_1=%s job_id_2=%s patch_sha256_2=%s\n",
+			result["path"], result["source_head"], result["task_sha256"], result["handoff_sha256"], result["ack_sha256"],
+			result["job_id_1"], result["patch_sha256_1"], result["job_id_2"], result["patch_sha256_2"])
+	}
+	if err != nil {
+		return 2
+	}
+	return 0
 }
 
 func cmdCodingStatus(argv []string) int {
