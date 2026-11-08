@@ -12,6 +12,22 @@ import (
 	"testing"
 )
 
+func codingMicrostepTask(t *testing.T) string {
+	t.Helper()
+	task := map[string]any{
+		"schema": "air-worker.coding-microsteps/v1", "context": "Update the two independent demo functions.",
+		"workers": []map[string]any{
+			{"index": 1, "title": "Update function A", "file": "a.go", "done_when": "A returns NEW_A", "instructions": "Edit only a.go to return NEW_A."},
+			{"index": 2, "title": "Update function B", "file": "b.go", "done_when": "B returns NEW_B", "instructions": "Edit only b.go to return NEW_B."},
+		},
+	}
+	data, err := json.Marshal(task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
 func codingFixtureGit(t *testing.T, root string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
@@ -52,7 +68,7 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 	}}
 	ctx := &loopCtx{Root: root, Cfg: cfg, Subagents: 2,
 		Principal: "gpt", SessionKey: "unit-external-coordinator"}
-	base := "Worker 1 edit a.go to NEW_A; worker 2 edit b.go to NEW_B."
+	base := codingMicrostepTask(t)
 	task := filepath.Join(root, "TASK.md")
 	if err := os.WriteFile(task, []byte(base), 0600); err != nil {
 		t.Fatal(err)
@@ -92,6 +108,23 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 	}
 	if jobs.Load() != 2 {
 		t.Fatalf("expected exactly two model jobs, got %d", jobs.Load())
+	}
+	if doc.TaskSHA256 != shaCodingBytes([]byte(base)) {
+		t.Fatalf("original task identity changed: %+v", doc)
+	}
+	for i, w := range doc.Workers {
+		body, err := os.ReadFile(filepath.Join(w.Product, ".woody", "TASK-CODE-WORKER.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		own, other := "Edit only a.go to return NEW_A.", "Edit only b.go to return NEW_B."
+		if i == 1 {
+			own, other = other, own
+		}
+		if !strings.Contains(string(body), own) || strings.Contains(string(body), other) ||
+			!strings.Contains(string(body), doc.TaskSHA256) || !strings.Contains(string(body), doc.SourceHead) {
+			t.Fatalf("worker %d received wrong task: %s", i+1, body)
+		}
 	}
 	// A and B both physically changed THEIR worktrees while the shared source
 	// has not been touched: the third Codex "leader" did not run.
@@ -299,7 +332,7 @@ func TestChatGPTCoordinatorTwoCodexWorkersOwnRealEdits(t *testing.T) {
 	}}
 	ctx := &loopCtx{Root: root, Cfg: cfg, Subagents: 2,
 		Principal: "gpt", SessionKey: "unit-external-coordinator"}
-	base := "Worker 1 edit a.go to NEW_A; worker 2 edit b.go to NEW_B."
+	base := codingMicrostepTask(t)
 	doc := ctx.runIsolatedCodingWorkers("codex", base, "external-coordinator-unit", runnerSpec{
 		Kind: "codex", Model: "gpt-6.1-terra", Effort: "low"})
 	if doc.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" || len(doc.Workers) != 2 {
@@ -367,6 +400,70 @@ func TestChatGPTCoordinatorTwoCodexWorkersOwnRealEdits(t *testing.T) {
 	}
 }
 
+func TestCodingMicrostepDispatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires local Git worktrees")
+	}
+	root := t.TempDir()
+	for name, body := range map[string]string{
+		".gitignore": ".woody/\n", "a.go": "package demo\n", "b.go": "package demo\n",
+	} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	codingFixtureGit(t, root, "init")
+	codingFixtureGit(t, root, "config", "--local", "user.name", "Test")
+	codingFixtureGit(t, root, "config", "--local", "user.email", "test@example.invalid")
+	codingFixtureGit(t, root, "add", ".")
+	codingFixtureGit(t, root, "commit", "-m", "base")
+	old := runnerCommand
+	t.Cleanup(func() { runnerCommand = old })
+	t.Setenv("AW_CODEX_TWO_WORKER_HELPER", "1")
+	var jobs atomic.Int32
+	runnerCommand = func(_ string, _ ...string) *exec.Cmd {
+		jobs.Add(1)
+		return exec.Command(os.Args[0], "-test.run=TestTwoWorkerIsolatedHelperProcess")
+	}
+	ctx := &loopCtx{Root: root, Subagents: 2, Principal: "gpt", SessionKey: "dispatch-test",
+		Cfg: runConfig{Orchestration: orchestrationSpec{Enabled: true, Subagents: 2, RequireNativeSubagents: true, RequireAnthropicReviewer: true}}}
+	runner := runnerSpec{Kind: "codex", Model: "gpt-6.1-terra", Effort: "low"}
+	valid := codingMicrostepTask(t)
+	for name, task := range map[string]string{
+		"legacy":             "Worker 1 edits a.go; worker 2 edits b.go",
+		"malformed":          "{",
+		"missing worker":     strings.Replace(valid, `,{"done_when":"B returns NEW_B","file":"b.go","index":2,"instructions":"Edit only b.go to return NEW_B.","title":"Update function B"}`, "", 1),
+		"duplicate index":    strings.Replace(valid, `"index":2`, `"index":1`, 1),
+		"overlap":            strings.Replace(valid, `"file":"b.go"`, `"file":"a.go"`, 1),
+		"traversal":          strings.Replace(valid, `"file":"a.go"`, `"file":"../a.go"`, 1),
+		"absolute":           strings.Replace(valid, `"file":"a.go"`, `"file":"/a.go"`, 1),
+		"protected":          strings.Replace(valid, `"file":"a.go"`, `"file":".git/config"`, 1),
+		"empty instructions": strings.Replace(valid, `Edit only a.go to return NEW_A.`, "", 1),
+		"unknown key":        strings.Replace(valid, `"schema":`, `"extra":true,"schema":`, 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if task == valid {
+				t.Fatal("test did not alter task")
+			}
+			doc := ctx.runIsolatedCodingWorkers("codex", task, "invalid-"+name, runner)
+			if doc.Status != "NOT_PROVEN" || jobs.Load() != 0 || len(doc.Workers) != 0 {
+				t.Fatalf("invalid task launched workers: %+v, jobs=%d", doc, jobs.Load())
+			}
+		})
+	}
+	t.Setenv("AW_CODING_OUT_OF_SCOPE", "1")
+	doc := ctx.runIsolatedCodingWorkers("codex", valid, "out-of-scope", runner)
+	if doc.Status != "NOT_PROVEN" || jobs.Load() != 2 || len(doc.Workers) != 2 || doc.Workers[0].Status == "CODE_WRITTEN_IN_OWN_WORKTREE" {
+		t.Fatalf("out-of-scope edit accepted: %+v, jobs=%d", doc, jobs.Load())
+	}
+	for _, w := range doc.Workers {
+		r, err := readJobReceipt(w.Receipt)
+		if err != nil || r == nil || !strings.HasSuffix(r.Operation, "-task-"+shaCodingBytes([]byte(valid))) || r.SourceHead != doc.SourceHead {
+			t.Fatalf("lost receipt identity: %+v, %v", r, err)
+		}
+	}
+}
+
 func TestTwoWorkerIsolatedHelperProcess(t *testing.T) {
 	if os.Getenv("AW_CODEX_TWO_WORKER_HELPER") != "1" {
 		return
@@ -377,6 +474,9 @@ func TestTwoWorkerIsolatedHelperProcess(t *testing.T) {
 	}
 	switch filepath.Base(root) {
 	case "worker-1":
+		if os.Getenv("AW_CODING_OUT_OF_SCOPE") == "1" {
+			_ = os.WriteFile(filepath.Join(root, "b.go"), []byte("out of scope\n"), 0600)
+		}
 		_ = os.WriteFile(filepath.Join(root, "a.go"),
 			[]byte("package demo\nfunc A() string { return \"NEW_A\" }\n"), 0600)
 	case "worker-2":
@@ -402,7 +502,7 @@ func TestCodingEscalation(t *testing.T) {
 			root, state := t.TempDir(), t.TempDir()
 			for name, body := range map[string]string{
 				".gitignore": ".woody/\n", "a.go": "package demo\nvar A = 1\n", "b.go": "package demo\nvar B = 1\n",
-				"TASK.md": "Worker 1 edits a.go; worker 2 edits b.go.\n",
+				"TASK.md": codingMicrostepTask(t),
 			} {
 				if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0600); err != nil {
 					t.Fatal(err)

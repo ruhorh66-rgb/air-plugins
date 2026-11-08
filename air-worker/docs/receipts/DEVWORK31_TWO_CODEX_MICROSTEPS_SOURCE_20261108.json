@@ -1,0 +1,104 @@
+{
+  "schema": "air-worker.devwork31.two-codex-microsteps-source/v1",
+  "owner": "Dev Work 31 / ChatGPT coordinator / SRVLM01",
+  "date_sgt": "2026-11-08",
+  "source_before": "941e21ae1841599563a8141c797323752db907ff",
+  "task_file": "docs/tasks/DEVWORK31_P0_CODEX_MICROSTEPS_20261108.json",
+  "task_sha256": "60f42af9534cca944720eb68ad7a83828e1a9ba6982d725f894b7429e4284070",
+  "session_identity": "PRIVATE_IN_NATIVE_RUNTIME_NOT_COMMITTED",
+  "coord_mode": "ONE ChatGPT coordinator + EXACTLY TWO Codex code-writing workers; NO third model leader",
+  "handoff_status": "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION",
+  "handoff_sha256": "ecc5a8687eda98b0e3840fe32014f081e214c53d718e85e4d93cf3a218608b40",
+  "two_workers": [
+    {
+      "index": 1,
+      "role": "coding-subagent/worker",
+      "source_head": "941e21ae1841599563a8141c797323752db907ff",
+      "model": "gpt-6.1-terra",
+      "effort": "low",
+      "exit_code": 0,
+      "terminal": "DONE",
+      "changed": [
+        "air-worker/cmd/orchestrate_coding_workers.go"
+      ],
+      "patch_sha256": "c428cfc17dc1d0a705c0af8f8409ba83baf901a25fd6d036898cc5c1927fd907",
+      "output_sha256": "cd359501d7bcbb6c66e2b80df71998d46f5d67a8837f8b49a70871d481e8a143",
+      "args_sha256": "15721e9e67d842af378142da69cd0e533ab22ece244653f1bf5959e3df8adc80"
+    },
+    {
+      "index": 2,
+      "role": "coding-subagent/worker",
+      "source_head": "941e21ae1841599563a8141c797323752db907ff",
+      "model": "gpt-6.1-terra",
+      "effort": "low",
+      "exit_code": 0,
+      "terminal": "DONE",
+      "changed": [
+        "air-worker/cmd/orchestrate_coding_workers_test.go"
+      ],
+      "patch_sha256": "0d27b96afed2f5ea15bce5c2f962f61d03c3f53d3fd01f211c3a1825f9ca5ee1",
+      "output_sha256": "9eae2411b7fe9874bed4ee4b072114c096bc5d1124e47d4eb1b8491b37ed552e",
+      "args_sha256": "4087252c7170732fdd4a65e9c25113a0cca9b34f2a87c1629a3fd262a2ae4eb5"
+    }
+  ],
+  "integrated_files": [
+    "cmd/orchestrate_coding_workers.go",
+    "cmd/orchestrate_coding_workers_test.go"
+  ],
+  "git_apply_check": [
+    0,
+    0
+  ],
+  "targeted_qa": {
+    "selector": "^(TestCoding|TestChatGPTCoordinator|TestTwoWorker)",
+    "go_test_rc": 0,
+    "go_test_log_sha256": "c32cf0381daea050258cc516f00c3d0c0dffe1d008a5887864856c59a395405a",
+    "go_vet_rc": 0,
+    "go_vet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "go_diff_check_rc": 0,
+    "passed_negative_cases": [
+      "unknown key",
+      "missing worker",
+      "duplicate index",
+      "path traversal",
+      "absolute path",
+      "legacy prose",
+      "malformed JSON",
+      "overlapping file scope",
+      "protected path",
+      "empty instructions",
+      "out-of-scope worker change"
+    ],
+    "recovery_and_escalation_mock": "PASS"
+  },
+  "code_impact": {
+    "task_schema": "air-worker.coding-microsteps/v1",
+    "enforcement": "strict two separately bounded worker steps; no model launch on invalid task; each worker sees own JSON instruction; actual Git file scope verified",
+    "per_worker_receipt_metadata": "file/done_when/microstep_sha256",
+    "backward_read_only_status": "preserved; historical old tasks not rerun"
+  },
+  "p0": {
+    "status": "OPEN",
+    "accepted_gates": 4,
+    "total_gates": 8,
+    "native_nodes_closed": 0,
+    "unproven": [
+      "G07 two real chat disconnects + EXECUTION_UNKNOWN zero replay",
+      "G06 real causal provider stall/failure",
+      "G05 final frozen SHA full N123 QA, two independent judges and rollback",
+      "G08 node closures"
+    ]
+  },
+  "learning": {
+    "reused_procedure": "LP-2dcd5e164b352092b65fbf08",
+    "new_proposal": false,
+    "effect_proven": false
+  },
+  "release": {
+    "installed": "0.11.11-rc.2",
+    "candidate": "0.11.11-rc.5 SOURCE_ONLY",
+    "published": false
+  },
+  "limits": "Initial two code jobs used the pre-existing unsplit launcher with explicit distinct assignments inside a single JSON task; merged source now enforces per-worker separation. Live use of the NEW launcher must be demonstrated separately and recorded before claiming production-safe deployment.",
+  "next": "Run the new source-only native launcher on two new independent tiny QA fixes to prove worker isolation end-to-end; source G07/G06/G05/G08 remain OPEN."
+}

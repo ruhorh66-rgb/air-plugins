@@ -8,9 +8,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 )
@@ -18,17 +21,20 @@ import (
 // codingWorkerEvidence is a durable pointer to ACTUAL source edits in a private
 // worktree. It is not a model assertion or an accepted product change.
 type codingWorkerEvidence struct {
-	Index       int
-	Workspace   string
-	Product     string
-	Patch       string
-	PatchSHA256 string
-	Receipt     string
-	JobID       string
-	Model       string
-	Status      string
-	Changed     []string
-	Error       string
+	Index           int
+	File            string
+	DoneWhen        string
+	MicrostepSHA256 string
+	Workspace       string
+	Product         string
+	Patch           string
+	PatchSHA256     string
+	Receipt         string
+	JobID           string
+	Model           string
+	Status          string
+	Changed         []string
+	Error           string
 }
 
 type codingWorkersHandoff struct {
@@ -44,6 +50,126 @@ type codingWorkersHandoff struct {
 	Workers       []codingWorkerEvidence
 	Report        string
 	Error         string
+}
+
+type codingMicrostep struct {
+	Index        int    `json:"index"`
+	Title        string `json:"title"`
+	File         string `json:"file"`
+	DoneWhen     string `json:"done_when"`
+	Instructions string `json:"instructions"`
+}
+type codingMicrosteps struct {
+	Schema  string            `json:"schema"`
+	Context string            `json:"context"`
+	Workers []codingMicrostep `json:"workers"`
+}
+
+// Reject duplicate keys before decoding: encoding/json otherwise accepts the last value.
+func codingJSONValue(d *json.Decoder) error {
+	t, err := d.Token()
+	if err != nil {
+		return err
+	}
+	delim, ok := t.(json.Delim)
+	if !ok {
+		return nil
+	}
+	switch delim {
+	case '{':
+		seen := map[string]bool{}
+		for d.More() {
+			k, err := d.Token()
+			if err != nil {
+				return err
+			}
+			key, ok := k.(string)
+			if !ok || seen[key] {
+				return errors.New("duplicate or invalid JSON key")
+			}
+			seen[key] = true
+			if err := codingJSONValue(d); err != nil {
+				return err
+			}
+		}
+		_, err = d.Token()
+		return err
+	case '[':
+		for d.More() {
+			if err := codingJSONValue(d); err != nil {
+				return err
+			}
+		}
+		_, err = d.Token()
+		return err
+	default:
+		return errors.New("invalid JSON value")
+	}
+}
+
+var codingScopePart = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]*$`)
+
+func parseCodingMicrosteps(task string) (codingMicrosteps, error) {
+	var result codingMicrosteps
+	fail := func() (codingMicrosteps, error) {
+		return codingMicrosteps{}, errors.New("invalid two-worker microsteps task")
+	}
+	if len(task) == 0 || len(task) > 48*1024 {
+		return fail()
+	}
+	check := json.NewDecoder(strings.NewReader(task))
+	if codingJSONValue(check) != nil {
+		return fail()
+	}
+	if _, err := check.Token(); err != io.EOF {
+		return fail()
+	}
+	decoder := json.NewDecoder(strings.NewReader(task))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&result) != nil || result.Schema != "air-worker.coding-microsteps/v1" || len(strings.TrimSpace(result.Context)) == 0 || len(result.Context) > 8192 || len(result.Workers) != 2 {
+		return fail()
+	}
+	seen := map[string]bool{}
+	for _, w := range result.Workers {
+		if w.Index < 1 || w.Index > 2 || seen[fmt.Sprint(w.Index)] {
+			return fail()
+		}
+		seen[fmt.Sprint(w.Index)] = true
+		if len(strings.TrimSpace(w.Title)) < 3 || len(w.Title) > 256 || len(strings.TrimSpace(w.DoneWhen)) < 10 || len(w.DoneWhen) > 4096 || len(strings.TrimSpace(w.Instructions)) < 10 || len(w.Instructions) > 8192 {
+			return fail()
+		}
+		if w.File == "" || len(w.File) > 240 || strings.Contains(w.File, "\\") || path.Clean(w.File) != w.File || strings.HasPrefix(w.File, "/") {
+			return fail()
+		}
+		for _, part := range strings.Split(w.File, "/") {
+			lower := strings.ToLower(part)
+			if !codingScopePart.MatchString(part) || strings.HasPrefix(part, ".") || lower == "plan" || strings.HasPrefix(lower, "plan.") || strings.Contains(lower, "secret") || strings.Contains(lower, "credential") || strings.Contains(lower, "password") || strings.HasSuffix(lower, ".pem") || strings.HasSuffix(lower, ".key") {
+				return fail()
+			}
+		}
+		key := strings.ToLower(w.File)
+		if seen[key] {
+			return fail()
+		}
+		seen[key] = true
+	}
+	if strings.EqualFold(result.Workers[0].File, result.Workers[1].File) || strings.HasPrefix(strings.ToLower(result.Workers[0].File), strings.ToLower(result.Workers[1].File)+"/") || strings.HasPrefix(strings.ToLower(result.Workers[1].File), strings.ToLower(result.Workers[0].File)+"/") {
+		return fail()
+	}
+	if result.Workers[0].Index == 2 {
+		result.Workers[0], result.Workers[1] = result.Workers[1], result.Workers[0]
+	}
+	return result, nil
+}
+
+func codingWorkerTask(task codingMicrosteps, w codingMicrostep, taskSHA, head string) string {
+	raw, _ := json.MarshalIndent(struct {
+		Context    string          `json:"context"`
+		Worker     codingMicrostep `json:"worker"`
+		TaskSHA256 string          `json:"task_sha256"`
+		SourceHead string          `json:"source_head"`
+	}{task.Context, w, taskSHA, head}, "", "  ")
+	return fmt.Sprintf("CODING WORKER %d OF 2. You are a CODE WRITER in your OWN isolated Git worktree. Edit only your assigned file. Do not modify other workspaces, shared source, PLAN, Git metadata or credentials. Do not commit. The ChatGPT conversation is your coordinator.\n\nCOORDINATOR TASK:\n%s\n", w.Index, raw)
 }
 
 func gitCodingOutput(root string, args ...string) (string, error) {
@@ -187,6 +313,11 @@ func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner ru
 	doc := codingWorkersHandoff{Schema: "air-worker.chatgpt-coordinated-codex-workers/v1",
 		Status: "NOT_PROVEN", SourceProduct: c.Root, Coordinator: "ChatGPT/current-conversation",
 		Model: runner.Model, WorkerCount: 2, TaskSHA256: shaCodingBytes([]byte(task))}
+	parsed, err := parseCodingMicrosteps(task)
+	if err != nil {
+		doc.Error = err.Error()
+		return doc
+	}
 	if c.Subagents != 2 || !c.Cfg.Orchestration.RequireNativeSubagents {
 		doc.Error = "canonical two-Codex-worker mode is not enabled"
 		return doc
@@ -220,7 +351,9 @@ func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner ru
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			work := codingWorkerEvidence{Index: i, Product: dirs[i-1],
+			microstep := parsed.Workers[i-1]
+			microRaw, _ := json.Marshal(microstep)
+			work := codingWorkerEvidence{Index: i, File: microstep.File, DoneWhen: microstep.DoneWhen, MicrostepSHA256: shaCodingBytes(microRaw), Product: dirs[i-1],
 				Workspace: filepath.Dir(dirs[i-1]), Model: runner.Model, Status: "NOT_PROVEN"}
 			workFolder := filepath.Join(dirs[i-1], ".woody")
 			if err := os.MkdirAll(workFolder, 0700); err != nil {
@@ -229,7 +362,7 @@ func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner ru
 				return
 			}
 			taskPath := filepath.Join(workFolder, "TASK-CODE-WORKER.md")
-			fullTask := fmt.Sprintf("CODING WORKER %d OF 2. You are a CODE WRITER in your OWN isolated Git worktree. You MUST read source files and physically EDIT the assigned source files in this workspace. Do not just return an example diff. Do not modify other workspaces, shared source, PLAN, Git metadata or credentials. Do not commit. The ChatGPT conversation is your coordinator; it will inspect and merge the real Git edits. There is NO third Codex leader.\n\nCOORDINATOR TASK:\n%s\n", i, task)
+			fullTask := codingWorkerTask(parsed, microstep, doc.TaskSHA256, originalHead)
 			if err := os.WriteFile(taskPath, []byte(fullTask), 0600); err != nil {
 				work.Error = err.Error()
 				ch <- outcome{work}
@@ -264,6 +397,30 @@ func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner ru
 				work.Error = err.Error()
 				ch <- outcome{work}
 				return
+			}
+			top, err := gitCodingOutput(dirs[i-1], "rev-parse", "--show-toplevel")
+			if err != nil {
+				work.Error = err.Error()
+				ch <- outcome{work}
+				return
+			}
+			rel, err := filepath.Rel(top, dirs[i-1])
+			if err != nil {
+				work.Error = err.Error()
+				ch <- outcome{work}
+				return
+			}
+			prefix := filepath.ToSlash(rel)
+			for _, name := range names {
+				normalized := filepath.ToSlash(name)
+				if prefix != "." {
+					normalized = strings.TrimPrefix(normalized, prefix+"/")
+				}
+				if normalized != microstep.File {
+					work.Error = "worker changed file outside declared scope: " + name
+					ch <- outcome{work}
+					return
+				}
 			}
 			// Immutable by name in a unique run; never overwrite accepted evidence.
 			patchPath := filepath.Join(base, fmt.Sprintf("worker-%d.patch", i))
@@ -710,6 +867,10 @@ func cmdCodingEscalate(argv []string) int {
 		if err != nil || len(body) == 0 || len(body) > 48*1024 {
 			return errors.New("invalid original task")
 		}
+		parsed, err := parseCodingMicrosteps(string(body))
+		if err != nil {
+			return err
+		}
 		trace.TaskSHA256 = shaCodingBytes(body)
 		step := "coord-" + filepath.Base(path)
 		lock, ok := acquireLock(scopedLockName("coding-escalate:"+step, scope))
@@ -793,7 +954,7 @@ func cmdCodingEscalate(argv []string) int {
 			if workerRoot == "" {
 				return errors.New("original worker workspace missing")
 			}
-			fullTask := fmt.Sprintf("CODING WORKER %d OF 2. You are a CODE WRITER in your OWN isolated Git worktree. You MUST read source files and physically EDIT the assigned source files in this workspace. Do not just return an example diff. Do not modify other workspaces, shared source, PLAN, Git metadata or credentials. Do not commit. The ChatGPT conversation is your coordinator; it will inspect and merge the real Git edits. There is NO third Codex leader.\n\nCOORDINATOR TASK:\n%s\n", i+1, string(body))
+			fullTask := codingWorkerTask(parsed, parsed.Workers[i], trace.TaskSHA256, head)
 			taskPath := filepath.Join(workerRoot, ".woody", "TASK-CODE-WORKER.md")
 			actual, err := os.ReadFile(taskPath)
 			if err != nil || string(actual) != fullTask {
