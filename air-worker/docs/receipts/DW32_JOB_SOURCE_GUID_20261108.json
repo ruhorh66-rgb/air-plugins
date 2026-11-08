@@ -1,0 +1,30 @@
+{
+  "schema": "air-worker.devwork32.job-source-guid/v1",
+  "base_head": "318a6b8aabbebe0a05bc4665a22e7c8f9afb409b",
+  "task_sha256": "82744ae18d10d0406837ad50e15e63826a98cd717c5c7266df30d2b377e04c04",
+  "workers": [
+    {
+      "index": 1,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794164302100269300__38d20c9a",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "bc3f9e2640398acb766e16e5768ca32997c1e1055bdafa2745bf0e63372ad761",
+      "patch_sha256": "d4cb09a4af29ecc46680ad574107c350028ab48266f25789feb8f0f306bdeacc"
+    },
+    {
+      "index": 2,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794164302095270600__62627b70",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "7c4f7fc124910bf7a9b62e4789f402ddea93fca3bf2847dd2dfc98d9af3a56e8",
+      "patch_sha256": "7836d9be872536cb535449e609e8db3fd2fab52c724ebf8f2b798cb319dfe7d2"
+    }
+  ],
+  "change": "jobSourceHead runs git rev-parse HEAD with Cmd.Dir=root; immutable receipt and guard semantics unchanged",
+  "test": "TestJobSourceHeadVolumeGUIDPath and addressed N123/job receipt tests pass; one child-helper test is SKIP and not claimed PASS",
+  "test_log_sha256": "45557b4a16e2e7809da700989ca7a88adf99357025a3bc30677741bee6657002",
+  "vet": "go vet ./... exit 0",
+  "initial_run": "FAIL: malformed test commit fixture and sandbox Git signal pipe failure; fixture corrected, tests rerun",
+  "account_integrity": "Medium",
+  "limits": "Does not prove path stability across drive mapping changes, report fix, final independent review, full QA, N124 or P0 acceptance."
+}

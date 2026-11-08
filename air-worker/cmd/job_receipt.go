@@ -478,7 +478,9 @@ func jobCommandFingerprint(cmd *exec.Cmd) string {
 // disposable products may not have a HEAD; callers must never interpret an
 // absent source_head as proof of source identity.
 func jobSourceHead(root string) string {
-	raw, err := exec.Command("git", "-C", root, "rev-parse", "HEAD").Output()
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = root
+	raw, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
