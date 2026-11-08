@@ -1,0 +1,29 @@
+{
+  "schema": "air-worker.devwork32.receipt-exit-consistency/v1",
+  "base_head": "392b870b388252078599b1b2547bb9746095d10a",
+  "task_sha256": "ffde6b5500fdb0c474871bce6e5abb750f7019e2d0134cc587d470d61668f836",
+  "workers": [
+    {
+      "index": 1,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794168415982582700__989266d6",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "b250221ea43926312d113dcd1f7b82c595bb4d279b60ec1e52fdc200177651a7",
+      "patch_sha256": "92bb4f56c3c4068b3ddb2663fc32639077ae9068b23b62579c79d1795774e1b8"
+    },
+    {
+      "index": 2,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794168415978592600__03bb4715",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "d5b822778ab8c2dd2373b8ded0a53aa940bfef6d3b356332ac9267d1975e4937",
+      "patch_sha256": "cc87814ce81d3958466712e00f941a28d9d74493f830a7d20da4f58f911075a5"
+    }
+  ],
+  "change": "inspectOwnedJob rejects a recorded DONE with an explicit nonzero exit, preserving nil-exit historical and FAILED semantics",
+  "baseline": "sealed DONE with exit 7 was returned terminal=true in isolated fixture",
+  "coordinator_test_change": "Release fixture lock before checking duplicate denial, so immutable existing receipt is the guard being tested",
+  "targeted_log_sha256": "0b3fca1bc3b61398f8b9749a1f6ad33153fce54d440d357dedf1b614b2e49a66",
+  "targeted": "Exit consistency, no replay, sealed/unsealed/running/foreign receipts and coding recovery tests PASS; go vet ./... exit 0",
+  "limits": "Historical nil-exit records are not newly proven actual process exits. Simulated reconnect is not G07. Lock aliases, acquireLock, report freshness, full final QA and P0 remain open."
+}

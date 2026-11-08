@@ -87,6 +87,9 @@ func inspectOwnedJob(scope sessionScope, step, operation string) (jobStatusSnaps
 	if r.Status != jobStatusRunning && r.Status != jobStatusDone && r.Status != jobStatusFailed {
 		return s, errors.New("unknown job receipt status")
 	}
+	if r.Status == jobStatusDone && r.ExitCode != nil && *r.ExitCode != 0 {
+		return s, fmt.Errorf("DONE receipt has nonzero process exit code %d", *r.ExitCode)
+	}
 	s.JobID, s.Status = r.JobID, r.Status
 	s.SourceHead, s.ArgsSHA256 = r.SourceHead, r.ArgsSHA256
 	s.ExitCode, s.RecoveryRef, s.DeadlineUTC = r.ExitCode, r.RecoveryRef, r.DeadlineUTC
