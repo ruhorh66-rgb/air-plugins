@@ -569,7 +569,7 @@ func cmdOrchestrateCode(argv []string) int {
 }
 
 // codingStatus reads only the original scope's durable evidence; it never starts a job.
-func codingStatus(root string, scope sessionScope, step string) (codingWorkersHandoff, error) {
+func codingStatus(root string, scope sessionScope, step, taskSHA string) (codingWorkersHandoff, error) {
 	doc := codingWorkersHandoff{Schema: "air-worker.chatgpt-coordinated-codex-workers/v1", Status: "NOT_FOUND", SourceProduct: root, WorkerCount: 2}
 	top, err := gitCodingOutput(root, "rev-parse", "--show-toplevel")
 	if err != nil {
@@ -607,6 +607,9 @@ func codingStatus(root string, scope sessionScope, step string) (codingWorkersHa
 		}
 		if err := json.Unmarshal(raw, &doc); err != nil {
 			return doc, err
+		}
+		if doc.TaskSHA256 != taskSHA {
+			return doc, errors.New("handoff task hash mismatch")
 		}
 		if doc.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" && doc.Status != "NOT_PROVEN" {
 			return doc, errors.New("invalid handoff status")
@@ -656,7 +659,7 @@ func codingStatus(root string, scope sessionScope, step string) (codingWorkersHa
 			if err != nil {
 				return doc, err
 			}
-			if r.Step != workerStep || !strings.HasPrefix(r.Operation, "executor-codex-subagent-") {
+			if r.Step != workerStep || !strings.HasPrefix(r.Operation, "executor-codex-subagent-") || !strings.HasSuffix(r.Operation, "-task-"+taskSHA) {
 				return doc, errors.New("receipt identity mismatch")
 			}
 			if found {
@@ -767,10 +770,26 @@ func cmdCodingStatus(argv []string) int {
 	if err == nil {
 		taskPath, err = taskFileInsideProduct(root, *task)
 	}
+	var taskSHA string
 	if err == nil {
-		doc, err = codingStatus(root, scope, "coord-"+filepath.Base(taskPath))
+		var f *os.File
+		f, err = os.Open(taskPath)
 		if err == nil {
-			retry, retryErr := codingStatus(root, scope, "coord-"+filepath.Base(taskPath)+"-retry-1")
+			var body []byte
+			body, err = io.ReadAll(io.LimitReader(f, 48*1024+1))
+			_ = f.Close()
+			if err == nil && (len(body) == 0 || len(body) > 48*1024) {
+				err = errors.New("task must be readable and bounded (1..49152 bytes)")
+			}
+			if err == nil {
+				taskSHA = shaCodingBytes(body)
+			}
+		}
+	}
+	if err == nil {
+		doc, err = codingStatus(root, scope, "coord-"+filepath.Base(taskPath), taskSHA)
+		if err == nil {
+			retry, retryErr := codingStatus(root, scope, "coord-"+filepath.Base(taskPath)+"-retry-1", taskSHA)
 			if retryErr != nil {
 				err = retryErr
 			} else if retry.Status != "NOT_FOUND" {
@@ -878,7 +897,7 @@ func cmdCodingEscalate(argv []string) int {
 			return errors.New("escalation already being inspected or launched")
 		}
 		defer lock.release()
-		original, err := codingStatus(root, scope, step)
+		original, err := codingStatus(root, scope, step, trace.TaskSHA256)
 		if err != nil {
 			return err
 		}
@@ -975,7 +994,7 @@ func cmdCodingEscalate(argv []string) int {
 		}
 		trace.Cause = "vendor_limit"
 		retryStep := step + "-retry-1"
-		retry, err := codingStatus(root, scope, retryStep)
+		retry, err := codingStatus(root, scope, retryStep, trace.TaskSHA256)
 		if err != nil {
 			return err
 		}

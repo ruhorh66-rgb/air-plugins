@@ -1,0 +1,97 @@
+{
+  "schema": "air-worker.devwork31.p0-g07-immutable-task-sha/v1",
+  "owner": "Dev Work 31 / ChatGPT coordinator / SRVLM01",
+  "observed_sgt_date": "2026-11-08",
+  "scope": "P0/G07 read-only status exact TASK SHA, SOURCE_ONLY, NOT FULL G07 ACCEPTANCE",
+  "original_source_sha": "640deb8437faa4957d2c661ed23e2a15ce992d55",
+  "task": "docs/tasks/DEVWORK31_P0_G07_STATUS_TASK_SHA_MICROSTEPS_20261108.json",
+  "task_sha256": "939e4fbf5107e794d3e2b41024bf46d0818c97669e9d60208fbaf813c19402de",
+  "native_controller_model": "gpt-6.1-terra",
+  "native_handoff_sha256": "ef8466ceae7bbde625341b933fea95bbde56f48055dd8a842b1114f8dd6b28cb",
+  "controller_handoff_status": "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION",
+  "coordinator": "current ordinary ChatGPT Dev Work31 conversation",
+  "workers": [
+    {
+      "index": 1,
+      "role": "coding-subagent/worker",
+      "sandbox": "workspace-write",
+      "file": "cmd/orchestrate_coding_workers.go",
+      "model_status": "DONE",
+      "exit_code": 0,
+      "job_id_suffix": "ed6eb8d6",
+      "task_sha256": "939e4fbf5107e794d3e2b41024bf46d0818c97669e9d60208fbaf813c19402de",
+      "microstep_sha256": "309f10a4b1fefacb7c62da08359bf677d675d558f25d916a67c8eee544794534",
+      "patch_sha256": "411798ee15391ab56329b274fb2d74b597dcaa5637b37702b441420be0b0575e",
+      "output_sha256": "e50db81e8bc0476c89a6936c4c8ed7fde6e3d2e4b063c5b13d606bfe68ee5a83"
+    },
+    {
+      "index": 2,
+      "role": "coding-subagent/worker",
+      "sandbox": "workspace-write",
+      "file": "cmd/orchestrate_coding_workers_test.go",
+      "model_status": "DONE",
+      "exit_code": 0,
+      "job_id_suffix": "e7fc1418",
+      "task_sha256": "939e4fbf5107e794d3e2b41024bf46d0818c97669e9d60208fbaf813c19402de",
+      "microstep_sha256": "00b1fa0203fca5bf0072efd55bdee50583efa17a80f04cbc9dfb768ee3619571",
+      "patch_sha256": "ae99bf8ad4ca58be73ed9c11274b484f9919a729037053d69b9b0eee0e3c15b8",
+      "output_sha256": "05e09444e45124c7e097fc683176616cdc3cbb3fc13477a53ccd1e2cb218de9c"
+    }
+  ],
+  "observations": {
+    "worker_count": 2,
+    "third_codex_leader_count": 0,
+    "independent_git_worktrees": true,
+    "original_source_clean_before_merge": true,
+    "git_apply_check_rc": [
+      0,
+      0
+    ],
+    "changed_files_exact": [
+      "air-worker/cmd/orchestrate_coding_workers.go",
+      "air-worker/cmd/orchestrate_coding_workers_test.go"
+    ],
+    "changed_file_overlap": false,
+    "coordinator_integrated": true,
+    "original_worktrees_preserved": true,
+    "original_jobs_preserved": true
+  },
+  "code_result": "cmdCodingStatus reads bounded original TASK bytes, enforces exact SHA against sealed handoff and original worker receipt -task-<sha>; receipt-only readback refuses wrong-task SHA. Existing raw Markdown task status preserved when exact SHA matches.",
+  "test_result": {
+    "narrow_pattern": "^(TestCodingWorkersStatusRecovery|TestCodingEscalation|TestCodingMicrostepDispatch|TestChatGPTCoordinatorTwoCodexWorkersOwnRealEdits)$",
+    "go_rc": 0,
+    "go_test_sha256": "268cc5a26dbf1155033dab1f3e3fc8772658b92790c8eea5e4cb98159dee5b48",
+    "go_vet_rc": 0,
+    "go_vet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "git_diff_check_rc": 0,
+    "gofmt_lf_normalized_clean": true,
+    "negative_cases": [
+      "same filename changed TASK SHA => NOT_PROVEN/RC2",
+      "original bytes restored => original job IDs and patch SHA",
+      "receipt-only wrong TASK SHA => NOT_PROVEN",
+      "no additional Codex model jobs",
+      "synthetic vendor_limit still fail closed on noncausal cases"
+    ]
+  },
+  "limitations": {
+    "G07": "OPEN - two actual GPT message disconnections and actual EXECUTION_UNKNOWN with zero duplicate not proven",
+    "G06": "OPEN - genuine provider failure or stall not observed",
+    "G05": "OPEN - full N123 QA, fresh independent final SHA Anthropic and Codex Sol low, reversible rollback not proven",
+    "G08": "OPEN - N123/N126/N136/N139 0/4 CLOSED",
+    "p0": "4/8 PASS - 4 OPEN",
+    "historical_G01_G04": "preserved without repeat"
+  },
+  "chat_link": {
+    "vega_hello_queued": true,
+    "vega_g07_coordination_queued": true,
+    "delivery_or_reply_proven": false,
+    "session_refs": "PRIVATE_NOT_PUBLISHED"
+  },
+  "release": {
+    "installed": "0.11.11-rc.2",
+    "source_candidate": "0.11.11-rc.5",
+    "state": "SOURCE_ONLY_HOLD",
+    "new_install": false
+  },
+  "next": "Commit/push source with exact SHA and operational-goal advance; read-only negative test on current source-only binary, then independent G07/G06 prerequisites and bounded final G05 QA."
+}

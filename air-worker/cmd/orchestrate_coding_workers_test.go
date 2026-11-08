@@ -195,6 +195,17 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 		}
 	}
 	assertRecovered()
+	mutated := []byte(base + "\n")
+	if err := os.WriteFile(task, mutated, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if rc, result := status(task, id.SessionKey); rc != 2 || !strings.Contains(fmt.Sprint(result), "NOT_PROVEN") || strings.Contains(fmt.Sprint(result), "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION") {
+		t.Fatalf("same-path task mutation: rc=%d %+v", rc, result)
+	}
+	if err := os.WriteFile(task, []byte(base), 0600); err != nil {
+		t.Fatal(err)
+	}
+	assertRecovered()
 	wrongTask := filepath.Join(root, "other.md")
 	if err := os.WriteFile(wrongTask, []byte("other"), 0600); err != nil {
 		t.Fatal(err)
@@ -241,6 +252,15 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 
 	// Receipt-only recovery must preserve uncertainty rather than claim success.
 	if err := os.Remove(doc.Report); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(task, mutated, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if rc, result := status(task, id.SessionKey); rc != 2 || !strings.Contains(fmt.Sprint(result), "NOT_PROVEN") || strings.Contains(fmt.Sprint(result), "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION") {
+		t.Fatalf("receipt-only wrong task: rc=%d %+v", rc, result)
+	}
+	if err := os.WriteFile(task, []byte(base), 0600); err != nil {
 		t.Fatal(err)
 	}
 	receiptBytes, err := os.ReadFile(doc.Workers[0].Receipt)
