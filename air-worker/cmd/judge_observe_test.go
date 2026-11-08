@@ -4,11 +4,58 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
 )
+
+func TestN123GoJudgeOperationBoundToSourceAndArguments(t *testing.T) {
+	root := t.TempDir()
+	initJudgeRefreshGitRepo(t, root)
+	const name = "unit"
+	command := func(arg string) *exec.Cmd { return exec.Command("go", "test", arg) }
+	operation := n123GoJudgeOperation(root, name, command("./secret-package"))
+	if operation == name || len(operation) > 128 || !regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString(operation) || strings.Contains(operation, "secret-package") {
+		t.Fatalf("unsafe or unbound operation: %q", operation)
+	}
+	scope := legacyScope(root)
+	receipt, output := jobReceiptPaths(scope, "N123", operation)
+	same := n123GoJudgeOperation(root, name, command("./secret-package"))
+	sameReceipt, sameOutput := jobReceiptPaths(scope, "N123", same)
+	if same != operation || sameReceipt != receipt || sameOutput != output {
+		t.Fatalf("identical inputs changed identity: %q vs %q", operation, same)
+	}
+	changedArgs := n123GoJudgeOperation(root, name, command("./other-package"))
+	argsReceipt, argsOutput := jobReceiptPaths(scope, "N123", changedArgs)
+	if changedArgs == operation || argsReceipt == receipt || argsOutput == output {
+		t.Fatal("changed arguments did not change identity and paths")
+	}
+	if err := os.MkdirAll(filepath.Dir(receipt), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(receipt, []byte("original receipt"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	commitJudgeRefreshFixture(t, root, "v2\n")
+	changedHead := n123GoJudgeOperation(root, name, command("./secret-package"))
+	headReceipt, headOutput := jobReceiptPaths(scope, "N123", changedHead)
+	if changedHead == operation || headReceipt == receipt || headOutput == output {
+		t.Fatal("changed HEAD did not change identity and paths")
+	}
+	oldReceipt, _ := jobReceiptPaths(scope, "N123", operation)
+	if data, err := os.ReadFile(oldReceipt); err != nil || string(data) != "original receipt" {
+		t.Fatalf("original receipt no longer addressable: %q, %v", data, err)
+	}
+	if got := n123GoJudgeOperation(root, name, exec.Command("echo", "test")); got != name {
+		t.Fatalf("non-Go operation = %q, want %q", got, name)
+	}
+	if got := n123GoJudgeOperation(t.TempDir(), name, command("./secret-package")); got != name {
+		t.Fatalf("Gitless operation = %q, want %q", got, name)
+	}
+}
 
 func writeObservabilityFixture(t *testing.T, exitCode int) (root, counterPath string) {
 	t.Helper()

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -450,6 +451,21 @@ func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope,
 	r.Failed = append(r.Failed, fmt.Sprintf("%s (код %d)%s", name, code, why))
 }
 
+func n123GoJudgeOperation(root, displayName string, cmd *exec.Cmd) string {
+	if cmd == nil || !isGoCommand(cmd.Path) {
+		return displayName
+	}
+	head := jobSourceHead(root)
+	if head == "" {
+		return displayName
+	}
+	h := sha256.New()
+	for _, part := range []string{head, displayName, jobCommandFingerprint(cmd)} {
+		_, _ = fmt.Fprintf(h, "%d:%s", len(part), part)
+	}
+	return fmt.Sprintf("n123-go-%x", h.Sum(nil))
+}
+
 // runCommandCheck — проверка произвольной командой.
 //
 // РЕЗОЛВ НЕ ДОКАЗЫВАЕТ НАЛИЧИЯ ИНСТРУМЕНТА, ДОКАЗЫВАЕТ ТОЛЬКО ОТВЕТ. В WindowsApps лежат
@@ -481,7 +497,7 @@ func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope
 		}
 		cmd.Env, cmd.Err = configuredChildEnvironment(resolved, cmd.Env)
 	}
-	out, err := runReceipted(context.Background(), scope, "judge", name, cmd)
+	out, err := runReceipted(context.Background(), scope, "judge", n123GoJudgeOperation(root, name, cmd), cmd)
 	code := exitCode(cmd, err)
 	text := decodeOutput(out)
 	if chk.Log != "" {

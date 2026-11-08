@@ -1,0 +1,84 @@
+{
+  "schema": "air-worker.devwork31.p0-n123-go-judge-operation/v1",
+  "owner": "Dev Work31 / ChatGPT coordinator / SRVLM01",
+  "observed_sgt_date": "2026-11-08",
+  "source_before": "d1b02c7218da637292e3b16013cbcc4985875efc",
+  "task_file": "docs/tasks/DEVWORK31_P0_N123_GO_QA_IDENTITY_MICROSTEPS_20261108.json",
+  "task_sha256": "4a39cbd04de0490151b59f9263640ee9d485a8d619a8b5f58f870e662fb20577",
+  "handoff_sha256": "7b1ba3a085c47d2ec51ecb5156adfd005616097d67a173df136b8b090fa61e7a",
+  "handoff_status": "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION",
+  "two_workers": [
+    {
+      "index": 1,
+      "role": "coding-subagent/worker",
+      "sandbox": "workspace-write",
+      "runner": "codex",
+      "model": "gpt-6.1-terra",
+      "status": "DONE",
+      "exit_code": 0,
+      "changed": "cmd/judge.go",
+      "patch_sha256": "f153931e0f0fff5667e0e0a7d8de9f11bb578d7f9c8b24b030dbd5bec619de6f",
+      "receipt_output_sha256": "78bc5a1cbc6d392511ab5a448a01067f03d530b333c2ed3029f494d96b194d3f",
+      "receipt_args_sha256": "4e1a85b2c5f76ecac01d5d40732d517403b654c6126ee8490799d70e987c4b8f",
+      "microstep_sha256": "3429734051674ba1abefc259dba4e78581193c7d4f7f79c30fbc6fef82351291"
+    },
+    {
+      "index": 2,
+      "role": "coding-subagent/worker",
+      "sandbox": "workspace-write",
+      "runner": "codex",
+      "model": "gpt-6.1-terra",
+      "status": "DONE",
+      "exit_code": 0,
+      "changed": "cmd/judge_observe_test.go",
+      "patch_sha256": "c90e1ab8c44bf8db3d9270cd144f4582ac6706e5f234a66a8eb889e153752227",
+      "receipt_output_sha256": "4b50267cfb1c1b4de07d87800fe708f84616caa8f836004bc3cf9c4926a2d4e4",
+      "receipt_args_sha256": "4590fca91cf108149a3cc578a910782f79b1382c790554b5eacbceae5b05071c",
+      "microstep_sha256": "870c9f7d61139dd1cd7f7a2663fe86c1e5d3b7e3c63bab4e7fa909065bc73e29"
+    }
+  ],
+  "coordinator_integration": {
+    "physical_two_git_worktrees": true,
+    "no_third_codex_leader": true,
+    "patch_shas_match": true,
+    "original_source_clean_before_merge": true,
+    "git_apply_check_rc": [
+      0,
+      0
+    ],
+    "integrated_files": [
+      "cmd/judge.go",
+      "cmd/judge_observe_test.go"
+    ],
+    "other_worktrees_untouched": true
+  },
+  "implementation": "n123GoJudgeOperation generates one deterministic safe operation token for a Git-backed Go command from HEAD, original check display name and exact executable/argv digest; changed HEAD or argv gets a distinct receipt name; original metadata remains immutable and recoverable. Non-Go and Gitless checks retain legacy operation.",
+  "targeted_QA": {
+    "go_test_pattern": "^(TestN123GoJudgeOperationBoundToSourceAndArguments|TestJudgeJSONReportDoesNotRerunChecks|TestPowerShellSelectorParameterReachesScript|TestN123CommandAndSourceFingerprint)$",
+    "go_test_rc": 0,
+    "go_test_log_sha256": "1a3b0b91f4c5b126064e7d1e7b41b4a786f58afa46c228c5724ae5e59c668985",
+    "go_vet_rc": 0,
+    "go_vet_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "git_diff_check_rc": 0,
+    "gofmt_lf_normalized_clean": true
+  },
+  "boundaries": {
+    "G07": "OPEN, two actual ordinary GPT chat disconnections and live EXECUTION_UNKNOWN with no duplicate not proven",
+    "G06": "OPEN, actual provider causal failure not proven",
+    "G05": "OPEN, full native N123 Go QA on final source, independent Anthropic+Codex Sol low and reversible rollback missing",
+    "G08": "OPEN, 0/4 native closed",
+    "p0": "4/8 PASS 4 OPEN",
+    "deadline_and_owned_process_tree": "NOT_PROVEN by this slice"
+  },
+  "release": {
+    "candidate": "0.11.11-rc.5 SOURCE_ONLY/HOLD",
+    "installed": "0.11.11-rc.2 unchanged",
+    "new_release": false
+  },
+  "learning": {
+    "existing_procedure": "LP-2dcd5e164b352092b65fbf08",
+    "reused_without_new_procedure": true,
+    "effect_attribution": "NOT_PROVEN"
+  },
+  "next": "Commit+push exact SHA and operational-goal advance, then bounded native Go QA with source-keyed identity; preserve all older job/worktree receipts."
+}
