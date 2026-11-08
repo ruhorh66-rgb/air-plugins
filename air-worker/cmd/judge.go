@@ -466,6 +466,8 @@ func n123GoJudgeOperation(root, displayName string, cmd *exec.Cmd) string {
 	return fmt.Sprintf("n123-go-%x", h.Sum(nil))
 }
 
+var n123GoJudgeMaxDuration = 4 * time.Minute
+
 // runCommandCheck — проверка произвольной командой.
 //
 // РЕЗОЛВ НЕ ДОКАЗЫВАЕТ НАЛИЧИЯ ИНСТРУМЕНТА, ДОКАЗЫВАЕТ ТОЛЬКО ОТВЕТ. В WindowsApps лежат
@@ -489,6 +491,17 @@ func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope
 		}
 	}
 	cmd := newChildCommand(resolved, chk.Args...)
+	ctx := context.Background()
+	if isGoCommand(resolved) {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, n123GoJudgeMaxDuration)
+		defer cancel()
+		goCmd := exec.CommandContext(ctx, resolved, chk.Args...)
+		goCmd.Env, goCmd.Err = cmd.Env, cmd.Err
+		goCmd.Cancel = func() error { return terminateLearningProcessTree(goCmd) }
+		goCmd.WaitDelay = 3 * time.Second
+		cmd = goCmd
+	}
 	cmd.Dir = root
 	if len(chk.Env) > 0 {
 		cmd.Env = os.Environ()
@@ -497,7 +510,7 @@ func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope
 		}
 		cmd.Env, cmd.Err = configuredChildEnvironment(resolved, cmd.Env)
 	}
-	out, err := runReceipted(context.Background(), scope, "judge", n123GoJudgeOperation(root, name, cmd), cmd)
+	out, err := runReceipted(ctx, scope, "judge", n123GoJudgeOperation(root, name, cmd), cmd)
 	code := exitCode(cmd, err)
 	text := decodeOutput(out)
 	if chk.Log != "" {

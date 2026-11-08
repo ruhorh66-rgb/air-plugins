@@ -7,10 +7,112 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestN123GoJudgeTimeoutHelper(t *testing.T) {
+	if os.Getenv("AW_N123_TIMEOUT_HELPER") != "1" {
+		t.Skip("helper process only")
+	}
+	f, err := os.OpenFile(os.Getenv("AW_N123_STARTS"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = f.WriteString("started\n")
+	_ = f.Close()
+	fmt.Println("owned Go judge fixture started")
+	time.Sleep(5 * time.Second)
+}
+
+func TestN123GoJudgeTimeoutSealsOwnedProcess(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows process-tree termination")
+	}
+	root := t.TempDir()
+	initJudgeRefreshGitRepo(t, root)
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	binary, err := os.ReadFile(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	goExe := filepath.Join(t.TempDir(), "go.exe")
+	if err := os.WriteFile(goExe, binary, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	starts := filepath.Join(root, "starts.txt")
+	t.Setenv("AW_N123_TIMEOUT_HELPER", "1")
+	t.Setenv("AW_N123_STARTS", starts)
+	old := n123GoJudgeMaxDuration
+	n123GoJudgeMaxDuration = 500 * time.Millisecond
+	t.Cleanup(func() { n123GoJudgeMaxDuration = old })
+	args := []string{"-test.run=^TestN123GoJudgeTimeoutHelper$"}
+	cmd := newChildCommand(goExe, args...)
+	cmd.Dir = root
+	operation := n123GoJudgeOperation(root, "unit", cmd)
+	if operation == "unit" {
+		t.Fatal("Go judge operation was not bound to source")
+	}
+	scope := legacyScope(root)
+	result := make(chan judgeResult, 1)
+	before := time.Now()
+	go func() {
+		var r judgeResult
+		runCommandCheck(root, checkSpec{Command: goExe, Args: args}, "unit", scope, &r)
+		result <- r
+	}()
+	var verdict judgeResult
+	select {
+	case verdict = <-result:
+	case <-time.After(2 * time.Second):
+		receipt, output := jobReceiptPaths(scope, "judge", operation)
+		data, _ := os.ReadFile(output)
+		t.Fatalf("NOT_PROVEN: owned Go judge did not terminate; receipt=%s output=%s log=%q", receipt, output, data)
+	}
+	if len(verdict.Passed) != 0 || len(verdict.Failed)+len(verdict.Unknown) == 0 {
+		t.Fatalf("timeout verdict must not pass: %+v", verdict)
+	}
+	// Transport timeout may return while the owned child is still exiting.
+	// Wait for the native Wait/finalize goroutine, not for another model run.
+	pendingReceipt, _ := jobReceiptPaths(scope, "judge", operation)
+	_ = pollReceiptStatus(t, pendingReceipt, jobStatusFailed, 5*time.Second)
+	view, err := inspectOwnedJob(scope, "judge", operation)
+	if err != nil {
+		t.Fatalf("NOT_PROVEN: inspect receipt: %v", err)
+	}
+	deadline, err := time.Parse(time.RFC3339Nano, view.DeadlineUTC)
+	if err != nil || deadline.Before(before) || deadline.After(before.Add(2*time.Second)) {
+		t.Fatalf("invalid deadline %q: %v", view.DeadlineUTC, err)
+	}
+	if !view.Terminal || view.Status != jobStatusFailed || view.ExitCode == nil || *view.ExitCode == 0 || view.OutputSHA256 == "" || view.OutputBytes == 0 {
+		t.Fatalf("NOT_PROVEN: terminal receipt not sealed: %+v", view)
+	}
+	receiptPath, outputPath := jobReceiptPaths(scope, "judge", operation)
+	receipt, err := readJobReceipt(receiptPath)
+	if err != nil || !receipt.ProcessStarted || receipt.PID <= 0 {
+		t.Fatalf("NOT_PROVEN: owned process was not recorded: receipt=%+v err=%v", receipt, err)
+	}
+	listed, err := exec.Command("tasklist.exe", "/FI", "PID eq "+strconv.Itoa(receipt.PID), "/FO", "CSV", "/NH").CombinedOutput()
+	if err != nil || strings.Contains(string(listed), `"`+strconv.Itoa(receipt.PID)+`"`) {
+		t.Fatalf("NOT_PROVEN: owned process termination: pid=%d err=%v tasklist=%s", receipt.PID, err, listed)
+	}
+	receiptBefore, _ := os.ReadFile(receiptPath)
+	outputBefore, _ := os.ReadFile(outputPath)
+	var again judgeResult
+	runCommandCheck(root, checkSpec{Command: goExe, Args: args}, "unit", scope, &again)
+	receiptAfter, _ := os.ReadFile(receiptPath)
+	outputAfter, _ := os.ReadFile(outputPath)
+	started, err := os.ReadFile(starts)
+	if err != nil || string(started) != "started\n" || string(receiptBefore) != string(receiptAfter) || string(outputBefore) != string(outputAfter) || len(again.Passed) != 0 {
+		t.Fatalf("duplicate start or changed evidence: starts=%q err=%v verdict=%+v", started, err, again)
+	}
+}
 
 func TestN123GoJudgeOperationBoundToSourceAndArguments(t *testing.T) {
 	root := t.TempDir()

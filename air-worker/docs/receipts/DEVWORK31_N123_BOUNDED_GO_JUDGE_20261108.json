@@ -1,0 +1,107 @@
+{
+  "schema": "air-worker.devwork31.p0-n123-bounded-go-judge/v1",
+  "observed_sgt_date": "2026-11-08",
+  "owner": "Dev Work31 / current ChatGPT coordinator / SRVLM01",
+  "source_before": "a741848d211a672ff221d7372bd1d8b8980587e7",
+  "task_file": "docs/tasks/DEVWORK31_P0_N123_BOUNDED_GO_QA_MICROSTEPS_20261108.json",
+  "task_sha256": "361d76d09824792c4fe0d6109e3c4353032a69fd3146adcf23c9a90c31a06762",
+  "handoff_status": "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION",
+  "handoff_sha256": "6f1ff2d46d9207a0d3efdadc130ee2f8fcf3730bde88888abc509637f14a6b39",
+  "workers": [
+    {
+      "index": 1,
+      "file": "cmd/judge.go",
+      "native_status": "DONE",
+      "exit_code": 0,
+      "role": "coding-subagent/worker",
+      "sandbox": "workspace-write",
+      "model": "gpt-6.1-terra",
+      "patch_sha256": "a6993e97463589451878f36071971f280bb3d43471c192dee92a75ed84fb86f7",
+      "microstep_sha256": "4b5f3048e7e1bea385ef3fd79a48eeaa13d44c6a51540353c10ff5d2df66b386"
+    },
+    {
+      "index": 2,
+      "file": "cmd/judge_observe_test.go",
+      "native_status": "DONE",
+      "exit_code": 0,
+      "role": "coding-subagent/worker",
+      "sandbox": "workspace-write",
+      "model": "gpt-6.1-terra",
+      "patch_sha256": "75e81dacf91a71fe33449c1721b4afb847db73701d7dfe3913812361312789a8",
+      "microstep_sha256": "1ebceebb1d7881a2976c8ce61dafcedfc4d2630efaf8c4a4286936ffb16ea5f1"
+    }
+  ],
+  "integration": {
+    "coordinator": "ChatGPT current chat",
+    "third_codex_leader_count": 0,
+    "git_apply_check_rc": [
+      0,
+      0
+    ],
+    "changed_files": [
+      "cmd/judge.go",
+      "cmd/judge_observe_test.go"
+    ],
+    "main_source_clean_before_merge": true,
+    "existing_job_receipts_preserved": true,
+    "old_workspaces_preserved": true
+  },
+  "implementation": {
+    "go_judge_only": true,
+    "timeout": "4 minutes source-only",
+    "per_cmd_context": true,
+    "cmd_cancel": "reuse terminateLearningProcessTree only for this owned cmd.Process",
+    "wait_delay_seconds": 3,
+    "deadline_utc_recorded": true,
+    "transport_timeout_means_running_not_failed": true,
+    "non_go_semantics_unchanged": true,
+    "n123_go_op_identity_preserved": true
+  },
+  "targeted_QA": {
+    "go_test_pattern": "^(TestN123GoJudgeTimeoutSealsOwnedProcess|TestN123GoJudgeOperationBoundToSourceAndArguments|TestN123DurableTwoReattachmentsNoDuplicate|TestPowerShellSelectorParameterReachesScript)$",
+    "initial_go_rc": 1,
+    "initial_log_sha256": "2ea663b2ec830c5c8c06ff637e8f4fbf0ba7dea1b3bfb9e0f5407ebe411b3228",
+    "initial_failure": "test read RUNNING immediately after transport timeout; actual Wait/finalize still pending, not a code failure",
+    "test_corrected_script_first": "bounded poll up to 5s for native terminal receipt; no runtime changes after worker code patch",
+    "final_go_rc": 0,
+    "final_tests_passed": 4,
+    "final_test_log_sha256": "162c54a0a07b8e0dba5c6eef21ed406a0d7b4ea135edf755750e03d295e88ff6",
+    "go_vet_rc": 0,
+    "go_vet_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "git_diff_check_rc": 0,
+    "lf_normalized_gofmt_clean": true
+  },
+  "test_proofs": [
+    "actual owned child with short runtime deadline did not yield false PASS",
+    "job receipt contains deadline_utc",
+    "terminal FAILED sealed with nonzero exit and output SHA on owned child",
+    "second same-identity run rejected without evidence mutation",
+    "transport loss remains RUNNING until final sealing",
+    "other original N123 recovery tests retained"
+  ],
+  "unproven": [
+    "actual grandchildren tree termination not separately measured by this fixture",
+    "full native N123 QA on final clean SHA not yet run",
+    "two ordinary GPT-message disconnects and EXECUTION_UNKNOWN not yet performed",
+    "real provider failure/stall absent",
+    "fresh independent Anthropic and Codex Sol low review on final SHA absent",
+    "rollback acceptance receipt absent"
+  ],
+  "p0": {
+    "gates_pass": 4,
+    "gates_total": 8,
+    "open": [
+      "G07",
+      "G06",
+      "G05",
+      "G08"
+    ],
+    "native_nodes_closed": 0
+  },
+  "release": {
+    "installed": "0.11.11-rc.2",
+    "candidate": "0.11.11-rc.5 SOURCE_ONLY/HOLD",
+    "no_install": true
+  },
+  "next": "Push final source+plans+Wiki readback; decide one bounded full N123 QA and final-judge route without rerunning accepted G01-G04; preserve native receipts and own D-worktree"
+}
