@@ -11,12 +11,17 @@ before and after `session declare`. An active AirWorker session's `PreToolUse`
 rejects direct `codex exec` / `codex app-server`, direct `claude -p` and the
 misleading bare `claude auth status`; Claude-hosted AIR Commander process calls
 are included by the plugin matcher. Safe `air-worker` commands and ordinary
-diagnostics remain allowed. The product's canonical `run-config.json` now
-requires **two** parallel native Codex read-only subagents, one leader, and an
-independent Anthropic reviewer. The source CLI rejects a sequential
-`executor dispatch` substitute, a one-agent request, a wrong judge vendor, and
-a `-config` override attempting to drop the route requirements **before a
-model is launched**. Other products are unaffected unless they opt in.
+diagnostics remain allowed. The product's canonical `run-config.json` now requires **exactly two
+independent native Codex coding workers** plus an external ChatGPT coordinator
+and independent Anthropic reviewer. Use `air-worker orchestrate code -product
+<root> -task-file <TASK> -principal gpt -session-key <this-chat> -json`.
+Both Codex workers physically write code using `workspace-write` in **two
+isolated Git worktrees** pinned to the same Git source HEAD; each produces an
+actual Git diff and terminal job receipt. The ChatGPT conversation checks both
+diffs and explicitly merges them, then factual QA and Anthropic judgment.
+**No third Codex leader is dispatched.** The source CLI refuses a single
+`executor dispatch` substitute; coordinator handoff never closes a PLAN step
+by itself. Other products retain their legacy route unless they opt in.
 
 The existing binary remains the sole scheduler, executor and judge; no new
 daemon, Codex App Server or paid API is introduced. The existing Headroom and
@@ -35,7 +40,9 @@ The installer and cached rc.2 are untouched. Release approval, package
 attestation and installation are distinct LPR gates, with rollback to
 `0.11.11-rc.2`.
 
-## Dev Work 26 · native Codex/Anthropic route and session boot contract (SOURCE ONLY)
+## История Dev Work 26 · исходная трёхпроцессная схема (заменена Dev Work 30; НЕ АКТИВНА)
+
+Текст ниже сохранён для истории. В текущем rc.5 управляет ChatGPT, два Codex-воркера редактируют два отдельных Git-worktree, третьего модельного лидера нет. Текущий маршрут — air-worker orchestrate code.
 
 AirWorker already owns the executor and reviewer runtime. Use the installed `air-worker version`,
 `air-worker tool -which codex`, `air-worker tool -which headroom`,

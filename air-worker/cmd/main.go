@@ -59,8 +59,15 @@ func usage() {
         либо до объявленного потолка. -orchestrate включает проверяемый native Agent mode.
 
   air-worker orchestrate -product <корень> [-config <путь>] [-subagents N]
-        Штатный chat orchestration entrypoint: эквивалент loop -orchestrate. AirWorker сам
-        разрешает Agent tool и принимает успех только при доказанных Agent start/result.
+        Native loop. For managed two-Codex policy: two independent coding
+        worktrees with ChatGPT as external coordinator; no third Codex leader.
+
+  air-worker orchestrate code -product <корень> -task-file <TASK.md>
+        -principal gpt -session-key <current-chat> [-class standard|-tier gpt61-terra:low] [-json]
+        Two genuine Codex coding workers each edit their OWN isolated Git worktree
+        under a frozen source SHA. Writes, patches and terminal receipts are saved.
+        Returns coordinator handoff, NEVER auto-merges or calls a third model;
+        ChatGPT inspects/applies and runs QA plus independent Anthropic judge.
 
   air-worker executor list -product <корень> [-json]
   air-worker executor dispatch -product <корень> -class bulk|standard|complex|hardest -task-file <путь>

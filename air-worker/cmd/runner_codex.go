@@ -159,6 +159,36 @@ func codexPatchCandidatePresent(detail string) bool {
 }
 
 func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerSpec, stepID string) stepResult {
+	// Dev Work 30 / LPR: for the managed AirWorker product, the current ChatGPT
+	// conversation COORDINATES two real Codex workers. A third model leader is
+	// expressly prohibited. Each worker independently writes in its own Git
+	// worktree, and the coordinator reviews/integrates the actual diffs.
+	if c.Cfg.Orchestration.RequireNativeSubagents {
+		doc := c.runIsolatedCodingWorkers(exePath, prompt, stepID, runner)
+		r := stepResult{Subtype: "coordinator_handoff", Detail: fmt.Sprintf(
+			"status=%s base=%s handoff=%s error=%s; no third model leader or automatic merge",
+			doc.Status, doc.SourceHead, doc.Report, doc.Error), AgentRequested: 2}
+		for _, w := range doc.Workers {
+			if w.JobID != "" {
+				r.AgentStarted++
+				r.AgentIDs = append(r.AgentIDs, w.JobID)
+			}
+			if w.Status == "CODE_WRITTEN_IN_OWN_WORKTREE" {
+				r.AgentCompleted++
+				r.Detail += fmt.Sprintf("\nworker=%d patch=%s sha256=%s workspace=%s",
+					w.Index, w.Patch, w.PatchSHA256, w.Product)
+			} else {
+				r.AgentAborted++
+				r.AgentIssue += fmt.Sprintf(" worker%d=%s", w.Index, w.Error)
+			}
+		}
+		if doc.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" {
+			r.Subtype = "orchestration_not_proven"
+		}
+		// Intentionally Ok=false: a handoff is NOT a factual/semantic PASS and
+		// cannot close a native PLAN step before ChatGPT coordination + QA/judge.
+		return r
+	}
 	if err := validateCodexAddDirs(runner.AddDirs); err != nil {
 		return stepResult{Subtype: "invalid_runner_config", Detail: "codex add_dirs: " + err.Error()}
 	}

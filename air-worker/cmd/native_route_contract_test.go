@@ -289,7 +289,7 @@ func TestN129CodexAndHermesPluginStartupGuidanceUsesNativeKernel(t *testing.T) {
 	if err := json.Unmarshal(codexManifest, &doc); err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"air-worker orchestrate", "-subagents 2", "TWO native Codex patch-author subagents", "workspace-write", "Anthropic Sonnet/Opus", "Standalone executor dispatch is forbidden"} {
+	for _, required := range []string{"air-worker orchestrate", "-subagents 2", "TWO native Codex code-writing workers", "workspace-write", "Anthropic Sonnet/Opus", "Standalone executor dispatch is forbidden"} {
 		if !strings.Contains(doc.Interface.DefaultPrompt, required) {
 			t.Fatalf("Codex plugin startup missing native route %q", required)
 		}

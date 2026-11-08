@@ -136,11 +136,12 @@ const nativeAirWorkerStartupGuidance = "AIRWORKER NATIVE START: Use air-worker t
 	"Prove Anthropic with a terminal native reviewer receipt, not a token or health alone. " +
 	"CODING ROUTE approved by LPR 07.11: native two-Codex subagent orchestration is MANDATORY. " +
 	"Use 'air-worker orchestrate -product <root> -subagents 2' or the canonical Hermes air_worker(action=run). " +
-	"Each of exactly two Codex coding subagents MUST read the TASK and produce a concrete unified source patch " +
-	"under an independent read-only sandbox with its own process/terminal receipt. " +
-	"Read-only narrative analysis alone is NOT coding and must fail closed. " +
-	"The Codex leader is the single shared-tree writer; integrate candidate patches only after comparison, " +
-	"factual code edits and QA, then request an independent Anthropic Sonnet/Opus source judge. " +
+	"Each of exactly TWO Codex coding workers MUST physically edit files in its OWN isolated Git worktree, " +
+	"with workspace-write sandbox and its own terminal native receipt. " +
+	"An LLM text patch without actual changed files is NOT coding. " +
+	"The ChatGPT conversation is the ONLY coordinator: inspect both true Git diffs and merge explicitly; " +
+	"there is NO THIRD CODEX LEADER or automatic shared-tree write. " +
+	"After ChatGPT integration require factual QA and independent Anthropic Sonnet/Opus source judge. " +
 	"Use the authorized Luna 6 -> Terra 6.1 -> Sol 6 -> Sol 6.1 -> Astra 6 ladder (low/medium/high). " +
 	"Escalate only with factual failure/stall reason; Astra requires justification. " +
 	"Standalone 'air-worker executor dispatch' must refuse when the managed two-subagent contract is active. " +

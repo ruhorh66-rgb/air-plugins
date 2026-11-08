@@ -271,6 +271,9 @@ func (c *loopCtx) invokeClaudeOrchestrated(exePath, prompt string, runner runner
 }
 
 func cmdOrchestrate(argv []string) int {
+	if len(argv) > 0 && argv[0] == "code" {
+		return cmdOrchestrateCode(argv[1:])
+	}
 	args := make([]string, 0, len(argv)+1)
 	args = append(args, "-orchestrate")
 	args = append(args, argv...)

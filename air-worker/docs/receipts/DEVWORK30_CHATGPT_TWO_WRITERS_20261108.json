@@ -1,0 +1,93 @@
+{
+  "schema": "air-worker.devwork30.chatgpt-coordinator-two-code-writers/v1",
+  "date_sgt": "2026-11-08",
+  "owner": "Dev Work 30 / SRVLM01",
+  "trigger": "LPR corrected native orchestration: ChatGPT conversation coordinates two Codex workers who actually write source; no read-only patch-only assistants and no third Codex leader",
+  "user_correctness": "Prior DevWork30 read-only patch-author + third Codex leader was not the user-approved architecture; superseded for managed AirWorker",
+  "runtime": "AIR Commander Test / SRVLM01, native source-only AirWorker CLI",
+  "current_source_baseline": "caed46d10d878e9b5ac1423b7eb94def74ea27fa",
+  "chatgpt_role": "coordinator controlling native AirWorker, reads native worker receipts and Git changes, applies both patches and runs factual checks",
+  "native_command": "air-worker orchestrate code -product <D: synthetic project> -task-file TASK-REAL-TWO-CODERS.md -tier gpt61-terra:low -principal gpt -session-key devwork30-chatgpt-controller-20261108 -json",
+  "source_root": "D:/Devbox/AirWorker/temp/DevWork30/two-real-codex-writers-20261108",
+  "base_head": "e3f5b02d9599ced1b282b9b3f9579d04911d086c",
+  "workers_total": 2,
+  "native_controller_rc": 0,
+  "native_controller_status": "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION",
+  "native_controller_model_calls": 2,
+  "third_codex_leader_model_calls": 0,
+  "both_workers_sandbox": "workspace-write in distinct Git worktrees, not shared tree",
+  "both_workers_terminal": "DONE, exit_code 0, source_head exact base",
+  "workers": [
+    {
+      "index": 1,
+      "model": "gpt-6.1-terra",
+      "role": "coding-subagent/worker",
+      "job_id": "gpt__devwork30-chatgpt-controller-20261108__1794110738862174300__1b89b6bd",
+      "source_file": "alpha.go",
+      "change": "OLD_ALPHA→NEW_ALPHA",
+      "patch_sha256": "8fc33f629efd2ff5e98bb11ef693db46126d0df838a6d76dc866ff6938999eed",
+      "receipt_status": "DONE",
+      "exit_code": 0,
+      "receipt_path": "D:/Devbox/AirWorker/temp/DevWork30/two-real-codex-writers-20261108/.woody/jobs/gpt-devwork30-chatgpt-controller-20261108-coord-TASK-REAL-TWO-CODERS-md-coding-worker-1-executor-codex-subagent-gpt-6-1-terra-low.receipt.json"
+    },
+    {
+      "index": 2,
+      "model": "gpt-6.1-terra",
+      "role": "coding-subagent/worker",
+      "job_id": "gpt__devwork30-chatgpt-controller-20261108__1794110738859175700__5756448e",
+      "source_file": "beta.go",
+      "change": "OLD_BETA→NEW_BETA",
+      "patch_sha256": "66a82b16c57fe33bb13b2e167901bba44f98f96b80e6db88c0f400e40c4734fd",
+      "receipt_status": "DONE",
+      "exit_code": 0,
+      "receipt_path": "D:/Devbox/AirWorker/temp/DevWork30/two-real-codex-writers-20261108/.woody/jobs/gpt-devwork30-chatgpt-controller-20261108-coord-TASK-REAL-TWO-CODERS-md-coding-worker-2-executor-codex-subagent-gpt-6-1-terra-low.receipt.json"
+    }
+  ],
+  "original_git_clean_before_coordinator": true,
+  "independent_worker_patch_apply_check": "2/2 PASS",
+  "factual_go_before_coordinator_merge": {
+    "status": "RED EXPECTED",
+    "rc": 1,
+    "errors": [
+      "Alpha() returned OLD_ALPHA, expected NEW_ALPHA",
+      "Beta() returned OLD_BETA, expected NEW_BETA"
+    ]
+  },
+  "coordinator_integration": {
+    "method": "ChatGPT via AIR Commander git apply --check then git apply for each native source patch",
+    "patches_applied": 2,
+    "third_codex_calls": 0
+  },
+  "factual_go_after_coordinator_merge": {
+    "status": "GREEN",
+    "rc": 0,
+    "test": "TestTwoIndependentWorkersIntegrated",
+    "result": "PASS"
+  },
+  "synthetic_integrated_git_commit": "7a5063d965168c63ec8a8a7d86455e3e9684e230",
+  "synthetic_integrated_git_dirty": false,
+  "source_code_changes": [
+    "cmd/orchestrate_coding_workers.go: two real separate Git worktrees; workspace-write; patch path SHA; native durable receipt; no third Codex",
+    "cmd/runner_codex.go: managed route coordinator_handoff with Ok=false (no false semantic PASS)",
+    "cmd/orchestration.go: native orchestrate code CLI",
+    "cmd/orchestrate_coding_workers_test.go: two real writes/mock Git and duplicate launch rejection"
+  ],
+  "accepted_scope": "Synthetic E2E proof of correct architecture, source-only; does not prove production N139, actual two GPT-chat disconnects, causal G06, final G05 or release",
+  "installed_airworker": "0.11.11-rc.2 unchanged",
+  "candidate_version": "0.11.11-rc.5 source-only",
+  "published_rc5": false,
+  "stale_distribution_B": "a96e2a2c107765be43a1bec6263b1d37f892d2c2 built from caed46d, must NOT be signed/released after source changes",
+  "p0": {
+    "passed": 4,
+    "total": 8,
+    "open": [
+      "G07",
+      "G06",
+      "G05",
+      "G08"
+    ],
+    "native_nodes_closed": 0
+  },
+  "next": "Use same native two-writer CLI on real AirWorker source from next clean frozen SHA with disjoint bounded assignments; ChatGPT coordinates merge + Go QA; independent Anthropic exact SHA review; rebuild new distribution B, sign/publish only after all gates",
+  "status": "TWO_REAL_CODE_WRITERS_CHATGPT_COORDINATOR_LIVE_PASS__SOURCE_ONLY"
+}

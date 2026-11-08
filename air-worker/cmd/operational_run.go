@@ -142,6 +142,14 @@ func runN139Step(c *loopCtx, goal operationalGoal, verify func(string, operation
 		return 2
 	}
 	if !result.Ok {
+		if result.Subtype == "coordinator_handoff" {
+			// Two real Codex workers have completed changes in independent
+			// worktrees; ChatGPT is responsible for merge+factual+Anthropic.
+			// This is not a Codex failure, must not auto-escalate/re-dispatch,
+			// and must not close N139 by treating a handoff as source PASS.
+			line("WAIT_COORDINATOR_INTEGRATION: " + result.Detail)
+			return 2
+		}
 		line("NOT_PROVEN: CODEX_" + result.Subtype + ": " + result.Detail)
 		return 2
 	}
