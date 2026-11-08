@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -1274,4 +1275,166 @@ func TestDW32N139BoundCoordinatorAck(t *testing.T) {
 	if e != nil || !bytes.Equal(before, after) {
 		t.Fatal("acknowledgement changed")
 	}
+	receipts := [2][]byte{}
+	for i, w := range doc.Workers {
+		var readErr error
+		receipts[i], readErr = os.ReadFile(w.Receipt)
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+	}
+	var jobs atomic.Int32
+	runnerCommand = func(string, ...string) *exec.Cmd {
+		jobs.Add(1)
+		return exec.Command(os.Args[0], "-test.run=TestDW32NestedHelperProcess")
+	}
+	read := func() (codingIntegrationAck, error) {
+		t.Helper()
+		return readCodingIntegrationAck(root, c.scope(), n139ID, task)
+	}
+	readCLI := func() (int, map[string]string) {
+		t.Helper()
+		f, err := os.CreateTemp(t.TempDir(), "ack-status-*.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		prev := os.Stdout
+		os.Stdout = f
+		rc := cmdOrchestrateCode([]string{"ack-status", "-product", root, "-task-file", filepath.Join(root, filepath.FromSlash(name)), "-step", n139ID, "-principal", id.Principal, "-session-key", id.SessionKey, "-state-dir", state, "-json"})
+		os.Stdout = prev
+		if _, err = f.Seek(0, io.SeekStart); err != nil {
+			t.Fatal(err)
+		}
+		data, err := io.ReadAll(f)
+		f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var result map[string]string
+		if err = json.Unmarshal(data, &result); err != nil {
+			t.Fatal(err)
+		}
+		return rc, result
+	}
+	if rc, result := readCLI(); rc != 0 || result["status"] != "ACK_RECORDED" || result["ack_sha256"] != shaCodingBytes(before) {
+		t.Fatalf("native ack status: rc=%d %+v", rc, result)
+	}
+	valid, e := read()
+	if e != nil {
+		t.Fatalf("valid acknowledgement rejected: %v", e)
+	}
+	var recorded codingIntegrationAck
+	if valid.AckSHA256 != shaCodingBytes(before) {
+		t.Fatal("ack SHA mismatch")
+	}
+	valid.AckSHA256 = ""
+	if e := json.Unmarshal(before, &recorded); e != nil || !reflect.DeepEqual(valid, recorded) {
+		t.Fatalf("acknowledgement fields changed: got %+v, want %+v: %v", valid, recorded, e)
+	}
+	if valid.Status != "ACK_RECORDED" || valid.Step != n139ID || valid.TaskSHA256 != shaCodingBytes([]byte(task)) ||
+		valid.SourceHead != doc.SourceHead || valid.HandoffSHA256 == "" ||
+		valid.JobIDs != [2]string{doc.Workers[0].JobID, doc.Workers[1].JobID} ||
+		valid.PatchSHA256 != [2]string{doc.Workers[0].PatchSHA256, doc.Workers[1].PatchSHA256} {
+		t.Fatalf("incomplete acknowledgement readback: %+v", valid)
+	}
+	checkNoReplay := func(label string) {
+		t.Helper()
+		current, err := os.ReadFile(ack)
+		if err != nil || !bytes.Equal(current, before) || jobs.Load() != 0 {
+			t.Fatalf("%s changed acknowledgement or started a worker: %v, jobs=%d", label, err, jobs.Load())
+		}
+		for i, w := range doc.Workers {
+			current, err := os.ReadFile(w.Receipt)
+			if err != nil || !bytes.Equal(current, receipts[i]) {
+				t.Fatalf("%s changed worker %d receipt: %v", label, i+1, err)
+			}
+		}
+	}
+	checkNoReplay("valid readback")
+	if e := os.Remove(ack); e != nil {
+		t.Fatal(e)
+	}
+	if rc, result := readCLI(); rc != 0 || result["status"] != "WAIT_COORDINATOR_INTEGRATION" {
+		t.Fatalf("native waiting status: rc=%d %+v", rc, result)
+	}
+	if waiting, e := read(); e != nil || waiting.Status != "WAIT_COORDINATOR_INTEGRATION" {
+		t.Fatal("missing acknowledgement did not remain waiting")
+	}
+	for name, body := range map[string][]byte{
+		"empty": {}, "partial": []byte(`{"schema":"air-worker.coordinator-integration/v1"}`),
+		"duplicate key": append([]byte(`{"status":"FORGED",`), before[1:]...),
+	} {
+		if e := os.WriteFile(ack, body, 0600); e != nil {
+			t.Fatal(e)
+		}
+		if name == "partial" {
+			if rc, result := readCLI(); rc == 0 || result["status"] != "NOT_PROVEN" {
+				t.Fatalf("native partial status: rc=%d %+v", rc, result)
+			}
+		}
+		if _, e := read(); e == nil {
+			t.Errorf("%s acknowledgement accepted", name)
+		}
+	}
+	for name, change := range map[string]func(*codingIntegrationAck){
+		"status":    func(a *codingIntegrationAck) { a.Status = "FORGED" },
+		"principal": func(a *codingIntegrationAck) { a.Principal = "other" },
+		"task":      func(a *codingIntegrationAck) { a.TaskSHA256 = strings.Repeat("0", 64) },
+		"session":   func(a *codingIntegrationAck) { a.SessionKey = "other" },
+		"step":      func(a *codingIntegrationAck) { a.Step = "coord-other" },
+		"source":    func(a *codingIntegrationAck) { a.SourceHead = strings.Repeat("0", 40) },
+		"job":       func(a *codingIntegrationAck) { a.JobIDs[0] = "other" },
+		"patch":     func(a *codingIntegrationAck) { a.PatchSHA256[0] = strings.Repeat("0", 64) },
+		"handoff":   func(a *codingIntegrationAck) { a.HandoffSHA256 = strings.Repeat("0", 64) },
+	} {
+		tampered := recorded
+		change(&tampered)
+		body, err := json.Marshal(tampered)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(ack, body, 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := read(); err == nil {
+			t.Errorf("changed %s accepted", name)
+		}
+	}
+	if e := os.WriteFile(ack, before, 0600); e != nil {
+		t.Fatal(e)
+	}
+	sealed, e := readJobReceipt(doc.Workers[0].Receipt)
+	if e != nil {
+		t.Fatal(e)
+	}
+	for name, path := range map[string]string{
+		"handoff":       doc.Report,
+		"worker output": sealed.OutputPath,
+	} {
+		original, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("damaged"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := read(); err == nil {
+			t.Errorf("damaged %s accepted", name)
+		}
+		if err := os.WriteFile(path, original, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if e := os.WriteFile(filepath.Join(root, "a.go"), []byte("package demo\nfunc A() string { return \"CHANGED\" }\n"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if name == "partial" {
+		if rc, result := readCLI(); rc == 0 || result["status"] != "NOT_PROVEN" {
+			t.Fatalf("native partial status: rc=%d %+v", rc, result)
+		}
+	}
+	if _, e := read(); e == nil {
+		t.Fatal("changed Git state accepted")
+	}
+	checkNoReplay("tampered evidence")
 }
