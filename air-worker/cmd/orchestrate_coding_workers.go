@@ -690,6 +690,16 @@ func codingStatus(root string, scope sessionScope, step, taskSHA string) (coding
 		if snap.Status != jobStatusRunning && !snap.Terminal {
 			w.Status = "EXECUTION_UNKNOWN"
 		}
+		if snap.Terminal {
+			_, sourceErr := hex.DecodeString(snap.SourceHead)
+			_, argsErr := hex.DecodeString(snap.ArgsSHA256)
+			sourceValid := (len(snap.SourceHead) == 40 || len(snap.SourceHead) == 64) && sourceErr == nil
+			argsValid := len(snap.ArgsSHA256) == 64 && argsErr == nil
+			recoveryValid := snap.JobID != "" && snap.RecoveryRef == filepath.ToSlash(snap.ReceiptPath)+"#job_id="+snap.JobID
+			if !sourceValid || !argsValid || !recoveryValid {
+				w.Status = "EXECUTION_UNKNOWN"
+			}
+		}
 		if doc.SourceHead == "" {
 			doc.SourceHead = snap.SourceHead
 		} else if snap.SourceHead != "" && doc.SourceHead != snap.SourceHead {

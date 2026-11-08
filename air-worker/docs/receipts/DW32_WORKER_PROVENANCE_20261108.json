@@ -1,0 +1,29 @@
+{
+  "schema": "air-worker.devwork32.worker-provenance/v1",
+  "base_head": "478855b06b64d7e7ea2a8ad7d42435cce8255377",
+  "task_sha256": "4cb55cec78b6284192b724e1706e2e7187236d83c3c7dfbf40d87ff660e8af62",
+  "workers": [
+    {
+      "index": 1,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794169360960815300__cccf22a2",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "fc201064fcd86da95bcc60dca5babc82ae389621b0ebf76e2003e370076c0c36",
+      "patch_sha256": "090be62d2ae0bfc48027f0801615523a988834db77eded4e612db5952c0c1346"
+    },
+    {
+      "index": 2,
+      "job_id": "gpt__devwork32-pilot-priority-20261108__1794169360960815300__f1afeaff",
+      "status": "DONE",
+      "exit_code": 0,
+      "output_sha256": "a96fbc3197088ff1b71b821bd5bbb641f5977b1792b760c1a271f78e7c9c50bf",
+      "patch_sha256": "bcc698d2fc32ce5883aa0e413e3245ae6c5c9ba064420cae21991bd32ffc6243"
+    }
+  ],
+  "baseline": "READY incorrectly returned separately for missing source SHA, argument SHA and recovery reference in sealed worker receipt",
+  "change": "Terminal worker remains unknown unless source hash is valid and matched to original source, args hash is valid hex, and recovery reference matches receipt path and job id",
+  "tests": "Recovery missing/malformed/nonhex source/args/ref, old HEAD readback, no duplicate and synthetic escalation regressions PASS; go vet ./... exit 0",
+  "targeted_sha256": "d761aab2bb05a1e21028a0183436c4d6b17ae2237b071bd43bda984fe7be236c",
+  "hex_test_sha256": "8ed7c8751ccf46ce32ce240b5eb49d46cb0b57b787f56df007ba75466f0d5919",
+  "limits": "Valid hash syntax alone does not independently prove the actual command arguments. Synthetic escalation/reconnection is not G06/G07. Lock alias, acquireLock, report freshness, final QA and P0 remain open; no rights/settings/installed changes."
+}

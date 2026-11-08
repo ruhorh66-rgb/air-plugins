@@ -195,6 +195,40 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 		}
 	}
 	assertRecovered()
+	provenanceBytes, err := os.ReadFile(doc.Workers[0].Receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name, value string
+		mutate      func(*jobReceipt, string)
+	}{
+		{"missing source SHA", "", func(r *jobReceipt, value string) { r.SourceHead = value }},
+		{"malformed source SHA", "not-a-sha256", func(r *jobReceipt, value string) { r.SourceHead = value }},
+		{"nonhex source SHA", strings.Repeat("g", 40), func(r *jobReceipt, value string) { r.SourceHead = value }},
+		{"missing arguments SHA", "", func(r *jobReceipt, value string) { r.ArgsSHA256 = value }},
+		{"malformed arguments SHA", "not-a-sha256", func(r *jobReceipt, value string) { r.ArgsSHA256 = value }},
+		{"nonhex arguments SHA", strings.Repeat("g", 64), func(r *jobReceipt, value string) { r.ArgsSHA256 = value }},
+		{"missing recovery ref", "", func(r *jobReceipt, value string) { r.RecoveryRef = value }},
+		{"wrong recovery ref", "wrong-recovery-ref", func(r *jobReceipt, value string) { r.RecoveryRef = value }},
+	} {
+		var damaged jobReceipt
+		if err := json.Unmarshal(provenanceBytes, &damaged); err != nil {
+			t.Fatal(err)
+		}
+		test.mutate(&damaged, test.value)
+		if err := writeJobReceipt(doc.Workers[0].Receipt, &damaged); err != nil {
+			t.Fatal(err)
+		}
+		_, result := status(task, id.SessionKey)
+		if err := os.WriteFile(doc.Workers[0].Receipt, provenanceBytes, 0600); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(fmt.Sprint(result), "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION") {
+			t.Fatalf("%s accepted: %+v", test.name, result)
+		}
+	}
+	assertRecovered()
 	mutated := []byte(base + "\n")
 	if err := os.WriteFile(task, mutated, 0600); err != nil {
 		t.Fatal(err)
