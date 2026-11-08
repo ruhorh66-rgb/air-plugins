@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf16"
 )
 
 // Шаг 73/К42 — durable job receipt: planner/judge/executor обязаны создать receipt ДО
@@ -235,6 +236,16 @@ var errJobStillRunning = errors.New("job ещё RUNNING: транспорт не
 func jobReceiptPaths(scope sessionScope, step, operation string) (receiptPath, outputPath string) {
 	dir := filepath.Join(scope.Root, ".woody", "jobs")
 	base := reNonWord.ReplaceAllString(scope.ID.namespace()+"__"+step+"__"+operation, "-")
+	if len(utf16.Encode([]rune(base+".receipt.json"))) > 255 || len(utf16.Encode([]rune(base+".out"))) > 255 {
+		// Frame the original fields so sanitization and separator ambiguity cannot merge identities.
+		h := sha256.New()
+		_, _ = io.WriteString(h, "air-worker/job-receipt-path/v1\x00")
+		for _, field := range []string{scope.ID.namespace(), scope.ID.Principal, scope.ID.SessionKey, step, operation} {
+			_, _ = fmt.Fprintf(h, "%d:", len(field))
+			_, _ = io.WriteString(h, field)
+		}
+		base = "awjob-" + hex.EncodeToString(h.Sum(nil))
+	}
 	return filepath.Join(dir, base+".receipt.json"), filepath.Join(dir, base+".out")
 }
 

@@ -659,8 +659,19 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 		found := false
 		for _, entry := range entries {
 			name := entry.Name()
-			if !strings.HasPrefix(name, prefix+"-") || !strings.HasSuffix(name, ".receipt.json") {
+			legacy := strings.HasPrefix(name, prefix+"-") && strings.HasSuffix(name, ".receipt.json")
+			hashed := strings.HasPrefix(name, "awjob-") && strings.HasSuffix(name, ".receipt.json") && len(name) == len("awjob-")+64+len(".receipt.json")
+			if !legacy && !hashed {
 				continue
+			}
+			if hashed {
+				if _, err := hex.DecodeString(name[len("awjob-") : len("awjob-")+64]); err != nil {
+					continue
+				}
+				info, err := entry.Info()
+				if err != nil || info.Size() > 1024*1024 {
+					return doc, errors.New("invalid hashed worker receipt")
+				}
 			}
 			path := filepath.Join(root, ".woody", "jobs", name)
 			if err := jobOwnedEvidencePath(root, path); err != nil {
@@ -669,6 +680,9 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 			r, err := readJobReceipt(path)
 			if err != nil {
 				return doc, err
+			}
+			if hashed && (r.Product != scope.Root || r.Principal != scope.ID.Principal || r.Session != scope.ID.SessionKey || r.Step != workerStep) {
+				continue
 			}
 			if r.Step != workerStep || !strings.HasPrefix(r.Operation, "executor-codex-subagent-") || !strings.HasSuffix(r.Operation, "-task-"+taskSHA) {
 				return doc, errors.New("receipt identity mismatch")

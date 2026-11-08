@@ -37,6 +37,14 @@ func codingFixtureGit(t *testing.T, root string, args ...string) {
 }
 
 func TestCodingWorkersStatusRecovery(t *testing.T) {
+	testCodingWorkersStatusRecovery(t, "unit-external-coordinator")
+}
+
+func TestCodingWorkersStatusRecoveryLongIdentity(t *testing.T) {
+	testCodingWorkersStatusRecovery(t, strings.Repeat("s", 120))
+}
+
+func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 	if testing.Short() {
 		t.Skip("requires local Git worktree lifecycle")
 	}
@@ -67,7 +75,7 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 		Enabled: true, Subagents: 2, RequireNativeSubagents: true, RequireAnthropicReviewer: true,
 	}}
 	ctx := &loopCtx{Root: root, Cfg: cfg, Subagents: 2,
-		Principal: "gpt", SessionKey: "unit-external-coordinator"}
+		Principal: "gpt", SessionKey: sessionKey}
 	base := codingMicrostepTask(t)
 	task := filepath.Join(root, "TASK.md")
 	if err := os.WriteFile(task, []byte(base), 0600); err != nil {
@@ -129,6 +137,9 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 	// A and B both physically changed THEIR worktrees while the shared source
 	// has not been touched: the third Codex "leader" did not run.
 	for i, w := range doc.Workers {
+		if len(sessionKey) > 100 && !strings.HasPrefix(filepath.Base(w.Receipt), "awjob-") {
+			t.Fatalf("long identity did not use bounded name: %s", w.Receipt)
+		}
 		receipt, err := readJobReceipt(w.Receipt)
 		if err != nil || receipt == nil || receipt.Role != "coding-subagent/worker" {
 			t.Fatalf("worker %d receipt role: %+v, %v", i+1, receipt, err)
@@ -373,7 +384,9 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 	legacy.StdinSHA256 = ""
 	legacyPath, legacyOutput := jobReceiptPaths(ctx.scope(), legacy.Step, legacy.Operation)
 	oldOutput := legacy.OutputPath
-	if err := os.Rename(oldOutput, legacyOutput); err != nil { t.Fatal(err) }
+	if err := os.Rename(oldOutput, legacyOutput); err != nil {
+		t.Fatal(err)
+	}
 	legacy.OutputPath = legacyOutput
 	if legacyPath == doc.Workers[0].Receipt || len(filepath.Base(legacyPath)) > 255 {
 		t.Fatalf("invalid legacy receipt path: %s", legacyPath)
@@ -388,7 +401,9 @@ func TestCodingWorkersStatusRecovery(t *testing.T) {
 	if rc, result := status(task, id.SessionKey); rc != 0 || !strings.Contains(fmt.Sprint(result), "LEGACY_UNMEASURED") || strings.Contains(fmt.Sprint(result), "NOT_PROVEN") || jobs.Load() != 2 {
 		t.Fatalf("legacy receipt readback: rc=%d result=%+v jobs=%d", rc, result, jobs.Load())
 	}
-	if err := os.Rename(legacyOutput, oldOutput); err != nil { t.Fatal(err) }
+	if err := os.Rename(legacyOutput, oldOutput); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Remove(legacyPath); err != nil {
 		t.Fatal(err)
 	}
