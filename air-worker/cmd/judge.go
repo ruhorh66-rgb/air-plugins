@@ -235,10 +235,11 @@ func lastNonEmpty(text string) string {
 }
 
 type judgeResult struct {
-	scope   *sessionScope
-	Passed  []string
-	Failed  []string
-	Unknown []string
+	scope     *sessionScope
+	forReport bool
+	Passed    []string
+	Failed    []string
+	Unknown   []string
 
 	// SelectorInventory is built once per factual judge run for selector-based
 	// checks. A passing full check plus a found selector proves that selected
@@ -333,7 +334,15 @@ func cmdJudge(argv []string) int {
 }
 
 func runJudge(root string, cfg runConfig, minFactsOverride int, scope sessionScope) judgeResult {
-	r := judgeResult{scope: &scope}
+	return runJudgeChecks(root, cfg, minFactsOverride, scope, false)
+}
+
+func runJudgeForReport(root string, cfg runConfig, minFactsOverride int, scope sessionScope) judgeResult {
+	return runJudgeChecks(root, cfg, minFactsOverride, scope, true)
+}
+
+func runJudgeChecks(root string, cfg runConfig, minFactsOverride int, scope sessionScope, forReport bool) judgeResult {
+	r := judgeResult{scope: &scope, forReport: forReport}
 
 	for _, chk := range cfg.Judge.Checks {
 		name := chk.Name
@@ -448,6 +457,44 @@ func judgeCheckUnconfirmed(name string, cmd *exec.Cmd, err error, r *judgeResult
 	return false
 }
 
+func runJudgeCheckReceipted(ctx context.Context, scope sessionScope, operation string, cmd *exec.Cmd, forReport bool) ([]byte, error) {
+	step, opposite := "judge", "report-judge"
+	if forReport {
+		step, opposite = opposite, step
+	}
+	preflight := func() error {
+		receipt, output := jobReceiptPaths(scope, opposite, operation)
+		_, receiptErr := os.Lstat(receipt)
+		_, outputErr := os.Lstat(output)
+		if os.IsNotExist(receiptErr) && os.IsNotExist(outputErr) {
+			return nil
+		}
+		if receiptErr != nil && !os.IsNotExist(receiptErr) {
+			return fmt.Errorf("UNKNOWN: opposite judge receipt cannot be inspected: %w", receiptErr)
+		}
+		if outputErr != nil && !os.IsNotExist(outputErr) {
+			return fmt.Errorf("UNKNOWN: opposite judge output cannot be inspected: %w", outputErr)
+		}
+		if receiptErr != nil || outputErr != nil {
+			return fmt.Errorf("UNKNOWN: partial opposite judge evidence for %s", operation)
+		}
+		view, err := inspectOwnedJob(scope, opposite, operation)
+		if err != nil || !view.Terminal {
+			return fmt.Errorf("UNKNOWN: opposite judge result for %s is not sealed terminal: %v", operation, err)
+		}
+		return nil
+	}
+	if !forReport {
+		return runReceiptedWithPreflight(ctx, scope, step, operation, cmd, preflight)
+	}
+	lock, ok := acquireLock(scopedLockName(jobLockKind("judge", operation), scope))
+	if !ok {
+		return nil, fmt.Errorf("UNKNOWN: judge operation %s is already running", operation)
+	}
+	defer lock.release()
+	return runReceiptedWithPreflight(ctx, scope, step, operation, cmd, preflight)
+}
+
 func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope, r *judgeResult, namedIndices ...int) {
 	scriptPath := filepath.Join(root, chk.Script)
 	if _, err := os.Stat(scriptPath); err != nil {
@@ -467,7 +514,7 @@ func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope,
 	// К42 — durable job receipt пишется RUNNING ДО запуска этой проверки; transport/RDC
 	// timeout здесь не наступает (ctx без дедлайна), поэтому вызов, как и раньше, ждёт
 	// завершения синхронно — только теперь ещё и оставляет receipt/output_path на диске.
-	out, err := runReceipted(context.Background(), scope, "judge", name, cmd)
+	out, err := runJudgeCheckReceipted(context.Background(), scope, name, cmd, r.forReport)
 	if judgeCheckUnconfirmed(name, cmd, err, r) {
 		return
 	}
@@ -630,7 +677,7 @@ func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope
 		}
 		cmd.Env, cmd.Err = configuredChildEnvironment(resolved, cmd.Env)
 	}
-	out, err := runReceipted(ctx, scope, "judge", n123GoJudgeOperation(root, name, cmd), cmd)
+	out, err := runJudgeCheckReceipted(ctx, scope, n123GoJudgeOperation(root, name, cmd), cmd, r.forReport)
 	if judgeCheckUnconfirmed(name, cmd, err, r) {
 		return
 	}

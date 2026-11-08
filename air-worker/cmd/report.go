@@ -356,7 +356,7 @@ func buildReportMode(root string, noJudge bool) productReport {
 		}
 	default:
 		// Судья — прогоном. См. шапку о том, почему не из файла.
-		res := runJudge(root, cfg, -1, legacyScope(root))
+		res := runJudgeForReport(root, cfg, -1, legacyScope(root))
 		res.InputFingerprint = judgeInputFingerprint(root, cfg, filepath.Join(root, "run-config.json"), nativePlanPath(root, cfg))
 		r.JudgeCode, r.JudgeText = verdict(res)
 		// Запись вердикта нужна следующему замеру расстояния: без неё drift скажет
