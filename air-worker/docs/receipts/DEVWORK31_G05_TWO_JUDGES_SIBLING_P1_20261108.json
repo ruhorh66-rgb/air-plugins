@@ -1,0 +1,73 @@
+{
+  "schema": "air-worker.devwork31.p0-g05-sibling-runner-review/v1",
+  "observed_sgt_date": "2026-11-08",
+  "source_head": "15b457e3bdd4bf85de786453b2fda02ca6b66536",
+  "task": {
+    "file": ".woody/qa/devwork31-final-g05/N123_SOURCE_REVIEW_ROOTED_15b457e.md",
+    "sha256": "ffd52d311fb20ce0e19c0138debb48b8bc289d6e67289effeef7ab88dd59451f"
+  },
+  "anthropic": {
+    "native_review": true,
+    "model": "claude-sonnet-5-5",
+    "task_read": "TASK_READ_OK",
+    "verdict": "FAIL_P1",
+    "cli_rc": 1,
+    "log_sha256": "50e875829d7fff98d117ce63f7e6553e40d897298be09db42c0b29036fe5f1ca",
+    "findings": [
+      {
+        "source": "cmd/runner_openai.go",
+        "line": 110,
+        "quote": "marshalErr = os.WriteFile(outputPath, data, 0o644)",
+        "severity": "P1"
+      },
+      {
+        "source": "cmd/runner_router.go",
+        "line": 509,
+        "quote": "_ = os.WriteFile(outputPath, []byte(detail+\"\\n\"), 0o644)",
+        "severity": "P1"
+      }
+    ]
+  },
+  "codex": {
+    "model": "gpt-6-sol",
+    "effort": "low",
+    "sandbox": "read-only",
+    "task_read": "TASK_READ_OK",
+    "verdict": "FAIL_P1",
+    "process_rc": 0,
+    "answer_sha256": "cb55e002b64beea50e5be56782a4ace40d690e8ad502ab1bcdbce199497f9a50",
+    "event_sha256": "457369e259994134a44adf9221b5c827ffa80271b3d147b016c92fbace293520",
+    "findings": [
+      {
+        "source": "cmd/runner_openai.go",
+        "line": 110,
+        "quote": "os.WriteFile(outputPath, data, 0o644)",
+        "severity": "P1"
+      },
+      {
+        "source": "cmd/runner_router.go",
+        "line": 509,
+        "quote": "os.WriteFile(outputPath, []byte(detail+\"\\n\"), 0o644)",
+        "severity": "P1"
+      }
+    ]
+  },
+  "rooted_core": {
+    "source_commit": "15b457e3bdd4bf85de786453b2fda02ca6b66536",
+    "previous_G05_TOCTOU_receipt": "docs/receipts/DEVWORK31_G05_ROOTED_TOCTOU_20261108.json",
+    "targeted_go_vet_rc": [
+      0,
+      0
+    ],
+    "accepted_scoped": true
+  },
+  "scope": {
+    "G05": "OPEN: both sibling output paths fail P1",
+    "G06": "OPEN",
+    "G07": "OPEN",
+    "G08": "OPEN",
+    "p0": "4/8",
+    "native_nodes_closed": 0
+  },
+  "next": "Exactly two new Codex coding workers to alter ONLY runner_openai.go and runner_router.go, reusing a small shared owned-output helper in job_receipt.go inserted by ChatGPT coordinator on integration; source-only, new native receipts and targeted QA, no release/privileges."
+}
