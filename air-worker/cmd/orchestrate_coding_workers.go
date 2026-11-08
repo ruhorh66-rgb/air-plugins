@@ -99,7 +99,7 @@ func prepareCodingWorktrees(root string, scope sessionScope, step, sourceHead st
 	if err != nil || head != sourceHead {
 		return "", productDirs, errors.New("Git source HEAD changed before two-worker launch")
 	}
-	id := shaCodingBytes([]byte(repoTop + "|" + scope.key() + "|" + step + "|" + sourceHead))[:18]
+	id := shaCodingBytes([]byte(repoTop + "|" + scope.key() + "|" + step))[:18]
 	base := filepath.Join(filepath.Dir(repoTop), ".airworker-coding-workspaces", filepath.Base(repoTop), id)
 	if _, err := os.Lstat(base); err == nil {
 		return "", productDirs, fmt.Errorf("worker workspace %s already exists; use receipt readback, never rerun", base)
@@ -305,11 +305,15 @@ func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner ru
 	} else if doc.Error == "" {
 		doc.Error = "one or more workers did not produce factual code edits; no automatic integration"
 	}
-	reportPath := filepath.Join(base, "handoff.json")
-	if raw, err := json.MarshalIndent(doc, "", "  "); err == nil {
-		if err := os.WriteFile(reportPath, append(raw, '\n'), 0600); err == nil {
-			doc.Report = reportPath
-		}
+	doc.Report = filepath.Join(base, "handoff.json")
+	raw, err := json.MarshalIndent(doc, "", "  ")
+	if err == nil {
+		err = os.WriteFile(doc.Report, append(raw, '\n'), 0600)
+	}
+	if err != nil {
+		doc.Report = ""
+		doc.Status = "NOT_PROVEN"
+		doc.Error = "cannot persist worker handoff: " + err.Error()
 	}
 	return doc
 }

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -39,7 +41,9 @@ func TestChatGPTCoordinatorTwoCodexWorkersOwnRealEdits(t *testing.T) {
 	codingFixtureGit(t, root, "config", "--local", "user.email", "airworker-test@example.invalid")
 	codingFixtureGit(t, root, "add", ".")
 	codingFixtureGit(t, root, "commit", "-m", "synthetic base")
+	var jobs atomic.Int32
 	runnerCommand = func(_ string, _ ...string) *exec.Cmd {
+		jobs.Add(1)
 		return exec.Command(os.Args[0], "-test.run=TestTwoWorkerIsolatedHelperProcess")
 	}
 	cfg := runConfig{Orchestration: orchestrationSpec{
@@ -53,9 +57,24 @@ func TestChatGPTCoordinatorTwoCodexWorkersOwnRealEdits(t *testing.T) {
 	if doc.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" || len(doc.Workers) != 2 {
 		t.Fatalf("independent coding workspaces not proven: %+v", doc)
 	}
+	raw, err := os.ReadFile(doc.Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved codingWorkersHandoff
+	if err := json.Unmarshal(raw, &saved); err != nil || saved.Report != doc.Report {
+		t.Fatalf("handoff report path not persisted: %q, %v", saved.Report, err)
+	}
+	if jobs.Load() != 2 {
+		t.Fatalf("expected exactly two model jobs, got %d", jobs.Load())
+	}
 	// A and B both physically changed THEIR worktrees while the shared source
 	// has not been touched: the third Codex "leader" did not run.
 	for i, w := range doc.Workers {
+		receipt, err := readJobReceipt(w.Receipt)
+		if err != nil || receipt == nil || receipt.Role != "coding-subagent/worker" {
+			t.Fatalf("worker %d receipt role: %+v, %v", i+1, receipt, err)
+		}
 		if w.Status != "CODE_WRITTEN_IN_OWN_WORKTREE" || w.PatchSHA256 == "" ||
 			w.Receipt == "" || w.Patch == "" || len(w.Changed) != 1 ||
 			!strings.HasSuffix(w.Changed[0], fmt.Sprintf("%c.go", 'a'+i)) {
@@ -74,6 +93,9 @@ func TestChatGPTCoordinatorTwoCodexWorkersOwnRealEdits(t *testing.T) {
 	if again.Status != "NOT_PROVEN" || !strings.Contains(again.Error, "already exists") {
 		t.Fatalf("duplicate run accepted after coordinator handoff: %+v", again)
 	}
+	if jobs.Load() != 2 {
+		t.Fatalf("duplicate launched model jobs: %d", jobs.Load())
+	}
 	// ChatGPT coordinator now integrates real files from independent workers,
 	// without dispatching a third model process.
 	for _, w := range doc.Workers {
@@ -84,6 +106,16 @@ func TestChatGPTCoordinatorTwoCodexWorkersOwnRealEdits(t *testing.T) {
 	afterB, _ := os.ReadFile(filepath.Join(root, "b.go"))
 	if !strings.Contains(string(afterA), "NEW_A") || !strings.Contains(string(afterB), "NEW_B") {
 		t.Fatal("ChatGPT coordinator could not integrate the two real worker changes")
+	}
+	codingFixtureGit(t, root, "add", "a.go", "b.go")
+	codingFixtureGit(t, root, "commit", "-m", "integrate workers")
+	afterCommit := ctx.runIsolatedCodingWorkers("codex", base, "external-coordinator-unit", runnerSpec{
+		Kind: "codex", Model: "gpt-6.1-terra", Effort: "low"})
+	if afterCommit.SourceHead == doc.SourceHead || afterCommit.Status != "NOT_PROVEN" || !strings.Contains(afterCommit.Error, "already exists") {
+		t.Fatalf("duplicate run accepted after integration commit: %+v", afterCommit)
+	}
+	if jobs.Load() != 2 {
+		t.Fatalf("integration or duplicate launched additional model jobs: %d", jobs.Load())
 	}
 }
 

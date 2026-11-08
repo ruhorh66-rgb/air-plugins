@@ -1,0 +1,12 @@
+# Dev Work 30 · exact source-only review of ChatGPT-coordinated real 2×Codex editing
+
+**Source-only.** This is a bounded independent **Anthropic Sonnet 5.5** source/security review after two Codex workers physically edited AirWorker code in isolated Git worktrees and ChatGPT coordinator merged them. This review does NOT authorize release/install or satisfy complete N123/G05/G06/G07/G08.
+
+Read the actual source files at the exact native tool-provided Git HEAD. First read this TASK (TASK_READ_OK) and relevant native node done_when. Verify three factual code citations (path and line with exact short quotes) in the source, not model narratives.
+
+1. `cmd/orchestrate_coding_workers.go`: The native coordinator dispatches **exactly two real Codex coding workers** concurrently, both `sandbox=workspace-write` but each in its separate Git worktree from exact original source SHA. Confirm actual `git diff HEAD` and patch SHA required; model prose without physical edits must be refused; original shared source must be unchanged before coordinator.
+2. `cmd/runner_codex.go` and `cmd/orchestration.go`: Managed `RequireNativeSubagents` path routes into isolated code writers and **does NOT start a third Codex leader**. Coordinator handoff is NOT an accepted source/model/factual PASS and must be handled by the ChatGPT owner separately.
+3. `cmd/orchestrate_coding_workers_test.go`: Confirm exactly two native worker jobs, worker receipt roles, self-reporting handoff, duplicate-workspace guard after source HEAD commit and the negative fixture. The ChatGPT owner physically merges two actual patches in its controlled source tree and runs Go checks; no LLM leader writes shared source. The test is synthetic unit evidence; real live separate AirWorker source worker receipts are in `docs/receipts/DEVWORK30_REAL_AIRWORKER_CHATGPT_TWO_CODERS_20261108.json`.
+4. Security caveat: workspaces are outside the original Git source but share its Git worktree metadata; no automatic patch integration. Identify if any source bypass, unsafe path, duplicate replay or model-only PASS could be wrongly accepted. Do not claim cross-chat recovery, auto tier escalation or full release signature.
+
+Verdict `PASS_SOURCE_ONLY` only if bounded code safety and real worker evidence are sufficient within this scope. Use `FAIL_P0` for actual blocking unsafe code, `NOT_PROVEN` for unread or incomplete material. Do not edit any code, run new Codex jobs, modify Git, release or install. Keep existing rc.2 installed.
