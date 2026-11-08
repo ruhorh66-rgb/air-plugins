@@ -573,6 +573,8 @@ func cmdOrchestrateCode(argv []string) int {
 	return 2
 }
 
+var errHashedOwnershipUnknown = errors.New("hashed worker receipt ownership unknown")
+
 // codingStatus reads only the original scope's durable evidence; it never starts a job.
 func codingStatus(root string, scope sessionScope, step, task string) (codingWorkersHandoff, error) {
 	doc := codingWorkersHandoff{Schema: "air-worker.chatgpt-coordinated-codex-workers/v1", Status: "NOT_FOUND", SourceProduct: root, WorkerCount: 2}
@@ -657,6 +659,7 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 		var snap jobStatusSnapshot
 		var receipt *jobReceipt
 		found := false
+		unknownHashed := false
 		for _, entry := range entries {
 			name := entry.Name()
 			legacy := strings.HasPrefix(name, prefix+"-") && strings.HasSuffix(name, ".receipt.json")
@@ -670,16 +673,28 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 				}
 				info, err := entry.Info()
 				if err != nil || info.Size() > 1024*1024 {
-					return doc, errors.New("invalid hashed worker receipt")
+					if w.Receipt == filepath.Join(root, ".woody", "jobs", name) {
+						return doc, errors.New("invalid owned hashed worker receipt")
+					}
+					unknownHashed = true
+					continue
 				}
 			}
 			path := filepath.Join(root, ".woody", "jobs", name)
 			if err := jobOwnedEvidencePath(root, path); err != nil {
-				return doc, err
+				if !hashed || w.Receipt == path {
+					return doc, err
+				}
+				unknownHashed = true
+				continue
 			}
 			r, err := readJobReceipt(path)
 			if err != nil {
-				return doc, err
+				if !hashed || w.Receipt == path {
+					return doc, err
+				}
+				unknownHashed = true
+				continue
 			}
 			if hashed && (r.Product != scope.Root || r.Principal != scope.ID.Principal || r.Session != scope.ID.SessionKey || r.Step != workerStep) {
 				continue
@@ -699,6 +714,11 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 			}
 			found = true
 			receipt = r
+		}
+		if unknownHashed && w.Receipt == "" {
+			doc.Status = "NOT_PROVEN"
+			w.Status = "EXECUTION_UNKNOWN"
+			return doc, errHashedOwnershipUnknown
 		}
 		if !found {
 			if w.JobID != "" {
@@ -842,7 +862,12 @@ func cmdCodingStatus(argv []string) int {
 		if err == nil {
 			retry, retryErr := codingStatus(root, scope, "coord-"+filepath.Base(taskPath)+"-retry-1", string(taskBody))
 			if retryErr != nil {
-				err = retryErr
+				if errors.Is(retryErr, errHashedOwnershipUnknown) {
+					retry.Status = "EXECUTION_UNKNOWN"
+					doc.Retry = &retry
+				} else {
+					err = retryErr
+				}
 			} else if retry.Status != "NOT_FOUND" {
 				doc.Retry = &retry
 			}

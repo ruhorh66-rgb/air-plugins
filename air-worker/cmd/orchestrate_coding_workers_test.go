@@ -176,10 +176,14 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 			t.Fatal(err)
 		}
 		os.Stdout = w
+		outCh := make(chan []byte, 1)
+		errCh := make(chan error, 1)
+		go func() { b, e := io.ReadAll(r); outCh <- b; errCh <- e }()
 		rc := cmdOrchestrateCode([]string{"status", "-product", root, "-task-file", taskPath, "-principal", id.Principal, "-session-key", session, "-state-dir", state, "-json"})
 		os.Stdout = oldStdout
 		_ = w.Close()
-		out, err := io.ReadAll(r)
+		out := <-outCh
+		err = <-errCh
 		_ = r.Close()
 		if err != nil {
 			t.Fatal(err)
@@ -209,6 +213,46 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 		}
 	}
 	assertRecovered()
+	reportBefore, err := os.ReadFile(doc.Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receiptBefore, err := os.ReadFile(doc.Workers[0].Receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unrelatedPath := filepath.Join(filepath.Dir(doc.Workers[0].Receipt), "awjob-"+strings.Repeat("f", 64)+".receipt.json")
+	if err := os.WriteFile(unrelatedPath, []byte("{"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		rc, result := status(task, id.SessionKey)
+		workers, _ := result["Workers"].([]any)
+		retry, _ := result["retry"].(map[string]any)
+		if retry["Status"] != "EXECUTION_UNKNOWN" {
+			t.Fatalf("unknown retry not preserved: %+v", retry)
+		}
+		if rc != 0 || result["Status"] != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" || len(workers) != 2 || jobs.Load() != 2 {
+			t.Fatalf("unrelated damaged receipt poisoned handoff: rc=%d result=%+v jobs=%d", rc, result, jobs.Load())
+		}
+		for _, worker := range doc.Workers {
+			if !strings.Contains(fmt.Sprint(workers), worker.JobID) {
+				t.Fatalf("unrelated damaged receipt changed workers: %+v", workers)
+			}
+		}
+	}
+	if body, err := os.ReadFile(unrelatedPath); err != nil || string(body) != "{" {
+		t.Fatalf("status changed unrelated receipt: %q, %v", body, err)
+	}
+	if body, err := os.ReadFile(doc.Report); err != nil || string(body) != string(reportBefore) {
+		t.Fatalf("status changed handoff: %v", err)
+	}
+	if body, err := os.ReadFile(doc.Workers[0].Receipt); err != nil || string(body) != string(receiptBefore) {
+		t.Fatalf("status changed owned receipt: %v", err)
+	}
+	if err := os.Remove(unrelatedPath); err != nil {
+		t.Fatal(err)
+	}
 	provenanceBytes, err := os.ReadFile(doc.Workers[0].Receipt)
 	if err != nil {
 		t.Fatal(err)
@@ -246,6 +290,16 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 		if strings.Contains(test.name, "stdin SHA") && !strings.Contains(fmt.Sprint(result), "EXECUTION_UNKNOWN") {
 			t.Fatalf("%s did not preserve uncertainty: %+v", test.name, result)
 		}
+	}
+	assertRecovered()
+	if err := os.WriteFile(doc.Workers[0].Receipt, []byte("{"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if rc, result := status(task, id.SessionKey); rc != 2 || result["Status"] != "NOT_PROVEN" || jobs.Load() != 2 {
+		t.Fatalf("owned damaged receipt accepted: rc=%d result=%+v jobs=%d", rc, result, jobs.Load())
+	}
+	if err := os.WriteFile(doc.Workers[0].Receipt, provenanceBytes, 0600); err != nil {
+		t.Fatal(err)
 	}
 	assertRecovered()
 	mutated := []byte(base + "\n")
@@ -305,6 +359,15 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 
 	// Receipt-only recovery must preserve uncertainty rather than claim success.
 	if err := os.Remove(doc.Report); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(unrelatedPath, []byte("{"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if rc, result := status(task, id.SessionKey); rc != 2 || result["Status"] != "NOT_PROVEN" || jobs.Load() != 2 {
+		t.Fatalf("receipt-only damaged unknown hash accepted: rc=%d result=%+v jobs=%d", rc, result, jobs.Load())
+	}
+	if err := os.Remove(unrelatedPath); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(task, mutated, 0600); err != nil {
@@ -637,7 +700,7 @@ func TestCodingEscalation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("requires local Git worktrees")
 	}
-	for _, scenario := range []string{"vendor_limit", "narrative", "running", "unknown", "stdin_forged", "stdin_missing", "task_changed", "worker_task_changed", "head_changed"} {
+	for _, scenario := range []string{"vendor_limit", "narrative", "running", "unknown", "unknown_hash", "stdin_forged", "stdin_missing", "task_changed", "worker_task_changed", "head_changed"} {
 		t.Run(scenario, func(t *testing.T) {
 			root, state := t.TempDir(), t.TempDir()
 			for name, body := range map[string]string{
@@ -741,6 +804,11 @@ func TestCodingEscalation(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
+			if scenario == "unknown_hash" {
+				if err := os.WriteFile(filepath.Join(root, ".woody", "jobs", "awjob-"+strings.Repeat("f", 64)+".receipt.json"), []byte("{"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
 			if scenario == "task_changed" {
 				if err := os.WriteFile(taskPath, []byte("different task\n"), 0600); err != nil {
 					t.Fatal(err)
@@ -787,6 +855,12 @@ func TestCodingEscalation(t *testing.T) {
 				return rc, string(out)
 			}
 			rc, result := call("escalate")
+			if scenario == "unknown_hash" {
+				if rc == 0 || !strings.Contains(result, "NOT_PROVEN") || receiptJobs() != 3 {
+					t.Fatalf("unknown hash allowed retry: rc=%d receipts=%d %s", rc, receiptJobs(), result)
+				}
+				return
+			}
 			if scenario != "vendor_limit" {
 				if rc == 0 || !strings.Contains(result, "NOT_PROVEN") || receiptJobs() != 2 {
 					t.Fatalf("unsafe escalation: rc=%d receipts=%d %s", rc, receiptJobs(), result)
