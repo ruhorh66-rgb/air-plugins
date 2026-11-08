@@ -1,0 +1,73 @@
+{
+    "schema":  "air-worker.devwork30.p0-g06-causal-source-only/v1",
+    "owner":  "Dev Work 30 / SRVLM01",
+    "observed_sgt":  "2026-11-08",
+    "source_baseline":  "82ae8c43562589caccda5b12c317bf0ca954f8d7",
+    "source_final_git":  "PENDING_AFTER_COMMIT",
+    "orchestration":  "ChatGPT coordinator; exactly two actual code-writing Codex workers; no third model leader",
+    "native_workers":  [
+                           {
+                               "worker":  1,
+                               "job_id":  "gpt__devwork30-p0-g06-causal-20261108__1794112809903883000__4e6cc361",
+                               "source_head":  "82ae8c43562589caccda5b12c317bf0ca954f8d7",
+                               "model":  "gpt-6.1-terra",
+                               "exit_code":  0,
+                               "role":  "coding-subagent/worker",
+                               "sandbox":  "workspace-write",
+                               "receipt_sha256":  "6ec409c7c33f80106c49ca07baab7490d0c8926765ceb915d75d87e4fde4e527",
+                               "output_sha256":  "0df90198ef4ccc72849082d997ab1ac821941ce56179567e2e9b437a2ec5d78f",
+                               "changed_file":  "air-worker/cmd/orchestrate_coding_workers.go",
+                               "patch_sha256":  "8ca049577beafc7170c5fb9901de71ff8a767ab044614a6127d7d1c6d597dd36"
+                           },
+                           {
+                               "worker":  2,
+                               "job_id":  "gpt__devwork30-p0-g06-causal-20261108__1794112809902881200__128e340f",
+                               "source_head":  "82ae8c43562589caccda5b12c317bf0ca954f8d7",
+                               "model":  "gpt-6.1-terra",
+                               "exit_code":  0,
+                               "role":  "coding-subagent/worker",
+                               "sandbox":  "workspace-write",
+                               "receipt_sha256":  "8927417170723d93a65bfadc1778eef6404f01f3d71e70eb34f9fee5710e754a",
+                               "output_sha256":  "f217eb9a49386f2aef43e736da14eaad378884f9597cc7d525d40bc0b0828c5e",
+                               "changed_file":  "air-worker/cmd/orchestrate_coding_workers_test.go",
+                               "patch_sha256":  "99284b171a3283be1f35f1dfc0efba0a24d3060f4f54f7bc3380d7cb1a7c0ac6"
+                           }
+                       ],
+    "code_result":  "Explicit native orchestrate code escalate: accepts only same original TASK/SHA, sealed vendor_limit failed receipts, immediately next approved primary tier; no compelled whole ladder walk",
+    "source_provenance":  {
+                              "task":  "docs/tasks/DEVWORK30_P0_G06_CAUSAL_TWO_CODERS_20261108.md",
+                              "original_attempt":  "Luna low",
+                              "next_attempt":  "Luna medium",
+                              "sealed_args_source_output":  true,
+                              "exact_task_sha_pinned":  true,
+                              "separate_retry_workspaces":  true
+                          },
+    "qa":  {
+               "red_initial_positive_test_rc":  1,
+               "causal_structured_error_unit_rc":  0,
+               "narrative_only_rejected":  true,
+               "running_rejected":  true,
+               "execution_unknown_rejected":  true,
+               "task_mutation_rejected":  true,
+               "head_mutation_rejected":  true,
+               "exact_two_attempts_four_native_receipts_test_pass":  true,
+               "full_targeted_regression_rc":  0,
+               "go_vet_rc":  0,
+               "git_diff_check_rc":  0
+           },
+    "gate_limits":  {
+                        "G06":  "OPEN; deterministic synthetic vendor_limit evidence only, not real model vendor failure",
+                        "G07":  "OPEN; two actual GPT chats interruptions not demonstrated",
+                        "G05":  "OPEN; final clean SHA full N123 QA, independent judges and rollback not done",
+                        "G08":  "OPEN; 0/4 native closed",
+                        "P0":  "4/8 PASS"
+                    },
+    "release":  {
+                    "source_only":  true,
+                    "installed":  "0.11.11-rc.2",
+                    "candidate":  "0.11.11-rc.5",
+                    "published_new_release":  false,
+                    "existing_old_dist":  "STALE"
+                },
+    "next":  "Freeze after structured source review fix; independent full final SHA judges and N123 QA; actual cross-GPT-session interrupt and genuine tier change required to count G07/G06"
+}

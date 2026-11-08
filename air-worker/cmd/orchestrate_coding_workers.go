@@ -35,6 +35,8 @@ type codingWorkersHandoff struct {
 	Schema        string
 	Status        string
 	SourceHead    string
+	TaskSHA256    string
+	Retry         *codingWorkersHandoff `json:"retry,omitempty"`
 	SourceProduct string
 	Coordinator   string
 	Model         string
@@ -184,7 +186,7 @@ func codingChangedFiles(root string) ([]string, []byte, error) {
 func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner runnerSpec) codingWorkersHandoff {
 	doc := codingWorkersHandoff{Schema: "air-worker.chatgpt-coordinated-codex-workers/v1",
 		Status: "NOT_PROVEN", SourceProduct: c.Root, Coordinator: "ChatGPT/current-conversation",
-		Model: runner.Model, WorkerCount: 2}
+		Model: runner.Model, WorkerCount: 2, TaskSHA256: shaCodingBytes([]byte(task))}
 	if c.Subagents != 2 || !c.Cfg.Orchestration.RequireNativeSubagents {
 		doc.Error = "canonical two-Codex-worker mode is not enabled"
 		return doc
@@ -237,7 +239,7 @@ func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner ru
 				"\nEdit the actual files inside YOUR worktree, run bounded checks if needed, and give a concise report. Your actual Git diff, not your prose, is the evidence."
 			cmd := codexCommandForSandbox(exePath, dirs[i-1], prompt, runner, "workspace-write")
 			agentStep := fmt.Sprintf("%s-coding-worker-%d", step, i)
-			operation := runnerReceiptOperation("executor-codex-subagent", runner, c.iter)
+			operation := runnerReceiptOperation("executor-codex-subagent", runner, c.iter) + "-task-" + shaCodingBytes([]byte(task))
 			output, runErr := runReceiptedWithMeta(context.Background(), c.scope(), agentStep, operation,
 				cmd, codexReceiptMeta(runner, "coding-subagent/worker", "workspace-write"))
 			receiptPath, _ := jobReceiptPaths(c.scope(), agentStep, operation)
@@ -319,6 +321,9 @@ func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner ru
 }
 
 func cmdOrchestrateCode(argv []string) int {
+	if len(argv) > 0 && argv[0] == "escalate" {
+		return cmdCodingEscalate(argv[1:])
+	}
 	if len(argv) > 0 && argv[0] == "status" {
 		return cmdCodingStatus(argv[1:])
 	}
@@ -607,6 +612,14 @@ func cmdCodingStatus(argv []string) int {
 	}
 	if err == nil {
 		doc, err = codingStatus(root, scope, "coord-"+filepath.Base(taskPath))
+		if err == nil {
+			retry, retryErr := codingStatus(root, scope, "coord-"+filepath.Base(taskPath)+"-retry-1")
+			if retryErr != nil {
+				err = retryErr
+			} else if retry.Status != "NOT_FOUND" {
+				doc.Retry = &retry
+			}
+		}
 	}
 	if err != nil {
 		doc.Status = "NOT_PROVEN"
@@ -621,6 +634,209 @@ func cmdCodingStatus(argv []string) int {
 		}
 	}
 	if err != nil {
+		return 2
+	}
+	return 0
+}
+
+// codingEscalation is a readback of one deterministic transition, not a product PASS.
+type codingEscalation struct {
+	Status     string               `json:"status"`
+	TaskSHA256 string               `json:"task_sha256,omitempty"`
+	SourceHead string               `json:"source_head,omitempty"`
+	Cause      string               `json:"cause,omitempty"`
+	FromTier   string               `json:"from_tier,omitempty"`
+	ToTier     string               `json:"to_tier,omitempty"`
+	Attempt1   codingWorkersHandoff `json:"attempt_1"`
+	Attempt2   codingWorkersHandoff `json:"attempt_2"`
+	Error      string               `json:"error,omitempty"`
+}
+
+// Only a structured terminal error is evidence of a vendor limit; agent prose is not.
+func codingVendorLimit(output []byte) bool {
+	for _, line := range strings.Split(string(output), "\n") {
+		var event struct {
+			Type    string `json:"type"`
+			Message string `json:"message"`
+			Error   struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if json.Unmarshal([]byte(line), &event) != nil {
+			continue
+		}
+		if event.Type == "turn.failed" && isVendorLimit(event.Error.Message) {
+			return true
+		}
+		if event.Type == "error" && isVendorLimit(event.Message) {
+			return true
+		}
+	}
+	return false
+}
+
+func cmdCodingEscalate(argv []string) int {
+	fs := flag.NewFlagSet("orchestrate code escalate", flag.ContinueOnError)
+	product := fs.String("product", ".", "product root")
+	task := fs.String("task-file", "", "original task file")
+	principal := fs.String("principal", "", "original principal")
+	session := fs.String("session-key", "", "original session")
+	state := fs.String("state-dir", "", "native session state")
+	asJSON := fs.Bool("json", false, "machine output")
+	if fs.Parse(argv) != nil || fs.NArg() != 0 {
+		return 2
+	}
+	trace := codingEscalation{Status: "NOT_PROVEN"}
+	err := func() error {
+		root, cfg, err := loadExecutorConfig(*product, "")
+		if err != nil {
+			return err
+		}
+		if !cfg.Orchestration.Enabled || !cfg.Orchestration.RequireNativeSubagents || !cfg.Orchestration.RequireAnthropicReviewer || cfg.Orchestration.Subagents != 2 {
+			return errors.New("managed two-worker configuration required")
+		}
+		if err := requireNativeLoopInvocation(cfg, true, 2); err != nil {
+			return err
+		}
+		scope, err := executorScopeForSession(root, *principal, *session, *state)
+		if err != nil {
+			return err
+		}
+		path, err := taskFileInsideProduct(root, *task)
+		if err != nil {
+			return err
+		}
+		body, err := os.ReadFile(path)
+		if err != nil || len(body) == 0 || len(body) > 48*1024 {
+			return errors.New("invalid original task")
+		}
+		trace.TaskSHA256 = shaCodingBytes(body)
+		step := "coord-" + filepath.Base(path)
+		lock, ok := acquireLock(scopedLockName("coding-escalate:"+step, scope))
+		if !ok {
+			return errors.New("escalation already being inspected or launched")
+		}
+		defer lock.release()
+		original, err := codingStatus(root, scope, step)
+		if err != nil {
+			return err
+		}
+		trace.Attempt1, trace.SourceHead = original, original.SourceHead
+		if original.TaskSHA256 != trace.TaskSHA256 || original.SourceHead == "" || len(original.Workers) != 2 {
+			return errors.New("original task or handoff identity not proven")
+		}
+		head, err := gitCodingOutput(root, "rev-parse", "HEAD")
+		if err != nil || head != original.SourceHead {
+			return errors.New("source HEAD changed")
+		}
+		clean, err := gitCodingOutput(root, "status", "--porcelain", "--", ".")
+		if err != nil || clean != "" {
+			return errors.New("product source is not clean")
+		}
+		exe, err := resolveRunnerTool("codex")
+		if err != nil {
+			return err
+		}
+		from := -1
+		for i, tier := range cfg.Ladder {
+			runner := resolveRunner(cfg, tier)
+			if runner.Kind != "codex" || runner.Model != original.Model {
+				continue
+			}
+			matches := true
+			for _, w := range original.Workers {
+				r, e := readJobReceipt(w.Receipt)
+				if e != nil || r.Model != runner.Model || r.Effort != runner.Effort {
+					matches = false
+				}
+			}
+			if matches {
+				if from != -1 {
+					return errors.New("ambiguous original tier")
+				}
+				from = i
+			}
+		}
+		if from < 0 || from+1 >= len(cfg.Ladder) {
+			return errors.New("next approved tier unavailable")
+		}
+		trace.FromTier, trace.ToTier = cfg.Ladder[from], cfg.Ladder[from+1]
+		if _, err := approvedExecutorTier(cfg, trace.ToTier); err != nil {
+			return err
+		}
+		runner := resolveRunner(cfg, trace.FromTier)
+		next := resolveRunner(cfg, trace.ToTier)
+		if next.Kind != "codex" {
+			return errors.New("immediate next tier is not Codex")
+		}
+		for i, w := range original.Workers {
+			r, err := readJobReceipt(w.Receipt)
+			if err != nil {
+				return err
+			}
+			snap, err := inspectOwnedJob(scope, r.Step, r.Operation)
+			if err != nil {
+				return err
+			}
+			if !strings.HasSuffix(r.Operation, "-task-"+trace.TaskSHA256) || !snap.Terminal || snap.Status != jobStatusFailed || snap.ExitCode == nil || *snap.ExitCode == 0 || !r.ProcessStarted || snap.SourceHead != head || len(snap.ArgsSHA256) != 64 || len(snap.OutputSHA256) != 64 || snap.RecoveryRef != filepath.ToSlash(snap.ReceiptPath)+"#job_id="+snap.JobID {
+				return errors.New("original terminal failure is not sealed")
+			}
+			workerRoot := w.Product
+			top, topErr := gitCodingOutput(root, "rev-parse", "--show-toplevel")
+			rel, relErr := filepath.Rel(top, root)
+			expected := filepath.Join(filepath.Dir(original.Report), fmt.Sprintf("worker-%d", i+1), rel)
+			real, realErr := filepath.EvalSymlinks(workerRoot)
+			workerHead, headErr := gitCodingOutput(workerRoot, "rev-parse", "HEAD")
+			if topErr != nil || relErr != nil || realErr != nil || headErr != nil || filepath.Clean(workerRoot) != filepath.Clean(expected) || !strings.EqualFold(filepath.Clean(real), filepath.Clean(expected)) || workerHead != head {
+				return errors.New("original worker workspace identity mismatch")
+			}
+			if workerRoot == "" {
+				return errors.New("original worker workspace missing")
+			}
+			fullTask := fmt.Sprintf("CODING WORKER %d OF 2. You are a CODE WRITER in your OWN isolated Git worktree. You MUST read source files and physically EDIT the assigned source files in this workspace. Do not just return an example diff. Do not modify other workspaces, shared source, PLAN, Git metadata or credentials. Do not commit. The ChatGPT conversation is your coordinator; it will inspect and merge the real Git edits. There is NO third Codex leader.\n\nCOORDINATOR TASK:\n%s\n", i+1, string(body))
+			taskPath := filepath.Join(workerRoot, ".woody", "TASK-CODE-WORKER.md")
+			actual, err := os.ReadFile(taskPath)
+			if err != nil || string(actual) != fullTask {
+				return errors.New("original worker task mismatch")
+			}
+			prompt := "READ THIS WORKER TASK FILE FIRST: " + taskPath + "\nEdit the actual files inside YOUR worktree, run bounded checks if needed, and give a concise report. Your actual Git diff, not your prose, is the evidence."
+			if jobCommandFingerprint(codexCommandForSandbox(exe, workerRoot, prompt, runner, "workspace-write")) != snap.ArgsSHA256 {
+				return errors.New("original command fingerprint mismatch")
+			}
+			changes, err := gitCodingOutput(workerRoot, "status", "--porcelain", "--", ".", ":(exclude).woody")
+			if err != nil || changes != "" {
+				return errors.New("original worker made source edits")
+			}
+			output, err := os.ReadFile(snap.OutputPath)
+			if err != nil || !codingVendorLimit(output) {
+				return errors.New("structured vendor limit not proven")
+			}
+		}
+		trace.Cause = "vendor_limit"
+		retryStep := step + "-retry-1"
+		retry, err := codingStatus(root, scope, retryStep)
+		if err != nil {
+			return err
+		}
+		if retry.Status != "NOT_FOUND" {
+			trace.Attempt2 = retry
+			trace.Status = retry.Status
+			return nil
+		}
+		ctx := &loopCtx{Root: root, Cfg: cfg, Principal: scope.ID.Principal, SessionKey: scope.ID.SessionKey, Orchestrate: true, Subagents: 2}
+		trace.Attempt2 = ctx.runIsolatedCodingWorkers(exe, string(body), retryStep, next)
+		trace.Status = trace.Attempt2.Status
+		return nil
+	}()
+	if err != nil {
+		trace.Error = err.Error()
+	}
+	if *asJSON {
+		_ = json.NewEncoder(os.Stdout).Encode(trace)
+	} else {
+		fmt.Printf("%s cause=%s from=%s to=%s error=%s\n", trace.Status, trace.Cause, trace.FromTier, trace.ToTier, trace.Error)
+	}
+	if err != nil || trace.Status == "NOT_PROVEN" {
 		return 2
 	}
 	return 0

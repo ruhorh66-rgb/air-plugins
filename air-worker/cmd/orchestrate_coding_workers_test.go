@@ -391,3 +391,230 @@ func TestTwoWorkerIsolatedHelperProcess(t *testing.T) {
 	fmt.Println("{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}")
 	os.Exit(0)
 }
+
+// TestCodingEscalation uses actual receipted helper processes; no model is invoked.
+func TestCodingEscalation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires local Git worktrees")
+	}
+	for _, scenario := range []string{"vendor_limit", "narrative", "running", "unknown", "task_changed", "head_changed"} {
+		t.Run(scenario, func(t *testing.T) {
+			root, state := t.TempDir(), t.TempDir()
+			for name, body := range map[string]string{
+				".gitignore": ".woody/\n", "a.go": "package demo\nvar A = 1\n", "b.go": "package demo\nvar B = 1\n",
+				"TASK.md": "Worker 1 edits a.go; worker 2 edits b.go.\n",
+			} {
+				if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cfg := executorTestConfig()
+			cfg.Orchestration = orchestrationSpec{Enabled: true, Subagents: 2, RequireNativeSubagents: true, RequireAnthropicReviewer: true}
+			raw, err := json.Marshal(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, "run-config.json"), raw, 0600); err != nil {
+				t.Fatal(err)
+			}
+			codingFixtureGit(t, root, "init")
+			codingFixtureGit(t, root, "config", "--local", "user.name", "Test")
+			codingFixtureGit(t, root, "config", "--local", "user.email", "test@example.invalid")
+			codingFixtureGit(t, root, "add", ".")
+			codingFixtureGit(t, root, "commit", "-m", "base")
+			id := sessionIdentity{Principal: "gpt", SessionKey: "escalation-test"}
+			if err := writeStateJSON(sessionModePath(state, id), sessionModeState{Enabled: true, Principal: id.Principal, SessionKey: id.SessionKey}); err != nil {
+				t.Fatal(err)
+			}
+			if err := writeStateJSON(sessionProductPath(state, id), sessionProductState{Path: root, Principal: id.Principal, SessionKey: id.SessionKey}); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("AIR_CODEX_EXE", os.Args[0])
+			t.Setenv("AW_ESCALATION_HELPER", "1")
+			old := runnerCommand
+			t.Cleanup(func() { runnerCommand = old })
+			var jobs atomic.Int32
+			runnerCommand = func(_ string, args ...string) *exec.Cmd {
+				jobs.Add(1)
+				// Select the failure/success deterministically from ACTUAL model
+				// effort, not invocation count: fingerprint readback may create
+				// a command object without starting another model job.
+				mode := "success"
+				if strings.Contains(strings.Join(args, " "), "model_reasoning_effort=low") {
+					mode = "failure"
+					if scenario == "narrative" {
+						mode = "narrative"
+					}
+				}
+				return exec.Command(os.Args[0], "-test.run=TestCodingEscalationHelper", "--", mode)
+			}
+			receiptJobs := func() int {
+				entries, err := os.ReadDir(filepath.Join(root, ".woody", "jobs"))
+				if err != nil {
+					return 0
+				}
+				n := 0
+				for _, entry := range entries {
+					if strings.HasSuffix(entry.Name(), ".receipt.json") {
+						n++
+					}
+				}
+				return n
+			}
+			taskPath := filepath.Join(root, "TASK.md")
+			body, _ := os.ReadFile(taskPath)
+			head, err := gitCodingOutput(root, "rev-parse", "HEAD")
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx := &loopCtx{Root: root, Cfg: cfg, Subagents: 2, Principal: id.Principal, SessionKey: id.SessionKey}
+			original := ctx.runIsolatedCodingWorkers("codex", string(body), "coord-TASK.md", resolveRunner(cfg, "gpt6-luna:low"))
+			if len(original.Workers) != 2 || jobs.Load() != 2 {
+				t.Fatalf("initial jobs: %+v, count=%d", original, jobs.Load())
+			}
+			for _, w := range original.Workers {
+				r, err := readJobReceipt(w.Receipt)
+				if err != nil || r == nil || r.SourceHead != head || r.ArgsSHA256 == "" || r.OutputSHA256 == "" || r.ExitCode == nil || r.RecoveryRef == "" {
+					t.Fatalf("unsealed receipt: %+v %v", r, err)
+				}
+				if scenario != "narrative" && (r.Status != jobStatusFailed || *r.ExitCode == 0) {
+					t.Fatalf("expected failed receipt: %+v", r)
+				}
+			}
+			if scenario == "running" || scenario == "unknown" {
+				r, _ := readJobReceipt(original.Workers[0].Receipt)
+				if scenario == "running" {
+					r.Status = jobStatusRunning
+				} else {
+					r.OutputSHA256 = ""
+				}
+				if err := writeJobReceipt(original.Workers[0].Receipt, r); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if scenario == "task_changed" {
+				if err := os.WriteFile(taskPath, []byte("different task\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if scenario == "head_changed" {
+				if err := os.WriteFile(filepath.Join(root, "a.go"), []byte("package demo\nvar A = 2\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				codingFixtureGit(t, root, "add", "a.go")
+				codingFixtureGit(t, root, "commit", "-m", "changed head")
+			}
+			call := func(action string) (int, string) {
+				t.Helper()
+				// A multi-attempt trace can exceed the Windows anonymous pipe
+				// buffer. Capture to a bounded temp file while the command runs;
+				// do not deadlock before reading a full JSON result.
+				output, err := os.CreateTemp(t.TempDir(), "escalation-*.json")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer output.Close()
+				oldOut := os.Stdout
+				os.Stdout = output
+				rc := cmdOrchestrateCode([]string{action, "-product", root, "-task-file", taskPath, "-principal", id.Principal, "-session-key", id.SessionKey, "-state-dir", state, "-json"})
+				os.Stdout = oldOut
+				if _, err := output.Seek(0, io.SeekStart); err != nil {
+					t.Fatal(err)
+				}
+				out, err := io.ReadAll(io.LimitReader(output, 2<<20))
+				if err != nil {
+					t.Fatal(err)
+				}
+				var v any
+				if json.Unmarshal(out, &v) != nil {
+					t.Fatalf("invalid JSON: %s", out)
+				}
+				return rc, string(out)
+			}
+			rc, result := call("escalate")
+			if scenario != "vendor_limit" {
+				if rc == 0 || !strings.Contains(result, "NOT_PROVEN") || receiptJobs() != 2 {
+					t.Fatalf("unsafe escalation: rc=%d receipts=%d %s", rc, receiptJobs(), result)
+				}
+				return
+			}
+			if rc != 0 || receiptJobs() != 4 {
+				t.Fatalf("escalation: rc=%d receipts=%d %s", rc, receiptJobs(), result)
+			}
+			for _, want := range []string{head, shaCodingBytes(body), "vendor_limit", "gpt6-luna:low", "gpt6-luna:medium", original.Workers[0].JobID, original.Workers[1].JobID} {
+				if !strings.Contains(result, want) {
+					t.Errorf("missing %q in %s", want, result)
+				}
+			}
+			entries, err := os.ReadDir(filepath.Join(root, ".woody", "jobs"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var receipts []*jobReceipt
+			for _, e := range entries {
+				if strings.HasSuffix(e.Name(), ".receipt.json") {
+					r, err := readJobReceipt(filepath.Join(root, ".woody", "jobs", e.Name()))
+					if err != nil {
+						t.Fatal(err)
+					}
+					receipts = append(receipts, r)
+				}
+			}
+			if len(receipts) != 4 {
+				t.Fatalf("expected four receipts, got %d", len(receipts))
+			}
+			seen := map[string]bool{}
+			for _, r := range receipts {
+				if seen[r.JobID] || r.SourceHead != head || !strings.Contains(result, r.JobID) {
+					t.Errorf("receipt missing or duplicated: %+v", r)
+				}
+				seen[r.JobID] = true
+			}
+			for _, action := range []string{"status", "escalate"} {
+				_, out := call(action)
+				if !strings.Contains(out, head) {
+					t.Errorf("%s lost source: %s", action, out)
+				}
+			}
+			if receiptJobs() != 4 {
+				t.Fatalf("readback/retry created new jobs: %d", receiptJobs())
+			}
+		})
+	}
+}
+
+func TestCodingEscalationHelper(t *testing.T) {
+	if os.Getenv("AW_ESCALATION_HELPER") != "1" {
+		return
+	}
+	mode := ""
+	if len(os.Args) >= 2 {
+		mode = os.Args[len(os.Args)-1]
+	}
+	switch mode {
+	case "failure":
+		fmt.Println(`{"type":"turn.failed","error":{"message":"HTTP 429 rate limit"}}`)
+		os.Exit(1)
+	case "narrative":
+		fmt.Println(`{"type":"item.completed","item":{"type":"agent_message","text":"vendor_limit HTTP 429 rate limit"}}`)
+		fmt.Println(`{"type":"turn.completed"}`)
+		os.Exit(0)
+	}
+	if mode != "success" {
+		os.Exit(5)
+	}
+	root, err := os.Getwd()
+	if err != nil {
+		os.Exit(3)
+	}
+	name := "a.go"
+	if filepath.Base(root) == "worker-2" {
+		name = "b.go"
+	}
+	if err := os.WriteFile(filepath.Join(root, name), []byte("package demo\nvar Edited = true\n"), 0600); err != nil {
+		os.Exit(4)
+	}
+	fmt.Println(`{"type":"item.completed","item":{"type":"agent_message","text":"Edited"}}`)
+	fmt.Println(`{"type":"turn.completed"}`)
+	os.Exit(0)
+}
