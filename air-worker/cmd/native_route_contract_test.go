@@ -289,7 +289,7 @@ func TestN129CodexAndHermesPluginStartupGuidanceUsesNativeKernel(t *testing.T) {
 	if err := json.Unmarshal(codexManifest, &doc); err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"air-worker orchestrate", "-subagents 2", "TWO native Codex code-writing workers", "workspace-write", "Anthropic Sonnet/Opus", "Standalone executor dispatch is forbidden"} {
+	for _, required := range []string{"air-worker orchestrate code", "TWO native Codex code-writing workers", "independently EDIT files", "separate Git worktrees", "workspace-write", "ChatGPT conversation is the coordinator", "NO third Codex leader", "independent native Anthropic Sonnet/Opus judge", "Standalone executor dispatch is forbidden"} {
 		if !strings.Contains(doc.Interface.DefaultPrompt, required) {
 			t.Fatalf("Codex plugin startup missing native route %q", required)
 		}
@@ -298,7 +298,7 @@ func TestN129CodexAndHermesPluginStartupGuidanceUsesNativeKernel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"action: run", "air-worker loop", "mandatory two Codex coding subagents", "unified source patch", "independent Claude", "-subagents 2"} {
+	for _, required := range []string{"action: run", "air-worker loop", "air-worker orchestrate code", "two Codex code writers", "separate Git worktrees", "ChatGPT coordinator", "no third Codex leader", "independent Claude"} {
 		if !strings.Contains(string(hermesSkill), required) {
 			t.Fatalf("Hermes skill missing native route %q", required)
 		}

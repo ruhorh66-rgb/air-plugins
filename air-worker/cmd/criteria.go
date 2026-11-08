@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"os/exec"
@@ -436,7 +437,11 @@ func runSelectedCheckWithInventory(root string, chk checkSpec, selector string, 
 				namedIndices = append(namedIndices, len(chk.Args)+i)
 			}
 		}
-		runScriptCheck(root, clone, chk.Name, legacyScope(root), &r, namedIndices...)
+		operation := fmt.Sprintf("selector-%x", sha256.Sum256([]byte(fmt.Sprintf("%q %q", chk.Name, selector))))
+		runScriptCheck(root, clone, operation, legacyScope(root), &r, namedIndices...)
+		result := checkResultState(r, operation)
+		result.Detail = chk.Name + strings.TrimPrefix(result.Detail, operation)
+		return result
 	} else if clone.Command != "" {
 		runCommandCheck(root, clone, chk.Name, legacyScope(root), &r)
 	} else {

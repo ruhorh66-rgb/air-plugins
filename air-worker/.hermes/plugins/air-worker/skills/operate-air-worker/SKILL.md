@@ -1,14 +1,12 @@
 ---
 name: operate-air-worker
-description: Use when a product is managed by AirWorker. Operate it only through the structured tool.
+description: Operate AirWorker only through its native structured tool.
 ---
 # Operate AirWorker
-1. Call `air_worker` with `action: status` and the product root. Shadow status is observational; enforce status atomically runs orphaned pending work and judges completion before returning.
-2. Treat `outcome: needs_action` as executable work, never as a terminal stop. If it is returned outside enforce mode, immediately call `action: run`; do not bypass the binary with terminal, edits, or parallel delegation.
-   For the managed AirWorker product, `action: run` uses the **existing native `air-worker loop`**, with **mandatory two Codex coding subagents** declared in canonical `run-config.json` (`orchestration.enabled=true`, `subagents=2`, `require_native_subagents=true`). Each of TWO Codex workers reads the TASK and writes actual source files in its OWN separate Git worktree with workspace-write sandbox. The ChatGPT conversation, not an additional Codex model, is the coordinator: it reads both native job receipts and actual Git diffs, performs explicit integration on the shared source, then factual QA and independent Claude Sonnet/Opus judge. No third Codex leader is permitted. Narrative-only or text-diff-only output without physical files is NOT a coding worker. Route models using the approved OpenAI ladder Luna 6 → Terra 6.1 → Sol 6 → Sol 6.1 → Astra 6, and escalate only for an evidenced reason; do not force all tiers. Use `air-worker orchestrate code -product <root> -task-file <TASK> -principal gpt -session-key <chat>` when controlled from ChatGPT, or the canonical `air_worker(action=run)` for Hermes native operation. The coordinator must inspect/merge before any factual QA and independent judge; never two sequential `executor dispatch` calls as a substitute. Do not use direct Codex/Claude commands, custom model routes or manual PLAN/LEARN edits. A historical R0.11.9-05 release guard remains a genuine HOLD, not permission to fall back.
-3. A successful `run` must end as `completed`, `waiting`, or `running`. Treat `continuity_violation` as failure and do not claim completion.
-4. Require `verified: true` before claiming completion. Call `action: verify` when it is absent.
-5. Report closed/total, next action, stop reason, receipt paths, and log path.
-6. Stop only on canonical PASS/COMPLETED, an LPR gate, or an evidenced blocker.
 
-The binary owns plan state, transitions, retries, receipts, and verdicts.
+1. Call `air_worker` with `action: status` and product root. Shadow is observational; enforce may recover owned work and judge.
+2. On `outcome: needs_action`, call `action: run` in enforce. The native `air-worker loop` owns state, execution and receipts. Do not bypass it with shell or direct providers.
+3. Managed coding uses `air-worker orchestrate code`: exactly two Codex code writers in separate Git worktrees (`workspace-write`). Submit two distinct, small, schema-checked microsteps (`file`, `instructions`, `done_when`); missing or overlapping scopes must fail. ChatGPT coordinator verifies two real diffs and receipt SHA, then integrates. There is no third Codex leader.
+4. After integration, require factual Go QA and independent Claude source/security review at the frozen SHA. Model `DONE` or handoff `READY_FOR_CHATGPT_COORDINATOR_INTEGRATION` is not product PASS.
+5. Use `action: verify` if `verified: true` is absent. Accept only `completed`, `waiting`, `running`; `continuity_violation` is failure. Report closed/total, next action, stop reason, receipt and log.
+6. Escalate tiers only for an evidenced failure/stall. Never use direct Codex/Claude, PAYG/custom routes, manual PLAN/LEARN edits, unauthorised release/install or foreign cleanup. Stop only for measured PASS, LPR gate or evidenced blocker.

@@ -1,0 +1,112 @@
+{
+  "schema": "air-worker.devwork31.p0-live-microsteps-qa/v1",
+  "observed_sgt_date": "2026-11-08",
+  "owner": "Dev Work 31 / ChatGPT coordinator / SRVLM01",
+  "source_before": "2371033df17d35fc127c3a76472f9742d4c1f243",
+  "native_cli": {
+    "kind": "source-only",
+    "version": "0.11.11-rc.5",
+    "sha256": "5a84185cc0128a1f4026eb85ed838c4e02b65c72f5900a6f617bfddcf08120f3",
+    "installed_version_unchanged": "0.11.11-rc.2"
+  },
+  "task": {
+    "schema": "air-worker.coding-microsteps/v1",
+    "file": "docs/tasks/DEVWORK31_P0_QA_TWO_MICROSTEPS_20261108.json",
+    "sha256": "af0ca6d02b44b5bb6358303a1194a3c26211e677dde1ee8832e7d5e55a9fa958"
+  },
+  "handoff": {
+    "status": "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION",
+    "sha256": "547b7c8b2c055fc0027fdceb0ec1ac72db399495a78a25d97d16d56d426192cf",
+    "worker_count": 2,
+    "coordinator": "ChatGPT current chat",
+    "third_codex_leader_count": 0,
+    "model": "gpt-6.1-terra",
+    "each_worker_sandbox": "workspace-write",
+    "separate_git_worktrees": true
+  },
+  "workers": [
+    {
+      "index": 1,
+      "file": "cmd/criteria.go",
+      "title": "PowerShell selector gets unique native durable receipt identity",
+      "microstep_sha256": "64de6662eae072448db2b357455d9d7bb0b0c67110ad57a091ae8337196b705a",
+      "worker_task_file_sha256": "68099b3a4deef1c9df4bfdf4362d7762f08041e1a599d51a7400a34104c11c71",
+      "other_worker_instructions_visible": false,
+      "model_status": "DONE",
+      "exit_code": 0,
+      "patch_sha256": "ef427710978355413936f1d6602ec4e5998893ae02dbc0e00749391a9ee0c5b1",
+      "args_sha256": "47adb63136db3f892f453079582150c80ebb4d520a8471a55184760ba6efb9d1",
+      "output_sha256": "5ef183fa685f822b4bfc6922e8ba3fa7eaa4e3c6c798be93514d884a45b21b82"
+    },
+    {
+      "index": 2,
+      "file": "cmd/native_route_contract_test.go",
+      "title": "Correct stale two-writer startup test assertions",
+      "microstep_sha256": "f96099a338ddcc5109e98dd72b803f578413be49459e46972a0484ea12affc5d",
+      "worker_task_file_sha256": "0ec076d779eb8020d3e9e2516177bac8ebfd799b8aa4bc91d737619ba783b10a",
+      "other_worker_instructions_visible": false,
+      "model_status": "DONE",
+      "exit_code": 0,
+      "patch_sha256": "65bd9c6f124f588418089411151942a6a7fa772d631332a0e08d97aa14992794",
+      "args_sha256": "5ba091c7c7a7a3abf30dc566626e2360c41fb4dc87bcd3582cae2d7126b9640e",
+      "output_sha256": "2bc95f982accb01e59dc3ab787a4e449dba53aa836e73e09bd0be835f8d30f90"
+    }
+  ],
+  "code_microsteps_actual": {
+    "both_task_files_read": true,
+    "only_own_instructions_per_worker": true,
+    "original_main_source_clean_before_merge": true,
+    "git_apply_check_rc": [
+      0,
+      0
+    ],
+    "changed_file_scopes_exact": true,
+    "shared_repo_integration_by_chatgpt": true
+  },
+  "script_first_skill": {
+    "file": ".hermes/plugins/air-worker/skills/operate-air-worker/SKILL.md",
+    "previous_sha256": "296402bbb443304e4b189832e01ea81633d8cdbcd51c309b54fb3e54decd8257",
+    "previous_bytes": 2517,
+    "new_sha256": "7436fe4b9e434876732e4ba11a706d10b04029d91499db5669fd5569acdb24e6",
+    "new_bytes": 1445,
+    "bom": false,
+    "lines": 13,
+    "preimage_preserved_in_own_D_temp": true,
+    "changed_by_coordinator_script_without_third_model": true
+  },
+  "targeted_QA": {
+    "selectors": [
+      "TestPowerShellSelectorParameterReachesScript",
+      "TestCriterion78HermesPluginContract",
+      "TestN129CodexAndHermesPluginStartupGuidanceUsesNativeKernel"
+    ],
+    "tests_passed": 3,
+    "go_test_rc": 0,
+    "go_test_log_sha256": "43ea84c47f4e9fa63b7366063dd5b593124b9bc175a85c3739b615c2243949a5",
+    "go_vet_rc": 0,
+    "go_vet_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "normalized_gofmt_clean": true,
+    "git_diff_check_rc": 0
+  },
+  "claim_boundary": {
+    "G01_to_G04": "ACCEPTED_UNCHANGED_NOT_RERUN",
+    "G07": "OPEN_TWO_REAL_CHAT_INTERRUPTS_PLUS_EXECUTION_UNKNOWN_UNPROVEN",
+    "G06": "OPEN_REAL_CAUSAL_PROVIDER_STALL_UNPROVEN",
+    "G05": "OPEN_N124_FULL_QA_TIMEOUT_INDEPENDENT_ANTHROPIC_CODEX_SOL_AND_ROLLBACK_NOT_PROVEN",
+    "G08": "OPEN_ALL_FOUR_NATIVE_NODES",
+    "p0": "4/8 PASS; 4 OPEN; native 0/4 CLOSED"
+  },
+  "learning": {
+    "existing_procedure": "LP-2dcd5e164b352092b65fbf08",
+    "reused": true,
+    "duplicate_proposals": 0,
+    "effect_attribution": "NOT_PROVEN_P1"
+  },
+  "release": {
+    "source_candidate": "0.11.11-rc.5",
+    "installed": "0.11.11-rc.2",
+    "published": false,
+    "installed_new": false
+  },
+  "next": "Persist final source Git SHA and operational-goal advance/readback; isolate N124 timeout in one small test and resolve it before a single necessary full N123 QA. G07/G06 await real external triggers but do not stop independent P0 work."
+}
