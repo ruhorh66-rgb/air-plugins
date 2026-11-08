@@ -1,0 +1,20 @@
+{
+  "schema": "air-worker.coding-microsteps/v1",
+  "context": "AirWorker existing P0 PLAN, G05/N139 source-only. ChatGPT is sole coordinator; EXACTLY TWO real Codex code writers in separate Git worktrees, no third leader. Existing native N139 factual Go job uses constant operation 'factual-go-test' although full source HEAD changes. Prior receipts MUST remain immutable and readable. Narrowly fix source-and-argv-bound receipt for N139 while retaining same-head duplicate rejection and bounded Go timeout; no full QA in writer worktrees, no node closes/release/install, do not edit any other product/PLAN/credentials.",
+  "workers": [
+    {
+      "index": 1,
+      "title": "Bind N139 factual Go native job to exact source HEAD and command args",
+      "file": "cmd/operational_run.go",
+      "done_when": "Native runN139FactualGo computes a deterministic, bounded, safe job operation using n123GoJudgeOperation(c.Root, 'factual-go-test', cmd), not a fixed operation. Exact same HEAD/args/name returns the same job/receipt path and rejects rerun; different exact HEAD or args yields separate native job with immutable old receipt; original terminal/fingerprint readback still works and no new model calls. Gitless fixture retains legacy 'factual-go-test'. Retain original 4-minute bounded Go context and no foreign process actions.",
+      "instructions": "ONLY MODIFY cmd/operational_run.go. The concrete flaw is `const operation = \"factual-go-test\"` inside `runN139FactualGo`; replace with `operation := n123GoJudgeOperation(c.Root, \"factual-go-test\", cmd)`, using already accepted helper in judge.go. Do not change `runReceiptedWithMeta`, `inspectOwnedJob`, Plan node selectors, Go tests, judge pipeline, source release guard, model routes or N139 closure. Re-read code and ensure same `operation` is used for both create and inspect, with no leaking argv. Do not run full Go suite; small diff only."
+    },
+    {
+      "index": 2,
+      "title": "Prove N139 native job receipts segregate source generations and preserve duplicate protection",
+      "file": "cmd/operational_run_test.go",
+      "done_when": "A bounded deterministic Go test proves in an owned isolated Git fixture: first N139 factual Go succeeds with sealed terminal SHA; rerun same HEAD refuses duplicate preserving exact receipt bytes; after a new local Git commit for a different HEAD, the exact same N139 check can run with another operation/path and original evidence is intact. Gitless legacy N139 tests and foreign-step prevention remain accepted. Targeted tests PASS after integration.",
+      "instructions": "ONLY MODIFY cmd/operational_run_test.go. Add e.g. `TestN139FactualGoSourceHeadAllowsNewImmutableReceipt`. Use existing n139Fixture(t) with local git init/config/add/commit BEFORE first run; use n124Git helper or exec.Command git local, no remote. Calculate operation via n123GoJudgeOperation(c.Root,\"factual-go-test\", exec.Command(\"go\",\"-C\",\"cmd\",\"test\",\"-run\",n139GoSelector,\"-count=1\",\".\")) with same arguments as native cmd; existing n139Fixture Gitless tests remain unchanged. First run yields DONE sealed sha; rerun same HEAD rejected and old receipt bytes unchanged; modify tracked harmless test or PLAN and commit local new HEAD (do not stage .woody), rerun yields different receipt path and terminal done; old bytes still equal, no third job. Do not edit any other file, install, plan or production code. Targeted test only, no full suite."
+    }
+  ]
+}
