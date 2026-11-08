@@ -28,6 +28,24 @@
 - **G08 OPEN:** только после собственных `done_when` и независимой приёмки использовать штатный `plan node close`, не редактировать статусы вручную.
 - **Самообучение:** новые события этой сессии должны быть записаны **только** через `air-worker learn event` и прочитаны из `air-worker/learn/events.jsonl`. Различать `CAPTURED` урок и действительно `APPLIED/procedure_used`; без независимого доказательства последнего не утверждать автоматическое применение. Идентификаторы уроков указываются в завершающем Git-коммите, следовать live readback.
 
+## Нативное самообучение · фактический readback
+
+**9 уроков сохранены штатным `air-worker learn event`, 9/9 ID и путей evidence проверены, RC0**. Строго через установленный AirWorker `0.11.11-rc.2`; журнал Git-tracked `learn/events.jsonl` изменён только нативным ядром, не ручным редактированием. Class+actor/source не повторяются. Source: `DevWork31-session-20261108`, actor `gpt-window:DevWork31`. Контрольный SHA всего журнала: `cd01c895ed8993177e8eb5ad23de54844be396dcb4bd4ca3ffe0b4f7629ca9d0`.
+
+Native LR IDs:
+
+- `LR-20261108T141453Z-828d4bc8` — Windows NTFS receipt temp filename limit, no false vendor failure;
+- `LR-20261108T141617Z-82e57609` — exactly 2 Codex writers, coordinator patch SHA, targeted QA;
+- `LR-20261108T141618Z-783d08c1` — consult accepted P0 receipts before new dispatch;
+- `LR-20261108T141618Z-b7d2102e` — os.Root and O_EXCL across all sibling output writers;
+- `LR-20261108T141618Z-5a6ce3fc` — live terminal DONE requires exit and bounded output SHA;
+- `LR-20261108T141618Z-977237e5` — independent exact-SHA citations and fail-closed reviewers;
+- `LR-20261108T141618Z-368054fc` — ordinary chat break alone is not native EXECUTION_UNKNOWN resume proof;
+- `LR-20261108T141618Z-fa9d8084` — full package timeout not N124 hang; file symlink SKIP not PASS;
+- `LR-20261108T141618Z-d7c84e90` — backup byte-exact WIP and native patch before scoped worktree cleanup.
+
+Машинная квитанция с точными классами/ссылками: `docs/receipts/DEVWORK31_SESSION_LEARNING_20261108.json`, SHA `e29b86854c412665b3b90cf61fec4dfe5b23c745e841fa60fe84e24fd91385f1`. Сохраняемый нативный log: `D:/Devbox/AirWorker/evidence/DEVWORK31_SESSION_CLOSE_20261108/native_learn_event_readback.jsonl`. **Важное ограничение:** эти уроки `CAPTURED`, но НЕ доказано `APPLIED` и не создано `procedure_used`; самообучающая процедура не активирована без отдельной независимой проверки. Не записывать второй раз при продолжении.
+
 ## Первая проверка следующей сессии
 
 Открыть **этот handoff** и верхнюю актуальную таблицу в `PLAN.md`. Сверить `git rev-parse HEAD`, `git status --porcelain`, `git ls-remote`, operational goal, 36 own worktree CLEAN, `learn/events.jsonl` и конкретные receipt SHA. Не создавать нового PLAN или веток, не дублировать source-only принятые микрошаги. Любые новые два Codex writer использовать только на **доказанный новый непокрытый** P0 блокер. Установленный продукт до отдельного release/install gate не менять.

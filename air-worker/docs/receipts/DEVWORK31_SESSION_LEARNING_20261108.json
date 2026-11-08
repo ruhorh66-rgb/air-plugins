@@ -1,0 +1,95 @@
+{
+    "schema":  "air-worker.devwork31.native-learning-session/v1",
+    "date_sgt":  "2026-11-08",
+    "owner":  "Dev Work31 / SRVLM01",
+    "source_head_before_learning_commit":  "b7a32c8cf15a0a4b4b144109b55b92b1297ad91a",
+    "installed_cli":  "air-worker 0.11.11-rc.2",
+    "native_action":  "air-worker learn event -product \u003ccurrent product root\u003e -class \u003cverified class\u003e -actor-kind gpt-window -actor DevWork31 -kind lesson|correction -json",
+    "status":  "CAPTURED",
+    "active_procedure_use_proven":  false,
+    "applied_procedure_count_proven":  0,
+    "lessons_recorded":  9,
+    "all_evidence_paths_verified":  true,
+    "old_journal_sha256":  "de00f2ea306b13055350c4fbb94a8e0a2f4f4c11d0a52d1c6fed41dab472c1cf",
+    "new_journal_sha256":  "cd01c895ed8993177e8eb5ad23de54844be396dcb4bd4ca3ffe0b4f7629ca9d0",
+    "learn_command_rc":  0,
+    "learn_cli_capture_log_sha256":  "9c46eac0287ff9b2933ef9c086732368723bc378f3f519a34df991e2af9ff1e5",
+    "archive":  "D:/Devbox/AirWorker/evidence/DEVWORK31_SESSION_CLOSE_20261108",
+    "worktree_cleanup_manifest":  "docs/receipts/DEVWORK31_WORKTREE_CLEANUP_20261108.json",
+    "worktree_cleanup_manifest_sha256":  "186d4cb6b5a0e43c5651df00ff630bb0b4410c64c7439e24ac0dae699a009093",
+    "learning":  [
+                     {
+                         "id":  "LR-20261108T141453Z-828d4bc8",
+                         "class":  "atomic-receipt-windows-ntfs-filename-ceiling",
+                         "kind":  "correction",
+                         "source":  "DevWork31-session-20261108",
+                         "actor":  "gpt-window:DevWork31",
+                         "evidence":  "docs/receipts/DEVWORK31_N139_LONG_ATOMIC_TEMP_20261108.json"
+                     },
+                     {
+                         "id":  "LR-20261108T141617Z-82e57609",
+                         "class":  "native-two-codex-microsteps-file-scope-and-patch-proof",
+                         "kind":  "lesson",
+                         "source":  "DevWork31-session-20261108",
+                         "actor":  "gpt-window:DevWork31",
+                         "evidence":  "docs/receipts/DEVWORK31_G05_SIBLING_ROOTED_OUTPUT_20261108.json"
+                     },
+                     {
+                         "id":  "LR-20261108T141618Z-783d08c1",
+                         "class":  "p0-deduplicate-accepted-evidence-before-dispatch",
+                         "kind":  "correction",
+                         "source":  "DevWork31-session-20261108",
+                         "actor":  "gpt-window:DevWork31",
+                         "evidence":  "docs/handoff/HANDOFF_DEVWORK31_TO_NEXT_SESSION_20261108.md"
+                     },
+                     {
+                         "id":  "LR-20261108T141618Z-b7d2102e",
+                         "class":  "owned-receipts-and-all-runners-use-rooted-exclusive-paths",
+                         "kind":  "correction",
+                         "source":  "DevWork31-session-20261108",
+                         "actor":  "gpt-window:DevWork31",
+                         "evidence":  "docs/receipts/DEVWORK31_G05_SIBLING_ROOTED_OUTPUT_20261108.json"
+                     },
+                     {
+                         "id":  "LR-20261108T141618Z-5a6ce3fc",
+                         "class":  "terminal-done-must-have-bounded-output-sha",
+                         "kind":  "correction",
+                         "source":  "DevWork31-session-20261108",
+                         "actor":  "gpt-window:DevWork31",
+                         "evidence":  "docs/receipts/DEVWORK31_G05_SOL_P1_FIX_20261108.json"
+                     },
+                     {
+                         "id":  "LR-20261108T141618Z-977237e5",
+                         "class":  "independent-model-review-requires-verifiable-source-citations",
+                         "kind":  "correction",
+                         "source":  "DevWork31-session-20261108",
+                         "actor":  "gpt-window:DevWork31",
+                         "evidence":  "docs/receipts/DEVWORK31_G05_TWO_JUDGES_SIBLING_P1_20261108.json"
+                     },
+                     {
+                         "id":  "LR-20261108T141618Z-368054fc",
+                         "class":  "ordinary-chat-disconnect-is-not-native-job-resume-pass",
+                         "kind":  "correction",
+                         "source":  "DevWork31-session-20261108",
+                         "actor":  "gpt-window:DevWork31",
+                         "evidence":  "docs/receipts/DEVWORK31_G05_DISCONNECT_RECOVERED_RACE_20261108.json"
+                     },
+                     {
+                         "id":  "LR-20261108T141618Z-fa9d8084",
+                         "class":  "full-go-timeout-versus-n124-symlink-skip",
+                         "kind":  "correction",
+                         "source":  "DevWork31-session-20261108",
+                         "actor":  "gpt-window:DevWork31",
+                         "evidence":  "docs/receipts/DEVWORK31_N124_ISOLATED_20261108.json"
+                     },
+                     {
+                         "id":  "LR-20261108T141618Z-d7c84e90",
+                         "class":  "reversible-cleanup-of-owned-codex-worktrees",
+                         "kind":  "lesson",
+                         "source":  "DevWork31-session-20261108",
+                         "actor":  "gpt-window:DevWork31",
+                         "evidence":  "docs/receipts/DEVWORK31_WORKTREE_CLEANUP_20261108.json"
+                     }
+                 ],
+    "note":  "These are native durable coding learn events; automatic policy application/learned procedure effect is NOT_PROVEN. Not proof of P0 gate acceptance."
+}
