@@ -1,0 +1,15 @@
+{
+  "schema": "air-worker.devwork32.false-pass/v1",
+  "baseline": "5ec979661a29d0218a5517e44b294b21b946c66c",
+  "trigger": "runReceiptedWithMeta detected terminal output mismatch, but exitCode returned child ProcessState 0 for nonnil error, allowing judge false PASS",
+  "task_sha256": "d2b1dd5f1ccd88f4299116e6c0a9ded906291c05a10eac34684aa5b26d90726e",
+  "patch_sha256": [
+    "11cebccbf1bbe290478a983d8e0b85f5f9a7fe95b055930a02e1f9e4c0e56fce",
+    "c53a8eb3aa3639dc88cdc8493eee5741420735525a088e39d649d174b2b23a29"
+  ],
+  "code_sha256": "3a1cfbeb03cd8bc6d81d6a1b72e6cd5ec88d392fbf02708d7ceb149771862e5d",
+  "tests_sha256": "e0f93236d7e48fdc3e443e126b41c639b676ee03a2a5d417e0ad5e3080097160",
+  "targeted": "PASS RC0: TestJudgeRejectsTamperedTerminalOutput, TestExitCodeRejectsErrorAfterSuccessfulProcess, TestN123ReturnedOutputMustMatchTerminalSeal, TestRequestStartedDoneRequiresSealedOutput, TestJudgeSessionScope",
+  "vet": "RC0",
+  "limitations": "Addressed scoped false PASS only; final full QA, independent reviews, router orphan-child P1, G06/G07 and native closes remain OPEN. N124 deferred by user."
+}

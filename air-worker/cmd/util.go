@@ -31,11 +31,15 @@ func exitCode(cmd *exec.Cmd, err error) int {
 		return 0
 	}
 	var ee *exec.ExitError
-	if errors.As(err, &ee) {
-		return ee.ExitCode()
+	if errors.As(err, &ee) && ee != nil && ee.ProcessState != nil {
+		if code := ee.ExitCode(); code != 0 {
+			return code
+		}
 	}
-	if cmd.ProcessState != nil {
-		return cmd.ProcessState.ExitCode()
+	if cmd != nil && cmd.ProcessState != nil {
+		if code := cmd.ProcessState.ExitCode(); code != 0 {
+			return code
+		}
 	}
 	return -1
 }

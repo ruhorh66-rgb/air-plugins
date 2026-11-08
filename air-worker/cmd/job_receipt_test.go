@@ -728,3 +728,51 @@ func TestN123ReturnedOutputMustMatchTerminalSeal(t *testing.T) {
 		t.Fatalf("tampered output accepted: data=%q err=%v", data, err)
 	}
 }
+
+func TestJudgeRejectsTamperedTerminalOutput(t *testing.T) {
+	root := t.TempDir()
+	scope := newScope(root, sessionIdentity{"gpt", "judge-tampered-output"})
+	marker := filepath.Join(root, "child-marker")
+	t.Setenv("AW_N123_CHILD_MARKER", marker)
+	previous := writeJobReceiptFunc
+	t.Cleanup(func() { writeJobReceiptFunc = previous })
+	tampered := false
+	writeJobReceiptFunc = func(path string, receipt *jobReceipt) error {
+		if err := previous(path, receipt); err != nil {
+			return err
+		}
+		if receipt.Status == jobStatusDone {
+			if err := os.WriteFile(receipt.OutputPath, []byte("tampered output"), 0600); err != nil {
+				return err
+			}
+			tampered = true
+		}
+		return nil
+	}
+	var result judgeResult
+	runCommandCheck(root, checkSpec{Command: os.Args[0], Args: []string{"-test.run=^TestN123ReceiptChildHelper$"}}, "tampered", scope, &result)
+	if !tampered {
+		t.Fatalf("terminal output injection did not run: %+v", result)
+	}
+	if data, err := os.ReadFile(marker); err != nil || string(data) != "started" {
+		t.Fatalf("child marker: %q: %v", data, err)
+	}
+	if len(result.Passed) != 0 || len(result.Failed) != 1 {
+		t.Fatalf("tampered output must fail the check: %+v", result)
+	}
+}
+
+func TestExitCodeRejectsErrorAfterSuccessfulProcess(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "child-marker")
+	t.Setenv("AW_N123_CHILD_MARKER", marker)
+	cmd := exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$")
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if code := exitCode(cmd, fmt.Errorf("synthetic integrity error")); code == 0 {
+		t.Error("successful process with an integrity error returned exit code 0")
+	}
+	if code := exitCode(cmd, nil); code != 0 {
+		t.Errorf("successful process without error returned exit code %d", code)
+	}
+}
