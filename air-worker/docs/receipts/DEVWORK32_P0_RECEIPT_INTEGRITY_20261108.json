@@ -1,0 +1,20 @@
+{
+  "schema": "air-worker.devwork32.receipt-integrity/v1",
+  "baseline": "208f9c78c2de76fb0e03322ce719e32414596c1b",
+  "task_sha256": "f465c8d5ed3b15defa28ce30791570b9e78c3c5827519cec803f9fed53ae8015",
+  "worker_patch_sha256": [
+    "7af8296d5fb09aafc29bc78691188fcd7a495279e6c70258d30ab7ff45b5b93f",
+    "8ce7ad942c9bfe43a4efbd78e440861b2e55e90d17cb0263c3051b807bd90d8e"
+  ],
+  "worker_receipts": [
+    "gpt__devwork32-pilot-priority-20261108__1794150095742477800__37783826",
+    "gpt__devwork32-pilot-priority-20261108__1794150095752288700__382f0902"
+  ],
+  "worker_status": "DONE exit 0; independently reviewed and patches applied",
+  "coordinator_addition": "TestN123ReturnedOutputMustMatchTerminalSeal",
+  "source_sha256": "1d4a4c9e5a691930a70d40648bdf8ff70f4c6672d1abf0f6a7373b78d150ea5b",
+  "tests_sha256": "9fa41131ac09f5f741c7ae21a75c9fb9bce437c9c1669dade831615cf7900fb2",
+  "targeted_go_tests": "PASS RC0: RequestStartedDoneRequiresSealedOutput, N123ReturnedOutputMustMatchTerminalSeal, N123OversizeNativeOutputCannotRecordUnsealedDone, N123RacedOwnedOutputHardlinkNeverTruncatesForeignFile, N123OwnedRunnerOutputExclusiveLinkAndSeal, OpenAIAPIRunner, RunReceiptedFailsClosedWhenPIDRegistrationFails, N139FactualGoReceiptAndNoDuplicate",
+  "go_vet": "RC0",
+  "limitations": "Addressed scoped integrity only. Router ignores receipt metadata write errors, router process-tree cleanup remains to examine. Final full QA and independent source reviews are not accepted. N124 symlink deferred by user; P0 OPEN."
+}

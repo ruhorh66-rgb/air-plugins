@@ -641,3 +641,90 @@ func TestN123OwnedRunnerOutputExclusiveLinkAndSeal(t *testing.T) {
 		t.Fatal("noncanonical output path was accepted")
 	}
 }
+
+func TestRequestStartedDoneRequiresSealedOutput(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		output string
+	}{
+		{name: "missing"},
+		{name: "oversized"},
+		{name: "valid", output: "request output"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			scope := newScope(root, sessionIdentity{"gpt", tc.name})
+			receiptPath, outputPath := jobReceiptPaths(scope, "request", "openai")
+			if err := os.MkdirAll(filepath.Dir(receiptPath), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			r, lock, err := startJobReceipt(scope, "request", "openai", receiptPath, outputPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer lock.release()
+			r.RequestStarted = true
+			if err := writeJobReceipt(receiptPath, r); err != nil {
+				t.Fatal(err)
+			}
+			if tc.name != "missing" {
+				if err := os.WriteFile(outputPath, []byte(tc.output), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if tc.name == "oversized" {
+					if err := os.Truncate(outputPath, (32<<20)+1); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			err = finishJobReceipt(receiptPath, jobStatusDone)
+			finished, readErr := readJobReceipt(receiptPath)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if tc.name != "valid" {
+				if err == nil || finished.Status == jobStatusDone {
+					t.Fatalf("unsealed request accepted: err=%v receipt=%+v", err, finished)
+				}
+				return
+			}
+			want := fmt.Sprintf("%x", sha256.Sum256([]byte(tc.output)))
+			if err != nil || finished.Status != jobStatusDone || finished.OutputSHA256 != want || finished.OutputBytes != int64(len(tc.output)) {
+				t.Fatalf("valid request not sealed: err=%v receipt=%+v", err, finished)
+			}
+		})
+	}
+}
+
+func TestN123ReturnedOutputMustMatchTerminalSeal(t *testing.T) {
+	root := t.TempDir()
+	scope := newScope(root, sessionIdentity{"gpt", "tampered-return"})
+	if err := os.MkdirAll(filepath.Join(root, ".woody", "jobs"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(root, "child-marker")
+	t.Setenv("AW_N123_CHILD_MARKER", marker)
+	cmd := exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$")
+	previous := writeJobReceiptFunc
+	t.Cleanup(func() { writeJobReceiptFunc = previous })
+	tampered := false
+	writeJobReceiptFunc = func(path string, receipt *jobReceipt) error {
+		if err := previous(path, receipt); err != nil {
+			return err
+		}
+		if receipt.Status == jobStatusDone {
+			if err := os.WriteFile(receipt.OutputPath, []byte("tampered output"), 0600); err != nil {
+				return err
+			}
+			tampered = true
+		}
+		return nil
+	}
+	data, err := runReceipted(context.Background(), scope, "N123", "tamper-return", cmd)
+	if !tampered {
+		t.Fatal("terminal output injection did not run")
+	}
+	if err == nil || len(data) != 0 {
+		t.Fatalf("tampered output accepted: data=%q err=%v", data, err)
+	}
+}

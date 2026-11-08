@@ -156,7 +156,7 @@ func finishJobReceiptWithExit(receiptPath, status string, code *int) error {
 			}
 		}
 	}
-	if status == jobStatusDone && (r.ProcessStarted || code != nil) && r.OutputSHA256 == "" {
+	if status == jobStatusDone && (r.ProcessStarted || r.RequestStarted || r.Runner == "router" || code != nil) && r.OutputSHA256 == "" {
 		return errors.New("cannot seal terminal output")
 	}
 	r.Status = status
@@ -418,8 +418,29 @@ func runReceiptedWithMeta(ctx context.Context, scope sessionScope, step, operati
 		}
 		finishErr := finishJobReceiptWithExit(receiptPath, status, &actualExit)
 		lock.release()
-		data, _ := os.ReadFile(outputPath)
+		var data []byte
+		if finishErr == nil {
+			var receipt *jobReceipt
+			receipt, finishErr = readJobReceipt(receiptPath)
+			if finishErr == nil {
+				var output *os.File
+				output, finishErr = os.Open(outputPath)
+				if finishErr == nil {
+					data, finishErr = io.ReadAll(io.LimitReader(output, (32<<20)+1))
+					if closeErr := output.Close(); finishErr == nil {
+						finishErr = closeErr
+					}
+				}
+				if finishErr == nil {
+					hash := sha256.Sum256(data)
+					if receipt.Status != status || len(data) > (32<<20) || receipt.OutputBytes != int64(len(data)) || receipt.OutputSHA256 != hex.EncodeToString(hash[:]) {
+						finishErr = errors.New("terminal output does not match receipt seal")
+					}
+				}
+			}
+		}
 		if finishErr != nil {
+			data = nil
 			if waitErr != nil {
 				waitErr = errors.Join(waitErr, finishErr)
 			} else {
