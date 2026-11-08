@@ -90,6 +90,13 @@ foreach ($n in @('workdir', 'taskFile', 'judge', 'engine')) {
     Assert-That "$n — непустая строка" { -not [string]::IsNullOrWhiteSpace([string]$goal.$n) }.GetNewClosure()
 }
 
+# release_version связывает семантического судью с историческим выпуском и необязателен.
+if ($props -contains 'release_version') {
+    Assert-That 'release_version — строка версии X.Y.Z' {
+        ($goal.release_version -is [string]) -and ($goal.release_version -match '\A[0-9]+\.[0-9]+\.[0-9]+\z')
+    }
+}
+
 # --- 2. цель не дублирует судью: одно состояние — один источник ----------------------
 Assert-That 'goal.json не держит checks — они единственно в run-config.json' { $props -notcontains 'checks' }
 Assert-That 'goal.json не держит checklist — он единственно в run-config.json' { $props -notcontains 'checklist' }
@@ -100,7 +107,7 @@ Assert-That 'goal.json не держит checklist — он единственн
 # истиной уже сам факт непустого МАССИВА результата — неважно, что последний элемент $false.
 # Ровно так эта проверка на первом прогоне пропустила подставной "surpriseField" молча —
 # то самое, что она обязана НЕ делать. Поймано вставкой поля и прогоном, не чтением кода.
-$allowed = $required + @($props | Where-Object { $_.StartsWith('_') })
+$allowed = $required + @('release_version') + @($props | Where-Object { $_.StartsWith('_') })
 $unknown = @($props | Where-Object { $allowed -notcontains $_ })
 $unknownTitle = if ($unknown.Count -gt 0) {
     "в goal.json нет полей вне договора (найдены: $($unknown -join ', '))"

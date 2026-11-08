@@ -1,0 +1,12 @@
+{
+  "schema": "air-worker.devwork32.goal-contract/v1",
+  "source_head_before": "7f84ec7a20510e37f7c14fa023a17c6ad511dfb4",
+  "task_sha256": "547e47b14ef9d4300a6fe7cb3db5f6b2d35e568b1cad23eba1460a19d63caa94",
+  "workers": [
+    {"index":1,"job_id":"gpt__devwork32-pilot-priority-20261108__1794160582887620800__f07b0558","status":"DONE","exit":0,"receipt_sha256":"635ef7baf421d0c43702b2518b416d7d844c7efd21b1e7237677b880c32e03b6","output_sha256":"57e8af41fa465db090ca4715a7fb1b348b13aa8bd969da8b6105ea7121c91db7","patch_sha256":"37082b0ace4f61906e7342e5f93a271cfb88572251ce44f9d74c22a8e64fba6e"},
+    {"index":2,"job_id":"gpt__devwork32-pilot-priority-20261108__1794160582885889600__0b51330d","status":"DONE","exit":0,"receipt_sha256":"29fa0aaec8ca752aa3e01bad414a8f7d93bc6bb77cbffeb2d517b8f21e59d3c9","output_sha256":"6b572c9a4c746a3cafcff7015e2c92effdae0177b1f5cfa5c9031d6c9f9334c1","patch_sha256":"47fc8b0e7de5b69cc98461bd0d847152d22246a48c8d508b35be72f7a123ac72"}
+  ],
+  "result": "The checker recognizes optional release_version as an ASCII X.Y.Z string while retaining rejection of unknown fields. Historical goal and release slices unchanged.",
+  "validation": {"actual_goal_checker":"PASS: 29 assertions, 0 failures", "goal_contract_go_test":"PASS: 8 cases including absent, valid, numeric, malformed, non-ASCII digits, newline, null and unknown field", "go_vet":"PASS", "powershell_script_utf8_bom":true},
+  "limitations": "Targeted source-only evidence, not final QA or P0 gate acceptance. Installed 0.11.11-rc.2 unchanged. Report draft remains separately preserved with its open review findings. N124 symlink testing deferred."
+}
