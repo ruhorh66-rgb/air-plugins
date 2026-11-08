@@ -1,0 +1,138 @@
+{
+  "schema": "air-worker.devwork30.handoff-self-learning/v1",
+  "owner": "Dev Work 30 / SRVLM01",
+  "date_sgt": "2026-11-08",
+  "trigger": "LPR: actualize current accepted plans, clean only own product tree, train AirWorker self-learning base from coding, explicitly register last orchestration mode, prepare complete next-session handoff",
+  "source": {
+    "repo": "ruhorh66-rgb/air-plugins",
+    "branch": "dev/airworker-native-orch-pilot-20261104",
+    "observed_source_sha_before_handoff": "028bff3e923dcbf340a663242829793b3a4e8250",
+    "final_sha_rule": "read git rev-parse HEAD after handoff commit; do not infer/pin a future commit here",
+    "git_clean_before_changes": true,
+    "release_slices_sha256": "811a37794842d8ed575f478d0a84665579daee5f5afe94e5e4ad6e9e7627ab9a",
+    "new_owner_changes": [
+      "PLAN.md",
+      "skills/woody/SKILL.md",
+      ".codex-plugin/plugin.json",
+      "docs/learning/DEVWORK30_TWO_CODEX_COORDINATOR_PROCEDURE_20261108.md",
+      "docs/handoff/HANDOFF_DEVWORK30_TO_NEXT_SESSION_20261108.md",
+      "docs/receipts/DEVWORK30_HANDOFF_SELF_LEARNING_20261108.json"
+    ]
+  },
+  "wiki": {
+    "root": "F:/-5-/011_Plugins/AirWorker_Wiki",
+    "branch": "dev/airworker-curator-0.10.14",
+    "prior_head": "aacf8560b5be0c5713376a5beefc46e3c7546cc2",
+    "updated": [
+      "00_STRATEGY/AIRWORKER_PRODUCTION_PLAN.md",
+      "00_STRATEGY/AIRWORKER_PRODUCTION_PLAN.json"
+    ]
+  },
+  "p0": {
+    "gates_passed": 4,
+    "total": 8,
+    "remaining": [
+      "G07",
+      "G06",
+      "G05",
+      "G08"
+    ],
+    "native_nodes_closed": 0,
+    "native_nodes_total": 4,
+    "g07": "read-only orchestrate code status and terminal/idempotency source-only QA accepted; two real GPT session disconnects/EXECUTION_UNKNOWN unproven",
+    "g06": "causal escalation from synthetic vendor_limit source-only QA accepted; genuine single-TASK provider failure/stall escalation unproven",
+    "g05": "Anthropic strict structured --json-schema source-only implemented; full N123 final-SHA QA, Anthropic and Codex Sol low code judges, rollback not proven",
+    "g08": "N123/N126/N136/N139 all open; no manual plan edits",
+    "g01_g04": "historical accepted, do not rerun",
+    "operational_goal_last_observed_source_sha": "47004e0cc6b4c596f9eb0a3fbc5b88c87d228063",
+    "operational_goal_drift_before_handoff": true,
+    "next": "after final clean Git SHA use native operational-goal advance/status and P0 metric readback"
+  },
+  "orchestration": {
+    "canonical_coordinator": "current ordinary ChatGPT chat",
+    "codex_workers": 2,
+    "worker_role": "coding-subagent/worker",
+    "worker_sandbox": "workspace-write in separate Git worktrees",
+    "third_codex_leader": false,
+    "native_entrypoint": "air-worker orchestrate code",
+    "native_recovery": "air-worker orchestrate code status",
+    "coordinator_integration": "validates 2 job receipts + 2 actual Git patches/SHA, applies changes with sole writer, targeted Go, independent Anthropic",
+    "models": [
+      "script",
+      "gpt-6-luna",
+      "gpt-6.1-terra",
+      "gpt-6-sol",
+      "gpt-6.1-sol",
+      "gpt-6-astra"
+    ],
+    "efforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "obsolete_modes": [
+      "two read-only patch authors plus third Codex leader",
+      "two sequential executor dispatch calls for mandatory 2-worker product"
+    ],
+    "registration": [
+      "run-config.json already enabled and exact 2",
+      "skills/woody/SKILL.md current now explicit",
+      "Codex plugin description and defaultPrompt aligned",
+      "README.md existing current header",
+      "shared-learn APPLIED procedural target exact SHA"
+    ]
+  },
+  "learning": {
+    "owner_product_root": "R:/-4-/air-worker/worktrees/airworker-0119-n093-worker-b-20261018/air-worker",
+    "runtime_root": "R:/-4-/air-worker/work/AIRWORKER_0119_R02_PRIMARY_20261020/runtime",
+    "self_selector": "enabled; historical separate owner retained; not retargeted",
+    "observed_event": {
+      "id": "EV-be7252413d0b8e4d91caf165",
+      "status": "recorded",
+      "review_outcome": "error",
+      "rc": 0,
+      "run_id": "devwork30-20261108-two-codex-lpr-028bff3"
+    },
+    "proposed_skill": {
+      "id": "LP-2dcd5e164b352092b65fbf08",
+      "kind": "procedure",
+      "status": "APPLIED",
+      "transaction_id": "TX-8698879b6979bfca0cd0226e",
+      "target": "skills/learned/airworker-chatgpt-two-real-codex-writers-20261108.md",
+      "sha256": "698d44b691c09d7a3e715ac330e206551b0db3b8846fec67e40b3e4698fcd165",
+      "index_unique_match": true,
+      "propose_rc": 0
+    },
+    "self_load": {
+      "status": "loaded",
+      "rc": 0,
+      "target_matches": true,
+      "sha_matches": true,
+      "receipt_path": "C:/ProgramData/AIR OS/State/air-worker-self-learning/gpt__devwork30-airworker-handoff-20261108/context-1db2335c10e1629c8af353f1.json",
+      "receipt_sha256": "2157b9b0c60f240503bceef00e05faa3bc71f5ec9e521821229ec5276ea6ea46"
+    },
+    "used_effect": "NOT_PROVEN; future session must attribute actual use/effect"
+  },
+  "release": {
+    "installed_airworker": "0.11.11-rc.2",
+    "installed_codex_cli": "0.167.0",
+    "installed_claude_code": "2.1.319",
+    "source_candidate": "0.11.11-rc.5",
+    "source_only": true,
+    "new_release_published": false,
+    "old_dist_B": "a96e2a2c107765be43a1bec6263b1d37f892d2c2 STALE",
+    "new_S_B_R_signed": false
+  },
+  "safety": {
+    "no_foreign_cleanup": true,
+    "no_delete_or_reset": true,
+    "no_prod_install": true,
+    "no_release_publish": true,
+    "no_rollback_or_override_legacy": true,
+    "no_gates_falsely_passed": true,
+    "historical_self_owner_dirty_preserved": true,
+    "source_coding_evidence_preserved": true
+  },
+  "handoff": "docs/handoff/HANDOFF_DEVWORK30_TO_NEXT_SESSION_20261108.md",
+  "status": "SOURCE_AND_WIKI_CHECKPOINT_PREPARED_LEARNING_APPLIED_RELEASE_HOLD"
+}
