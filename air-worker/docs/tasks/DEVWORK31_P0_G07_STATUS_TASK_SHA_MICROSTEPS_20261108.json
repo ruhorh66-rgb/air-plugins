@@ -1,0 +1,20 @@
+{
+  "schema": "air-worker.coding-microsteps/v1",
+  "context": "AirWorker P0 G07 security and correctness bug. Two genuine Codex coding workers in separate Git worktrees; ChatGPT coordinates merges. Source baseline must remain clean before merge. Current cmdCodingStatus obtains task file path but never hashes its CONTENT against persisted TaskSHA256. This permits stale READY for a mutated task with the SAME filename. Fix fail-closed recovery identity without initiating any new model job. Keep accepted Dev Work30 raw-Markdown task readback working (do not demand microstep JSON on status). No release/install, no native node closure, no modification of any other product or external workspace.",
+  "workers": [
+    {
+      "index": 1,
+      "title": "Pin read-only coding status to exact persisted original TASK SHA",
+      "file": "cmd/orchestrate_coding_workers.go",
+      "done_when": "The read-only command `air-worker orchestrate code status` refuses to return READY or DONE evidence for the wrong contents of the same task filename; compares bounded task content hash against persisted exact original TaskSHA256 and against the original task SHA suffix in durable receipt operation where available. Actual original task must still succeed even if main source HEAD subsequently advances. On missing or unverifiable task/receipt SHA return NOT_PROVEN RC2 without launching models. Legacy raw Markdown source tasks from Dev Work30 remain readable if digest matches.",
+      "instructions": "ONLY EDIT cmd/orchestrate_coding_workers.go. Confirm cmdCodingStatus currently looks up taskFileInsideProduct and passes only basename to codingStatus, without os.ReadFile/hash check, while handoff contains TaskSHA256; this is the observed gap. Add bounded read and exact SHA guard to status with fail-closed mismatch. If handoff missing, ensure receipt operation suffix `-task-<64 hex>` matches current task SHA before considering recovery; never infer matching from basename or model prose. Preserve status NOT_FOUND on a completely new original task without model jobs, preserve historical markdown raw task contents (do not parseCodingMicrosteps in status), preserve read-only/no-dispatch semantics and original SOURCE_HEAD (source may advance). Ensure no inconsistent READY on task mutation; no arbitrary path or foreign job read. Short changes only. Do not touch tests, docs, other source files. Do not run whole Go suite. No third Codex leader."
+    },
+    {
+      "index": 2,
+      "title": "Prove same-file task mutation rejects recovery without duplicate jobs",
+      "file": "cmd/orchestrate_coding_workers_test.go",
+      "done_when": "Focused native Go test demonstrates that after two genuine mocked terminal coding jobs for one TASK, read-only status with exact original TASK yields the saved job IDs and patch SHA, then a SAME-PATH content mutation causes NOT_PROVEN/RC2, after restoring exact bytes status succeeds with the same IDs and zero new jobs. A missing/unsealed handoff cannot accept wrong TASK SHA from receipt suffix. Historic fake/model errors do not become PASS.",
+      "instructions": "ONLY EDIT cmd/orchestrate_coding_workers_test.go. Extend TestCodingWorkersStatusRecovery or add one small named test using its existing real Git+helper workspaces and native mocked Codex processes. Add same-path task mutation positive/negative/restored status checks with strict status RC2 and no claimed READY/changed task SHA mismatch; preserve after-readback job counter exactly 2 and test historical raw text task compatibility only if already covered. Follow current strict codingMicrostepTask helper. Do not edit production code or other files. Running your test before Worker 1 merge may correctly be RED; report that as pre-integration, not PASS. Avoid expensive full go suite, use narrow -run only. No source commit/push."
+    }
+  ]
+}
