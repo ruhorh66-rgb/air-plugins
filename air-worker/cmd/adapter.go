@@ -203,14 +203,25 @@ func readAdapterReceipts(root, currentStep, principal, sessionKey string) ([]ada
 	detailPath := ""
 	for _, item := range selected {
 		r := item.r
+		status, outputPath := r.Status, r.OutputPath
+		if status == jobStatusDone || status == jobStatusFailed {
+			scope := newScope(root, sessionIdentity{Principal: r.Principal, SessionKey: r.Session})
+			snapshot, err := inspectOwnedJob(scope, r.Step, r.Operation)
+			if err != nil || !snapshot.Terminal || snapshot.Status != status || snapshot.JobID != r.JobID ||
+				filepath.Clean(snapshot.ReceiptPath) != filepath.Clean(item.path) || snapshot.OutputSHA256 == "" {
+				status, outputPath = "EXECUTION_UNKNOWN", ""
+			} else {
+				outputPath = snapshot.OutputPath
+			}
+		}
 		receipts = append(receipts, adapterReceipt{
-			Path: item.path, JobID: r.JobID, Status: r.Status, Step: r.Step,
-			Operation: r.Operation, OutputPath: r.OutputPath, Principal: r.Principal,
+			Path: item.path, JobID: r.JobID, Status: status, Step: r.Step,
+			Operation: r.Operation, OutputPath: outputPath, Principal: r.Principal,
 			SessionKey: r.Session, StartedAt: r.StartedAt,
 		})
 		if detailPath == "" {
-			if r.OutputPath != "" {
-				detailPath = r.OutputPath
+			if outputPath != "" {
+				detailPath = outputPath
 			} else {
 				detailPath = item.path
 			}

@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -128,6 +130,63 @@ func TestAdapterStatusReportsOnlyVerifiedLiveCurrentWorker(t *testing.T) {
 	}
 	if after := adapterTreeSnapshot(t, root); !reflect.DeepEqual(before, after) {
 		t.Fatalf("status mutated receipt tree\nbefore: %#v\nafter:  %#v", before, after)
+	}
+}
+
+func TestAdapterStatusDoesNotConfirmUnverifiedTerminalReceipts(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		edit      func(*testing.T, *jobReceipt, string)
+		confirmed bool
+	}{
+		{"unsealed DONE", func(_ *testing.T, r *jobReceipt, _ string) { r.OutputSHA256 = "" }, false},
+		{"DONE nonzero exit", func(_ *testing.T, r *jobReceipt, _ string) { exit := 7; r.ExitCode = &exit }, false},
+		{"missing exit", func(_ *testing.T, r *jobReceipt, _ string) { r.ExitCode = nil }, false},
+		{"tampered sealed output", func(t *testing.T, _ *jobReceipt, path string) {
+			if err := os.WriteFile(path, []byte("changed"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}, false},
+		{"foreign output path", func(t *testing.T, r *jobReceipt, _ string) { r.OutputPath = filepath.Join(t.TempDir(), "foreign.out") }, false},
+		{"valid sealed DONE", func(_ *testing.T, _ *jobReceipt, _ string) {}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeAdapterFixture(t, root, "- [ ] sonnet work\n")
+			scope := newScope(root, sessionIdentity{Principal: "alice", SessionKey: "session-1"})
+			receiptPath, outputPath := jobReceiptPaths(scope, "1", "executor")
+			if err := os.MkdirAll(filepath.Dir(receiptPath), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			output := []byte("finished output")
+			if err := os.WriteFile(outputPath, output, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			sum := sha256.Sum256(output)
+			exit := 0
+			r := &jobReceipt{JobID: "job-1", PID: os.Getpid(), StartedAt: time.Now().UTC(), Status: jobStatusDone,
+				OutputPath: outputPath, Product: root, Principal: "alice", Session: "session-1", Step: "1", Operation: "executor",
+				ProcessStarted: true, ExitCode: &exit, OutputSHA256: hex.EncodeToString(sum[:]), OutputBytes: int64(len(output))}
+			tc.edit(t, r, outputPath)
+			if err := writeJobReceipt(receiptPath, r); err != nil {
+				t.Fatal(err)
+			}
+			before := adapterTreeSnapshot(t, root)
+			code, got := runAdapterForTest(t, "-action", "status", "-product", root, "-principal", "alice", "-session-key", "session-1")
+			if code != 0 || len(got.Workers) != 0 || got.Outcome != "needs_action" {
+				t.Fatalf("status launched or reported worker: code=%d result=%+v", code, got)
+			}
+			confirmed := len(got.Receipts) == 1 && got.Receipts[0].Status == jobStatusDone
+			if confirmed != tc.confirmed {
+				t.Fatalf("terminal confirmation = %v, want %v: %+v", confirmed, tc.confirmed, got)
+			}
+			if !tc.confirmed && len(got.Receipts) == 1 && got.Receipts[0].Status != "EXECUTION_UNKNOWN" {
+				t.Fatalf("unverified result presented as %q", got.Receipts[0].Status)
+			}
+			if after := adapterTreeSnapshot(t, root); !reflect.DeepEqual(before, after) {
+				t.Fatalf("status mutated evidence\nbefore: %#v\nafter: %#v", before, after)
+			}
+		})
 	}
 }
 
