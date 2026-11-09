@@ -545,7 +545,7 @@ func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope,
 	// К42 — durable job receipt пишется RUNNING ДО запуска этой проверки; transport/RDC
 	// timeout здесь не наступает (ctx без дедлайна), поэтому вызов, как и раньше, ждёт
 	// завершения синхронно — только теперь ещё и оставляет receipt/output_path на диске.
-	out, err := runNonGoJudgeCheck(context.Background(), root, scope, name, cmd, r.forReport)
+	out, err := runSourceAwareJudgeCheck(context.Background(), root, scope, name, cmd, r.forReport)
 	if judgeCheckUnconfirmed(name, cmd, err, r) {
 		return
 	}
@@ -581,7 +581,7 @@ func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope,
 	r.Failed = append(r.Failed, fmt.Sprintf("%s (код %d)%s", name, code, why))
 }
 
-func runNonGoJudgeCheck(ctx context.Context, root string, scope sessionScope, name string, cmd *exec.Cmd, forReport bool) ([]byte, error) {
+func runSourceAwareJudgeCheck(ctx context.Context, root string, scope sessionScope, name string, cmd *exec.Cmd, forReport bool) ([]byte, error) {
 	head := jobSourceHead(root)
 	if head == "" {
 		if source, _, err := judgeSourceIdentity(root); err != nil || source != "" {
@@ -609,11 +609,15 @@ func runNonGoJudgeCheck(ctx context.Context, root string, scope sessionScope, na
 			return nil, fmt.Errorf("UNKNOWN: legacy %s evidence for %s does not prove a terminal different source: %v", step, name, err)
 		}
 	}
-	h := sha256.New()
-	for _, part := range []string{head, name, jobCommandFingerprint(cmd)} {
-		_, _ = fmt.Fprintf(h, "%d:%s", len(part), part)
+	operation := n123GoJudgeOperationAtHead(head, name, cmd)
+	if !isGoCommand(cmd.Path) {
+		h := sha256.New()
+		for _, part := range []string{head, name, jobCommandFingerprint(cmd)} {
+			_, _ = fmt.Fprintf(h, "%d:%s", len(part), part)
+		}
+		operation = fmt.Sprintf("n123-command-%x", h.Sum(nil))
 	}
-	return runSourceJudgeCheck(ctx, root, scope, fmt.Sprintf("n123-command-%x", h.Sum(nil)), head, cmd, forReport)
+	return runSourceJudgeCheck(ctx, root, scope, operation, head, cmd, forReport)
 }
 
 func n123GoJudgeOperation(root, displayName string, cmd *exec.Cmd) string {
@@ -747,21 +751,7 @@ func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope
 		}
 		cmd.Env, cmd.Err = configuredChildEnvironment(resolved, cmd.Env)
 	}
-	var out []byte
-	if isGoCommand(cmd.Path) {
-		head := jobSourceHead(root)
-		if head == "" {
-			if source, _, sourceErr := judgeSourceIdentity(root); sourceErr != nil || source != "" {
-				err = fmt.Errorf("%w: cannot identify source: %v", errJudgeProvenance, sourceErr)
-			} else {
-				out, err = runJudgeCheckReceipted(ctx, scope, name, cmd, r.forReport)
-			}
-		} else {
-			out, err = runSourceJudgeCheck(ctx, root, scope, n123GoJudgeOperationAtHead(head, name, cmd), head, cmd, r.forReport)
-		}
-	} else {
-		out, err = runNonGoJudgeCheck(ctx, root, scope, name, cmd, r.forReport)
-	}
+	out, err := runSourceAwareJudgeCheck(ctx, root, scope, name, cmd, r.forReport)
 	if judgeCheckUnconfirmed(name, cmd, err, r) {
 		return
 	}

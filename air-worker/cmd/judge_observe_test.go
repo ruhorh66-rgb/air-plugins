@@ -974,3 +974,108 @@ func TestJudgeProvenanceLiveRunning(t *testing.T) {
 	receipt, _ := jobReceiptPaths(legacyScope(root), "judge", "live")
 	pollReceiptStatus(t, receipt, jobStatusDone, 5*time.Second)
 }
+
+func TestN123LegacyGoEvidenceRecovery(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("fixture uses a copied go.exe")
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	binary, err := os.ReadFile(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	goExe := filepath.Join(t.TempDir(), "go.exe")
+	if err := os.WriteFile(goExe, binary, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name                                                       string
+		advance, unknown, running, unsealed, partial, tamper, pass bool
+	}{
+		{name: "same source"},
+		{name: "different source sealed", advance: true, pass: true},
+		{name: "unknown source", advance: true, unknown: true},
+		{name: "running", advance: true, running: true},
+		{name: "unsealed", advance: true, unsealed: true},
+		{name: "partial", advance: true, partial: true},
+		{name: "tampered", advance: true, tamper: true},
+	} {
+		for _, legacyReport := range []bool{false, true} {
+			for _, newReport := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/legacy-report=%t/new-report=%t", tc.name, legacyReport, newReport), func(t *testing.T) {
+					root := t.TempDir()
+					initJudgeRefreshGitRepo(t, root)
+					counter := filepath.Join(t.TempDir(), "started")
+					t.Setenv("AW_PROVENANCE_MODE", "clean")
+					t.Setenv("AW_PROVENANCE_COUNTER", counter)
+					args := []string{"-test.run=^TestProvenanceFixtureChild$"}
+					cmd := newChildCommand(goExe, args...)
+					cmd.Dir = root
+					scope := legacyScope(root)
+					if _, err := runJudgeCheckReceipted(context.Background(), scope, "unit", cmd, legacyReport); err != nil {
+						t.Fatal(err)
+					}
+					step := "judge"
+					if legacyReport {
+						step = "report-judge"
+					}
+					receiptPath, outputPath := jobReceiptPaths(scope, step, "unit")
+					receipt, err := readJobReceipt(receiptPath)
+					if err != nil || receipt.SourceHead == "" {
+						t.Fatalf("legacy receipt=%+v err=%v", receipt, err)
+					}
+					if tc.unknown {
+						receipt.SourceHead = ""
+					}
+					if tc.running {
+						receipt.Status = jobStatusRunning
+					}
+					if tc.unsealed {
+						receipt.OutputSHA256 = ""
+					}
+					if tc.unknown || tc.running || tc.unsealed {
+						if err := writeJobReceipt(receiptPath, receipt); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if tc.partial {
+						if err := os.Remove(outputPath); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if tc.tamper {
+						if err := os.WriteFile(outputPath, []byte("tampered"), 0o600); err != nil {
+							t.Fatal(err)
+						}
+					}
+					beforeReceipt, _ := os.ReadFile(receiptPath)
+					beforeOutput, beforeOutputErr := os.ReadFile(outputPath)
+					if tc.advance {
+						commitJudgeRefreshFixture(t, root, "v2\n")
+					}
+					for i := 0; i < 2; i++ {
+						result := judgeResult{forReport: newReport}
+						runCommandCheck(root, checkSpec{Command: goExe, Args: args}, "unit", scope, &result)
+						wantPass := tc.pass && i == 0
+						wantStarts := "started\n"
+						if tc.pass {
+							wantStarts += "started\n"
+						}
+						starts, err := os.ReadFile(counter)
+						if err != nil || string(starts) != wantStarts || (len(result.Passed) == 1) != wantPass || (!wantPass && len(result.Unknown) != 1) {
+							t.Fatalf("attempt=%d starts=%q err=%v result=%+v", i, starts, err, result)
+						}
+					}
+					afterReceipt, receiptErr := os.ReadFile(receiptPath)
+					afterOutput, outputErr := os.ReadFile(outputPath)
+					if receiptErr != nil || string(beforeReceipt) != string(afterReceipt) || (beforeOutputErr == nil) != (outputErr == nil) || string(beforeOutput) != string(afterOutput) {
+						t.Fatal("legacy evidence changed")
+					}
+				})
+			}
+		}
+	}
+}
