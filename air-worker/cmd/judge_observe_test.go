@@ -21,20 +21,23 @@ func TestN123GoJudgeDuration(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		args []string
-		long bool
+		want time.Duration
 		bad  bool
 	}{
-		{"no timeout", []string{"test", "./..."}, false, false},
-		{"equals", []string{"-C", "cmd", "test", "./...", "-timeout=12m"}, true, false},
-		{"separate", []string{"test", "./...", "-timeout", "12m"}, true, false},
-		{"build", []string{"build", "-timeout=12m", "./..."}, false, false},
-		{"unrelated argument", []string{"test", "-run", "timeout=12m", "./..."}, false, false},
-		{"malformed", []string{"test", "-timeout=invalid"}, false, true},
-		{"missing", []string{"test", "-timeout"}, false, true},
-		{"zero", []string{"test", "-timeout=0"}, false, true},
-		{"negative", []string{"test", "-timeout=-1m"}, false, true},
-		{"over limit", []string{"test", "-timeout=16m"}, false, true},
-		{"duplicate", []string{"test", "-timeout=12m", "-timeout", "12m"}, false, true},
+		{"no timeout", []string{"test", "./..."}, 0, false},
+		{"equals", []string{"-C", "cmd", "test", "./...", "-timeout=12m"}, 12*time.Minute + 30*time.Second, false},
+		{"separate", []string{"test", "./...", "-timeout", "12m"}, 12*time.Minute + 30*time.Second, false},
+		{"build", []string{"build", "-timeout=12m", "./..."}, 0, false},
+		{"unrelated argument", []string{"test", "-run", "timeout=12m", "./..."}, 0, false},
+		{"malformed", []string{"test", "-timeout=invalid"}, 0, true},
+		{"missing", []string{"test", "-timeout"}, 0, true},
+		{"zero", []string{"test", "-timeout=0"}, 0, true},
+		{"negative", []string{"test", "-timeout=-1m"}, 0, true},
+		{"25 minutes", []string{"test", "-timeout=25m"}, 25*time.Minute + 30*time.Second, false},
+		{"boundary", []string{"test", "-timeout=29m30s"}, 30 * time.Minute, false},
+		{"over limit", []string{"test", "-timeout=29m30s1ns"}, 0, true},
+		{"ambiguous", []string{"test", "-unknown", "-timeout=12m"}, 0, true},
+		{"duplicate", []string{"test", "-timeout=12m", "-timeout", "12m"}, 0, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := n123GoJudgeDuration(tc.args)
@@ -47,12 +50,12 @@ func TestN123GoJudgeDuration(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if tc.long {
-				if got <= 12*time.Minute || got > 15*time.Minute {
-					t.Fatalf("duration = %v, want cleanup margin above 12m and at most 15m", got)
-				}
-			} else if got != n123GoJudgeMaxDuration {
-				t.Fatalf("duration = %v, want default %v", got, n123GoJudgeMaxDuration)
+			want := tc.want
+			if want == 0 {
+				want = n123GoJudgeMaxDuration
+			}
+			if got != want {
+				t.Fatalf("duration = %v, want %v", got, want)
 			}
 		})
 	}

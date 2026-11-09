@@ -613,7 +613,7 @@ func n123GoJudgeDuration(args []string) (time.Duration, error) {
 				value = args[i]
 			}
 			d, err := time.ParseDuration(value)
-			if err != nil || d <= 0 || d > 14*time.Minute+30*time.Second || seen {
+			if err != nil || d <= 0 || d > 29*time.Minute+30*time.Second || seen {
 				return 0, fmt.Errorf("invalid or conflicting go test timeout %q", value)
 			}
 			timeout, seen = d, true
