@@ -549,3 +549,62 @@ func TestSelectedCheckReceiptScopes(t *testing.T) {
 		})
 	}
 }
+
+func TestCriteriaDuplicateSelectorsStayWithinEvaluation(t *testing.T) {
+	shell := "powershell.exe"
+	if runtime.GOOS != "windows" {
+		shell = "pwsh"
+	}
+	if _, err := exec.LookPath(shell); err != nil {
+		t.Skip(shell + " is unavailable")
+	}
+	for _, first := range []string{"Good", "Bad"} {
+		t.Run(first, func(t *testing.T) {
+			root := t.TempDir()
+			script := "param([string]$Select)\n" +
+				"[IO.File]::AppendAllText((Join-Path $PSScriptRoot 'runs.txt'), $Select + \"`n\")\n" +
+				"if ($Select -eq 'Bad') { exit 7 }; exit 0\n"
+			if err := os.WriteFile(filepath.Join(root, "selector.ps1"), append(utf8BOM, []byte(script)...), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			other := "Bad"
+			if first == "Bad" {
+				other = "Good"
+			}
+			cfg := runConfig{Judge: judgeSpec{Checks: []checkSpec{{Name: "probe", Script: "selector.ps1", Select: "-Select {}"}}}}
+			measure := func(selector string) string { return "проверка `probe` · тест `" + selector + "`" }
+			g := planGoals{Criteria: []planCriterion{
+				{ID: "К1", Goal: "Ц1", Measure: measure(first)},
+				{ID: "К2", Goal: "Ц1", Measure: measure(first)},
+				{ID: "К3", Goal: "Ц1", Measure: measure(other)},
+			}}
+			scope := newScope(root, sessionIdentity{Principal: "chatgpt", SessionKey: "duplicate-selector"})
+			base := judgeResult{scope: &scope}
+			_, _, _, _, observations := evaluatePlanCriteriaObserved(root, cfg, g, base)
+			wantFirst, wantOther := "PASS", "FAIL"
+			if first == "Bad" {
+				wantFirst, wantOther = "FAIL", "PASS"
+			}
+			for i, want := range []string{wantFirst, wantFirst, wantOther} {
+				if observations[i].State != want || observations[i].Measures[0].State != want {
+					t.Errorf("criterion %d: got %+v, want %s", i+1, observations[i], want)
+				}
+			}
+			runsPath := filepath.Join(root, "runs.txt")
+			runs, err := os.ReadFile(runsPath)
+			if err != nil || string(runs) != first+"\n"+other+"\n" {
+				t.Fatalf("selected executions = %q, err=%v", runs, err)
+			}
+			_, _, _, _, again := evaluatePlanCriteriaObserved(root, cfg, g, base)
+			for i, obs := range again {
+				if obs.State != "UNKNOWN" {
+					t.Errorf("subsequent evaluation criterion %d borrowed result: %+v", i+1, obs)
+				}
+			}
+			after, err := os.ReadFile(runsPath)
+			if err != nil || !bytes.Equal(runs, after) {
+				t.Fatalf("subsequent evaluation started a job: %q, err=%v", after, err)
+			}
+		})
+	}
+}

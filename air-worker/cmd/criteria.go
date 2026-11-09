@@ -505,6 +505,10 @@ func measureRank(s measureState) int {
 }
 
 func evaluateCriterionObserved(root string, cfg runConfig, c planCriterion, base judgeResult) (criterionState, judgeCriterionObservation) {
+	return evaluateCriterionObservedCached(root, cfg, c, base, nil)
+}
+
+func evaluateCriterionObservedCached(root string, cfg runConfig, c planCriterion, base judgeResult, cache map[criterionMeasure]measureResult) (criterionState, judgeCriterionObservation) {
 	started := time.Now()
 	obs := judgeCriterionObservation{
 		ID: c.ID, Goal: c.Goal, Sign: c.Sign, Measure: c.Measure,
@@ -530,7 +534,14 @@ func evaluateCriterionObserved(root string, cfg runConfig, c planCriterion, base
 			} else if m.Selector == "" {
 				mr = checkResultState(base, m.Name)
 			} else {
-				mr = runSelectedCheckWithInventory(root, chk, m.Selector, base)
+				var cached bool
+				mr, cached = cache[m]
+				if !cached {
+					mr = runSelectedCheckWithInventory(root, chk, m.Selector, base)
+					if cache != nil {
+						cache[m] = mr
+					}
+				}
 			}
 		case "fact":
 			mr = factMeasureState(root, cfg, m.Name)
@@ -563,8 +574,9 @@ func evaluateCriterion(root string, cfg runConfig, c planCriterion, base judgeRe
 // разным причинам «не считать работой» — «нечем измерить» и «ждём человека» — отвечало бы
 // одно и то же число, и отчёт не смог бы сказать, что именно чинить.
 func evaluatePlanCriteriaObserved(root string, cfg runConfig, g planGoals, base judgeResult) (passed, failed, gated, unknown []string, observations []judgeCriterionObservation) {
+	cache := make(map[criterionMeasure]measureResult)
 	for _, c := range g.Criteria {
-		cr, obs := evaluateCriterionObserved(root, cfg, c, base)
+		cr, obs := evaluateCriterionObservedCached(root, cfg, c, base, cache)
 		observations = append(observations, obs)
 		switch cr.State {
 		case measurePass:
