@@ -7,9 +7,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCriterionK33SelectorGrammar(t *testing.T) {
@@ -604,6 +606,75 @@ func TestCriteriaDuplicateSelectorsStayWithinEvaluation(t *testing.T) {
 			after, err := os.ReadFile(runsPath)
 			if err != nil || !bytes.Equal(runs, after) {
 				t.Fatalf("subsequent evaluation started a job: %q, err=%v", after, err)
+			}
+		})
+	}
+}
+
+func TestSelectedGoCheckTimeoutIsolation(t *testing.T) {
+	t.Setenv("GOENV", "off")
+	t.Setenv("GOFLAGS", "")
+	for _, tc := range []struct {
+		name         string
+		args         []string
+		wantTimeout  string
+		fullDuration time.Duration
+	}{
+		{"joined full", []string{"test", "./...", "-timeout=25m"}, "", 25*time.Minute + 30*time.Second},
+		{"separate full", []string{"test", "./...", "-timeout", "25m"}, "", 25*time.Minute + 30*time.Second},
+		{"short joined", []string{"test", "./...", "-timeout=2m"}, "-timeout=2m", 4 * time.Minute},
+		{"short separate", []string{"test", "./...", "-timeout", "2m"}, "-timeout 2m", 4 * time.Minute},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			base := checkSpec{Name: "unit", Command: "go", Args: append([]string(nil), tc.args...), Select: "-run ^{}$", Env: map[string]string{"GOENV": "off", "GOFLAGS": ""}}
+			selected, err := selectedGoCheckAt(".", base, "TestExample")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(base.Args, tc.args) {
+				t.Fatalf("base args changed: %q", base.Args)
+			}
+			full, err := n123GoJudgeDuration(base.Args)
+			if err != nil || full != tc.fullDuration {
+				t.Fatalf("full duration = %v, %v; want %v", full, err, tc.fullDuration)
+			}
+			bound, err := n123GoJudgeDuration(selected.Args)
+			if err != nil || bound != 4*time.Minute {
+				t.Fatalf("selected duration = %v, %v; args %q", bound, err, selected.Args)
+			}
+			args := strings.Join(selected.Args, " ")
+			if tc.wantTimeout == "" && strings.Contains(args, "-timeout") {
+				t.Fatalf("long timeout retained: %q", selected.Args)
+			}
+			if tc.wantTimeout != "" && !strings.Contains(args, tc.wantTimeout) {
+				t.Fatalf("short timeout lost: %q", selected.Args)
+			}
+		})
+	}
+}
+
+func TestSelectedGoCheckRejectsInvalidTimeouts(t *testing.T) {
+	t.Setenv("GOENV", "off")
+	t.Setenv("GOFLAGS", "")
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"malformed", []string{"test", "./...", "-timeout=bad"}},
+		{"missing", []string{"test", "./...", "-timeout"}},
+		{"zero", []string{"test", "./...", "-timeout=0"}},
+		{"negative", []string{"test", "./...", "-timeout=-1m"}},
+		{"duplicate", []string{"test", "./...", "-timeout=25m", "-timeout", "25m"}},
+		{"conflicting", []string{"test", "./...", "-timeout=25m", "-test.timeout=2m"}},
+		{"ambiguous", []string{"test", "./...", "-unknown", "-timeout=25m"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			base := checkSpec{Name: "unit", Command: "go", Args: append([]string(nil), tc.args...), Select: "-run ^{}$", Env: map[string]string{"GOENV": "off", "GOFLAGS": ""}}
+			if _, err := selectedGoCheckAt(".", base, "TestExample"); err == nil {
+				t.Fatal("invalid timeout accepted")
+			}
+			if !reflect.DeepEqual(base.Args, tc.args) {
+				t.Fatalf("base args changed: %q", base.Args)
 			}
 		})
 	}

@@ -303,6 +303,30 @@ func goCheckRunsAllTests(chk checkSpec) bool {
 }
 
 func selectedGoCheckAt(root string, chk checkSpec, selector string) (checkSpec, error) {
+	duration, err := n123GoJudgeDuration(chk.Args)
+	if err != nil {
+		return checkSpec{}, fmt.Errorf("проверка %q: %v", chk.Name, err)
+	}
+	timeoutIndex := -1
+	if duration > n123GoJudgeMaxDuration {
+		probe := append([]string(nil), chk.Args...)
+		for i, arg := range chk.Args {
+			key, _, _ := strings.Cut(strings.TrimLeft(arg, "-"), "=")
+			if !strings.HasPrefix(arg, "-") || (key != "timeout" && key != "test.timeout") {
+				continue
+			}
+			probe[i] = "-timeout=invalid"
+			_, probeErr := n123GoJudgeDuration(probe)
+			probe[i] = arg
+			if probeErr != nil {
+				timeoutIndex = i
+				break
+			}
+		}
+		if timeoutIndex < 0 {
+			return checkSpec{}, fmt.Errorf("проверка %q: go test timeout не найден", chk.Name)
+		}
+	}
 	flags, err := effectiveGoFlags(root, chk)
 	if err != nil {
 		return checkSpec{}, fmt.Errorf("проверка %q: effective GOFLAGS не определены: %v", chk.Name, err)
@@ -319,6 +343,12 @@ func selectedGoCheckAt(root string, chk checkSpec, selector string) (checkSpec, 
 	for i := 0; i < len(chk.Args); i++ {
 		raw := chk.Args[i]
 		key, _, hasValue := normalizedGoFlag(raw)
+		if i == timeoutIndex {
+			if !strings.Contains(raw, "=") {
+				i++
+			}
+			continue
+		}
 		if key == "-args" || key == "-test.args" {
 			return checkSpec{}, fmt.Errorf("проверка %q: %s делает selected execution недоказанным", chk.Name, raw)
 		}
