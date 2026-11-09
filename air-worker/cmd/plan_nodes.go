@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,8 +22,9 @@ const (
 )
 
 var (
-	planNodeIDRE = regexp.MustCompile(`^N-([0-9]{3})_([\p{L}\p{N}][\p{L}\p{N}_-]*)$`)
-	planNodeNow  = time.Now
+	planNodeIDRE         = regexp.MustCompile(`^N-([0-9]{3})_([\p{L}\p{N}][\p{L}\p{N}_-]*)$`)
+	planNodeNow          = time.Now
+	planNodesAcquireLock = acquireLock
 )
 
 type planNode struct {
@@ -410,9 +412,16 @@ func cmdPlanNodeNew(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	lock, ok := acquireLock(lockName("plan-nodes", root))
+	lock, ok := planNodesAcquireLock(lockName("plan-nodes", root))
 	if !ok {
 		fmt.Fprintln(os.Stderr, "plan node mutation is already running for this product")
+		return 1
+	}
+	if runtime.GOOS == "windows" && !validAutoSelfDeliveryLock(lock) {
+		if lock != nil {
+			lock.release()
+		}
+		fmt.Fprintln(os.Stderr, "plan node mutex unavailable")
 		return 1
 	}
 	defer lock.release()
@@ -534,9 +543,16 @@ func cmdPlanNodeClose(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	lock, ok := acquireLock(lockName("plan-nodes", root))
+	lock, ok := planNodesAcquireLock(lockName("plan-nodes", root))
 	if !ok {
 		fmt.Fprintln(os.Stderr, "plan node mutation is already running for this product")
+		return 1
+	}
+	if runtime.GOOS == "windows" && !validAutoSelfDeliveryLock(lock) {
+		if lock != nil {
+			lock.release()
+		}
+		fmt.Fprintln(os.Stderr, "plan node mutex unavailable")
 		return 1
 	}
 	defer lock.release()
@@ -744,9 +760,16 @@ func cmdPlanMigrate(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	lock, ok := acquireLock(lockName("plan-nodes", root))
+	lock, ok := planNodesAcquireLock(lockName("plan-nodes", root))
 	if !ok {
 		fmt.Fprintln(os.Stderr, "plan node mutation is already running for this product")
+		return 1
+	}
+	if runtime.GOOS == "windows" && !validAutoSelfDeliveryLock(lock) {
+		if lock != nil {
+			lock.release()
+		}
+		fmt.Fprintln(os.Stderr, "plan node mutex unavailable")
 		return 1
 	}
 	defer lock.release()

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -380,5 +382,76 @@ func TestCuratorTickReportsNodeCounts(t *testing.T) {
 	want := "открытых узлов 2, без владельца 1, без движения >24 ч 1"
 	if !strings.Contains(out, want) {
 		t.Fatalf("tick output=%q want substring %q", out, want)
+	}
+}
+
+func TestPlanMutationsRejectInvalidAcquiredLock(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("invalid acquired mutex handles are Windows-specific")
+	}
+	for _, handle := range []struct {
+		name string
+		lock *osLock
+	}{{"nil", nil}, {"zero", &osLock{}}} {
+		for _, operation := range []string{"new", "close", "migrate"} {
+			t.Run(handle.name+"/"+operation, func(t *testing.T) {
+				root := seedPlanNodeProduct(t)
+				if operation == "migrate" {
+					if err := os.WriteFile(filepath.Join(root, "PLAN.md"), []byte("# Plan\n\n## Stage\nbody\n"), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				} else if code := cmdPlanNodeNew([]string{"-product", root, "-title", "Existing", "-parent", "Stage", "-owner", "worker", "-done-when", "done"}); code != 0 {
+					t.Fatalf("seed node: code=%d", code)
+				}
+				if operation == "migrate" {
+					if err := os.MkdirAll(filepath.Dir(planNodeEventsPath(root)), 0o755); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(planNodeEventsPath(root), []byte("{\"schema\":\""+learnSchemaVersion+"\"}\n"), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+				snapshot := func() map[string]string {
+					t.Helper()
+					files := map[string]string{}
+					err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+						if err != nil {
+							return err
+						}
+						if !info.IsDir() {
+							data, err := os.ReadFile(path)
+							if err != nil {
+								return err
+							}
+							files[path] = string(data)
+						}
+						return nil
+					})
+					if err != nil {
+						t.Fatal(err)
+					}
+					return files
+				}
+				before := snapshot()
+				oldAcquire := planNodesAcquireLock
+				planNodesAcquireLock = func(string) (*osLock, bool) { return handle.lock, true }
+				defer func() { planNodesAcquireLock = oldAcquire }()
+				var code int
+				switch operation {
+				case "new":
+					code = cmdPlanNodeNew([]string{"-product", root, "-title", "New", "-parent", "Stage", "-owner", "worker", "-done-when", "done"})
+				case "close":
+					code = cmdPlanNodeClose([]string{"N-001_existing", "-product", root, "-receipt", "02_RESULTS/pass.md"})
+				case "migrate":
+					code = cmdPlanMigrate([]string{"-product", root})
+				}
+				if code == 0 {
+					t.Fatal("mutation succeeded with invalid acquired lock")
+				}
+				if after := snapshot(); !reflect.DeepEqual(before, after) {
+					t.Fatalf("fixture files changed: before=%v after=%v", before, after)
+				}
+			})
+		}
 	}
 }
