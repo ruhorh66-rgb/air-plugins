@@ -174,6 +174,24 @@ func codingWorkerTask(task codingMicrosteps, w codingMicrostep, taskSHA, head st
 	return fmt.Sprintf("CODING WORKER %d OF 2. You are a CODE WRITER in your OWN isolated Git worktree. Edit only your assigned file. Do not modify other workspaces, shared source, PLAN, Git metadata or credentials. Do not commit. The ChatGPT conversation is your coordinator.\n\nCOORDINATOR TASK:\n%s\n", w.Index, raw)
 }
 
+func codingWorkerTaskVersion(task codingMicrosteps, w codingMicrostep, taskSHA, head, version string) string {
+	fullTask := codingWorkerTask(task, w, taskSHA, head)
+	if version == "v3" {
+		fullTask = strings.Replace(fullTask, "The ChatGPT conversation is your coordinator.", "The Codex conversation is your coordinator.", 1)
+	}
+	return fullTask
+}
+
+func codingReceiptVersion(operation, taskSHA, principal string) string {
+	if strings.HasSuffix(operation, "-v2-task-"+taskSHA) {
+		return "v2"
+	}
+	if principal == "codex" && strings.HasSuffix(operation, "-v3-task-"+taskSHA) {
+		return "v3"
+	}
+	return ""
+}
+
 func codingWorkerPrompt(taskPath, fullTask string) string {
 	return "AUTHORITATIVE WORKER TASK (also saved at " + taskPath + " for audit):\n" + fullTask +
 		"\nEdit the actual files inside YOUR worktree, run bounded checks if needed, and give a concise report. Your actual Git diff, not your prose, is the evidence."
@@ -372,7 +390,11 @@ func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner ru
 				return
 			}
 			taskPath := filepath.Join(workFolder, "TASK-CODE-WORKER.md")
-			fullTask := codingWorkerTask(parsed, microstep, doc.TaskSHA256, originalHead)
+			version := "v2"
+			if c.Principal == "codex" {
+				version = "v3"
+			}
+			fullTask := codingWorkerTaskVersion(parsed, microstep, doc.TaskSHA256, originalHead, version)
 			if err := os.WriteFile(taskPath, []byte(fullTask), 0600); err != nil {
 				work.Error = err.Error()
 				ch <- outcome{work}
@@ -381,7 +403,7 @@ func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner ru
 			prompt := codingWorkerPrompt(taskPath, fullTask)
 			cmd := codexCommandForSandbox(exePath, dirs[i-1], prompt, runner, "workspace-write")
 			agentStep := fmt.Sprintf("%s-coding-worker-%d", step, i)
-			operation := runnerReceiptOperation("executor-codex-subagent", runner, c.iter) + "-v2-task-" + shaCodingBytes([]byte(task))
+			operation := runnerReceiptOperation("executor-codex-subagent", runner, c.iter) + "-" + version + "-task-" + shaCodingBytes([]byte(task))
 			output, runErr := runReceiptedWithMeta(context.Background(), c.scope(), agentStep, operation,
 				cmd, codexReceiptMeta(runner, "coding-subagent/worker", "workspace-write"))
 			receiptPath, _ := jobReceiptPaths(c.scope(), agentStep, operation)
@@ -774,10 +796,11 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 		} else if snap.SourceHead != "" && doc.SourceHead != snap.SourceHead {
 			return doc, errors.New("receipt source mismatch")
 		}
-		if strings.HasSuffix(receipt.Operation, "-v2-task-"+taskSHA) || receipt.StdinSHA256 != "" {
+		version := codingReceiptVersion(receipt.Operation, taskSHA, scope.ID.Principal)
+		if strings.HasSuffix(receipt.Operation, "-v2-task-"+taskSHA) || strings.HasSuffix(receipt.Operation, "-v3-task-"+taskSHA) || receipt.StdinSHA256 != "" {
 			product := filepath.Join(base, fmt.Sprintf("worker-%d", i), rel)
 			taskPath := filepath.Join(product, ".woody", "TASK-CODE-WORKER.md")
-			fullTask := codingWorkerTask(parsed, parsed.Workers[i-1], taskSHA, snap.SourceHead)
+			fullTask := codingWorkerTaskVersion(parsed, parsed.Workers[i-1], taskSHA, snap.SourceHead, version)
 			expected := shaCodingBytes([]byte(ponytailPrompt(codingWorkerPrompt(taskPath, fullTask))))
 			ownedErr := jobOwnedEvidencePath(base, taskPath)
 			var actual []byte
@@ -785,7 +808,7 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 			if ownedErr == nil {
 				actual, readErr = os.ReadFile(taskPath)
 			}
-			if ownedErr != nil || readErr != nil || string(actual) != fullTask || receipt.StdinSHA256 != expected {
+			if version == "" || ownedErr != nil || readErr != nil || string(actual) != fullTask || receipt.StdinSHA256 != expected {
 				w.Status = "EXECUTION_UNKNOWN"
 			} else {
 				w.Measurement = "STDIN_SHA256_VERIFIED"
@@ -959,8 +982,8 @@ func verifiedCodingWorkerEvidence(root string, scope sessionScope, step, task st
 		seenJobs[w.JobID] = true
 		receipt, err := readJobReceipt(w.Receipt)
 		if err != nil || !receipt.ProcessStarted || receipt.Status != jobStatusDone ||
-			!strings.HasSuffix(receipt.Operation, "-v2-task-"+doc.TaskSHA256) || receipt.StdinSHA256 == "" {
-			return fail("worker receipt is not sealed v2 evidence")
+			codingReceiptVersion(receipt.Operation, doc.TaskSHA256, scope.ID.Principal) == "" || receipt.StdinSHA256 == "" {
+			return fail("worker receipt is not sealed versioned evidence")
 		}
 		snap, err := inspectOwnedJob(scope, fmt.Sprintf("%s-coding-worker-%d", step, i+1), receipt.Operation)
 		if err != nil || !snap.Terminal || snap.Status != jobStatusDone || snap.JobID != w.JobID ||
@@ -1653,7 +1676,11 @@ func validateCodingEscalation(root string, cfg runConfig, scope sessionScope, st
 		if workerRoot == "" {
 			return trace, runnerSpec{}, "", errors.New("original worker workspace missing")
 		}
-		fullTask := codingWorkerTask(parsed, parsed.Workers[i], trace.TaskSHA256, head)
+		version := codingReceiptVersion(r.Operation, trace.TaskSHA256, scope.ID.Principal)
+		if version == "" || r.StdinSHA256 == "" {
+			return trace, runnerSpec{}, "", errors.New("original measured stdin fingerprint mismatch")
+		}
+		fullTask := codingWorkerTaskVersion(parsed, parsed.Workers[i], trace.TaskSHA256, head, version)
 		taskPath := filepath.Join(workerRoot, ".woody", "TASK-CODE-WORKER.md")
 		actual, err := os.ReadFile(taskPath)
 		if err != nil || string(actual) != fullTask {

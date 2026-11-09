@@ -854,7 +854,7 @@ func TestCodingEscalation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("requires local Git worktrees")
 	}
-	for _, scenario := range []string{"vendor_limit", "narrative", "running", "unknown", "unknown_hash", "stdin_forged", "stdin_missing", "task_changed", "worker_task_changed", "head_changed", "missing_handoff", "missing_receipt", "missing_output", "tampered_output", "unstarted"} {
+	for _, scenario := range []string{"vendor_limit", "vendor_limit_codex", "narrative", "running", "unknown", "unknown_hash", "stdin_forged", "stdin_missing", "task_changed", "worker_task_changed", "head_changed", "missing_handoff", "missing_receipt", "missing_output", "tampered_output", "unstarted"} {
 		t.Run(scenario, func(t *testing.T) {
 			root, state := t.TempDir(), t.TempDir()
 			for name, body := range map[string]string{
@@ -880,6 +880,9 @@ func TestCodingEscalation(t *testing.T) {
 			codingFixtureGit(t, root, "add", ".")
 			codingFixtureGit(t, root, "commit", "-m", "base")
 			id := sessionIdentity{Principal: "gpt", SessionKey: "escalation-test"}
+			if scenario == "vendor_limit_codex" {
+				id.Principal = "codex"
+			}
 			if err := writeStateJSON(sessionModePath(state, id), sessionModeState{Enabled: true, Principal: id.Principal, SessionKey: id.SessionKey}); err != nil {
 				t.Fatal(err)
 			}
@@ -931,7 +934,11 @@ func TestCodingEscalation(t *testing.T) {
 			}
 			for _, w := range original.Workers {
 				r, err := readJobReceipt(w.Receipt)
-				if err != nil || r == nil || r.SourceHead != head || !strings.HasSuffix(r.Operation, "-v2-task-"+shaCodingBytes(body)) || r.ArgsSHA256 == "" || r.StdinSHA256 == "" || r.OutputSHA256 == "" || r.ExitCode == nil || r.RecoveryRef == "" || len(filepath.Base(w.Receipt)) > 255 {
+				version := "v2"
+				if id.Principal == "codex" {
+					version = "v3"
+				}
+				if err != nil || r == nil || r.SourceHead != head || !strings.HasSuffix(r.Operation, "-"+version+"-task-"+shaCodingBytes(body)) || r.ArgsSHA256 == "" || r.StdinSHA256 == "" || r.OutputSHA256 == "" || r.ExitCode == nil || r.RecoveryRef == "" || len(filepath.Base(w.Receipt)) > 255 {
 					t.Fatalf("unsealed receipt: %+v %v", r, err)
 				}
 				if scenario != "narrative" && (r.Status != jobStatusFailed || *r.ExitCode == 0) {
@@ -1047,7 +1054,7 @@ func TestCodingEscalation(t *testing.T) {
 				t.Fatal(err)
 			}
 			status, statusErr := codingStatus(root, scope, "coord-TASK.md", string(currentBody))
-			if scenario == "vendor_limit" || scenario == "head_changed" {
+			if scenario == "vendor_limit" || scenario == "vendor_limit_codex" || scenario == "head_changed" {
 				if statusErr != nil || status.Status != "FAILED" || status.SourceHead != head || status.TaskSHA256 != shaCodingBytes(body) || len(status.Workers) != 2 || status.Workers[0].JobID != original.Workers[0].JobID || status.Workers[1].JobID != original.Workers[1].JobID {
 					t.Fatalf("failed status lost evidence: %+v, %v", status, statusErr)
 				}
@@ -1058,7 +1065,7 @@ func TestCodingEscalation(t *testing.T) {
 				t.Fatalf("status mutated fixture or created jobs: receipts %d -> %d, jobs=%d", receiptsBefore, receiptJobs(), jobs.Load())
 			}
 			trace, next, exe, err := validateCodingEscalation(root, cfg, scope, "coord-TASK.md", currentBody)
-			if scenario == "vendor_limit" {
+			if scenario == "vendor_limit" || scenario == "vendor_limit_codex" {
 				if err != nil {
 					t.Fatalf("eligible escalation rejected: %v", err)
 				}
@@ -1113,7 +1120,7 @@ func TestCodingEscalation(t *testing.T) {
 				}
 				return
 			}
-			if scenario != "vendor_limit" {
+			if scenario != "vendor_limit" && scenario != "vendor_limit_codex" {
 				if rc == 0 || !strings.Contains(result, "NOT_PROVEN") || receiptJobs() != 2 {
 					t.Fatalf("unsafe escalation: rc=%d receipts=%d %s", rc, receiptJobs(), result)
 				}
@@ -1262,6 +1269,10 @@ func TestDW32NestedHelperProcess(t *testing.T) {
 	if err != nil {
 		os.Exit(3)
 	}
+	stdin, err := io.ReadAll(os.Stdin)
+	if err != nil || os.WriteFile(filepath.Join(root, ".woody", "test-stdin"), stdin, 0600) != nil {
+		os.Exit(5)
+	}
 	switch filepath.Base(filepath.Dir(root)) {
 	case "worker-1":
 		_ = os.WriteFile(filepath.Join(root, "a.go"), []byte("package demo\nfunc A() string { return \"NEW_A\" }\n"), 0600)
@@ -1337,8 +1348,69 @@ func testDW32N139BoundCoordinatorAck(t *testing.T, principal string) {
 		t.Fatalf("handoff: %+v", doc)
 	}
 	for _, w := range doc.Workers {
+		stdin, err := os.ReadFile(filepath.Join(w.Product, ".woody", "test-stdin"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		taskPath := filepath.Join(w.Product, ".woody", "TASK-CODE-WORKER.md")
+		workerTask, err := os.ReadFile(taskPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		receipt, err := readJobReceipt(w.Receipt)
+		if err != nil || receipt == nil {
+			t.Fatalf("receipt: %+v, %v", receipt, err)
+		}
+		version, coordinator := "v2", "The ChatGPT conversation is your coordinator."
+		if principal == "codex" {
+			version, coordinator = "v3", "The Codex conversation is your coordinator."
+		}
+		if !strings.Contains(string(stdin), coordinator) || !strings.HasSuffix(receipt.Operation, "-"+version+"-task-"+shaCodingBytes([]byte(task))) || receipt.StdinSHA256 != shaCodingBytes(stdin) {
+			t.Fatalf("%s prompt or receipt mismatch: operation=%s stdin=%s", principal, receipt.Operation, stdin)
+		}
+		if principal == "gpt" && string(stdin) != ponytailPrompt(codingWorkerPrompt(taskPath, string(workerTask))) {
+			t.Fatal("GPT stdin changed from the v2 prompt")
+		}
 		codingFixtureGit(t, repo, "apply", "--check", w.Patch)
 		codingFixtureGit(t, repo, "apply", w.Patch)
+	}
+	for _, mutation := range []string{"version", "stdin"} {
+		path := doc.Workers[0].Receipt
+		original, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		receipt, err := readJobReceipt(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mutation == "version" {
+			if principal == "codex" {
+				receipt.Operation = strings.Replace(receipt.Operation, "-v3-task-", "-v2-task-", 1)
+			} else {
+				receipt.Operation = strings.Replace(receipt.Operation, "-v2-task-", "-v3-task-", 1)
+			}
+		} else {
+			receipt.StdinSHA256 = strings.Repeat("0", 64)
+		}
+		if err := writeJobReceipt(path, receipt); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ackCodingIntegrated(root, c.scope(), n139ID, task); err == nil {
+			t.Fatalf("%s mutation accepted before ACK", mutation)
+		}
+		if err := os.WriteFile(path, original, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	foreignBeforeAck := c.scope()
+	if principal == "codex" {
+		foreignBeforeAck.ID.Principal = "gpt"
+	} else {
+		foreignBeforeAck.ID.Principal = "codex"
+	}
+	if _, err := ackCodingIntegrated(root, foreignBeforeAck, n139ID, task); err == nil {
+		t.Fatal("foreign principal acknowledged jobs")
 	}
 	if _, e := ackCodingIntegrated(root, c.scope(), n139ID, task+" "); e == nil {
 		t.Fatal("modified task accepted")
