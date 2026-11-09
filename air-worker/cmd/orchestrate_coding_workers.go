@@ -313,13 +313,16 @@ func codingChangedFiles(root string) ([]string, []byte, error) {
 }
 
 // Exactly two real Codex coders WRITE in two separate Git worktrees. The
-// controlling ChatGPT session is coordinator; there is NO third Codex leader.
+// controlling conversation is coordinator; there is NO third worker leader.
 // The original shared repository stays unchanged. Neither source changes nor
 // a final judge can be marked PASS until the coordinator inspects/merges them.
 func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner runnerSpec) codingWorkersHandoff {
 	doc := codingWorkersHandoff{Schema: "air-worker.chatgpt-coordinated-codex-workers/v1",
 		Status: "NOT_PROVEN", SourceProduct: c.Root, Coordinator: "ChatGPT/current-conversation",
 		Model: runner.Model, WorkerCount: 2, TaskSHA256: shaCodingBytes([]byte(task))}
+	if c.Principal == "codex" {
+		doc.Coordinator = "Codex/current-conversation"
+	}
 	parsed, err := parseCodingMicrosteps(task)
 	if err != nil {
 		doc.Error = err.Error()
@@ -996,7 +999,7 @@ type codingIntegrationAck struct {
 // caller-supplied ACK fields alone do not authorize a committed integration.
 func verifyCodingCommitted(root string, scope sessionScope, step, task string, original codingIntegrationAck) (string, error) {
 	fail := func(reason string) (string, error) { return "", errors.New(reason) }
-	if scope.ID.Principal != "gpt" || !(strings.HasPrefix(step, "coord-") || step == "N-139_n136-native-operational-goal-selector-for-real-a") ||
+	if (scope.ID.Principal != "gpt" && scope.ID.Principal != "codex") || !(strings.HasPrefix(step, "coord-") || step == "N-139_n136-native-operational-goal-selector-for-real-a") ||
 		len(step) > 240 || !codingScopePart.MatchString(step) || strings.Contains(step, "..") ||
 		original.Schema != "air-worker.coordinator-integration/v1" || original.Status != "ACK_RECORDED" ||
 		original.Step != step || original.Principal != scope.ID.Principal || original.SessionKey != scope.ID.SessionKey ||
@@ -1142,9 +1145,9 @@ func verifyCodingCommitted(root string, scope sessionScope, step, task string, o
 // readCodingIntegrationAck only reports a recorded action while its original evidence still matches.
 func readCodingIntegrationAck(root string, scope sessionScope, step, task string) (codingIntegrationAck, error) {
 	waiting := codingIntegrationAck{Status: "WAIT_COORDINATOR_INTEGRATION"}
-	if scope.ID.Principal != "gpt" || !(strings.HasPrefix(step, "coord-") || step == "N-139_n136-native-operational-goal-selector-for-real-a") ||
+	if (scope.ID.Principal != "gpt" && scope.ID.Principal != "codex") || !(strings.HasPrefix(step, "coord-") || step == "N-139_n136-native-operational-goal-selector-for-real-a") ||
 		len(step) > 240 || !codingScopePart.MatchString(step) || strings.Contains(step, "..") {
-		return waiting, errors.New("invalid original GPT coordinator step")
+		return waiting, errors.New("invalid original coordinator step")
 	}
 	if step == "N-139_n136-native-operational-goal-selector-for-real-a" {
 		goal, err := readOperationalGoal(root)
@@ -1302,9 +1305,9 @@ func cmdCodingAckStatus(argv []string) int {
 
 // ackCodingIntegrated records a coordinator action; it does not certify human review or future source stability.
 func ackCodingIntegrated(root string, scope sessionScope, step, task string) (string, error) {
-	if scope.ID.Principal != "gpt" || !(strings.HasPrefix(step, "coord-") || step == "N-139_n136-native-operational-goal-selector-for-real-a") ||
+	if (scope.ID.Principal != "gpt" && scope.ID.Principal != "codex") || !(strings.HasPrefix(step, "coord-") || step == "N-139_n136-native-operational-goal-selector-for-real-a") ||
 		len(step) > 240 || !codingScopePart.MatchString(step) || strings.Contains(step, "..") {
-		return "", errors.New("invalid original GPT coordinator step")
+		return "", errors.New("invalid original coordinator step")
 	}
 	if step == "N-139_n136-native-operational-goal-selector-for-real-a" {
 		goal, err := readOperationalGoal(root)

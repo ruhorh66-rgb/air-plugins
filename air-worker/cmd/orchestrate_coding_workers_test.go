@@ -1277,6 +1277,12 @@ func TestDW32NestedHelperProcess(t *testing.T) {
 }
 
 func TestDW32N139BoundCoordinatorAck(t *testing.T) {
+	for _, principal := range []string{"gpt", "codex"} {
+		t.Run(principal, func(t *testing.T) { testDW32N139BoundCoordinatorAck(t, principal) })
+	}
+}
+
+func testDW32N139BoundCoordinatorAck(t *testing.T, principal string) {
 	repo := t.TempDir()
 	root := filepath.Join(repo, "air-worker")
 	for _, d := range []string{"cmd", "plan", "goal", "docs/tasks"} {
@@ -1325,7 +1331,7 @@ func TestDW32N139BoundCoordinatorAck(t *testing.T) {
 	runnerCommand = func(string, ...string) *exec.Cmd {
 		return exec.Command(os.Args[0], "-test.run=TestDW32NestedHelperProcess")
 	}
-	c := &loopCtx{Root: root, Subagents: 2, Principal: "gpt", SessionKey: "n139-fixture", Cfg: runConfig{Orchestration: orchestrationSpec{Enabled: true, Subagents: 2, RequireNativeSubagents: true, RequireAnthropicReviewer: true}}}
+	c := &loopCtx{Root: root, Subagents: 2, Principal: principal, SessionKey: "n139-fixture", Cfg: runConfig{Orchestration: orchestrationSpec{Enabled: true, Subagents: 2, RequireNativeSubagents: true, RequireAnthropicReviewer: true}}}
 	doc := c.runIsolatedCodingWorkers("codex", task, n139ID, runnerSpec{Kind: "codex", Model: "gpt-6-luna", Effort: "low"})
 	if doc.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" {
 		t.Fatalf("handoff: %+v", doc)
@@ -1342,7 +1348,7 @@ func TestDW32N139BoundCoordinatorAck(t *testing.T) {
 		t.Fatalf("direct selector: %v", selectErr)
 	}
 	state := t.TempDir()
-	id := sessionIdentity{Principal: "gpt", SessionKey: "n139-fixture"}
+	id := sessionIdentity{Principal: principal, SessionKey: "n139-fixture"}
 	if e = writeStateJSON(sessionModePath(state, id), sessionModeState{Enabled: true, Principal: id.Principal, SessionKey: id.SessionKey}); e != nil {
 		t.Fatal(e)
 	}
@@ -1449,6 +1455,27 @@ func TestDW32N139BoundCoordinatorAck(t *testing.T) {
 		}
 	}
 	checkNoReplay("valid readback")
+	for label, foreign := range map[string]sessionScope{
+		"different session": func() sessionScope { s := c.scope(); s.ID.SessionKey = "foreign"; return s }(),
+		"other namespace": func() sessionScope {
+			s := c.scope()
+			if principal == "codex" {
+				s.ID.Principal = "gpt"
+			} else {
+				s.ID.Principal = "codex"
+			}
+			return s
+		}(),
+		"arbitrary principal": func() sessionScope { s := c.scope(); s.ID.Principal = "other"; return s }(),
+	} {
+		if got, err := readCodingIntegrationAck(root, foreign, n139ID, task); err == nil && got.Status == "ACK_RECORDED" {
+			t.Errorf("%s read another coordinator's acknowledgement", label)
+		}
+		if _, err := ackCodingIntegrated(root, foreign, n139ID, task); err == nil {
+			t.Errorf("%s acknowledged another coordinator's jobs", label)
+		}
+		checkNoReplay(label)
+	}
 	if e := os.Remove(ack); e != nil {
 		t.Fatal(e)
 	}
@@ -1588,6 +1615,13 @@ func TestDW32N139BoundCoordinatorAck(t *testing.T) {
 	foreign := c.scope()
 	foreign.ID.SessionKey = "foreign"
 	verify("foreign selector", foreign, n139ID, task, original, false)
+	foreign = c.scope()
+	if principal == "codex" {
+		foreign.ID.Principal = "gpt"
+	} else {
+		foreign.ID.Principal = "codex"
+	}
+	verify("other namespace", foreign, n139ID, task, original, false)
 	foreign.ID.Principal = "other"
 	verify("wrong principal", foreign, n139ID, task, original, false)
 	stale := original
