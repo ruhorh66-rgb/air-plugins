@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 // A separate process keeps the destination handle open throughout the rename.
@@ -324,4 +325,164 @@ func TestWriteFileAtomicRetriesRenameWhileReaderHoldsTarget(t *testing.T) {
 			t.Fatalf("после ошибки остался временный файл %s", entry.Name())
 		}
 	}
+}
+
+// TestReportLoopGateChild holds the gate until the parent closes stdin.
+func TestReportLoopGateChild(t *testing.T) {
+	root := os.Getenv("AIR_WORKER_GATE_TEST_ROOT")
+	if root == "" {
+		return
+	}
+	release, err := acquireReportLoopGate(root, os.Getenv("AIR_WORKER_GATE_TEST_EXCLUSIVE") == "1")
+	if err != nil {
+		fmt.Println("DENIED")
+	} else {
+		defer release()
+		fmt.Println("ACQUIRED")
+	}
+	_, _ = io.Copy(io.Discard, os.Stdin)
+}
+
+func TestReportLoopGateProcesses(t *testing.T) {
+	parent := filepath.Join(t.TempDir(), "parent")
+	root := filepath.Join(parent, "product")
+	other := filepath.Join(filepath.Dir(root), "other")
+	for _, dir := range []string{root, other} {
+		if err := os.MkdirAll(filepath.Join(dir, ".woody"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	start := func(path string, exclusive, want bool) func() {
+		t.Helper()
+		mode := "0"
+		if exclusive {
+			mode = "1"
+		}
+		child := exec.Command(os.Args[0], "-test.run=^TestReportLoopGateChild$")
+		child.Env = append(os.Environ(), "AIR_WORKER_GATE_TEST_ROOT="+path, "AIR_WORKER_GATE_TEST_EXCLUSIVE="+mode)
+		stdin, err := child.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		stdout, err := child.StdoutPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := child.Start(); err != nil {
+			t.Fatal(err)
+		}
+		done := make(chan error, 1)
+		go func() { done <- child.Wait() }()
+		stopped := false
+		stop := func() {
+			if stopped {
+				return
+			}
+			stopped = true
+			_ = stdin.Close()
+			select {
+			case err := <-done:
+				if err != nil {
+					t.Errorf("gate child: %v", err)
+				}
+			case <-time.After(5 * time.Second):
+				_ = child.Process.Kill()
+				<-done
+				t.Error("gate child did not exit")
+			}
+		}
+		t.Cleanup(stop)
+		response := make(chan string, 1)
+		go func() {
+			scanner := bufio.NewScanner(stdout)
+			if scanner.Scan() {
+				response <- scanner.Text()
+			} else {
+				response <- ""
+			}
+		}()
+		select {
+		case got := <-response:
+			expected := "DENIED"
+			if want {
+				expected = "ACQUIRED"
+			}
+			if got != expected {
+				t.Fatalf("gate %q exclusive=%v: got %q, want %q", path, exclusive, got, expected)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("gate child did not respond")
+		}
+		return stop
+	}
+
+	shared1 := start(root, false, true)
+	shared2 := start(root, false, true)
+	denied := start(root, true, false)
+	independent := start(other, true, true)
+	independent()
+	if err := os.Rename(root, root+"-moved"); err == nil {
+		t.Fatal("product directory was renamed while gate was held")
+	}
+	if err := os.Rename(parent, parent+"-moved"); err == nil {
+		t.Fatal("product parent was renamed while gate was held")
+	}
+	if err := os.Rename(filepath.Join(root, ".woody"), filepath.Join(root, ".woody-moved")); err == nil {
+		t.Fatal("gate directory was renamed while gate was held")
+	}
+	shared1()
+	start(root, true, false)()
+	shared2()
+	// The denied child is still alive: its failed acquisition must not pin root.
+	if err := os.Rename(root, root+"-moved"); err != nil {
+		t.Fatalf("failed acquisition left handles behind: %v", err)
+	}
+	if err := os.Rename(root+"-moved", root); err != nil {
+		t.Fatal(err)
+	}
+	denied()
+	exclusive := start(root, true, true)
+	start(root, false, false)()
+	exclusive()
+	start(root, false, true)()
+
+	t.Run("volume GUID alias", func(t *testing.T) {
+		dir, err := os.Open(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		buf := make([]uint16, 32768)
+		const volumeNameGUID = 0x1
+		proc := syscall.NewLazyDLL("kernel32.dll").NewProc("GetFinalPathNameByHandleW")
+		n, _, _ := proc.Call(dir.Fd(), uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)), volumeNameGUID)
+		_ = dir.Close()
+		if n == 0 || int(n) >= len(buf) {
+			t.Skip("volume GUID alias is unavailable on this filesystem")
+		}
+		guidRoot := syscall.UTF16ToString(buf[:n])
+		if !strings.HasPrefix(guidRoot, `\\?\Volume{`) {
+			t.Skipf("volume GUID alias is unavailable: %q", guidRoot)
+		}
+		dosInfo, err := os.Stat(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		guidInfo, err := os.Stat(guidRoot)
+		if err != nil {
+			t.Skipf("volume GUID alias cannot be opened: %v", err)
+		}
+		if !os.SameFile(dosInfo, guidInfo) {
+			t.Fatal("volume GUID alias does not identify the product root")
+		}
+		aliasHolder := start(root, false, true)
+		start(guidRoot, true, false)()
+		aliasHolder()
+		aliasExclusive := start(guidRoot, true, true)
+		if err := os.Rename(parent, parent+"-moved"); err == nil {
+			t.Fatal("product parent was renamed while GUID gate was held")
+		}
+		start(root, false, false)()
+		aliasExclusive()
+	})
 }

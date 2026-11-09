@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -296,4 +297,174 @@ func retryableRenameError(err error) bool {
 	return errors.Is(err, syscall.Errno(5)) ||
 		errors.Is(err, syscall.Errno(32)) ||
 		errors.Is(err, syscall.Errno(33))
+}
+
+// acquireReportLoopGate coordinates only processes using this gate; rc2 and non-Windows processes do not participate.
+func acquireReportLoopGate(root string, exclusive bool) (func(), error) {
+	if root == "" || len(root) > 32700 || !filepath.IsAbs(root) || filepath.Clean(root) != root || filepath.Dir(root) == root {
+		return nil, errors.New("report gate: root must be a bounded absolute product directory")
+	}
+	volume := filepath.VolumeName(root)
+	if !(len(volume) == 2 && volume[1] == ':' || strings.HasPrefix(strings.ToLower(volume), `\\?\volume{`) && strings.HasSuffix(volume, `}`)) {
+		return nil, errors.New("report gate: unsupported root volume")
+	}
+	for _, part := range strings.Split(strings.TrimPrefix(root, volume), `\`) {
+		if strings.HasSuffix(part, ".") || strings.HasSuffix(part, " ") || strings.Contains(part, ":") {
+			return nil, errors.New("report gate: unsupported path component")
+		}
+	}
+	open := func(path string, directory bool, create bool) (*os.File, syscall.ByHandleFileInformation, error) {
+		var info syscall.ByHandleFileInformation
+		name, err := syscall.UTF16PtrFromString(path)
+		if err != nil {
+			return nil, info, err
+		}
+		access, disposition := uint32(0), uint32(syscall.OPEN_EXISTING)
+		if !directory {
+			access = syscall.GENERIC_READ | syscall.GENERIC_WRITE
+		}
+		if create {
+			disposition = syscall.OPEN_ALWAYS
+		}
+		h, err := syscall.CreateFile(name, access, syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE, nil, disposition,
+			syscall.FILE_FLAG_BACKUP_SEMANTICS|syscall.FILE_FLAG_OPEN_REPARSE_POINT, 0)
+		if err != nil {
+			return nil, info, err
+		}
+		f := os.NewFile(uintptr(h), path)
+		err = syscall.GetFileInformationByHandle(h, &info)
+		if err == nil && (info.VolumeSerialNumber == 0 || (info.FileIndexHigh == 0 && info.FileIndexLow == 0)) {
+			err = errors.New("report gate: unavailable file identity")
+		}
+		if err == nil && (info.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 || (info.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0) != directory) {
+			err = errors.New("report gate: unexpected file type")
+		}
+		if err == nil && !directory {
+			kind, kindErr := syscall.GetFileType(h)
+			if kindErr != nil {
+				err = kindErr
+			} else if kind != syscall.FILE_TYPE_DISK || info.NumberOfLinks != 1 {
+				err = errors.New("report gate: unsupported gate file")
+			}
+		}
+		if err != nil {
+			_ = f.Close()
+			return nil, info, err
+		}
+		return f, info, nil
+	}
+	same := func(a, b syscall.ByHandleFileInformation) bool {
+		return a.VolumeSerialNumber == b.VolumeSerialNumber && a.FileIndexHigh == b.FileIndexHigh && a.FileIndexLow == b.FileIndexLow
+	}
+	var pins []*os.File
+	var resolvedRelease func()
+	var gate *os.File
+	var locked bool
+	ov := new(syscall.Overlapped)
+	var once sync.Once
+	release := func() {
+		once.Do(func() {
+			if gate != nil {
+				if locked {
+					bootstrapUnlockFile.Call(gate.Fd(), 0, 1, 0, uintptr(unsafe.Pointer(ov)))
+				}
+				_ = gate.Close()
+			}
+			if resolvedRelease != nil {
+				resolvedRelease()
+			}
+			for i := len(pins) - 1; i >= 0; i-- {
+				_ = pins[i].Close()
+			}
+		})
+	}
+	fail := func(err error) (func(), error) { release(); return nil, fmt.Errorf("report gate: %w", err) }
+	firstRoot, rootID, err := open(root, true, false)
+	if err != nil {
+		return fail(err)
+	}
+	pins = append(pins, firstRoot)
+	var fsName [32]uint16
+	getVolumeInfo := kernel32Lock.NewProc("GetVolumeInformationByHandleW")
+	volumeOK, _, volumeErr := getVolumeInfo.Call(firstRoot.Fd(), 0, 0, 0, 0, 0, uintptr(unsafe.Pointer(&fsName[0])), uintptr(len(fsName)))
+	if volumeOK == 0 {
+		return fail(volumeErr)
+	}
+	if syscall.UTF16ToString(fsName[:]) != "NTFS" {
+		return fail(errors.New("unsupported filesystem"))
+	}
+	woody := filepath.Join(root, ".woody")
+	firstWoody, woodyID, err := open(woody, true, false)
+	if err != nil {
+		return fail(err)
+	}
+	pins = append(pins, firstWoody)
+	physical, err := openedFileFinalPath(firstRoot)
+	if err != nil {
+		return fail(err)
+	}
+	if len(filepath.VolumeName(physical)) != 2 || filepath.VolumeName(physical)[1] != ':' || !filepath.IsAbs(physical) {
+		return fail(errors.New("unsupported resolved root"))
+	}
+	for current := woody; ; current = filepath.Dir(current) {
+		f, _, err := open(current, true, false)
+		if err != nil {
+			return fail(err)
+		}
+		pins = append(pins, f)
+		if filepath.Dir(current) == current {
+			break
+		}
+	}
+	resolvedRelease, err = releaseR04HoldSignedScratchUntilChild(filepath.Join(physical, ".woody"))
+	if err != nil {
+		return fail(err)
+	}
+	check := func(path string, expected syscall.ByHandleFileInformation, directory bool) error {
+		f, info, err := open(path, directory, false)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		if !same(expected, info) {
+			return errors.New("path identity changed")
+		}
+		return nil
+	}
+	for _, item := range []struct {
+		path string
+		id   syscall.ByHandleFileInformation
+	}{{root, rootID}, {woody, woodyID}, {physical, rootID}, {filepath.Join(physical, ".woody"), woodyID}} {
+		if err := check(item.path, item.id, true); err != nil {
+			return fail(err)
+		}
+	}
+	gatePath := filepath.Join(woody, ".report-loop.lock")
+	var gateID syscall.ByHandleFileInformation
+	gate, gateID, err = open(gatePath, false, true)
+	if err != nil {
+		return fail(err)
+	}
+	if err := check(gatePath, gateID, false); err != nil {
+		return fail(err)
+	}
+	flags := uintptr(1) // LOCKFILE_FAIL_IMMEDIATELY
+	if exclusive {
+		flags |= 2
+	}
+	ok, _, callErr := bootstrapLockFile.Call(gate.Fd(), flags, 0, 1, 0, uintptr(unsafe.Pointer(ov)))
+	if ok == 0 {
+		return fail(callErr)
+	}
+	locked = true
+	for _, item := range []struct {
+		path string
+		id   syscall.ByHandleFileInformation
+		dir  bool
+	}{{root, rootID, true}, {woody, woodyID, true}, {physical, rootID, true}, {filepath.Join(physical, ".woody"), woodyID, true}, {gatePath, gateID, false}, {filepath.Join(physical, ".woody", ".report-loop.lock"), gateID, false}} {
+		if err := check(item.path, item.id, item.dir); err != nil {
+			return fail(err)
+		}
+	}
+	return release, nil
 }
