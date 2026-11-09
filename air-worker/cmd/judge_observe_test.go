@@ -848,6 +848,16 @@ func TestProvenanceFixtureChild(t *testing.T) {
 	if _, err := f.WriteString("started\n"); err != nil {
 		t.Fatal(err)
 	}
+	if mode == "held" {
+		deadline := time.Now().Add(15 * time.Second)
+		for time.Now().Before(deadline) {
+			if _, err := os.Stat(os.Getenv("AW_PROVENANCE_RELEASE")); err == nil {
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		t.Fatal("release signal timed out")
+	}
 	if mode == "running" {
 		time.Sleep(time.Second)
 		return
@@ -1078,4 +1088,93 @@ func TestN123LegacyGoEvidenceRecovery(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestN123LegacyGoLiveReplayGuard(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("fixture uses a copied go.exe")
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	binary, err := os.ReadFile(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	goExe := filepath.Join(t.TempDir(), "go.exe")
+	if err := os.WriteFile(goExe, binary, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	initJudgeRefreshGitRepo(t, root)
+	counter := filepath.Join(t.TempDir(), "started")
+	release := filepath.Join(t.TempDir(), "release")
+	t.Setenv("AW_PROVENANCE_MODE", "held")
+	t.Setenv("AW_PROVENANCE_COUNTER", counter)
+	t.Setenv("AW_PROVENANCE_RELEASE", release)
+	args := []string{"-test.run=^TestProvenanceFixtureChild$"}
+	cmd := newChildCommand(goExe, args...)
+	cmd.Dir = root
+	scope := legacyScope(root)
+	done := make(chan error, 1)
+	go func() {
+		_, err := runJudgeCheckReceipted(context.Background(), scope, "unit", cmd, false)
+		done <- err
+	}()
+	t.Cleanup(func() {
+		_ = os.WriteFile(release, []byte("release"), 0o600)
+		select {
+		case <-done:
+		case <-time.After(20 * time.Second):
+			t.Error("legacy process did not finish")
+		}
+	})
+	receiptPath, outputPath := jobReceiptPaths(scope, "judge", "unit")
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		starts, _ := os.ReadFile(counter)
+		receipt, err := readJobReceipt(receiptPath)
+		if string(starts) == "started\n" && err == nil && receipt.Status == jobStatusRunning && receipt.ProcessStarted && receipt.PID > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("legacy process did not start: starts=%q receipt=%+v err=%v", starts, receipt, err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	beforeReceipt, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeOutput, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, report := range []bool{false, true} {
+		result := judgeResult{forReport: report}
+		runCommandCheck(root, checkSpec{Command: goExe, Args: args}, "unit", scope, &result)
+		if len(result.Unknown) != 1 || len(result.Passed) != 0 || len(result.Failed) != 0 {
+			t.Fatalf("report=%t result=%+v", report, result)
+		}
+	}
+	afterReceipt, receiptErr := os.ReadFile(receiptPath)
+	afterOutput, outputErr := os.ReadFile(outputPath)
+	starts, startsErr := os.ReadFile(counter)
+	if receiptErr != nil || outputErr != nil || startsErr != nil || string(beforeReceipt) != string(afterReceipt) || string(beforeOutput) != string(afterOutput) || string(starts) != "started\n" {
+		t.Fatalf("legacy evidence or starts changed: receiptErr=%v outputErr=%v starts=%q startsErr=%v", receiptErr, outputErr, starts, startsErr)
+	}
+	if err := os.WriteFile(release, []byte("release"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("legacy process: %v", err)
+		}
+		done <- nil
+	case <-time.After(10 * time.Second):
+		t.Fatal("legacy process did not finish")
+	}
+	pollReceiptStatus(t, receiptPath, jobStatusDone, 5*time.Second)
 }
