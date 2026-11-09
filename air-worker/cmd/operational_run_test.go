@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -462,6 +463,7 @@ func TestN139OwnedGoTreeDeadlineFailsWithoutDuplicate(t *testing.T) {
 
 func TestN139ManagedSelectionControlsModelDispatch(t *testing.T) {
 	c := n139Fixture(t)
+	owner := n139TestOwner(t, c.Root)
 	c.Orchestrate = true
 	c.Subagents = 2
 	c.Cfg.Orchestration = orchestrationSpec{Enabled: true, Subagents: 2, RequireNativeSubagents: true, RequireAnthropicReviewer: true}
@@ -479,7 +481,7 @@ func TestN139ManagedSelectionControlsModelDispatch(t *testing.T) {
 		return stepResult{Subtype: "coordinator_handoff", Detail: step.CodingTask}
 	}
 	review := func(workStep, runnerSpec, semanticFactualPacket, string) semanticRun { reviews++; return semanticRun{} }
-	if rc := runN139Step(c, goal, verify, model, review); rc != 2 || calls != 0 || reviews != 0 {
+	if rc := runN139Step(c, goal, verify, model, review, owner); rc != 2 || calls != 0 || reviews != 0 {
 		t.Fatalf("unbound task dispatched: rc=%d calls=%d reviews=%d", rc, calls, reviews)
 	}
 	task := codingMicrostepTask(t)
@@ -507,7 +509,7 @@ func TestN139ManagedSelectionControlsModelDispatch(t *testing.T) {
 	oldWait := n139CoordinatorWait
 	n139CoordinatorWait = func(*loopCtx, workStep) error { return errors.New("coordinator unavailable") }
 	t.Cleanup(func() { n139CoordinatorWait = oldWait })
-	if rc := runN139Step(c, goal, verify, model, review); rc != 2 || calls != 1 || reviews != 0 {
+	if rc := runN139Step(c, goal, verify, model, review, owner); rc != 2 || calls != 1 || reviews != 0 {
 		t.Fatalf("handoff incorrectly treated as acceptance: rc=%d calls=%d reviews=%d", rc, calls, reviews)
 	}
 }
@@ -538,6 +540,16 @@ func n139BoundHandoffFixture(t *testing.T) (*loopCtx, operationalGoal, string) {
 	return c, operationalGoal{NodeID: n139ID, SourceHead: n124Git(t, c.Root, "rev-parse", "HEAD")}, task
 }
 
+func n139TestOwner(t *testing.T, root string) *osLock {
+	t.Helper()
+	lock, ok := acquireLock(lockName("operational-n139", root))
+	if !ok || lock == nil {
+		t.Fatal("cannot acquire N139 writer lock")
+	}
+	t.Cleanup(lock.release)
+	return lock
+}
+
 func TestN139ManagedExistingWorkDoesNotRedispatch(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
@@ -548,6 +560,7 @@ func TestN139ManagedExistingWorkDoesNotRedispatch(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c, goal, task := n139BoundHandoffFixture(t)
+			owner := n139TestOwner(t, c.Root)
 			top, err := gitCodingOutput(c.Root, "rev-parse", "--show-toplevel")
 			if err != nil {
 				t.Fatal(err)
@@ -586,7 +599,7 @@ func TestN139ManagedExistingWorkDoesNotRedispatch(t *testing.T) {
 				func(workStep, runnerSpec, semanticFactualPacket, string) semanticRun {
 					reviews++
 					return semanticRun{}
-				}); rc != 2 || models != 0 || factuals != 0 || reviews != 0 {
+				}, owner); rc != 2 || models != 0 || factuals != 0 || reviews != 0 {
 				t.Fatalf("existing work redispatched: rc=%d models=%d factuals=%d reviews=%d", rc, models, factuals, reviews)
 			}
 			if tc.handoff != "" {
@@ -603,6 +616,7 @@ func TestN139ManagedExistingWorkDoesNotRedispatch(t *testing.T) {
 
 func TestN139ManagedCleanFirstDispatch(t *testing.T) {
 	c, goal, task := n139BoundHandoffFixture(t)
+	owner := n139TestOwner(t, c.Root)
 	status, err := codingStatus(c.Root, c.scope(), goal.NodeID, task)
 	if err != nil || status.Status != "NOT_FOUND" {
 		t.Fatalf("clean coding status = %q, %v", status.Status, err)
@@ -627,88 +641,207 @@ func TestN139ManagedCleanFirstDispatch(t *testing.T) {
 		func(workStep, runnerSpec, semanticFactualPacket, string) semanticRun {
 			reviews++
 			return semanticRun{}
-		}); rc != 2 || models != 1 || factuals != 0 || reviews != 0 {
+		}, owner); rc != 2 || models != 1 || factuals != 0 || reviews != 0 {
 		t.Fatalf("clean dispatch: rc=%d models=%d factuals=%d reviews=%d", rc, models, factuals, reviews)
 	}
 }
 
 func TestN139CoordinatorHandoffWaitAndProtection(t *testing.T) {
 	for _, tc := range []struct {
-		name       string
-		waitErr    error
-		ackStatus  string
-		mutatePlan bool
-		wantJudges int
+		name                           string
+		waitErr, commitErr, advanceErr error
+		tamper                         bool
+		owner                          string
+		judges                         int
 	}{
-		{name: "wait error", waitErr: errors.New("coordinator failed")},
-		{name: "timeout", waitErr: context.DeadlineExceeded},
-		{name: "verified acknowledgement", ackStatus: "ACK_RECORDED", wantJudges: 1},
-		{name: "protected mutation during wait", ackStatus: "ACK_RECORDED", mutatePlan: true},
+		{name: "success", judges: 1}, {name: "timeout", waitErr: context.DeadlineExceeded},
+		{name: "unproven commit", commitErr: errors.New("commit not proven")},
+		{name: "wrong commit", commitErr: errors.New("wrong commit")},
+		{name: "advance failed", advanceErr: errors.New("advance failed")},
+		{name: "protected tamper", tamper: true}, {name: "missing owner", owner: "nil"}, {name: "empty owner", owner: "empty"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c, goal, task := n139BoundHandoffFixture(t)
-			oldWait, oldVerify, oldFactual := n139CoordinatorWait, n139CoordinatorVerify, n139FactualJudge
+			owner := n139TestOwner(t, c.Root)
+			if tc.owner == "nil" {
+				owner = nil
+			}
+			if tc.owner == "empty" {
+				owner = &osLock{}
+			}
+			oldWait, oldVerify, oldCommit, oldAdvance, oldSource, oldFactual := n139CoordinatorWait, n139CoordinatorVerify, n139CommitWait, n139AdvanceOwnedGoal, n139CommittedSourceCheck, n139FactualJudge
 			t.Cleanup(func() {
-				n139CoordinatorWait, n139CoordinatorVerify, n139FactualJudge = oldWait, oldVerify, oldFactual
+				n139CoordinatorWait, n139CoordinatorVerify, n139CommitWait, n139AdvanceOwnedGoal, n139CommittedSourceCheck, n139FactualJudge = oldWait, oldVerify, oldCommit, oldAdvance, oldSource, oldFactual
 			})
-			plan := filepath.Join(c.Root, "PLAN.md")
-			const changedPlan = "coordinator changed protected plan\n"
-			waits, acks, models, factuals, reviews := 0, 0, 0, 0, 0
+			var order []string
+			head := strings.Repeat("a", 40)
 			n139CoordinatorWait = func(_ *loopCtx, step workStep) error {
-				waits++
+				order = append(order, "wait")
 				if step.CodingTask != task {
-					t.Fatal("wait received wrong task")
+					t.Fatal("wrong wait task")
 				}
-				if tc.mutatePlan {
-					if err := os.WriteFile(plan, []byte(changedPlan), 0o644); err != nil {
+				if tc.tamper {
+					if err := os.WriteFile(filepath.Join(c.Root, "PLAN.md"), []byte("tampered"), 0600); err != nil {
 						t.Fatal(err)
 					}
 				}
 				return tc.waitErr
 			}
-			n139CoordinatorVerify = func(root string, scope sessionScope, step, gotTask string) (codingIntegrationAck, error) {
-				acks++
-				if root != c.Root || step != n139ID || gotTask != task {
-					t.Fatal("ack verification received wrong binding")
+			n139CoordinatorVerify = func(_ string, _ sessionScope, step, got string) (codingIntegrationAck, error) {
+				order = append(order, "ack")
+				if step != n139ID || got != task {
+					t.Fatal("wrong ack binding")
 				}
-				return codingIntegrationAck{Status: tc.ackStatus}, nil
+				return codingIntegrationAck{Status: "ACK_RECORDED"}, nil
+			}
+			n139CommitWait = func(_ *loopCtx, step workStep, ack codingIntegrationAck) (string, error) {
+				order = append(order, "commit")
+				if step.CodingTask != task || ack.Status != "ACK_RECORDED" {
+					t.Fatal("wrong commit binding")
+				}
+				if tc.commitErr != nil {
+					return "", tc.commitErr
+				}
+				return head, nil
+			}
+			n139CommittedSourceCheck = func(string) (string, error) { return head, nil }
+			n139AdvanceOwnedGoal = func(_ string, prior operationalGoal, got string, lock *osLock) (operationalGoal, error) {
+				order = append(order, "advance")
+				if got != head || lock != owner {
+					t.Fatal("wrong advance binding")
+				}
+				if tc.advanceErr != nil {
+					return operationalGoal{}, tc.advanceErr
+				}
+				prior.SourceHead = head
+				return prior, nil
 			}
 			n139FactualJudge = func(*loopCtx, workStep) (semanticFactualPacket, error) {
-				factuals++
-				return semanticFactualPacket{Scope: "step", Code: 0, Passed: []string{"fixture factual PASS"}}, nil
+				order = append(order, "factual")
+				return semanticFactualPacket{Scope: "step", Code: 0, Passed: []string{"fixture"}}, nil
 			}
 			model := func(step workStep, _, _ string, _ runnerSpec) stepResult {
-				models++
+				order = append(order, "model")
 				if step.CodingTask != task {
-					t.Fatal("model received wrong task")
+					t.Fatal("wrong model task")
 				}
-				path := filepath.Join(c.Root, "cmd", "main.go")
-				if err := os.WriteFile(path, []byte("package main\nfunc main() { println(1) }\n"), 0o644); err != nil {
+				if err := os.WriteFile(filepath.Join(c.Root, "cmd", "main.go"), []byte("package main\nfunc main(){println(1)}\n"), 0600); err != nil {
 					t.Fatal(err)
 				}
 				return stepResult{Subtype: "coordinator_handoff"}
 			}
 			review := func(workStep, runnerSpec, semanticFactualPacket, string) semanticRun {
-				reviews++
+				order = append(order, "review")
 				return semanticRun{Reviewer: runnerSpec{Kind: "claude"}, Verdict: semanticVerdict{Verdict: "PASS"}}
 			}
-			if rc := runN139Step(c, goal, func(string, operationalGoal) error { return nil }, model, review); rc != 2 {
-				t.Fatalf("run RC = %d", rc)
+			runN139Step(c, goal, func(string, operationalGoal) error { return nil }, model, review, owner)
+			got := strings.Join(order, ",")
+			want := "model,wait,ack,commit,advance,factual,review"
+			switch {
+			case tc.owner != "":
+				want = ""
+			case tc.waitErr != nil:
+				want = "model,wait"
+			case tc.tamper:
+				want = "model,wait,ack"
+			case tc.commitErr != nil:
+				want = "model,wait,ack,commit"
+			case tc.advanceErr != nil:
+				want = "model,wait,ack,commit,advance"
 			}
-			if models != 1 || waits != 1 || factuals != tc.wantJudges || reviews != tc.wantJudges {
-				t.Fatalf("models=%d waits=%d factuals=%d reviews=%d", models, waits, factuals, reviews)
+			if got != want {
+				t.Fatalf("sequence %q, want %q", got, want)
 			}
-			if tc.waitErr != nil && acks != 0 {
-				t.Fatalf("wait error still verified %d acknowledgements", acks)
+			raw, err := os.ReadFile(filepath.Join(c.Root, "plan", n139ID+".md"))
+			if err != nil || !strings.Contains(string(raw), "air-worker-coding-task") {
+				t.Fatalf("node changed: %v", err)
 			}
-			if tc.waitErr == nil && !tc.mutatePlan && acks != 1 {
-				t.Fatalf("completed wait verified %d acknowledgements", acks)
-			}
-			if tc.mutatePlan {
-				got, err := os.ReadFile(plan)
-				if err != nil || string(got) != changedPlan {
-					t.Fatalf("protected change was restored: %q, %v", got, err)
+		})
+	}
+}
+
+func TestN139AdvanceOwnedGoalRealGit(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("native writer lock is only implemented on Windows")
+	}
+	for _, tc := range []string{"success", "nil owner", "empty owner", "dirty", "mismatch", "criteria"} {
+		t.Run(tc, func(t *testing.T) {
+			repo := t.TempDir()
+			root := filepath.Join(repo, "air-worker")
+			for _, dir := range []string{"cmd", "plan", "goal"} {
+				if err := os.MkdirAll(filepath.Join(root, dir), 0700); err != nil {
+					t.Fatal(err)
 				}
+			}
+			release, err := os.ReadFile(filepath.Join("..", "plan", "release-slices.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			node := fmt.Sprintf("---\nid: %q\ntitle: \"N139\"\nparent: %q\ntrigger: \"test\"\nowner: \"test\"\ndone_when: \"test\"\nstatus: \"open\"\nreturn_to: \"test\"\ncreated_at: \"2026-11-07T03:07:15Z\"\nupdated_at: \"2026-11-07T03:07:15Z\"\nreceipts:\n---\n", n139ID, "N-136_prove-autonomous-plan-coding-factual-anthropic-c")
+			for path, data := range map[string][]byte{".gitignore": []byte("air-worker/goal/operational-goal.json\n"), "air-worker/cmd/go.mod": []byte("module airos/air-worker\n\ngo 1.26\n"), "air-worker/PLAN.md": []byte("[[" + n139ID + "]]\n"), "air-worker/plan/" + n139ID + ".md": []byte(node), "air-worker/plan/release-slices.json": release, "air-worker/cmd/source.go": []byte("package main\n")} {
+				if err := os.WriteFile(filepath.Join(repo, filepath.FromSlash(path)), data, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			n124Git(t, repo, "init")
+			n124Git(t, repo, "config", "user.name", "Test")
+			n124Git(t, repo, "config", "user.email", "test@example.invalid")
+			n124Git(t, repo, "add", ".")
+			n124Git(t, repo, "commit", "-m", "old")
+			oldHead := n124Git(t, repo, "rev-parse", "HEAD")
+			prior, err := operationalGoalInputs(root, n139ID, oldHead)
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, err := json.Marshal(prior)
+			if err != nil {
+				t.Fatal(err)
+			}
+			path := operationalGoalPath(root)
+			if err = os.WriteFile(path, raw, 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err = os.WriteFile(filepath.Join(root, "cmd", "source.go"), []byte("package main\n// new\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			n124Git(t, repo, "add", ".")
+			n124Git(t, repo, "commit", "-m", "new")
+			head := n124Git(t, repo, "rev-parse", "HEAD")
+			owner := n139TestOwner(t, root)
+			switch tc {
+			case "nil owner":
+				owner = nil
+			case "empty owner":
+				owner = &osLock{}
+			case "dirty":
+				if err = os.WriteFile(filepath.Join(root, "cmd", "source.go"), []byte("dirty"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			case "mismatch":
+				prior.SourceHead = strings.Repeat("b", 40)
+			case "criteria":
+				prior.DoneWhen = "wrong"
+			}
+			before, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, _ = validateOperationalGoalAdvance(root, prior, n139ID, prior.SourceHead, head)
+			afterVerify, err := os.ReadFile(path)
+			if err != nil || string(afterVerify) != string(before) {
+				t.Fatal("read-only verifier changed selector")
+			}
+			got, err := advanceN139OwnedGoal(root, prior, head, owner)
+			after, readErr := os.ReadFile(path)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if tc == "success" {
+				if err != nil || got.SourceHead != head || string(after) == string(before) {
+					t.Fatalf("advance: %+v %v", got, err)
+				}
+			} else if err == nil || string(after) != string(before) {
+				t.Fatalf("%s changed selector or succeeded: %v", tc, err)
 			}
 		})
 	}

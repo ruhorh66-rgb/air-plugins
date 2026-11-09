@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -37,6 +38,85 @@ var n139CoordinatorWait = func(c *loopCtx, step workStep) error {
 }
 
 var n139CoordinatorVerify = readCodingIntegrationAck
+var n139CommittedSourceCheck = sourceReviewGitState
+var n139CommitWait = waitN139Commit
+var n139AdvanceOwnedGoal = advanceN139OwnedGoal
+
+func waitN139Commit(c *loopCtx, step workStep, ack codingIntegrationAck) (string, error) {
+	deadline := time.Now().Add(30 * time.Minute)
+	for {
+		head, err := gitCodingOutput(c.Root, "rev-parse", "HEAD")
+		if err != nil {
+			return "", err
+		}
+		if head != ack.SourceHead {
+			return verifyCodingCommitted(c.Root, c.scope(), step.Num, step.CodingTask, ack)
+		}
+		if !time.Now().Before(deadline) {
+			return "", errors.New("coordinator commit timed out")
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+func advanceN139OwnedGoal(root string, prior operationalGoal, nextHead string, writer *osLock) (operationalGoal, error) {
+	var empty operationalGoal
+	if !validAutoSelfDeliveryLock(writer) {
+		return empty, errors.New("invalid N139 writer lock")
+	}
+	goalLock, ok := acquireLock(lockName("operational-goal", root))
+	if !ok || !validAutoSelfDeliveryLock(goalLock) {
+		return empty, errors.New("operational goal lock unavailable or invalid")
+	}
+	defer goalLock.release()
+	if head, err := sourceReviewGitState(root); err != nil || head != nextHead {
+		return empty, errors.New("source is dirty or HEAD changed")
+	}
+	path := operationalGoalPath(root)
+	info, err := os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return empty, errors.New("prior selector absent or nonregular")
+	}
+	oldRaw, err := os.ReadFile(path)
+	if err != nil {
+		return empty, err
+	}
+	current, err := decodeOperationalGoalPinned(oldRaw)
+	if err != nil || current != prior {
+		return empty, errors.New("prior selector changed or invalid")
+	}
+	next, err := validateOperationalGoalAdvance(root, prior, prior.NodeID, prior.SourceHead, nextHead)
+	if err != nil {
+		return empty, err
+	}
+	nextRaw, err := json.MarshalIndent(next, "", "  ")
+	if err != nil {
+		return empty, err
+	}
+	check, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(check, oldRaw) {
+		return empty, errors.New("prior selector changed during transition")
+	}
+	if !validAutoSelfDeliveryLock(writer) || !validAutoSelfDeliveryLock(goalLock) {
+		return empty, errors.New("transition lock invalid")
+	}
+	if head, err := sourceReviewGitState(root); err != nil || head != nextHead {
+		return empty, errors.New("source changed during transition")
+	}
+	check, err = os.ReadFile(path)
+	if err != nil || !bytes.Equal(check, oldRaw) {
+		return empty, errors.New("prior selector changed before write")
+	}
+	if err := writeFileAtomic(path, append(nextRaw, '\n')); err != nil {
+		return empty, err
+	}
+	verified, err := readOperationalGoal(root)
+	if err != nil || verified != next {
+		_ = writeFileAtomic(path, oldRaw)
+		return empty, errors.New("selector postwrite verification failed")
+	}
+	return verified, nil
+}
 
 // N139 is deliberately one source step. Its full done_when includes independent
 // acceptance beyond this bootstrap, so this runner never closes the node.
@@ -51,22 +131,29 @@ func runN139Operational(root string, cfg runConfig, cfgPath string, goal operati
 	// individually scoped, but only one N139 writer may work on the product
 	// at a time even when another session has a distinct job namespace.
 	ownerLock, free := acquireLock(lockName("operational-n139", root))
-	if !free {
+	if !free || (cfg.Orchestration.Enabled && cfg.Orchestration.RequireNativeSubagents && !validAutoSelfDeliveryLock(ownerLock)) {
 		line("NOT_PROVEN: N139_PRODUCT_WRITER_ACTIVE; do not start another coding job")
 		return 2
 	}
-	defer ownerLock.release()
+	if validAutoSelfDeliveryLock(ownerLock) {
+		defer ownerLock.release()
+	}
 	c := &loopCtx{Root: root, Cfg: cfg, CfgPath: cfgPath,
 		MaxTurns:  orInt(cfg.Budget.TurnsPerIteration, 60),
 		Principal: principal, SessionKey: sessionKey,
 		Orchestrate: cfg.Orchestration.Enabled,
 		Subagents:   cfg.Orchestration.Subagents}
-	return runN139Step(c, goal, operationalGoalPreview, c.runModelStep, c.semanticJudge)
+	return runN139Step(c, goal, operationalGoalPreview, c.runModelStep, c.semanticJudge, ownerLock)
 }
 
 func runN139Step(c *loopCtx, goal operationalGoal, verify func(string, operationalGoal) error,
 	model func(workStep, string, string, runnerSpec) stepResult,
-	review func(workStep, runnerSpec, semanticFactualPacket, string) semanticRun) int {
+	review func(workStep, runnerSpec, semanticFactualPacket, string) semanticRun, writers ...*osLock) int {
+	managed := c.Orchestrate && c.Cfg.Orchestration.RequireNativeSubagents
+	if managed && (len(writers) != 1 || !validAutoSelfDeliveryLock(writers[0])) {
+		line("EXECUTION_UNKNOWN: N139_WRITER_LOCK_INVALID")
+		return 2
+	}
 	if err := verify(c.Root, goal); err != nil {
 		line("NOT_PROVEN: SELECTOR_INVALID: " + err.Error())
 		return 2
@@ -176,6 +263,18 @@ func runN139Step(c *loopCtx, goal operationalGoal, verify func(string, operation
 			return 2
 		}
 	}
+	if managed {
+		if !validAutoSelfDeliveryLock(writers[0]) {
+			line("EXECUTION_UNKNOWN: N139_WRITER_LOCK_INVALID")
+			return 2
+		}
+		goalLock, ok := acquireLock(lockName("operational-goal", c.Root))
+		if !ok || !validAutoSelfDeliveryLock(goalLock) {
+			line("EXECUTION_UNKNOWN: GOAL_LOCK_INVALID")
+			return 2
+		}
+		goalLock.release()
+	}
 	result := model(step, rung, "", runner)
 	changed, restoreErr := restoreJudgeFiles(guard)
 	if restoreErr != nil || len(changed) != 0 {
@@ -245,6 +344,25 @@ func runN139Step(c *loopCtx, goal operationalGoal, verify func(string, operation
 			line("NOT_PROVEN: PROTECTED_INVENTORY_CHANGED")
 			return 2
 		}
+		line("WAIT_COORDINATOR_COMMIT")
+		head, err := n139CommitWait(c, step, ack)
+		if err != nil {
+			line("EXECUTION_UNKNOWN: COORDINATOR_COMMIT: " + err.Error())
+			return 2
+		}
+		goal, err = n139AdvanceOwnedGoal(c.Root, goal, head, writers[0])
+		if err != nil {
+			line("EXECUTION_UNKNOWN: SELECTOR_ADVANCE: " + err.Error())
+			return 2
+		}
+		if current, err := n139CommittedSourceCheck(c.Root); err != nil || current != head || goal.SourceHead != head {
+			line("EXECUTION_UNKNOWN: COMMITTED_SOURCE_CHANGED")
+			return 2
+		}
+		if err := verify(c.Root, goal); err != nil {
+			line("EXECUTION_UNKNOWN: SELECTOR_CHANGED: " + err.Error())
+			return 2
+		}
 		coordinatorIntegrated = true
 	}
 	if !result.Ok && !coordinatorIntegrated {
@@ -253,12 +371,30 @@ func runN139Step(c *loopCtx, goal operationalGoal, verify func(string, operation
 	}
 	after, err := n139SourceDigest(c.Root)
 	if err != nil || bytes.Equal(before, after) {
-		line(fmt.Sprintf("NOT_PROVEN: SOURCE_WRITE_NOT_PROVEN: %v", err))
+		if coordinatorIntegrated {
+			line(fmt.Sprintf("EXECUTION_UNKNOWN: SOURCE_WRITE_NOT_PROVEN: %v", err))
+		} else {
+			line(fmt.Sprintf("NOT_PROVEN: SOURCE_WRITE_NOT_PROVEN: %v", err))
+		}
 		return 2
 	}
 	if err := verify(c.Root, goal); err != nil {
-		line("NOT_PROVEN: SELECTOR_CHANGED: " + err.Error())
+		if coordinatorIntegrated {
+			line("EXECUTION_UNKNOWN: SELECTOR_CHANGED: " + err.Error())
+		} else {
+			line("NOT_PROVEN: SELECTOR_CHANGED: " + err.Error())
+		}
 		return 2
+	}
+	if coordinatorIntegrated {
+		if head, err := n139CommittedSourceCheck(c.Root); err != nil || head != goal.SourceHead {
+			line("EXECUTION_UNKNOWN: COMMITTED_SOURCE_CHANGED")
+			return 2
+		}
+		if err := verify(c.Root, goal); err != nil {
+			line("EXECUTION_UNKNOWN: SELECTOR_CHANGED: " + err.Error())
+			return 2
+		}
 	}
 	// Factual Go is the same owned, resumable native job family as the Codex
 	// executor, not an untracked CombinedOutput subprocess. An interrupted
