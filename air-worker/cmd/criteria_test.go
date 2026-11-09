@@ -84,6 +84,8 @@ func TestCriterionJudgeAffectsVerdictAndDistance(t *testing.T) {
 }
 
 func TestJudgeSelectorInventoryBatchesOneGoListPerCheck(t *testing.T) {
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("GOENV", "off")
 	old := judgeGoListSelectors
 	defer func() { judgeGoListSelectors = old }()
 	calls := 0
@@ -113,6 +115,8 @@ func TestJudgeSelectorInventoryBatchesOneGoListPerCheck(t *testing.T) {
 }
 
 func TestJudgeSelectorInventoryMarksMissingWithoutPerSelectorProbe(t *testing.T) {
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("GOENV", "off")
 	old := judgeGoListSelectors
 	defer func() { judgeGoListSelectors = old }()
 	calls := 0
@@ -136,6 +140,8 @@ func TestJudgeSelectorInventoryMarksMissingWithoutPerSelectorProbe(t *testing.T)
 }
 
 func TestFilteredGoCheckCannotLendPassToExcludedSelector(t *testing.T) {
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("GOENV", "off")
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module filtered\n\ngo 1.22\n"), 0o644); err != nil {
 		t.Fatal(err)

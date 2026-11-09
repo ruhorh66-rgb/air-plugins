@@ -590,6 +590,8 @@ func TestReportInformationalChangesOnlyExitCode(t *testing.T) {
 }
 
 func TestJudgeJSONIncludesSelectorObservation(t *testing.T) {
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("GOENV", "off")
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module obsfixture\n\ngo 1.22\n"), 0o644); err != nil {
 		t.Fatal(err)
