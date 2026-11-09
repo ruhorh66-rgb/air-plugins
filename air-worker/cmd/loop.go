@@ -246,6 +246,18 @@ func cmdLoopWithReleaseSliceRunner(argv []string, releaseRunner func(string, run
 		line("ОТКАЗ: " + err.Error())
 		return 2
 	}
+	if !*whatIf && !*planOnly {
+		if err := ensureOwnedJobsDir(root); err != nil {
+			line("ОТКАЗ: cannot prepare owned jobs directory: " + err.Error())
+			return 2
+		}
+		releaseGate, err := acquireReportLoopGate(root, false)
+		if err != nil {
+			line("ОТКАЗ: cannot acquire report-loop gate: " + err.Error())
+			return 2
+		}
+		defer releaseGate()
+	}
 	if _, err := os.Stat(operationalGoalPath(root)); err == nil {
 		goal, err := readOperationalGoal(root)
 		if err != nil {

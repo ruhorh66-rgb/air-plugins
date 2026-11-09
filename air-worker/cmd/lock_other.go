@@ -19,6 +19,10 @@ func lockName(kind, path string) string { return kind + ":" + path }
 
 func acquireLock(name string) (*osLock, bool) { return &osLock{}, true }
 
+func acquireReportLoopGate(root string, exclusive bool) (func(), error) {
+	return nil, fmt.Errorf("report loop gate is unsupported on non-Windows platforms")
+}
+
 func (l *osLock) release() {}
 
 func lockHeld(name string) bool { return false }
