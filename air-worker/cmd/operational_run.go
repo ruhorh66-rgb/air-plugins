@@ -41,6 +41,63 @@ var n139CoordinatorVerify = readCodingIntegrationAck
 var n139CommittedSourceCheck = sourceReviewGitState
 var n139CommitWait = waitN139Commit
 var n139AdvanceOwnedGoal = advanceN139OwnedGoal
+var n139BoundSourceReview = reviewN139BoundSource
+
+func reviewN139BoundSource(c *loopCtx, goal operationalGoal, task string) error {
+	check := func() error {
+		current, err := readOperationalGoal(c.Root)
+		if err != nil || current != goal {
+			return errors.New("operational goal changed or invalid")
+		}
+		head, err := sourceReviewGitState(c.Root)
+		if err != nil || head != goal.SourceHead {
+			return errors.New("source is dirty or HEAD changed")
+		}
+		selected, err := selectN139CodingTask(c.Root, goal)
+		if err != nil || task == "" || selected != task {
+			return errors.New("original coding task changed or invalid")
+		}
+		return nil
+	}
+	if err := check(); err != nil {
+		return err
+	}
+	node, err := sourceReviewNode(c.Root, goal.NodeID)
+	if err != nil || node.ID != goal.NodeID || strings.TrimSpace(node.DoneWhen) == "" {
+		return errors.New("source review node or done_when invalid")
+	}
+	reviewer, err := judgeLaneRunner(c.Cfg, "default")
+	if err == nil {
+		err = enforceIndependentAnthropicReviewer(c.Cfg, runnerSpec{Kind: "codex"}, reviewer)
+	}
+	if err != nil {
+		return err
+	}
+	step := "source-review-" + node.ID + "-" + goal.SourceHead[:12]
+	receipt, output := jobReceiptPaths(c.scope(), step, "semantic-reviewer")
+	for _, path := range []string{receipt, output} {
+		if _, err := os.Lstat(path); err == nil || !os.IsNotExist(err) {
+			return errors.New("source review receipt or output already exists or is unreadable")
+		}
+	}
+	taskSHA := sha256Hex([]byte(task))
+	prompt := sourceReviewPrompt("NATIVE_NODE_ID: "+node.ID+"\nNATIVE_NODE_DONE_WHEN: "+node.DoneWhen+"\n"+task, goal.SourceHead, taskSHA)
+	reply, _, err := invokeNativeSourceReview(c.scope(), prompt, reviewer, step)
+	if err != nil {
+		return err
+	}
+	if err := check(); err != nil {
+		return err
+	}
+	verdict, err := parseSourceReviewVerdict(reply, c.Root, goal.SourceHead, taskSHA)
+	if err != nil {
+		return err
+	}
+	if verdict.Verdict != "PASS_SOURCE_ONLY" {
+		return fmt.Errorf("source review did not pass: %s", verdict.Verdict)
+	}
+	return nil
+}
 
 func waitN139Commit(c *loopCtx, step workStep, ack codingIntegrationAck) (string, error) {
 	deadline := time.Now().Add(30 * time.Minute)
@@ -404,12 +461,19 @@ func runN139Step(c *loopCtx, goal operationalGoal, verify func(string, operation
 		line("NOT_PROVEN: FACTUAL_GO_UNPROVEN: " + err.Error())
 		return 2
 	}
-	semantic := review(step, runner, factual, result.Detail)
-	if semantic.Error != "" || semantic.Reviewer.Kind != "claude" || combinedAcceptance(0, semantic.Verdict) != "PASS" {
-		line("NOT_PROVEN: ANTHROPIC_NOT_PASS: " + semantic.Error + " " + semantic.Verdict.Verdict)
-		return 2
+	if coordinatorIntegrated {
+		if err := n139BoundSourceReview(c, goal, step.CodingTask); err != nil {
+			line("NOT_PROVEN: SOURCE_REVIEW_UNPROVEN: " + err.Error())
+			return 2
+		}
+	} else {
+		semantic := review(step, runner, factual, result.Detail)
+		if semantic.Error != "" || semantic.Reviewer.Kind != "claude" || combinedAcceptance(0, semantic.Verdict) != "PASS" {
+			line("NOT_PROVEN: ANTHROPIC_NOT_PASS: " + semantic.Error + " " + semantic.Verdict.Verdict)
+			return 2
+		}
 	}
-	line("NOT_PROVEN: N139_FULL_DONE_WHEN_UNPROVEN: source write, factual Go and semantic PASS are evidence; native node remains open")
+	line("NOT_PROVEN: N139_FULL_DONE_WHEN_UNPROVEN: source write, factual Go and review PASS are evidence; native node remains open")
 	return 2
 }
 

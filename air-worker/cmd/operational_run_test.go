@@ -648,13 +648,13 @@ func TestN139ManagedCleanFirstDispatch(t *testing.T) {
 
 func TestN139CoordinatorHandoffWaitAndProtection(t *testing.T) {
 	for _, tc := range []struct {
-		name                           string
-		waitErr, commitErr, advanceErr error
-		tamper                         bool
-		owner                          string
-		judges                         int
+		name                                      string
+		waitErr, commitErr, advanceErr, reviewErr error
+		tamper                                    bool
+		owner                                     string
 	}{
-		{name: "success", judges: 1}, {name: "timeout", waitErr: context.DeadlineExceeded},
+		{name: "success"}, {name: "bound review failed", reviewErr: errors.New("source review unproven")},
+		{name: "timeout", waitErr: context.DeadlineExceeded},
 		{name: "unproven commit", commitErr: errors.New("commit not proven")},
 		{name: "wrong commit", commitErr: errors.New("wrong commit")},
 		{name: "advance failed", advanceErr: errors.New("advance failed")},
@@ -669,9 +669,9 @@ func TestN139CoordinatorHandoffWaitAndProtection(t *testing.T) {
 			if tc.owner == "empty" {
 				owner = &osLock{}
 			}
-			oldWait, oldVerify, oldCommit, oldAdvance, oldSource, oldFactual := n139CoordinatorWait, n139CoordinatorVerify, n139CommitWait, n139AdvanceOwnedGoal, n139CommittedSourceCheck, n139FactualJudge
+			oldWait, oldVerify, oldCommit, oldAdvance, oldSource, oldFactual, oldReview := n139CoordinatorWait, n139CoordinatorVerify, n139CommitWait, n139AdvanceOwnedGoal, n139CommittedSourceCheck, n139FactualJudge, n139BoundSourceReview
 			t.Cleanup(func() {
-				n139CoordinatorWait, n139CoordinatorVerify, n139CommitWait, n139AdvanceOwnedGoal, n139CommittedSourceCheck, n139FactualJudge = oldWait, oldVerify, oldCommit, oldAdvance, oldSource, oldFactual
+				n139CoordinatorWait, n139CoordinatorVerify, n139CommitWait, n139AdvanceOwnedGoal, n139CommittedSourceCheck, n139FactualJudge, n139BoundSourceReview = oldWait, oldVerify, oldCommit, oldAdvance, oldSource, oldFactual, oldReview
 			})
 			var order []string
 			head := strings.Repeat("a", 40)
@@ -730,13 +730,24 @@ func TestN139CoordinatorHandoffWaitAndProtection(t *testing.T) {
 				}
 				return stepResult{Subtype: "coordinator_handoff"}
 			}
-			review := func(workStep, runnerSpec, semanticFactualPacket, string) semanticRun {
-				order = append(order, "review")
-				return semanticRun{Reviewer: runnerSpec{Kind: "claude"}, Verdict: semanticVerdict{Verdict: "PASS"}}
+			n139BoundSourceReview = func(gotCtx *loopCtx, gotGoal operationalGoal, gotTask string) error {
+				order = append(order, "bound-review")
+				wantGoal := goal
+				wantGoal.SourceHead = head
+				if gotCtx != c || gotGoal != wantGoal || gotTask != task {
+					t.Fatal("wrong bound source review inputs")
+				}
+				return tc.reviewErr
 			}
-			runN139Step(c, goal, func(string, operationalGoal) error { return nil }, model, review, owner)
+			review := func(workStep, runnerSpec, semanticFactualPacket, string) semanticRun {
+				order = append(order, "generic-review")
+				return semanticRun{}
+			}
+			if rc := runN139Step(c, goal, func(string, operationalGoal) error { return nil }, model, review, owner); rc != 2 {
+				t.Fatalf("N139 must remain unproven: rc=%d", rc)
+			}
 			got := strings.Join(order, ",")
-			want := "model,wait,ack,commit,advance,factual,review"
+			want := "model,wait,ack,commit,advance,factual,bound-review"
 			switch {
 			case tc.owner != "":
 				want = ""
