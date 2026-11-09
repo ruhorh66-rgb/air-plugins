@@ -9,7 +9,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 )
+
+var operationalGoalAdvanceAcquireLock = acquireLock
 
 // validateOperationalGoalAdvance verifies a previously owned pinned goal
 // against the exact current Git HEAD. The old selector cannot use the usual
@@ -80,15 +83,29 @@ func cmdOperationalGoalAdvance(argv []string) int {
 		fmt.Fprintln(os.Stderr, "operational-goal advance: session:", err)
 		return 2
 	}
-	goalLock, ok := acquireLock(lockName("operational-goal", root))
+	goalLock, ok := operationalGoalAdvanceAcquireLock(lockName("operational-goal", root))
 	if !ok {
 		fmt.Fprintln(os.Stderr, "operational-goal advance: goal owner is active")
 		return 2
 	}
+	if runtime.GOOS == "windows" && !validAutoSelfDeliveryLock(goalLock) {
+		if goalLock != nil {
+			goalLock.release()
+		}
+		fmt.Fprintln(os.Stderr, "operational-goal advance: goal mutex unavailable")
+		return 2
+	}
 	defer goalLock.release()
-	writerLock, ok := acquireLock(lockName("operational-n139", root))
+	writerLock, ok := operationalGoalAdvanceAcquireLock(lockName("operational-n139", root))
 	if !ok {
 		fmt.Fprintln(os.Stderr, "operational-goal advance: N139 writer is active")
+		return 2
+	}
+	if runtime.GOOS == "windows" && !validAutoSelfDeliveryLock(writerLock) {
+		if writerLock != nil {
+			writerLock.release()
+		}
+		fmt.Fprintln(os.Stderr, "operational-goal advance: N139 writer mutex unavailable")
 		return 2
 	}
 	defer writerLock.release()

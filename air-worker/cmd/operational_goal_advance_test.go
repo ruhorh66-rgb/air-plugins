@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -103,5 +104,92 @@ func TestOperationalGoalAdvanceAtomicStateReplacement(t *testing.T) {
 	got, err := os.ReadFile(path)
 	if err != nil || !bytes.Equal(got, next) {
 		t.Fatalf("native atomic state readback failed: %v bytes=%q", err, got)
+	}
+}
+
+func TestOperationalGoalMutationRejectsInvalidMutex(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("native mutex handles are Windows-specific")
+	}
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "PLAN.md"), []byte("fixture\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := operationalGoalPath(root)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	original := []byte("unchanged selector\n")
+	if err := os.WriteFile(path, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ProgramData", t.TempDir())
+	state := sessionStateDir()
+	id := sessionIdentity{Principal: "chatgpt", SessionKey: "goal-lock-fixture"}
+	if err := writeStateJSON(sessionModePath(state, id), sessionModeState{Enabled: true, Principal: id.Principal, SessionKey: id.SessionKey}); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeStateJSON(sessionProductPath(state, id), sessionProductState{Path: root, Principal: id.Principal, SessionKey: id.SessionKey}); err != nil {
+		t.Fatal(err)
+	}
+	oldAdvance, oldActivate := operationalGoalAdvanceAcquireLock, operationalGoalActivateAcquireLock
+	t.Cleanup(func() {
+		operationalGoalAdvanceAcquireLock, operationalGoalActivateAcquireLock = oldAdvance, oldActivate
+	})
+	for _, invalid := range []struct {
+		name string
+		lock *osLock
+	}{{"nil", nil}, {"zero", &osLock{}}} {
+		for _, target := range []string{"activate", "goal", "writer"} {
+			t.Run(invalid.name+"/"+target, func(t *testing.T) {
+				calls := 0
+				var held *osLock
+				acquire := func(name string) (*osLock, bool) {
+					calls++
+					if target == "writer" && calls == 1 {
+						var ok bool
+						held, ok = acquireLock(name)
+						if !ok || !validAutoSelfDeliveryLock(held) {
+							t.Fatal("could not acquire real goal mutex")
+						}
+						return held, true
+					}
+					return invalid.lock, true
+				}
+				operationalGoalAdvanceAcquireLock = acquire
+				operationalGoalActivateAcquireLock = acquire
+				var output string
+				var code int
+				want := "operational goal mutex is unavailable\n"
+				if target == "activate" {
+					output, code = captureStderr(t, func() int { return cmdOperationalGoal([]string{"activate", "-product", root}) })
+				} else {
+					want = "operational-goal advance: goal mutex unavailable\n"
+					if target == "writer" {
+						want = "operational-goal advance: N139 writer mutex unavailable\n"
+					}
+					output, code = captureStderr(t, func() int {
+						return cmdOperationalGoalAdvance([]string{"-product", root, "-principal", id.Principal, "-session-key", id.SessionKey})
+					})
+				}
+				if code != 2 || strings.ReplaceAll(output, "\r\n", "\n") != want {
+					t.Fatalf("code=%d stderr=%q, want 2 and %q", code, output, want)
+				}
+				wantCalls := 1
+				if target == "writer" {
+					wantCalls = 2
+				}
+				if calls != wantCalls {
+					t.Fatalf("lock calls=%d, want %d", calls, wantCalls)
+				}
+				if held != nil && validAutoSelfDeliveryLock(held) {
+					t.Fatal("real goal mutex was not released")
+				}
+				got, err := os.ReadFile(path)
+				if err != nil || !bytes.Equal(got, original) {
+					t.Fatalf("selector changed: %q, %v", got, err)
+				}
+			})
+		}
 	}
 }

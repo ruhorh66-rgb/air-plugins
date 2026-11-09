@@ -11,12 +11,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 )
 
 const operationalGoalSchema = "air-worker.operational-goal/v1"
 
 var operationalSHA = regexp.MustCompile(`^[a-f0-9]{40}$`)
+var operationalGoalActivateAcquireLock = acquireLock
 
 type operationalGoal struct {
 	Schema        string `json:"schema"`
@@ -181,9 +183,16 @@ func cmdOperationalGoal(argv []string) int {
 	if action == "status" {
 		goal, err = readOperationalGoal(root)
 	} else {
-		lock, ok := acquireLock(lockName("operational-goal", root))
+		lock, ok := operationalGoalActivateAcquireLock(lockName("operational-goal", root))
 		if !ok {
 			fmt.Fprintln(os.Stderr, "operational goal transition is already running")
+			return 2
+		}
+		if runtime.GOOS == "windows" && !validAutoSelfDeliveryLock(lock) {
+			if lock != nil {
+				lock.release()
+			}
+			fmt.Fprintln(os.Stderr, "operational goal mutex is unavailable")
 			return 2
 		}
 		defer lock.release()
