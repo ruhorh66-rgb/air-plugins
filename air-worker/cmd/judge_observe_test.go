@@ -446,6 +446,123 @@ func TestCachedReportDoesNotRunJudgeAndRejectsStaleFingerprint(t *testing.T) {
 	}
 }
 
+func TestActualJudgeCachedReportTracksSourceIdentity(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("fixture check requires Windows PowerShell")
+	}
+	for _, nested := range []bool{false, true} {
+		for _, dirtyAtJudge := range []bool{false, true} {
+			name := fmt.Sprintf("nested=%t/dirty-at-judge=%t", nested, dirtyAtJudge)
+			t.Run(name, func(t *testing.T) {
+				outer := t.TempDir()
+				product := outer
+				if nested {
+					product = filepath.Join(outer, "product")
+					if err := os.Mkdir(product, 0o755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				fixture, _ := writeObservabilityFixture(t, 0)
+				for _, name := range []string{"PLAN.md", "run-config.json", "check.ps1"} {
+					body, err := os.ReadFile(filepath.Join(fixture, name))
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(filepath.Join(product, name), body, 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+				counter := filepath.Join(t.TempDir(), "counter.txt")
+				var cfg runConfig
+				configPath := filepath.Join(product, "run-config.json")
+				if err := readJSON(configPath, &cfg); err != nil {
+					t.Fatal(err)
+				}
+				cfg.Judge.Checks[0].Args[0] = counter
+				body, err := json.Marshal(cfg)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(configPath, body, 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(outer, ".gitignore"), []byte(".woody/\n.goal-verdict\n.goal-verdict.json\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				git := func(args ...string) string {
+					t.Helper()
+					cmd := exec.Command("git", append([]string{"-C", outer}, args...)...)
+					out, err := cmd.CombinedOutput()
+					if err != nil {
+						t.Fatalf("git %v: %v: %s", args, err, out)
+					}
+					return strings.TrimSpace(string(out))
+				}
+				git("init")
+				git("config", "user.email", "air-worker-test@example.invalid")
+				git("config", "user.name", "AirWorker Test")
+				git("add", ".")
+				git("commit", "-m", "fixture")
+				top := exec.Command("git", "-C", product, "rev-parse", "--show-toplevel")
+				out, err := top.CombinedOutput()
+				if err != nil || !strings.EqualFold(filepath.Clean(strings.TrimSpace(string(out))), filepath.Clean(outer)) {
+					t.Fatalf("product Git root = %q, want %q: %v", out, outer, err)
+				}
+				if _, err := os.Stat(filepath.Join(product, ".git")); !os.IsNotExist(err) && nested {
+					t.Fatalf("nested product has its own .git: %v", err)
+				}
+				source := filepath.Join(product, "check.ps1")
+				original, err := os.ReadFile(source)
+				if err != nil {
+					t.Fatal(err)
+				}
+				mutated := append(append([]byte(nil), original...), []byte("# changed\n")...)
+				if dirtyAtJudge {
+					if err := os.WriteFile(source, mutated, 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+				_, code := captureStdout(t, func() int { return cmdJudge([]string{"-product", product}) })
+				if readCounter(t, counter) != 1 {
+					t.Fatalf("judge code=%d, check count=%d", code, readCounter(t, counter))
+				}
+				if err := os.WriteFile(source, original, 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if status := git("status", "--porcelain"); status != "" {
+					t.Fatalf("restored source is not clean: %s", status)
+				}
+				cached := func(want int) {
+					t.Helper()
+					report := buildReportMode(product, true)
+					if !report.JudgeCached || report.JudgeCode != want || report.JudgeStale != (want == 2) || readCounter(t, counter) != 1 {
+						t.Fatalf("cached report=%#v; check count=%d, want code=%d", report, readCounter(t, counter), want)
+					}
+				}
+				if dirtyAtJudge {
+					cached(2)
+					return
+				}
+				if code != 0 {
+					t.Fatalf("clean judge code=%d, want PASS", code)
+				}
+				cached(0)
+				if err := os.WriteFile(source, mutated, 0o644); err != nil {
+					t.Fatal(err)
+				}
+				cached(2)
+				if err := os.WriteFile(source, original, 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(product, "untracked.go"), []byte("package fixture\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				cached(2)
+			})
+		}
+	}
+}
+
 func TestReportInformationalChangesOnlyExitCode(t *testing.T) {
 	root, counter := writeObservabilityFixture(t, 1)
 	var cfg runConfig

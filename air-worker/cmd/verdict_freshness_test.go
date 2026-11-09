@@ -12,23 +12,27 @@ import (
 func initFreshnessGitRepo(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = root
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v: %s", args, err, out)
-		}
-	}
-	run("init")
-	run("config", "user.email", "air-worker-test@example.invalid")
-	run("config", "user.name", "AirWorker Test")
+	runFreshnessGit(t, root, "init")
+	runFreshnessGit(t, root, "config", "user.email", "air-worker-test@example.invalid")
+	runFreshnessGit(t, root, "config", "user.name", "AirWorker Test")
 	if err := os.WriteFile(filepath.Join(root, "tracked.txt"), []byte("v1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	run("add", "tracked.txt")
-	run("commit", "-m", "fixture")
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".woody/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runFreshnessGit(t, root, "add", "tracked.txt", ".gitignore")
+	runFreshnessGit(t, root, "commit", "-m", "fixture")
 	return root
+}
+
+func runFreshnessGit(t *testing.T, root string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = root
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v: %s", args, err, out)
+	}
 }
 
 func TestMachineVerdictFreshnessRejectsOlderThanSixHours(t *testing.T) {
@@ -48,9 +52,15 @@ func TestMachineVerdictFreshnessRequiresCurrentGitHead(t *testing.T) {
 		t.Fatal("fixture has no git HEAD")
 	}
 
-	fresh := machineVerdict{At: now.Format(time.RFC3339Nano), GitHead: head}
+	fresh := machineVerdict{At: now.Format(time.RFC3339Nano), GitHead: head, SourceClean: true}
 	if err := machineVerdictFreshness(root, fresh, now); err != nil {
 		t.Fatalf("current HEAD verdict rejected: %v", err)
+	}
+
+	unproven := fresh
+	unproven.SourceClean = false
+	if err := machineVerdictFreshness(root, unproven, now); err == nil || !strings.Contains(err.Error(), "dirty or unproven") {
+		t.Fatalf("git verdict without explicit source_clean proof must be stale: %v", err)
 	}
 
 	missing := fresh
@@ -63,6 +73,81 @@ func TestMachineVerdictFreshnessRequiresCurrentGitHead(t *testing.T) {
 	wrong.GitHead = strings.Repeat("a", 40)
 	if err := machineVerdictFreshness(root, wrong, now); err == nil || !strings.Contains(err.Error(), "current HEAD") {
 		t.Fatalf("mismatched git head must be stale: %v", err)
+	}
+}
+
+func TestMachineVerdictFreshnessChecksGitWorktree(t *testing.T) {
+	root := initFreshnessGitRepo(t)
+	now := time.Now()
+	fresh := machineVerdict{At: now.Format(time.RFC3339Nano), GitHead: currentGitHead(root), SourceClean: true}
+	check := func(wantFresh bool) {
+		t.Helper()
+		err := machineVerdictFreshness(root, fresh, now)
+		if wantFresh && err != nil || !wantFresh && (err == nil || !strings.Contains(err.Error(), "dirty or unproven")) {
+			t.Fatalf("want fresh=%t, got %v", wantFresh, err)
+		}
+	}
+	write := func(name, contents string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(root, name), []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	write("tracked.txt", "dirty\n")
+	check(false)
+	runFreshnessGit(t, root, "add", "tracked.txt")
+	check(false)
+	write("tracked.txt", "v1\n")
+	runFreshnessGit(t, root, "add", "tracked.txt")
+	check(true)
+
+	write("source.go", "package fixture\n")
+	check(false)
+	if err := os.Remove(filepath.Join(root, "source.go")); err != nil {
+		t.Fatal(err)
+	}
+	check(true)
+
+	write(".goal-verdict", "old\n")
+	runFreshnessGit(t, root, "add", ".goal-verdict")
+	runFreshnessGit(t, root, "commit", "-m", "track verdict")
+	fresh.GitHead = currentGitHead(root)
+	check(true)
+	write(".goal-verdict", "changed\n")
+	check(false)
+	write(".goal-verdict", "old\n")
+	check(true)
+
+	write("tracked.txt", "v2\n")
+	runFreshnessGit(t, root, "add", "tracked.txt")
+	runFreshnessGit(t, root, "commit", "-m", "new HEAD")
+	if err := machineVerdictFreshness(root, fresh, now); err == nil || !strings.Contains(err.Error(), "current HEAD") {
+		t.Fatalf("old HEAD verdict must be stale after commit: %v", err)
+	}
+}
+
+func TestMachineVerdictFreshnessNestedProduct(t *testing.T) {
+	root := initFreshnessGitRepo(t)
+	product := filepath.Join(root, "product")
+	if err := os.Mkdir(product, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(product, "source.go"), []byte("package fixture\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runFreshnessGit(t, root, "add", "product/source.go")
+	runFreshnessGit(t, root, "commit", "-m", "nested product")
+	now := time.Now()
+	fresh := machineVerdict{At: now.Format(time.RFC3339Nano), GitHead: currentGitHead(root), SourceClean: true}
+	if err := machineVerdictFreshness(product, fresh, now); err != nil {
+		t.Fatalf("clean nested product rejected: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(product, "source.go"), []byte("package changed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := machineVerdictFreshness(product, fresh, now); err == nil || !strings.Contains(err.Error(), "dirty or unproven") {
+		t.Fatalf("dirty nested product must be stale: %v", err)
 	}
 }
 
