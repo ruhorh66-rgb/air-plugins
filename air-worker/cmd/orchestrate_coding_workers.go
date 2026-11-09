@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -931,8 +932,103 @@ func verifyCodingIntegrated(root string, scope sessionScope, step, task string) 
 	return doc, nil
 }
 
+func effectiveCodingEvidence(root string, scope sessionScope, step, task string) (codingWorkersHandoff, string, error) {
+	original, err := codingStatus(root, scope, step, task)
+	if err != nil || original.Status == "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" {
+		return original, step, err
+	}
+	fail := func() (codingWorkersHandoff, string, error) {
+		return original, step, errors.New("historical retry evidence is not verified")
+	}
+	if original.Status != jobStatusFailed || !operationalSHA.MatchString(original.SourceHead) {
+		return fail()
+	}
+	physical := step + "-retry-1"
+	retry, err := codingStatus(root, scope, physical, task)
+	if err != nil || retry.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" || retry.SourceHead != original.SourceHead || retry.TaskSHA256 != original.TaskSHA256 || len(retry.Workers) != 2 {
+		return fail()
+	}
+	top, err := gitCodingOutput(root, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return fail()
+	}
+	rel, err := filepath.Rel(top, root)
+	if err != nil || (rel != "." && !isCodingProductPath(rel)) {
+		return fail()
+	}
+	configPath := filepath.ToSlash(filepath.Join(rel, "run-config.json"))
+	tree, err := gitCodingOutput(top, "ls-tree", original.SourceHead, "--", configPath)
+	if err != nil || (!strings.HasPrefix(tree, "100644 blob ") && !strings.HasPrefix(tree, "100755 blob ")) || !strings.HasSuffix(tree, "\t"+configPath) {
+		return fail()
+	}
+	object := original.SourceHead + ":" + configPath
+	size, err := gitCodingOutput(top, "cat-file", "-s", object)
+	n, sizeErr := strconv.Atoi(size)
+	if err != nil || sizeErr != nil || n <= 0 || n > 1024*1024 {
+		return fail()
+	}
+	show := exec.Command("git", "-C", top, "show", object)
+	pipe, err := show.StdoutPipe()
+	if err != nil || show.Start() != nil {
+		return fail()
+	}
+	raw, readErr := io.ReadAll(io.LimitReader(pipe, 1024*1024+1))
+	if len(raw) > 1024*1024 || readErr != nil {
+		_ = show.Process.Kill()
+	}
+	err = show.Wait()
+	var cfg runConfig
+	if err != nil || readErr != nil || len(raw) != n || rejectDuplicateJSONKeys(raw) != nil || json.Unmarshal(raw, &cfg) != nil || validateModelPolicy(cfg) != nil {
+		return fail()
+	}
+	trace, err := validateHistoricalCodingEscalation(root, cfg, scope, step, []byte(task))
+	if err != nil {
+		return fail()
+	}
+	next := resolveRunner(cfg, trace.ToTier)
+	exe, err := resolveRunnerTool("codex")
+	parsed, parseErr := parseCodingMicrosteps(task)
+	if err != nil || parseErr != nil || next.Kind != "codex" {
+		return fail()
+	}
+	seen := map[string]bool{}
+	for _, w := range original.Workers {
+		if w.JobID == "" || seen[w.JobID] {
+			return fail()
+		}
+		seen[w.JobID] = true
+	}
+	for i, w := range retry.Workers {
+		if w.JobID == "" || seen[w.JobID] {
+			return fail()
+		}
+		seen[w.JobID] = true
+		r, err := readJobReceipt(w.Receipt)
+		if err != nil || r.Model != next.Model || r.Effort != next.Effort {
+			return fail()
+		}
+		snap, err := inspectOwnedJob(scope, fmt.Sprintf("%s-coding-worker-%d", physical, i+1), r.Operation)
+		version := codingReceiptVersion(r.Operation, retry.TaskSHA256, scope.ID.Principal)
+		if err != nil || version == "" || !snap.Terminal || snap.Status != jobStatusDone || snap.JobID != w.JobID || snap.ReceiptPath != w.Receipt || snap.SourceHead != retry.SourceHead {
+			return fail()
+		}
+		taskPath := filepath.Join(w.Product, ".woody", "TASK-CODE-WORKER.md")
+		fullTask := codingWorkerTaskVersion(parsed, parsed.Workers[i], retry.TaskSHA256, retry.SourceHead, version)
+		actual, err := os.ReadFile(taskPath)
+		if err != nil || string(actual) != fullTask {
+			return fail()
+		}
+		cmd := codexCommandForSandbox(exe, w.Product, codingWorkerPrompt(taskPath, fullTask), next, "workspace-write")
+		stdin := jobStdinFingerprint(cmd)
+		if stdin == "" || stdin != r.StdinSHA256 || jobCommandFingerprint(cmd) != snap.ArgsSHA256 {
+			return fail()
+		}
+	}
+	return retry, physical, nil
+}
+
 func verifiedCodingWorkerEvidence(root string, scope sessionScope, step, task string) (codingWorkersHandoff, map[string]string, error) {
-	doc, err := codingStatus(root, scope, step, task)
+	doc, physical, err := effectiveCodingEvidence(root, scope, step, task)
 	if err != nil {
 		return doc, nil, err
 	}
@@ -985,7 +1081,7 @@ func verifiedCodingWorkerEvidence(root string, scope sessionScope, step, task st
 			codingReceiptVersion(receipt.Operation, doc.TaskSHA256, scope.ID.Principal) == "" || receipt.StdinSHA256 == "" {
 			return fail("worker receipt is not sealed versioned evidence")
 		}
-		snap, err := inspectOwnedJob(scope, fmt.Sprintf("%s-coding-worker-%d", step, i+1), receipt.Operation)
+		snap, err := inspectOwnedJob(scope, fmt.Sprintf("%s-coding-worker-%d", physical, i+1), receipt.Operation)
 		if err != nil || !snap.Terminal || snap.Status != jobStatusDone || snap.JobID != w.JobID ||
 			snap.ReceiptPath != w.Receipt || snap.SourceHead != doc.SourceHead || snap.ArgsSHA256 == "" ||
 			snap.RecoveryRef != filepath.ToSlash(snap.ReceiptPath)+"#job_id="+snap.JobID {
@@ -1182,7 +1278,7 @@ func readCodingIntegrationAck(root string, scope sessionScope, step, task string
 			return waiting, errors.New("N139 task is not plan-bound")
 		}
 	}
-	doc, err := codingStatus(root, scope, step, task)
+	doc, _, err := effectiveCodingEvidence(root, scope, step, task)
 	if err != nil || doc.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" || len(doc.Workers) != 2 {
 		return waiting, errors.New("original two-worker handoff is not verified")
 	}
@@ -1298,7 +1394,7 @@ func cmdCodingAckStatus(argv []string) int {
 		}
 		result["status"] = ack.Status
 		if ack.Status == "ACK_RECORDED" {
-			doc, err := codingStatus(root, scope, *step, string(body))
+			doc, _, err := effectiveCodingEvidence(root, scope, *step, string(body))
 			if err != nil {
 				return err
 			}

@@ -906,6 +906,9 @@ func TestCodingEscalation(t *testing.T) {
 						mode = "narrative"
 					}
 				}
+				if scenario == "vendor_limit" || scenario == "vendor_limit_codex" {
+					return exec.Command(os.Args[0], append([]string{"-test.run=^TestG06FingerprintHelper$", "--"}, args...)...)
+				}
 				return exec.Command(os.Args[0], "-test.run=TestCodingEscalationHelper", "--", mode)
 			}
 			receiptJobs := func() int {
@@ -1232,6 +1235,82 @@ func TestCodingEscalation(t *testing.T) {
 				}
 				seen[r.JobID] = true
 			}
+			var escalation codingEscalation
+			if err := json.Unmarshal([]byte(result), &escalation); err != nil || len(escalation.Attempt2.Workers) != 2 {
+				t.Fatalf("retry handoff: %+v %v", escalation, err)
+			}
+			for _, w := range escalation.Attempt2.Workers {
+				codingFixtureGit(t, root, "apply", "--check", w.Patch)
+				codingFixtureGit(t, root, "apply", w.Patch)
+			}
+			for label, path := range map[string]string{
+				"original receipt": original.Workers[0].Receipt,
+				"original handoff": original.Report,
+				"retry receipt":    escalation.Attempt2.Workers[0].Receipt,
+				"retry patch":      escalation.Attempt2.Workers[0].Patch,
+				"retry handoff":    escalation.Attempt2.Report,
+			} {
+				saved, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte("damaged"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := ackCodingIntegrated(root, scope, "coord-TASK.md", string(body)); err == nil {
+					t.Errorf("accepted damaged %s", label)
+				}
+				if err := os.WriteFile(path, saved, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			foreign := scope
+			foreign.ID.SessionKey = "foreign"
+			if _, err := ackCodingIntegrated(root, foreign, "coord-TASK.md", string(body)); err == nil {
+				t.Error("accepted foreign session")
+			}
+			if _, err := ackCodingIntegrated(root, scope, "coord-TASK.md", string(body)+" "); err == nil {
+				t.Error("accepted changed task")
+			}
+			if _, err := ackCodingIntegrated(root, scope, "coord-TASK.md", string(body)); err != nil {
+				t.Fatalf("original step ACK: %v", err)
+			}
+			ack, err := readCodingIntegrationAck(root, scope, "coord-TASK.md", string(body))
+			if err != nil || ack.Status != "ACK_RECORDED" || ack.JobIDs[0] != escalation.Attempt2.Workers[0].JobID || ack.JobIDs[1] != escalation.Attempt2.Workers[1].JobID {
+				t.Fatalf("original step readback: %+v %v", ack, err)
+			}
+			codingFixtureGit(t, root, "add", "a.go", "b.go")
+			codingFixtureGit(t, root, "commit", "-m", "integrate retry patches")
+			if _, err := verifyCodingCommitted(root, scope, "coord-TASK.md", string(body), ack); err != nil {
+				t.Fatalf("original step commit verification: %v", err)
+			}
+			for label, path := range map[string]string{
+				"original receipt": original.Workers[0].Receipt,
+				"original handoff": original.Report,
+				"retry receipt":    escalation.Attempt2.Workers[0].Receipt,
+				"retry patch":      escalation.Attempt2.Workers[0].Patch,
+				"retry handoff":    escalation.Attempt2.Report,
+			} {
+				saved, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte("damaged"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := readCodingIntegrationAck(root, scope, "coord-TASK.md", string(body)); err == nil {
+					t.Errorf("readback accepted damaged %s", label)
+				}
+				if _, err := verifyCodingCommitted(root, scope, "coord-TASK.md", string(body), ack); err == nil {
+					t.Errorf("commit verification accepted damaged %s", label)
+				}
+				if err := os.WriteFile(path, saved, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if receiptJobs() != 4 {
+				t.Fatalf("ACK/readback/verify created jobs: %d", receiptJobs())
+			}
 			for _, action := range []string{"status", "escalate"} {
 				_, out := call(action)
 				if !strings.Contains(out, head) {
@@ -1243,6 +1322,44 @@ func TestCodingEscalation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestG06FingerprintHelper(t *testing.T) {
+	if os.Getenv("AW_ESCALATION_HELPER") != "1" {
+		return
+	}
+	args := os.Args
+	for len(args) > 0 && args[0] != "--" {
+		args = args[1:]
+	}
+	if len(args) == 0 {
+		os.Exit(5)
+	}
+	input, _ := io.ReadAll(os.Stdin)
+	if task, err := os.ReadFile(filepath.Join(".woody", "TASK-CODE-WORKER.md")); err == nil && strings.Contains(string(input), string(task)) {
+		fmt.Println(`{"type":"item.completed","item":{"type":"agent_message","text":"INLINE_TASK_PRESENT"}}`)
+	}
+	joined := strings.Join(args[1:], " ")
+	if strings.Contains(joined, "model_reasoning_effort=low") {
+		fmt.Println(`{"type":"turn.failed","error":{"message":"HTTP 429 rate limit"}}`)
+		os.Exit(1)
+	}
+	if !strings.Contains(joined, "model_reasoning_effort=medium") {
+		os.Exit(5)
+	}
+	root, err := os.Getwd()
+	if err != nil {
+		os.Exit(3)
+	}
+	name := "a.go"
+	if filepath.Base(root) == "worker-2" {
+		name = "b.go"
+	}
+	if err := os.WriteFile(filepath.Join(root, name), []byte("package demo\nvar Edited = true\n"), 0600); err != nil {
+		os.Exit(4)
+	}
+	fmt.Println(`{"type":"turn.completed"}`)
+	os.Exit(0)
 }
 
 func TestCodingEscalationHelper(t *testing.T) {
