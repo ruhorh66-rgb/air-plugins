@@ -2,12 +2,44 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 )
+
+func TestParseCodexResultTerminalOutcomeAndCause(t *testing.T) {
+	tests := []struct {
+		name, raw, subtype string
+		runErr             error
+		ok                 bool
+	}{
+		{"recovered error", `{"type":"error","message":"temporary failure"}` + "\n" + `{"type":"turn.completed"}`, "success", nil, true},
+		{"earlier limit, permission failure", `{"type":"error","message":"HTTP 429 rate limit"}` + "\n" + `{"type":"turn.failed","error":{"message":"permission denied"}}`, "runner_error", nil, false},
+		{"earlier error, limit failure", `{"type":"error","message":"temporary failure"}` + "\n" + `{"type":"turn.failed","error":{"message":"HTTP 429 rate limit"}}`, "vendor_limit", nil, false},
+		{"completed, process failure", `{"type":"turn.completed"}`, "runner_error", errors.New("exit status 1"), false},
+		{"duplicate completion", `{"type":"turn.completed"}` + "\n" + `{"type":"turn.completed"}`, "runner_error", nil, false},
+		{"duplicate failure", `{"type":"turn.failed","error":{"message":"permission denied"}}` + "\n" + `{"type":"turn.failed","error":{"message":"permission denied"}}`, "runner_error", nil, false},
+		{"completion then failure", `{"type":"turn.completed"}` + "\n" + `{"type":"turn.failed","error":{"message":"permission denied"}}`, "runner_error", nil, false},
+		{"failure then completion", `{"type":"turn.failed","error":{"message":"permission denied"}}` + "\n" + `{"type":"turn.completed"}`, "runner_error", nil, false},
+		{"agent prose is not a limit", `{"type":"item.completed","item":{"type":"agent_message","text":"HTTP 429 rate limit"}}` + "\n" + `{"type":"turn.failed","error":{"message":"permission denied"}}`, "runner_error", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseCodexResult(tt.raw, tt.runErr)
+			if result.Ok != tt.ok || result.Subtype != tt.subtype {
+				t.Fatalf("result = %+v, want Ok=%v Subtype=%q", result, tt.ok, tt.subtype)
+			}
+		})
+	}
+
+	result := parseCodexResult(`{"type":"error","message":"HTTP 429 rate limit"}`, nil)
+	if result.Ok || result.Subtype == "success" || result.Subtype == "vendor_limit" {
+		t.Fatalf("unterminated error must not succeed or escalate: %+v", result)
+	}
+}
 
 func TestVendorLimitClassification(t *testing.T) {
 	for _, msg := range []string{

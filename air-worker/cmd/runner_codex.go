@@ -289,7 +289,9 @@ func (c *loopCtx) invokeCodexOrchestrated(exePath, prompt string, runner runnerS
 
 func parseCodexResult(raw string, runErr error) stepResult {
 	turns := 0
-	completed, failed := false, false
+	terminalCount := 0
+	completed := false
+	terminalError := ""
 	subtype := "unknown"
 	var cost *float64
 	session := ""
@@ -319,20 +321,18 @@ func parseCodexResult(raw string, runErr error) stepResult {
 				detail = append(detail, strings.TrimSpace(e.Item.Text))
 			}
 		case "turn.completed":
+			terminalCount++
 			completed = true
-			if !failed {
-				subtype = "success"
-			}
 			if e.Usage != nil {
 				cost = e.Usage.CostUSD
 			}
 		case "turn.failed":
-			failed, subtype = true, "runner_error"
+			terminalCount++
 			if e.Error != nil && strings.TrimSpace(e.Error.Message) != "" {
-				detail = append(detail, "turn.failed: "+strings.TrimSpace(e.Error.Message))
+				terminalError = strings.TrimSpace(e.Error.Message)
+				detail = append(detail, "turn.failed: "+terminalError)
 			}
 		case "error":
-			failed, subtype = true, "runner_error"
 			if strings.TrimSpace(e.Message) != "" {
 				detail = append(detail, "error: "+strings.TrimSpace(e.Message))
 			}
@@ -341,19 +341,28 @@ func parseCodexResult(raw string, runErr error) stepResult {
 	// Codex may write turn.completed before its OS process exits. A nonzero
 	// process result is authoritative even when the stream claims completion:
 	// the execution must not yield an Ok=true receipt or a model-step PASS.
-	if runErr != nil {
-		failed, subtype = true, "runner_error"
-		detail = append(detail, "codex process: "+runErr.Error())
-	}
-	if !completed && !failed {
+	if terminalCount == 1 && !completed {
+		subtype = "runner_error"
+		if isVendorLimit(terminalError) {
+			subtype = "vendor_limit"
+		}
+	} else if terminalCount == 1 {
+		subtype = "success"
+	} else if terminalCount == 0 {
 		subtype = "unparsed"
 		detail = append(detail, "codex stream ended without terminal event")
+	} else {
+		subtype = "runner_error"
+		detail = append(detail, "codex stream contains multiple terminal events")
 	}
-	if failed && isVendorLimit(raw+"\n"+strings.Join(detail, "\n")) {
-		subtype = "vendor_limit"
+	if runErr != nil {
+		if subtype != "vendor_limit" {
+			subtype = "runner_error"
+		}
+		detail = append(detail, "codex process: "+runErr.Error())
 	}
 	return stepResult{
-		Ok: completed && !failed, Cost: cost, Turns: &turns, Session: session,
+		Ok: terminalCount == 1 && completed && runErr == nil, Cost: cost, Turns: &turns, Session: session,
 		Subtype: subtype, Detail: strings.Join(detail, "\n"),
 	}
 }
