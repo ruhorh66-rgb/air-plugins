@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -830,28 +831,11 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 // verifyCodingIntegrated compares verified worker patches with the current Git diff. Coordinator review and final
 // product acceptance remain separate decisions.
 func verifyCodingIntegrated(root string, scope sessionScope, step, task string) (codingWorkersHandoff, error) {
-	doc, err := codingStatus(root, scope, step, task)
+	doc, expected, err := verifiedCodingWorkerEvidence(root, scope, step, task)
 	if err != nil {
 		return doc, err
 	}
-	fail := func(reason string) (codingWorkersHandoff, error) {
-		return doc, errors.New(reason)
-	}
-	parsed, err := parseCodingMicrosteps(task)
-	if err != nil {
-		return doc, err
-	}
-	if doc.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" || len(doc.Workers) != 2 || doc.TaskSHA256 != shaCodingBytes([]byte(task)) {
-		return fail("two verified worker edits are not ready")
-	}
-	if err := jobOwnedEvidencePath(filepath.Dir(doc.Report), doc.Report); err != nil {
-		return fail("unsafe original handoff")
-	}
-	var original codingWorkersHandoff
-	raw, err := os.ReadFile(doc.Report)
-	if err != nil || json.Unmarshal(raw, &original) != nil || original.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" {
-		return fail("original handoff was not ready")
-	}
+	fail := func(reason string) (codingWorkersHandoff, error) { return doc, errors.New(reason) }
 	head, err := gitCodingOutput(root, "rev-parse", "HEAD")
 	if err != nil || head != doc.SourceHead {
 		return fail("original source HEAD changed")
@@ -859,42 +843,6 @@ func verifyCodingIntegrated(root string, scope sessionScope, step, task string) 
 	top, err := gitCodingOutput(root, "rev-parse", "--show-toplevel")
 	if err != nil {
 		return doc, err
-	}
-	relRoot, err := filepath.Rel(top, root)
-	if err != nil || relRoot == ".." || strings.HasPrefix(relRoot, ".."+string(filepath.Separator)) {
-		return fail("product outside repository")
-	}
-	seenJobs := map[string]bool{}
-	expected := map[string]string{}
-	for i, w := range doc.Workers {
-		microRaw, _ := json.Marshal(parsed.Workers[i])
-		if w.Index != i+1 || w.File != parsed.Workers[i].File || w.DoneWhen != parsed.Workers[i].DoneWhen ||
-			w.MicrostepSHA256 != shaCodingBytes(microRaw) || w.Status != jobStatusDone ||
-			w.Measurement != "STDIN_SHA256_VERIFIED" || w.JobID == "" || seenJobs[w.JobID] ||
-			len(w.Changed) != 1 || w.Changed[0] != filepath.ToSlash(filepath.Join(relRoot, filepath.FromSlash(w.File))) {
-			return fail("worker identity, scope or measured input mismatch")
-		}
-		seenJobs[w.JobID] = true
-		receipt, err := readJobReceipt(w.Receipt)
-		if err != nil || !receipt.ProcessStarted || receipt.Status != jobStatusDone ||
-			!strings.HasSuffix(receipt.Operation, "-v2-task-"+doc.TaskSHA256) || receipt.StdinSHA256 == "" {
-			return fail("worker receipt is not sealed v2 evidence")
-		}
-		snap, err := inspectOwnedJob(scope, fmt.Sprintf("%s-coding-worker-%d", step, i+1), receipt.Operation)
-		if err != nil || !snap.Terminal || snap.Status != jobStatusDone || snap.JobID != w.JobID ||
-			snap.ReceiptPath != w.Receipt || snap.SourceHead != head || snap.ArgsSHA256 == "" ||
-			snap.RecoveryRef != filepath.ToSlash(snap.ReceiptPath)+"#job_id="+snap.JobID {
-			return fail("worker receipt is not sealed or owned")
-		}
-		workerFile := filepath.Join(w.Product, filepath.FromSlash(w.File))
-		if err := jobOwnedEvidencePath(w.Product, workerFile); err != nil {
-			return fail("unsafe worker file")
-		}
-		_, err = os.ReadFile(workerFile)
-		if err != nil {
-			return doc, err
-		}
-		expected[filepath.ToSlash(filepath.Join(relRoot, filepath.FromSlash(w.File)))] = w.PatchSHA256
 	}
 	// Porcelain -z retains unusual path bytes and exposes untracked files. Only
 	// unstaged edits to the two already tracked files are acceptable.
@@ -936,6 +884,79 @@ func verifyCodingIntegrated(root string, scope sessionScope, step, task string) 
 	return doc, nil
 }
 
+func verifiedCodingWorkerEvidence(root string, scope sessionScope, step, task string) (codingWorkersHandoff, map[string]string, error) {
+	doc, err := codingStatus(root, scope, step, task)
+	if err != nil {
+		return doc, nil, err
+	}
+	fail := func(reason string) (codingWorkersHandoff, map[string]string, error) {
+		return doc, nil, errors.New(reason)
+	}
+	parsed, err := parseCodingMicrosteps(task)
+	if err != nil {
+		return doc, nil, err
+	}
+	if doc.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" || len(doc.Workers) != 2 || doc.TaskSHA256 != shaCodingBytes([]byte(task)) {
+		return fail("two verified worker edits are not ready")
+	}
+	if err := jobOwnedEvidencePath(filepath.Dir(doc.Report), doc.Report); err != nil {
+		return fail("unsafe original handoff")
+	}
+	var original codingWorkersHandoff
+	raw, err := os.ReadFile(doc.Report)
+	if err != nil || len(raw) == 0 || len(raw) > 1024*1024 || rejectDuplicateJSONKeys(raw) != nil || json.Unmarshal(raw, &original) != nil || original.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" ||
+		original.Schema != doc.Schema || original.SourceHead != doc.SourceHead || original.TaskSHA256 != doc.TaskSHA256 ||
+		original.SourceProduct != doc.SourceProduct || original.WorkerCount != 2 || original.Report != doc.Report || len(original.Workers) != 2 {
+		return fail("original handoff was not ready")
+	}
+	top, err := gitCodingOutput(root, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return doc, nil, err
+	}
+	relRoot, err := filepath.Rel(top, root)
+	if err != nil || relRoot == ".." || strings.HasPrefix(relRoot, ".."+string(filepath.Separator)) {
+		return fail("product outside repository")
+	}
+	seenJobs := map[string]bool{}
+	expected := map[string]string{}
+	for i, w := range doc.Workers {
+		pinned := original.Workers[i]
+		microRaw, _ := json.Marshal(parsed.Workers[i])
+		if pinned.Status != "CODE_WRITTEN_IN_OWN_WORKTREE" || pinned.Index != w.Index || pinned.File != w.File || pinned.DoneWhen != w.DoneWhen ||
+			pinned.MicrostepSHA256 != w.MicrostepSHA256 || pinned.JobID != w.JobID || pinned.Receipt != w.Receipt ||
+			pinned.Product != w.Product || pinned.Workspace != w.Workspace || pinned.Patch != w.Patch ||
+			pinned.PatchSHA256 != w.PatchSHA256 || !reflect.DeepEqual(pinned.Changed, w.Changed) ||
+			w.Index != i+1 || w.File != parsed.Workers[i].File || w.DoneWhen != parsed.Workers[i].DoneWhen ||
+			w.MicrostepSHA256 != shaCodingBytes(microRaw) || w.Status != jobStatusDone ||
+			w.Measurement != "STDIN_SHA256_VERIFIED" || w.JobID == "" || seenJobs[w.JobID] ||
+			len(w.Changed) != 1 || w.Changed[0] != filepath.ToSlash(filepath.Join(relRoot, filepath.FromSlash(w.File))) {
+			return fail("worker identity, scope or measured input mismatch")
+		}
+		seenJobs[w.JobID] = true
+		receipt, err := readJobReceipt(w.Receipt)
+		if err != nil || !receipt.ProcessStarted || receipt.Status != jobStatusDone ||
+			!strings.HasSuffix(receipt.Operation, "-v2-task-"+doc.TaskSHA256) || receipt.StdinSHA256 == "" {
+			return fail("worker receipt is not sealed v2 evidence")
+		}
+		snap, err := inspectOwnedJob(scope, fmt.Sprintf("%s-coding-worker-%d", step, i+1), receipt.Operation)
+		if err != nil || !snap.Terminal || snap.Status != jobStatusDone || snap.JobID != w.JobID ||
+			snap.ReceiptPath != w.Receipt || snap.SourceHead != doc.SourceHead || snap.ArgsSHA256 == "" ||
+			snap.RecoveryRef != filepath.ToSlash(snap.ReceiptPath)+"#job_id="+snap.JobID {
+			return fail("worker receipt is not sealed or owned")
+		}
+		workerFile := filepath.Join(w.Product, filepath.FromSlash(w.File))
+		if err := jobOwnedEvidencePath(w.Product, workerFile); err != nil {
+			return fail("unsafe worker file")
+		}
+		_, err = os.ReadFile(workerFile)
+		if err != nil {
+			return doc, nil, err
+		}
+		expected[filepath.ToSlash(filepath.Join(relRoot, filepath.FromSlash(w.File)))] = w.PatchSHA256
+	}
+	return doc, expected, nil
+}
+
 type codingIntegrationAck struct {
 	AckSHA256     string    `json:"-"`
 	Schema        string    `json:"schema"`
@@ -948,6 +969,153 @@ type codingIntegrationAck struct {
 	JobIDs        [2]string `json:"job_ids"`
 	PatchSHA256   [2]string `json:"patch_sha256"`
 	HandoffSHA256 string    `json:"handoff_sha256"`
+}
+
+// The caller must obtain original from readCodingIntegrationAck before the commit;
+// caller-supplied ACK fields alone do not authorize a committed integration.
+func verifyCodingCommitted(root string, scope sessionScope, step, task string, original codingIntegrationAck) (string, error) {
+	fail := func(reason string) (string, error) { return "", errors.New(reason) }
+	if scope.ID.Principal != "gpt" || !(strings.HasPrefix(step, "coord-") || step == "N-139_n136-native-operational-goal-selector-for-real-a") ||
+		len(step) > 240 || !codingScopePart.MatchString(step) || strings.Contains(step, "..") ||
+		original.Schema != "air-worker.coordinator-integration/v1" || original.Status != "ACK_RECORDED" ||
+		original.Step != step || original.Principal != scope.ID.Principal || original.SessionKey != scope.ID.SessionKey ||
+		original.TaskSHA256 != shaCodingBytes([]byte(task)) || !operationalSHA.MatchString(original.SourceHead) ||
+		len(original.AckSHA256) != 64 {
+		return fail("original acknowledgement identity is invalid")
+	}
+	if _, err := hex.DecodeString(original.AckSHA256); err != nil || strings.ToLower(original.AckSHA256) != original.AckSHA256 {
+		return fail("original acknowledgement hash is invalid")
+	}
+	doc, expected, err := verifiedCodingWorkerEvidence(root, scope, step, task)
+	if err != nil {
+		return "", err
+	}
+	if doc.SourceHead != original.SourceHead || len(expected) != 2 {
+		return fail("original source or worker file scope mismatch")
+	}
+	for i, w := range doc.Workers {
+		if original.JobIDs[i] == "" || original.PatchSHA256[i] == "" || original.JobIDs[i] != w.JobID || original.PatchSHA256[i] != w.PatchSHA256 {
+			return fail("original worker acknowledgement mismatch")
+		}
+	}
+	handoff, err := os.ReadFile(doc.Report)
+	if err != nil || len(handoff) == 0 || len(handoff) > 1024*1024 || shaCodingBytes(handoff) != original.HandoffSHA256 {
+		return fail("original handoff acknowledgement mismatch")
+	}
+	dir := filepath.Dir(doc.Report)
+	ackPath := filepath.Join(dir, "coordinator-integration.json")
+	if filepath.Base(doc.Report) != "handoff.json" || jobOwnedEvidencePath(dir, ackPath) != nil {
+		return fail("unsafe acknowledgement path")
+	}
+	info, err := os.Lstat(ackPath)
+	if err != nil || !info.Mode().IsRegular() || info.Size() == 0 || info.Size() > 8192 {
+		return fail("original acknowledgement file is invalid")
+	}
+	owned, err := os.OpenRoot(dir)
+	if err != nil {
+		return "", err
+	}
+	defer owned.Close()
+	f, err := owned.Open("coordinator-integration.json")
+	if err != nil {
+		return "", err
+	}
+	raw, readErr := io.ReadAll(io.LimitReader(f, 8193))
+	opened, statErr := f.Stat()
+	closeErr := f.Close()
+	after, afterErr := os.Lstat(ackPath)
+	if readErr != nil || statErr != nil || closeErr != nil || afterErr != nil || !os.SameFile(info, opened) || !os.SameFile(info, after) ||
+		len(raw) == 0 || len(raw) > 8192 || int64(len(raw)) != info.Size() || shaCodingBytes(raw) != original.AckSHA256 || rejectDuplicateJSONKeys(raw) != nil {
+		return fail("original acknowledgement bytes changed")
+	}
+	var decoded codingIntegrationAck
+	decoder := json.NewDecoder(strings.NewReader(string(raw)))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&decoded) != nil || decoder.Decode(new(any)) != io.EOF {
+		return fail("original acknowledgement JSON is invalid")
+	}
+	decoded.AckSHA256 = original.AckSHA256
+	if decoded != original {
+		return fail("original acknowledgement fields changed")
+	}
+	head, err := gitCodingOutput(root, "rev-parse", "HEAD")
+	if err != nil || !operationalSHA.MatchString(head) || head == original.SourceHead {
+		return fail("committed HEAD is invalid")
+	}
+	parents, err := gitCodingOutput(root, "rev-list", "--parents", "-n", "1", head)
+	if err != nil || parents != head+" "+original.SourceHead {
+		return fail("commit is not a direct child of original source")
+	}
+	top, err := gitCodingOutput(root, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return "", err
+	}
+	clean := func() bool {
+		status, err := exec.Command("git", "-C", top, "status", "--porcelain=v1", "-z", "--untracked-files=all").Output()
+		return err == nil && len(status) == 0
+	}
+	if !clean() {
+		return fail("committed source is dirty")
+	}
+	changed, err := exec.Command("git", "-C", top, "diff", "--name-only", "-z", original.SourceHead, head, "--").Output()
+	if err != nil {
+		return "", err
+	}
+	seen := map[string]bool{}
+	for _, name := range strings.Split(strings.TrimSuffix(string(changed), "\x00"), "\x00") {
+		if _, ok := expected[name]; !ok || seen[name] {
+			return fail("commit changed file scope mismatch")
+		}
+		seen[name] = true
+	}
+	if len(seen) != 2 {
+		return fail("commit does not contain exactly both worker files")
+	}
+	for name, hash := range expected {
+		tracked, err := gitCodingOutput(top, "ls-tree", original.SourceHead, "--", name)
+		if err != nil || (!strings.HasPrefix(tracked, "100644 blob ") && !strings.HasPrefix(tracked, "100755 blob ")) || !strings.HasSuffix(tracked, "\t"+name) {
+			return fail("original worker file is not tracked")
+		}
+		file := filepath.Join(top, filepath.FromSlash(name))
+		if jobOwnedEvidencePath(root, file) != nil {
+			return fail("unsafe committed worker file")
+		}
+		diff, err := exec.Command("git", "-C", top, "diff", "--no-ext-diff", "--binary", original.SourceHead, head, "--", name).Output()
+		if err != nil || len(diff) == 0 || len(diff) > 256*1024 || shaCodingBytes(diff) != hash {
+			return fail("committed worker patch differs")
+		}
+	}
+	if step == "N-139_n136-native-operational-goal-selector-for-real-a" {
+		path := operationalGoalPath(root)
+		if jobOwnedEvidencePath(root, path) != nil {
+			return fail("unsafe original operational goal")
+		}
+		goalRaw, err := os.ReadFile(path)
+		if err != nil {
+			return "", err
+		}
+		prior, err := decodeOperationalGoalPinned(goalRaw)
+		if err != nil || prior.SourceHead != original.SourceHead || prior.NodeID != step {
+			return fail("original operational goal is invalid")
+		}
+		prospective, err := validateOperationalGoalAdvance(root, prior, step, original.SourceHead, head)
+		if err != nil {
+			return "", err
+		}
+		bound, err := selectN139CodingTask(root, prospective)
+		if err != nil || bound != task {
+			return fail("N139 task is not bound to committed source")
+		}
+		again, err := os.ReadFile(path)
+		if err != nil || !reflect.DeepEqual(again, goalRaw) {
+			return fail("original operational goal changed")
+		}
+	}
+	last, err := gitCodingOutput(root, "rev-parse", "HEAD")
+	if err != nil || last != head || !clean() {
+		return fail("committed source changed during verification")
+	}
+	return head, nil
 }
 
 // readCodingIntegrationAck only reports a recorded action while its original evidence still matches.

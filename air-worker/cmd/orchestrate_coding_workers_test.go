@@ -1437,4 +1437,125 @@ func TestDW32N139BoundCoordinatorAck(t *testing.T) {
 		t.Fatal("changed Git state accepted")
 	}
 	checkNoReplay("tampered evidence")
+	if e := os.WriteFile(filepath.Join(root, "a.go"), []byte("package demo\nfunc A() string { return \"NEW_A\" }\n"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	original := recorded
+	original.AckSHA256 = shaCodingBytes(before)
+	evidence := map[string][]byte{}
+	for _, path := range []string{ack, doc.Report, doc.Workers[0].Receipt, doc.Workers[0].Patch, sealed.OutputPath} {
+		body, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		evidence[path] = body
+	}
+	if got := n124Git(t, repo, "rev-parse", "HEAD"); got != head {
+		t.Fatalf("fixture base moved before commit: %s", got)
+	}
+	codingFixtureGit(t, repo, "add", "air-worker/a.go", "air-worker/b.go")
+	codingFixtureGit(t, repo, "commit", "-m", "exact worker patches")
+	committed := n124Git(t, repo, "rev-parse", "HEAD")
+	if committed == head {
+		t.Fatal("exact commit did not advance HEAD")
+	}
+	assertGoalPinned := func(label string) {
+		t.Helper()
+		current, err := os.ReadFile(operationalGoalPath(root))
+		if err != nil || !bytes.Equal(current, raw) {
+			t.Fatalf("%s advanced operational goal: %v", label, err)
+		}
+	}
+	verify := func(label string, scope sessionScope, step, task string, ack codingIntegrationAck, accepted bool) {
+		t.Helper()
+		got, err := verifyCodingCommitted(root, scope, step, task, ack)
+		if accepted && (err != nil || got != committed) {
+			t.Fatalf("%s: exact commit rejected: head=%q err=%v", label, got, err)
+		}
+		if !accepted && err == nil {
+			t.Fatalf("%s: tampered commit accepted: %s", label, got)
+		}
+		assertGoalPinned(label)
+		checkNoReplay(label)
+		for path, want := range evidence {
+			current, err := os.ReadFile(path)
+			if err != nil || !bytes.Equal(current, want) {
+				t.Fatalf("%s changed evidence %s: %v", label, path, err)
+			}
+		}
+	}
+	verify("clean N139 direct child", c.scope(), n139ID, task, original, true)
+	verify("changed task", c.scope(), n139ID, task+" ", original, false)
+	verify("changed node", c.scope(), "coord-other", task, original, false)
+	foreign := c.scope()
+	foreign.ID.SessionKey = "foreign"
+	verify("foreign selector", foreign, n139ID, task, original, false)
+	foreign.ID.Principal = "other"
+	verify("wrong principal", foreign, n139ID, task, original, false)
+	stale := original
+	stale.SourceHead = committed
+	verify("stale selector", c.scope(), n139ID, task, stale, false)
+	stale = original
+	stale.AckSHA256 = strings.Repeat("0", 64)
+	verify("wrong ACK SHA", c.scope(), n139ID, task, stale, false)
+	for label, path := range map[string]string{
+		"ack": ack, "receipt": doc.Workers[0].Receipt, "patch": doc.Workers[0].Patch,
+		"handoff": doc.Report, "output": sealed.OutputPath,
+	} {
+		body, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("damaged"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		got, err := verifyCodingCommitted(root, c.scope(), n139ID, task, original)
+		if err == nil {
+			t.Fatalf("damaged %s accepted: %s", label, got)
+		}
+		if err := os.WriteFile(path, body, 0600); err != nil {
+			t.Fatal(err)
+		}
+		assertGoalPinned(label)
+		checkNoReplay(label)
+	}
+	for _, tc := range []struct{ label, path string }{
+		{"unstaged", filepath.Join(root, "a.go")},
+		{"untracked", filepath.Join(root, "extra.txt")},
+		{"unrelated", filepath.Join(repo, "outside.txt")},
+	} {
+		if err := os.WriteFile(tc.path, []byte("changed"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		verify(tc.label, c.scope(), n139ID, task, original, false)
+		if tc.label == "unstaged" {
+			codingFixtureGit(t, repo, "restore", "air-worker/a.go")
+		} else {
+			if err := os.Remove(tc.path); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "a.go"), []byte("changed"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	codingFixtureGit(t, repo, "add", "air-worker/a.go")
+	verify("staged", c.scope(), n139ID, task, original, false)
+	codingFixtureGit(t, repo, "restore", "--staged", "air-worker/a.go")
+	codingFixtureGit(t, repo, "restore", "air-worker/a.go")
+	codingFixtureGit(t, repo, "commit", "--allow-empty", "-m", "extra commit")
+	verify("extra commit", c.scope(), n139ID, task, original, false)
+	codingFixtureGit(t, repo, "reset", "--hard", committed)
+	if err := os.WriteFile(filepath.Join(repo, "outside.txt"), []byte("outside"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	codingFixtureGit(t, repo, "add", "outside.txt")
+	codingFixtureGit(t, repo, "commit", "-m", "extra file")
+	verify("extra committed file", c.scope(), n139ID, task, original, false)
+	codingFixtureGit(t, repo, "reset", "--hard", committed)
+	codingFixtureGit(t, repo, "checkout", "-b", "side", head)
+	codingFixtureGit(t, repo, "commit", "--allow-empty", "-m", "side parent")
+	codingFixtureGit(t, repo, "checkout", "-")
+	codingFixtureGit(t, repo, "merge", "--no-ff", "-m", "merge parent", "side")
+	verify("merge parent", c.scope(), n139ID, task, original, false)
 }
