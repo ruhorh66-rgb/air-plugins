@@ -79,6 +79,27 @@ func judgeSourceIdentity(root string) (head string, clean bool, err error) {
 			return "", false, fmt.Errorf("invalid Git HEAD")
 		}
 	}
+	index, err := gitRead(root, "ls-files", "-v", "-z", "--", ".")
+	if err != nil {
+		return head, false, err
+	}
+	if len(index) > 0 {
+		if index[len(index)-1] != 0 {
+			return head, false, fmt.Errorf("malformed Git index records")
+		}
+		hidden := false
+		for _, record := range bytes.Split(index[:len(index)-1], []byte{0}) {
+			if len(record) < 3 || record[1] != ' ' || !strings.ContainsRune("HSMhsm", rune(record[0])) {
+				return head, false, fmt.Errorf("malformed Git index record")
+			}
+			if record[0] != 'H' {
+				hidden = true
+			}
+		}
+		if hidden {
+			return head, false, nil
+		}
+	}
 	tracked, err := gitRead(root, "diff", "--name-only", "-z", "HEAD", "--", ".")
 	if err != nil {
 		return head, false, err

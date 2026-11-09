@@ -158,3 +158,46 @@ func TestMachineVerdictFreshnessAcceptsLegacyLocalTimestamp(t *testing.T) {
 		t.Fatalf("legacy local timestamp within six hours must remain readable: %v", err)
 	}
 }
+
+func TestJudgeSourceIdentityRejectsHiddenIndexFlags(t *testing.T) {
+	for _, flags := range [][]string{{"assume-unchanged"}, {"skip-worktree"}, {"assume-unchanged", "skip-worktree"}} {
+		t.Run(strings.Join(flags, "+"), func(t *testing.T) {
+			root := initFreshnessGitRepo(t)
+			name := "source with spaces.go"
+			path := filepath.Join(root, name)
+			write := func(contents string) {
+				t.Helper()
+				if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			check := func(stage string, wantClean bool) {
+				t.Helper()
+				_, clean, err := judgeSourceIdentity(root)
+				if wantClean && (err != nil || !clean) || !wantClean && err == nil && clean {
+					t.Errorf("%s: clean=%t, err=%v; want clean=%t", stage, clean, err, wantClean)
+				}
+			}
+			write("package fixture\n")
+			runFreshnessGit(t, root, "add", name)
+			runFreshnessGit(t, root, "commit", "-m", "add source")
+			check("normal clean", true)
+			write("package changed\n")
+			check("normal dirty", false)
+			write("package fixture\n")
+			check("restored", true)
+			for _, flag := range flags {
+				runFreshnessGit(t, root, "update-index", "--"+flag, "--", name)
+			}
+			check("flagged unmodified", false)
+			write("package changed\n")
+			check("flagged modified", false)
+			for _, flag := range flags {
+				runFreshnessGit(t, root, "update-index", "--no-"+flag, "--", name)
+			}
+			check("flag removed, still modified", false)
+			write("package fixture\n")
+			check("flag removed, restored", true)
+		})
+	}
+}
