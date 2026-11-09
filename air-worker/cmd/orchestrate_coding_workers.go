@@ -1594,6 +1594,16 @@ func codingVendorLimit(output []byte) bool {
 }
 
 func validateCodingEscalation(root string, cfg runConfig, scope sessionScope, step string, body []byte) (codingEscalation, runnerSpec, string, error) {
+	return verifyCodingEscalation(root, cfg, scope, step, body, false)
+}
+
+// validateHistoricalCodingEscalation verifies evidence only; it does not authorize a launch.
+func validateHistoricalCodingEscalation(root string, cfg runConfig, scope sessionScope, step string, body []byte) (codingEscalation, error) {
+	trace, _, _, err := verifyCodingEscalation(root, cfg, scope, step, body, true)
+	return trace, err
+}
+
+func verifyCodingEscalation(root string, cfg runConfig, scope sessionScope, step string, body []byte, historical bool) (codingEscalation, runnerSpec, string, error) {
 	trace := codingEscalation{Status: "NOT_PROVEN"}
 	parsed, err := parseCodingMicrosteps(string(body))
 	if err != nil {
@@ -1608,13 +1618,21 @@ func validateCodingEscalation(root string, cfg runConfig, scope sessionScope, st
 	if original.TaskSHA256 != trace.TaskSHA256 || original.SourceHead == "" || len(original.Workers) != 2 {
 		return trace, runnerSpec{}, "", errors.New("original task or handoff identity not proven")
 	}
-	head, err := gitCodingOutput(root, "rev-parse", "HEAD")
-	if err != nil || head != original.SourceHead {
-		return trace, runnerSpec{}, "", errors.New("source HEAD changed")
-	}
-	clean, err := gitCodingOutput(root, "status", "--porcelain", "--", ".")
-	if err != nil || clean != "" {
-		return trace, runnerSpec{}, "", errors.New("product source is not clean")
+	head := original.SourceHead
+	if historical {
+		_, headErr := hex.DecodeString(head)
+		if len(head) != 40 || headErr != nil || original.Workers[0].JobID == "" || original.Workers[0].JobID == original.Workers[1].JobID || original.Workers[0].Receipt == original.Workers[1].Receipt || original.Workers[0].Status != jobStatusFailed || original.Workers[1].Status != jobStatusFailed {
+			return trace, runnerSpec{}, "", errors.New("original failures are not distinct and sealed")
+		}
+	} else {
+		head, err = gitCodingOutput(root, "rev-parse", "HEAD")
+		if err != nil || head != original.SourceHead {
+			return trace, runnerSpec{}, "", errors.New("source HEAD changed")
+		}
+		clean, err := gitCodingOutput(root, "status", "--porcelain", "--", ".")
+		if err != nil || clean != "" {
+			return trace, runnerSpec{}, "", errors.New("product source is not clean")
+		}
 	}
 	exe, err := resolveRunnerTool("codex")
 	if err != nil {
@@ -1705,6 +1723,9 @@ func validateCodingEscalation(root string, cfg runConfig, scope sessionScope, st
 		}
 	}
 	trace.Cause = "vendor_limit"
+	if historical {
+		return trace, runnerSpec{}, "", nil
+	}
 	retry, err := codingStatus(root, scope, step+"-retry-1", string(body))
 	if err != nil {
 		return trace, runnerSpec{}, "", err

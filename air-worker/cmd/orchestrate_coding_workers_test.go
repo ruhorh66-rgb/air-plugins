@@ -1064,6 +1064,76 @@ func TestCodingEscalation(t *testing.T) {
 			if after := snapshot(); !reflect.DeepEqual(before, after) || receiptJobs() != receiptsBefore || jobs.Load() != 2 {
 				t.Fatalf("status mutated fixture or created jobs: receipts %d -> %d, jobs=%d", receiptsBefore, receiptJobs(), jobs.Load())
 			}
+			historical, historicalErr := validateHistoricalCodingEscalation(root, cfg, scope, "coord-TASK.md", currentBody)
+			if scenario == "vendor_limit" || scenario == "vendor_limit_codex" || scenario == "head_changed" {
+				if historicalErr != nil || historical.SourceHead != head || historical.TaskSHA256 != shaCodingBytes(body) || len(historical.Attempt1.Workers) != 2 || historical.Attempt1.Workers[0].JobID != original.Workers[0].JobID || historical.Attempt1.Workers[1].JobID != original.Workers[1].JobID {
+					t.Fatalf("historical evidence lost: %+v, %v", historical, historicalErr)
+				}
+			} else if historicalErr == nil {
+				t.Fatalf("historical verification accepted incomplete evidence: %+v", historical)
+			}
+			if after := snapshot(); !reflect.DeepEqual(before, after) || receiptJobs() != receiptsBefore {
+				t.Fatalf("historical verification mutated fixture or created jobs: receipts %d -> %d", receiptsBefore, receiptJobs())
+			}
+			if scenario == "vendor_limit" {
+				// Alter one binding at a time, then restore the sealed evidence.
+				receiptPath := original.Workers[0].Receipt
+				receiptBytes, err := os.ReadFile(receiptPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, field := range []string{"command", "source", "stdin"} {
+					r, err := readJobReceipt(receiptPath)
+					if err != nil {
+						t.Fatal(err)
+					}
+					switch field {
+					case "command":
+						r.ArgsSHA256 = strings.Repeat("0", 64)
+					case "source":
+						r.SourceHead = strings.Repeat("0", len(head))
+					case "stdin":
+						r.StdinSHA256 = strings.Repeat("0", 64)
+					}
+					if err := writeJobReceipt(receiptPath, r); err != nil {
+						t.Fatal(err)
+					}
+					tampered := snapshot()
+					if result, err := validateHistoricalCodingEscalation(root, cfg, scope, "coord-TASK.md", body); err == nil {
+						t.Errorf("historical verification accepted tampered %s: %+v", field, result)
+					}
+					if after := snapshot(); !reflect.DeepEqual(tampered, after) || receiptJobs() != receiptsBefore {
+						t.Fatalf("historical verification mutated tampered %s fixture", field)
+					}
+					if err := os.WriteFile(receiptPath, receiptBytes, 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				otherScope := newScope(root, sessionIdentity{Principal: id.Principal, SessionKey: "other-session"})
+				otherCfg := cfg
+				otherCfg.Ladder = []string{"gpt6-luna:medium"}
+				for name, check := range map[string]func() error{
+					"session": func() error {
+						_, err := validateHistoricalCodingEscalation(root, cfg, otherScope, "coord-TASK.md", body)
+						return err
+					},
+					"config": func() error {
+						_, err := validateHistoricalCodingEscalation(root, otherCfg, scope, "coord-TASK.md", body)
+						return err
+					},
+					"task": func() error {
+						_, err := validateHistoricalCodingEscalation(root, cfg, scope, "coord-TASK.md", []byte("different task"))
+						return err
+					},
+				} {
+					if err := check(); err == nil {
+						t.Errorf("historical verification accepted changed %s", name)
+					}
+				}
+				if after := snapshot(); !reflect.DeepEqual(before, after) || receiptJobs() != receiptsBefore {
+					t.Fatal("historical verification mutated fixture or created jobs")
+				}
+			}
 			trace, next, exe, err := validateCodingEscalation(root, cfg, scope, "coord-TASK.md", currentBody)
 			if scenario == "vendor_limit" || scenario == "vendor_limit_codex" {
 				if err != nil {
@@ -1109,7 +1179,11 @@ func TestCodingEscalation(t *testing.T) {
 				}
 				return rc, string(out)
 			}
+			jobsBeforeLaunch := jobs.Load()
 			rc, result := call("escalate")
+			if scenario == "head_changed" && jobs.Load() != jobsBeforeLaunch {
+				t.Fatalf("changed HEAD launched jobs: %d -> %d", jobsBeforeLaunch, jobs.Load())
+			}
 			if scenario == "unknown_hash" || scenario == "missing_receipt" {
 				want := 3
 				if scenario == "missing_receipt" {
