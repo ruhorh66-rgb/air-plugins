@@ -1414,6 +1414,33 @@ func TestCodingEscalation(t *testing.T) {
 	}
 }
 
+func TestG06CodingVendorLimitTerminalCausality(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   bool
+	}{
+		{"terminal HTTP 429", `{"type":"turn.failed","error":{"message":"HTTP 429 rate limit"}}`, true},
+		{"curly usage limit", `{"type":"turn.failed","error":{"message":"You’ve hit your usage limit. Try again later."}}`, true},
+		{"ASCII usage limit", `{"type":"turn.failed","error":{"message":"You've hit your usage limit. Try again later."}}`, true},
+		{"earlier error and permission failure", "{\"type\":\"error\",\"message\":\"HTTP 429 rate limit\"}\n{\"type\":\"turn.failed\",\"error\":{\"message\":\"permission denied\"}}", false},
+		{"top-level error alone", `{"type":"error","message":"HTTP 429 rate limit"}`, false},
+		{"earlier error and completion", "{\"type\":\"error\",\"message\":\"HTTP 429 rate limit\"}\n{\"type\":\"turn.completed\"}", false},
+		{"duplicate failures", "{\"type\":\"turn.failed\",\"error\":{\"message\":\"HTTP 429 rate limit\"}}\n{\"type\":\"turn.failed\",\"error\":{\"message\":\"HTTP 429 rate limit\"}}", false},
+		{"failure then completion", "{\"type\":\"turn.failed\",\"error\":{\"message\":\"HTTP 429 rate limit\"}}\n{\"type\":\"turn.completed\"}", false},
+		{"completion then failure", "{\"type\":\"turn.completed\"}\n{\"type\":\"turn.failed\",\"error\":{\"message\":\"HTTP 429 rate limit\"}}", false},
+		{"agent prose", `{"type":"item.completed","item":{"type":"agent_message","text":"HTTP 429 rate limit"}}`, false},
+		{"unrelated numeric reference", `{"type":"turn.failed","error":{"message":"permission denied for issue 429"}}`, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := codingVendorLimit([]byte(tt.output)); got != tt.want {
+				t.Errorf("codingVendorLimit() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestG06FingerprintHelper(t *testing.T) {
 	if os.Getenv("AW_ESCALATION_HELPER") != "1" {
 		return

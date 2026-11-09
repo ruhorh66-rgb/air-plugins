@@ -62,6 +62,28 @@ func TestVendorLimitClassification(t *testing.T) {
 	}
 }
 
+func TestVendorLimitWordingAndBoundaries(t *testing.T) {
+	for _, tc := range []struct {
+		message string
+		want    bool
+	}{
+		{"You’ve hit your usage limit. Try again later.", true},
+		{"You've hit your usage limit. Try again later.", true},
+		{"HTTP 429", true},
+		{"status 429", true},
+		{`request failed: {"status":429,"message":"retry"}`, true},
+		{"HTTP 4297", false},
+		{"status 429.1", false},
+		{"local record 429", false},
+	} {
+		t.Run(tc.message, func(t *testing.T) {
+			if got := isVendorLimit(tc.message); got != tc.want {
+				t.Errorf("isVendorLimit(%q) = %v, want %v", tc.message, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestOpenAIAPIRunner(t *testing.T) {
 	t.Run("success receipt", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
