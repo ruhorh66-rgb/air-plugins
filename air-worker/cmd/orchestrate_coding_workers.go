@@ -1546,6 +1546,125 @@ func codingVendorLimit(output []byte) bool {
 	return false
 }
 
+func validateCodingEscalation(root string, cfg runConfig, scope sessionScope, step string, body []byte) (codingEscalation, runnerSpec, string, error) {
+	trace := codingEscalation{Status: "NOT_PROVEN"}
+	parsed, err := parseCodingMicrosteps(string(body))
+	if err != nil {
+		return trace, runnerSpec{}, "", err
+	}
+	trace.TaskSHA256 = shaCodingBytes(body)
+	original, err := codingStatus(root, scope, step, string(body))
+	if err != nil {
+		return trace, runnerSpec{}, "", err
+	}
+	trace.Attempt1, trace.SourceHead = original, original.SourceHead
+	if original.TaskSHA256 != trace.TaskSHA256 || original.SourceHead == "" || len(original.Workers) != 2 {
+		return trace, runnerSpec{}, "", errors.New("original task or handoff identity not proven")
+	}
+	head, err := gitCodingOutput(root, "rev-parse", "HEAD")
+	if err != nil || head != original.SourceHead {
+		return trace, runnerSpec{}, "", errors.New("source HEAD changed")
+	}
+	clean, err := gitCodingOutput(root, "status", "--porcelain", "--", ".")
+	if err != nil || clean != "" {
+		return trace, runnerSpec{}, "", errors.New("product source is not clean")
+	}
+	exe, err := resolveRunnerTool("codex")
+	if err != nil {
+		return trace, runnerSpec{}, "", err
+	}
+	from := -1
+	for i, tier := range cfg.Ladder {
+		runner := resolveRunner(cfg, tier)
+		if runner.Kind != "codex" || runner.Model != original.Model {
+			continue
+		}
+		matches := true
+		for _, w := range original.Workers {
+			r, e := readJobReceipt(w.Receipt)
+			if e != nil || r.Model != runner.Model || r.Effort != runner.Effort {
+				matches = false
+			}
+		}
+		if matches {
+			if from != -1 {
+				return trace, runnerSpec{}, "", errors.New("ambiguous original tier")
+			}
+			from = i
+		}
+	}
+	if from < 0 || from+1 >= len(cfg.Ladder) {
+		return trace, runnerSpec{}, "", errors.New("next approved tier unavailable")
+	}
+	trace.FromTier, trace.ToTier = cfg.Ladder[from], cfg.Ladder[from+1]
+	if _, err := approvedExecutorTier(cfg, trace.ToTier); err != nil {
+		return trace, runnerSpec{}, "", err
+	}
+	runner := resolveRunner(cfg, trace.FromTier)
+	next := resolveRunner(cfg, trace.ToTier)
+	if next.Kind != "codex" {
+		return trace, runnerSpec{}, "", errors.New("immediate next tier is not Codex")
+	}
+	for i, w := range original.Workers {
+		r, err := readJobReceipt(w.Receipt)
+		if err != nil {
+			return trace, runnerSpec{}, "", err
+		}
+		snap, err := inspectOwnedJob(scope, r.Step, r.Operation)
+		if err != nil {
+			return trace, runnerSpec{}, "", err
+		}
+		if !strings.HasSuffix(r.Operation, "-task-"+trace.TaskSHA256) || !snap.Terminal || snap.Status != jobStatusFailed || snap.ExitCode == nil || *snap.ExitCode == 0 || !r.ProcessStarted || snap.SourceHead != head || len(snap.ArgsSHA256) != 64 || len(snap.OutputSHA256) != 64 || snap.RecoveryRef != filepath.ToSlash(snap.ReceiptPath)+"#job_id="+snap.JobID {
+			return trace, runnerSpec{}, "", errors.New("original terminal failure is not sealed")
+		}
+		workerRoot := w.Product
+		top, topErr := gitCodingOutput(root, "rev-parse", "--show-toplevel")
+		rel, relErr := filepath.Rel(top, root)
+		expected := filepath.Join(filepath.Dir(original.Report), fmt.Sprintf("worker-%d", i+1), rel)
+		real, realErr := filepath.EvalSymlinks(workerRoot)
+		workerHead, headErr := gitCodingOutput(workerRoot, "rev-parse", "HEAD")
+		if topErr != nil || relErr != nil || realErr != nil || headErr != nil || filepath.Clean(workerRoot) != filepath.Clean(expected) || !strings.EqualFold(filepath.Clean(real), filepath.Clean(expected)) || workerHead != head {
+			return trace, runnerSpec{}, "", errors.New("original worker workspace identity mismatch")
+		}
+		if workerRoot == "" {
+			return trace, runnerSpec{}, "", errors.New("original worker workspace missing")
+		}
+		fullTask := codingWorkerTask(parsed, parsed.Workers[i], trace.TaskSHA256, head)
+		taskPath := filepath.Join(workerRoot, ".woody", "TASK-CODE-WORKER.md")
+		actual, err := os.ReadFile(taskPath)
+		if err != nil || string(actual) != fullTask {
+			return trace, runnerSpec{}, "", errors.New("original worker task mismatch")
+		}
+		prompt := codingWorkerPrompt(taskPath, fullTask)
+		expectedCmd := codexCommandForSandbox(exe, workerRoot, prompt, runner, "workspace-write")
+		if jobCommandFingerprint(expectedCmd) != snap.ArgsSHA256 {
+			return trace, runnerSpec{}, "", errors.New("original command fingerprint mismatch")
+		}
+		expectedStdin := jobStdinFingerprint(expectedCmd)
+		if expectedStdin == "" || r.StdinSHA256 == "" || r.StdinSHA256 != expectedStdin {
+			return trace, runnerSpec{}, "", errors.New("original measured stdin fingerprint mismatch")
+		}
+		changes, err := gitCodingOutput(workerRoot, "status", "--porcelain", "--", ".", ":(exclude).woody")
+		if err != nil || changes != "" {
+			return trace, runnerSpec{}, "", errors.New("original worker made source edits")
+		}
+		output, err := os.ReadFile(snap.OutputPath)
+		if err != nil || !codingVendorLimit(output) {
+			return trace, runnerSpec{}, "", errors.New("structured vendor limit not proven")
+		}
+	}
+	trace.Cause = "vendor_limit"
+	retry, err := codingStatus(root, scope, step+"-retry-1", string(body))
+	if err != nil {
+		return trace, runnerSpec{}, "", err
+	}
+	trace.Attempt2 = retry
+	if retry.Status == "EXECUTION_UNKNOWN" || retry.Status == "RUNNING" {
+		return trace, runnerSpec{}, "", errors.New("retry status is unsafe to start new work")
+	}
+	return trace, next, exe, nil
+}
+
 func cmdCodingEscalate(argv []string) int {
 	fs := flag.NewFlagSet("orchestrate code escalate", flag.ContinueOnError)
 	product := fs.String("product", ".", "product root")
@@ -1581,7 +1700,7 @@ func cmdCodingEscalate(argv []string) int {
 		if err != nil || len(body) == 0 || len(body) > 48*1024 {
 			return errors.New("invalid original task")
 		}
-		parsed, err := parseCodingMicrosteps(string(body))
+		_, err = parseCodingMicrosteps(string(body))
 		if err != nil {
 			return err
 		}
@@ -1592,117 +1711,17 @@ func cmdCodingEscalate(argv []string) int {
 			return errors.New("escalation already being inspected or launched")
 		}
 		defer lock.release()
-		original, err := codingStatus(root, scope, step, string(body))
+		var next runnerSpec
+		var exe string
+		trace, next, exe, err = validateCodingEscalation(root, cfg, scope, step, body)
 		if err != nil {
 			return err
 		}
-		trace.Attempt1, trace.SourceHead = original, original.SourceHead
-		if original.TaskSHA256 != trace.TaskSHA256 || original.SourceHead == "" || len(original.Workers) != 2 {
-			return errors.New("original task or handoff identity not proven")
-		}
-		head, err := gitCodingOutput(root, "rev-parse", "HEAD")
-		if err != nil || head != original.SourceHead {
-			return errors.New("source HEAD changed")
-		}
-		clean, err := gitCodingOutput(root, "status", "--porcelain", "--", ".")
-		if err != nil || clean != "" {
-			return errors.New("product source is not clean")
-		}
-		exe, err := resolveRunnerTool("codex")
-		if err != nil {
-			return err
-		}
-		from := -1
-		for i, tier := range cfg.Ladder {
-			runner := resolveRunner(cfg, tier)
-			if runner.Kind != "codex" || runner.Model != original.Model {
-				continue
-			}
-			matches := true
-			for _, w := range original.Workers {
-				r, e := readJobReceipt(w.Receipt)
-				if e != nil || r.Model != runner.Model || r.Effort != runner.Effort {
-					matches = false
-				}
-			}
-			if matches {
-				if from != -1 {
-					return errors.New("ambiguous original tier")
-				}
-				from = i
-			}
-		}
-		if from < 0 || from+1 >= len(cfg.Ladder) {
-			return errors.New("next approved tier unavailable")
-		}
-		trace.FromTier, trace.ToTier = cfg.Ladder[from], cfg.Ladder[from+1]
-		if _, err := approvedExecutorTier(cfg, trace.ToTier); err != nil {
-			return err
-		}
-		runner := resolveRunner(cfg, trace.FromTier)
-		next := resolveRunner(cfg, trace.ToTier)
-		if next.Kind != "codex" {
-			return errors.New("immediate next tier is not Codex")
-		}
-		for i, w := range original.Workers {
-			r, err := readJobReceipt(w.Receipt)
-			if err != nil {
-				return err
-			}
-			snap, err := inspectOwnedJob(scope, r.Step, r.Operation)
-			if err != nil {
-				return err
-			}
-			if !strings.HasSuffix(r.Operation, "-task-"+trace.TaskSHA256) || !snap.Terminal || snap.Status != jobStatusFailed || snap.ExitCode == nil || *snap.ExitCode == 0 || !r.ProcessStarted || snap.SourceHead != head || len(snap.ArgsSHA256) != 64 || len(snap.OutputSHA256) != 64 || snap.RecoveryRef != filepath.ToSlash(snap.ReceiptPath)+"#job_id="+snap.JobID {
-				return errors.New("original terminal failure is not sealed")
-			}
-			workerRoot := w.Product
-			top, topErr := gitCodingOutput(root, "rev-parse", "--show-toplevel")
-			rel, relErr := filepath.Rel(top, root)
-			expected := filepath.Join(filepath.Dir(original.Report), fmt.Sprintf("worker-%d", i+1), rel)
-			real, realErr := filepath.EvalSymlinks(workerRoot)
-			workerHead, headErr := gitCodingOutput(workerRoot, "rev-parse", "HEAD")
-			if topErr != nil || relErr != nil || realErr != nil || headErr != nil || filepath.Clean(workerRoot) != filepath.Clean(expected) || !strings.EqualFold(filepath.Clean(real), filepath.Clean(expected)) || workerHead != head {
-				return errors.New("original worker workspace identity mismatch")
-			}
-			if workerRoot == "" {
-				return errors.New("original worker workspace missing")
-			}
-			fullTask := codingWorkerTask(parsed, parsed.Workers[i], trace.TaskSHA256, head)
-			taskPath := filepath.Join(workerRoot, ".woody", "TASK-CODE-WORKER.md")
-			actual, err := os.ReadFile(taskPath)
-			if err != nil || string(actual) != fullTask {
-				return errors.New("original worker task mismatch")
-			}
-			prompt := codingWorkerPrompt(taskPath, fullTask)
-			expectedCmd := codexCommandForSandbox(exe, workerRoot, prompt, runner, "workspace-write")
-			if jobCommandFingerprint(expectedCmd) != snap.ArgsSHA256 {
-				return errors.New("original command fingerprint mismatch")
-			}
-			expectedStdin := jobStdinFingerprint(expectedCmd)
-			if expectedStdin == "" || r.StdinSHA256 == "" || r.StdinSHA256 != expectedStdin {
-				return errors.New("original measured stdin fingerprint mismatch")
-			}
-			changes, err := gitCodingOutput(workerRoot, "status", "--porcelain", "--", ".", ":(exclude).woody")
-			if err != nil || changes != "" {
-				return errors.New("original worker made source edits")
-			}
-			output, err := os.ReadFile(snap.OutputPath)
-			if err != nil || !codingVendorLimit(output) {
-				return errors.New("structured vendor limit not proven")
-			}
-		}
-		trace.Cause = "vendor_limit"
-		retryStep := step + "-retry-1"
-		retry, err := codingStatus(root, scope, retryStep, string(body))
-		if err != nil {
-			return err
-		}
-		if retry.Status != "NOT_FOUND" {
-			trace.Attempt2 = retry
-			trace.Status = retry.Status
+		if trace.Attempt2.Status != "NOT_FOUND" {
+			trace.Status = trace.Attempt2.Status
 			return nil
 		}
+		retryStep := step + "-retry-1"
 		ctx := &loopCtx{Root: root, Cfg: cfg, Principal: scope.ID.Principal, SessionKey: scope.ID.SessionKey, Orchestrate: true, Subagents: 2}
 		trace.Attempt2 = ctx.runIsolatedCodingWorkers(exe, string(body), retryStep, next)
 		trace.Status = trace.Attempt2.Status

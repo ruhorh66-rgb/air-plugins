@@ -981,6 +981,63 @@ func TestCodingEscalation(t *testing.T) {
 				codingFixtureGit(t, root, "add", "a.go")
 				codingFixtureGit(t, root, "commit", "-m", "changed head")
 			}
+			scope, err := executorScopeForSession(root, id.Principal, id.SessionKey, state)
+			if err != nil || !reflect.DeepEqual(scope, ctx.scope()) {
+				t.Fatalf("fixture scope mismatch: %+v %+v %v", scope, ctx.scope(), err)
+			}
+			snapshot := func() map[string]string {
+				t.Helper()
+				files := map[string]string{}
+				for _, dir := range []string{root, state, original.Workers[0].Product, original.Workers[1].Product} {
+					err := filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
+						if err != nil {
+							return err
+						}
+						if entry.Name() == ".git" {
+							if entry.IsDir() {
+								return filepath.SkipDir
+							}
+							return nil
+						}
+						if entry.IsDir() {
+							files[path] = "directory"
+							return nil
+						}
+						data, err := os.ReadFile(path)
+						if err == nil {
+							files[path] = shaCodingBytes(data)
+						}
+						return err
+					})
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+				return files
+			}
+			before, receiptsBefore := snapshot(), receiptJobs()
+			currentBody, err := os.ReadFile(taskPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			trace, next, exe, err := validateCodingEscalation(root, cfg, scope, "coord-TASK.md", currentBody)
+			if scenario == "vendor_limit" {
+				if err != nil {
+					t.Fatalf("eligible escalation rejected: %v", err)
+				}
+				expectedExe, resolveErr := resolveRunnerTool("codex")
+				if resolveErr != nil {
+					t.Fatal(resolveErr)
+				}
+			if trace.TaskSHA256 != shaCodingBytes(body) || trace.SourceHead != head || trace.FromTier != "gpt6-luna:low" || trace.ToTier != "gpt6-luna:medium" || trace.Cause != "vendor_limit" || len(trace.Attempt1.Workers) != 2 || trace.Attempt1.Workers[0].JobID != original.Workers[0].JobID || trace.Attempt1.Workers[1].JobID != original.Workers[1].JobID || !reflect.DeepEqual(next, resolveRunner(cfg, "gpt6-luna:medium")) || exe != expectedExe {
+					t.Fatalf("unexpected eligibility: %+v next=%+v exe=%q", trace, next, exe)
+				}
+			} else if err == nil {
+				t.Fatalf("unsafe escalation accepted: %+v", trace)
+			}
+			if after := snapshot(); !reflect.DeepEqual(before, after) || receiptJobs() != receiptsBefore {
+				t.Fatalf("validation mutated fixture or created jobs: receipts %d -> %d", receiptsBefore, receiptJobs())
+			}
 			call := func(action string) (int, string) {
 				t.Helper()
 				// A multi-attempt trace can exceed the Windows anonymous pipe
