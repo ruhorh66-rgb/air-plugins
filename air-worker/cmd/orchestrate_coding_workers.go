@@ -647,16 +647,25 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 		return doc, err
 	}
 	anyReceipt := false
+	failedProven := doc.TaskSHA256 == taskSHA && len(doc.Workers) == 2
 	for i := 1; i <= 2; i++ {
 		w := &doc.Workers[i-1]
 		workerProduct := filepath.Join(base, fmt.Sprintf("worker-%d", i), rel)
+		microRaw, _ := json.Marshal(parsed.Workers[i-1])
+		if w.JobID == "" || w.Receipt == "" || w.Product != workerProduct || w.File != parsed.Workers[i-1].File || w.DoneWhen != parsed.Workers[i-1].DoneWhen || w.MicrostepSHA256 != shaCodingBytes(microRaw) {
+			failedProven = false
+		}
 		if real, e := filepath.EvalSymlinks(workerProduct); e == nil && strings.EqualFold(filepath.Clean(real), filepath.Clean(workerProduct)) {
 			if head, e := gitCodingOutput(workerProduct, "rev-parse", "HEAD"); e == nil {
 				if doc.SourceHead != "" && doc.SourceHead != head {
 					return doc, errors.New("worker source mismatch")
 				}
 				doc.SourceHead = head
+			} else {
+				failedProven = false
 			}
+		} else {
+			failedProven = false
 		}
 		if w.Index != i {
 			return doc, errors.New("handoff worker order mismatch")
@@ -727,7 +736,11 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 			w.Status = "EXECUTION_UNKNOWN"
 			return doc, errHashedOwnershipUnknown
 		}
+		if unknownHashed {
+			failedProven = false
+		}
 		if !found {
+			failedProven = false
 			if w.JobID != "" {
 				return doc, errors.New("handoff receipt missing")
 			}
@@ -777,6 +790,12 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 		} else {
 			w.Measurement = "LEGACY_UNMEASURED"
 		}
+		if !failedProven || w.Status != jobStatusFailed || !snap.Terminal || !receipt.ProcessStarted || snap.ExitCode == nil || *snap.ExitCode == 0 || len(snap.OutputSHA256) != 64 || w.Measurement != "STDIN_SHA256_VERIFIED" {
+			failedProven = false
+			if w.Status == jobStatusFailed {
+				w.Status = "EXECUTION_UNKNOWN"
+			}
+		}
 		if w.Patch != "" {
 			product := filepath.Join(base, fmt.Sprintf("worker-%d", i), rel)
 			realProduct, evalErr := filepath.EvalSymlinks(product)
@@ -824,6 +843,8 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 	doc.Status = "EXECUTION_UNKNOWN"
 	if len(doc.Workers) == 2 && doc.Workers[0].Status == jobStatusDone && doc.Workers[1].Status == jobStatusDone && doc.Workers[0].PatchSHA256 != "" && doc.Workers[1].PatchSHA256 != "" {
 		doc.Status = "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION"
+	} else if failedProven {
+		doc.Status = jobStatusFailed
 	}
 	return doc, nil
 }
@@ -1659,7 +1680,7 @@ func validateCodingEscalation(root string, cfg runConfig, scope sessionScope, st
 		return trace, runnerSpec{}, "", err
 	}
 	trace.Attempt2 = retry
-	if retry.Status == "EXECUTION_UNKNOWN" || retry.Status == "RUNNING" {
+	if retry.Status == "EXECUTION_UNKNOWN" || retry.Status == "RUNNING" || retry.Status == jobStatusFailed {
 		return trace, runnerSpec{}, "", errors.New("retry status is unsafe to start new work")
 	}
 	return trace, next, exe, nil

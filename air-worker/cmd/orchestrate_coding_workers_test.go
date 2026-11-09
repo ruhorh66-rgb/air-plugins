@@ -854,7 +854,7 @@ func TestCodingEscalation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("requires local Git worktrees")
 	}
-	for _, scenario := range []string{"vendor_limit", "narrative", "running", "unknown", "unknown_hash", "stdin_forged", "stdin_missing", "task_changed", "worker_task_changed", "head_changed"} {
+	for _, scenario := range []string{"vendor_limit", "narrative", "running", "unknown", "unknown_hash", "stdin_forged", "stdin_missing", "task_changed", "worker_task_changed", "head_changed", "missing_handoff", "missing_receipt", "missing_output", "tampered_output", "unstarted"} {
 		t.Run(scenario, func(t *testing.T) {
 			root, state := t.TempDir(), t.TempDir()
 			for name, body := range map[string]string{
@@ -942,7 +942,7 @@ func TestCodingEscalation(t *testing.T) {
 					t.Fatalf("original task was not supplied inline: %v %s", err, output)
 				}
 			}
-			if scenario == "running" || scenario == "unknown" || scenario == "stdin_forged" || scenario == "stdin_missing" {
+			if scenario == "running" || scenario == "unknown" || scenario == "stdin_forged" || scenario == "stdin_missing" || scenario == "unstarted" {
 				r, _ := readJobReceipt(original.Workers[0].Receipt)
 				switch scenario {
 				case "running":
@@ -953,8 +953,34 @@ func TestCodingEscalation(t *testing.T) {
 					r.StdinSHA256 = strings.Repeat("0", 64)
 				case "stdin_missing":
 					r.StdinSHA256 = ""
+				case "unstarted":
+					r.ProcessStarted = false
 				}
 				if err := writeJobReceipt(original.Workers[0].Receipt, r); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if scenario == "missing_handoff" {
+				if err := os.Remove(original.Report); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if scenario == "missing_receipt" {
+				if err := os.Remove(original.Workers[0].Receipt); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if scenario == "missing_output" || scenario == "tampered_output" {
+				r, err := readJobReceipt(original.Workers[0].Receipt)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if scenario == "missing_output" {
+					err = os.Remove(r.OutputPath)
+				} else {
+					err = os.WriteFile(r.OutputPath, []byte("tampered"), 0600)
+				}
+				if err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -1020,6 +1046,17 @@ func TestCodingEscalation(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			status, statusErr := codingStatus(root, scope, "coord-TASK.md", string(currentBody))
+			if scenario == "vendor_limit" || scenario == "head_changed" {
+				if statusErr != nil || status.Status != "FAILED" || status.SourceHead != head || status.TaskSHA256 != shaCodingBytes(body) || len(status.Workers) != 2 || status.Workers[0].JobID != original.Workers[0].JobID || status.Workers[1].JobID != original.Workers[1].JobID {
+					t.Fatalf("failed status lost evidence: %+v, %v", status, statusErr)
+				}
+			} else if statusErr == nil && status.Status != "EXECUTION_UNKNOWN" {
+				t.Fatalf("incomplete evidence did not preserve uncertainty: %+v", status)
+			}
+			if after := snapshot(); !reflect.DeepEqual(before, after) || receiptJobs() != receiptsBefore || jobs.Load() != 2 {
+				t.Fatalf("status mutated fixture or created jobs: receipts %d -> %d, jobs=%d", receiptsBefore, receiptJobs(), jobs.Load())
+			}
 			trace, next, exe, err := validateCodingEscalation(root, cfg, scope, "coord-TASK.md", currentBody)
 			if scenario == "vendor_limit" {
 				if err != nil {
@@ -1029,7 +1066,7 @@ func TestCodingEscalation(t *testing.T) {
 				if resolveErr != nil {
 					t.Fatal(resolveErr)
 				}
-			if trace.TaskSHA256 != shaCodingBytes(body) || trace.SourceHead != head || trace.FromTier != "gpt6-luna:low" || trace.ToTier != "gpt6-luna:medium" || trace.Cause != "vendor_limit" || len(trace.Attempt1.Workers) != 2 || trace.Attempt1.Workers[0].JobID != original.Workers[0].JobID || trace.Attempt1.Workers[1].JobID != original.Workers[1].JobID || !reflect.DeepEqual(next, resolveRunner(cfg, "gpt6-luna:medium")) || exe != expectedExe {
+				if trace.TaskSHA256 != shaCodingBytes(body) || trace.SourceHead != head || trace.FromTier != "gpt6-luna:low" || trace.ToTier != "gpt6-luna:medium" || trace.Cause != "vendor_limit" || len(trace.Attempt1.Workers) != 2 || trace.Attempt1.Workers[0].JobID != original.Workers[0].JobID || trace.Attempt1.Workers[1].JobID != original.Workers[1].JobID || !reflect.DeepEqual(next, resolveRunner(cfg, "gpt6-luna:medium")) || exe != expectedExe {
 					t.Fatalf("unexpected eligibility: %+v next=%+v exe=%q", trace, next, exe)
 				}
 			} else if err == nil {
@@ -1066,9 +1103,13 @@ func TestCodingEscalation(t *testing.T) {
 				return rc, string(out)
 			}
 			rc, result := call("escalate")
-			if scenario == "unknown_hash" {
-				if rc == 0 || !strings.Contains(result, "NOT_PROVEN") || receiptJobs() != 3 {
-					t.Fatalf("unknown hash allowed retry: rc=%d receipts=%d %s", rc, receiptJobs(), result)
+			if scenario == "unknown_hash" || scenario == "missing_receipt" {
+				want := 3
+				if scenario == "missing_receipt" {
+					want = 1
+				}
+				if rc == 0 || !strings.Contains(result, "NOT_PROVEN") || receiptJobs() != want {
+					t.Fatalf("missing or unknown receipt allowed retry: rc=%d receipts=%d %s", rc, receiptJobs(), result)
 				}
 				return
 			}
