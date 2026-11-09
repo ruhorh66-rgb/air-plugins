@@ -336,6 +336,37 @@ func codingChangedFiles(root string) ([]string, []byte, error) {
 // The original shared repository stays unchanged. Neither source changes nor
 // a final judge can be marked PASS until the coordinator inspects/merges them.
 func (c *loopCtx) runIsolatedCodingWorkers(exePath, task, step string, runner runnerSpec) codingWorkersHandoff {
+	doc := c.runIsolatedCodingWorkersOnce(exePath, task, step, runner)
+	if doc.Status != "NOT_PROVEN" || doc.Report == "" || len(doc.Workers) != 2 || doc.Workers[0].JobID == "" || doc.Workers[1].JobID == "" || doc.Workers[0].JobID == doc.Workers[1].JobID {
+		return doc
+	}
+	scope := c.scope()
+	lock, ok := acquireLock(scopedLockName("coding-escalate:"+step, scope))
+	if !ok || !validAutoSelfDeliveryLock(lock) {
+		if lock != nil {
+			lock.release()
+		}
+		return doc
+	}
+	defer lock.release()
+	trace, next, exe, err := validateCodingEscalation(c.Root, c.Cfg, scope, step, []byte(task))
+	if err != nil || trace.Attempt2.Status != "NOT_FOUND" || trace.Attempt1.SourceHead != doc.SourceHead || trace.Attempt1.Report != doc.Report || len(trace.Attempt1.Workers) != 2 || trace.Attempt1.Workers[0].JobID != doc.Workers[0].JobID || trace.Attempt1.Workers[1].JobID != doc.Workers[1].JobID {
+		return doc
+	}
+	retry := c.runIsolatedCodingWorkersOnce(exe, task, step+"-retry-1", next)
+	if retry.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" {
+		return retry
+	}
+	verified, physical, err := effectiveCodingEvidence(c.Root, scope, step, task)
+	if err != nil || physical != step+"-retry-1" {
+		retry.Status = "NOT_PROVEN"
+		retry.Error = "automatic retry evidence could not be verified"
+		return retry
+	}
+	return verified
+}
+
+func (c *loopCtx) runIsolatedCodingWorkersOnce(exePath, task, step string, runner runnerSpec) codingWorkersHandoff {
 	doc := codingWorkersHandoff{Schema: "air-worker.chatgpt-coordinated-codex-workers/v1",
 		Status: "NOT_PROVEN", SourceProduct: c.Root, Coordinator: "ChatGPT/current-conversation",
 		Model: runner.Model, WorkerCount: 2, TaskSHA256: shaCodingBytes([]byte(task))}
@@ -1875,7 +1906,10 @@ func cmdCodingEscalate(argv []string) int {
 		trace.TaskSHA256 = shaCodingBytes(body)
 		step := "coord-" + filepath.Base(path)
 		lock, ok := acquireLock(scopedLockName("coding-escalate:"+step, scope))
-		if !ok {
+		if !ok || !validAutoSelfDeliveryLock(lock) {
+			if lock != nil {
+				lock.release()
+			}
 			return errors.New("escalation already being inspected or launched")
 		}
 		defer lock.release()
@@ -1891,7 +1925,7 @@ func cmdCodingEscalate(argv []string) int {
 		}
 		retryStep := step + "-retry-1"
 		ctx := &loopCtx{Root: root, Cfg: cfg, Principal: scope.ID.Principal, SessionKey: scope.ID.SessionKey, Orchestrate: true, Subagents: 2}
-		trace.Attempt2 = ctx.runIsolatedCodingWorkers(exe, string(body), retryStep, next)
+		trace.Attempt2 = ctx.runIsolatedCodingWorkersOnce(exe, string(body), retryStep, next)
 		trace.Status = trace.Attempt2.Status
 		return nil
 	}()

@@ -854,7 +854,7 @@ func TestCodingEscalation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("requires local Git worktrees")
 	}
-	for _, scenario := range []string{"vendor_limit", "vendor_limit_codex", "narrative", "running", "unknown", "unknown_hash", "stdin_forged", "stdin_missing", "task_changed", "worker_task_changed", "head_changed", "missing_handoff", "missing_receipt", "missing_output", "tampered_output", "unstarted"} {
+	for _, scenario := range []string{"auto", "auto_codex", "vendor_limit", "vendor_limit_codex", "narrative", "running", "unknown", "unknown_hash", "stdin_forged", "stdin_missing", "task_changed", "worker_task_changed", "head_changed", "missing_handoff", "missing_receipt", "missing_output", "tampered_output", "unstarted"} {
 		t.Run(scenario, func(t *testing.T) {
 			root, state := t.TempDir(), t.TempDir()
 			for name, body := range map[string]string{
@@ -880,7 +880,7 @@ func TestCodingEscalation(t *testing.T) {
 			codingFixtureGit(t, root, "add", ".")
 			codingFixtureGit(t, root, "commit", "-m", "base")
 			id := sessionIdentity{Principal: "gpt", SessionKey: "escalation-test"}
-			if scenario == "vendor_limit_codex" {
+			if scenario == "vendor_limit_codex" || scenario == "auto_codex" {
 				id.Principal = "codex"
 			}
 			if err := writeStateJSON(sessionModePath(state, id), sessionModeState{Enabled: true, Principal: id.Principal, SessionKey: id.SessionKey}); err != nil {
@@ -891,6 +891,15 @@ func TestCodingEscalation(t *testing.T) {
 			}
 			t.Setenv("AIR_CODEX_EXE", os.Args[0])
 			t.Setenv("AW_ESCALATION_HELPER", "1")
+			startsDir := t.TempDir()
+			t.Setenv("AW_ESCALATION_STARTS", startsDir)
+			starts := func() int {
+				entries, err := os.ReadDir(startsDir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return len(entries)
+			}
 			old := runnerCommand
 			t.Cleanup(func() { runnerCommand = old })
 			var jobs atomic.Int32
@@ -906,7 +915,7 @@ func TestCodingEscalation(t *testing.T) {
 						mode = "narrative"
 					}
 				}
-				if scenario == "vendor_limit" || scenario == "vendor_limit_codex" {
+				if scenario == "vendor_limit" || scenario == "vendor_limit_codex" || scenario == "auto" || scenario == "auto_codex" {
 					return exec.Command(os.Args[0], append([]string{"-test.run=^TestG06FingerprintHelper$", "--"}, args...)...)
 				}
 				return exec.Command(os.Args[0], "-test.run=TestCodingEscalationHelper", "--", mode)
@@ -931,7 +940,81 @@ func TestCodingEscalation(t *testing.T) {
 				t.Fatal(err)
 			}
 			ctx := &loopCtx{Root: root, Cfg: cfg, Subagents: 2, Principal: id.Principal, SessionKey: id.SessionKey}
-			original := ctx.runIsolatedCodingWorkers("codex", string(body), "coord-TASK.md", resolveRunner(cfg, "gpt6-luna:low"))
+			runner := resolveRunner(cfg, "gpt6-luna:low")
+			if scenario == "auto" || scenario == "auto_codex" {
+				result := ctx.runIsolatedCodingWorkers("codex", string(body), "coord-TASK.md", runner)
+				original, err := codingStatus(root, ctx.scope(), "coord-TASK.md", string(body))
+				if err != nil || original.Status != "FAILED" || len(original.Workers) != 2 || receiptJobs() != 4 || starts() != 4 {
+					t.Fatalf("automatic original evidence: %+v, result=%+v, receipts=%d, err=%v", original, result, receiptJobs(), err)
+				}
+				retry, err := codingStatus(root, ctx.scope(), "coord-TASK.md-retry-1", string(body))
+				if err != nil || retry.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" || len(retry.Workers) != 2 || retry.SourceHead != head || original.SourceHead != head || retry.TaskSHA256 != shaCodingBytes(body) || original.TaskSHA256 != shaCodingBytes(body) {
+					t.Fatalf("automatic retry evidence: %+v, %v", retry, err)
+				}
+				seen := map[string]bool{}
+				for attempt, workers := range [][]codingWorkerEvidence{original.Workers, retry.Workers} {
+					for _, w := range workers {
+						r, err := readJobReceipt(w.Receipt)
+						version := "v2"
+						if id.Principal == "codex" {
+							version = "v3"
+						}
+						if err != nil || r == nil || seen[w.JobID] || r.SourceHead != head || !strings.HasSuffix(r.Operation, "-"+version+"-task-"+shaCodingBytes(body)) || r.ArgsSHA256 == "" || r.StdinSHA256 == "" || r.OutputSHA256 == "" || r.ExitCode == nil || r.RecoveryRef == "" {
+							t.Fatalf("unsealed or duplicate attempt %d: %+v %v", attempt+1, r, err)
+						}
+						if (attempt == 0 && (r.Status != jobStatusFailed || *r.ExitCode == 0)) || (attempt == 1 && (r.Status != jobStatusDone || *r.ExitCode != 0)) {
+							t.Fatalf("unexpected attempt %d receipt: %+v", attempt+1, r)
+						}
+						seen[w.JobID] = true
+					}
+				}
+				// A missing or incomplete retry handoff must never authorize another launch.
+				saved, err := os.ReadFile(retry.Report)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, contents := range [][]byte{nil, []byte("{"), []byte(`{"Status":"EXECUTION_UNKNOWN"}`)} {
+					if contents == nil {
+						err = os.Remove(retry.Report)
+					} else {
+						err = os.WriteFile(retry.Report, contents, 0600)
+					}
+					if err != nil {
+						t.Fatal(err)
+					}
+					beforeJobs, beforeReceipts := starts(), receiptJobs()
+					ctx.runIsolatedCodingWorkers("codex", string(body), "coord-TASK.md", runner)
+					if starts() != beforeJobs || receiptJobs() != beforeReceipts {
+						t.Fatal("uncertain retry launched another process")
+					}
+					if err := os.WriteFile(retry.Report, saved, 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				for _, w := range retry.Workers {
+					codingFixtureGit(t, root, "apply", "--check", w.Patch)
+					codingFixtureGit(t, root, "apply", w.Patch)
+				}
+				if _, err := ackCodingIntegrated(root, ctx.scope(), "coord-TASK.md", string(body)); err != nil {
+					t.Fatalf("automatic ACK: %v", err)
+				}
+				ack, err := readCodingIntegrationAck(root, ctx.scope(), "coord-TASK.md", string(body))
+				if err != nil || ack.Status != "ACK_RECORDED" || ack.JobIDs[0] != retry.Workers[0].JobID || ack.JobIDs[1] != retry.Workers[1].JobID {
+					t.Fatalf("automatic ACK readback: %+v %v", ack, err)
+				}
+				codingFixtureGit(t, root, "add", "a.go", "b.go")
+				codingFixtureGit(t, root, "commit", "-m", "integrate automatic retry")
+				beforeJobs, beforeReceipts := starts(), receiptJobs()
+				ctx.runIsolatedCodingWorkers("codex", string(body), "coord-TASK.md", runner)
+				if _, err := verifyCodingCommitted(root, ctx.scope(), "coord-TASK.md", string(body), ack); err != nil {
+					t.Fatalf("automatic commit readback: %v", err)
+				}
+				if starts() != beforeJobs || receiptJobs() != beforeReceipts {
+					t.Fatal("repeated automatic call launched another process")
+				}
+				return
+			}
+			original := ctx.runIsolatedCodingWorkersOnce("codex", string(body), "coord-TASK.md", runner)
 			if len(original.Workers) != 2 || jobs.Load() != 2 {
 				t.Fatalf("initial jobs: %+v, count=%d", original, jobs.Load())
 			}
@@ -1016,6 +1099,13 @@ func TestCodingEscalation(t *testing.T) {
 				}
 				codingFixtureGit(t, root, "add", "a.go")
 				codingFixtureGit(t, root, "commit", "-m", "changed head")
+			}
+			if scenario != "vendor_limit" && scenario != "vendor_limit_codex" {
+				beforeStarts, beforeReceipts := starts(), receiptJobs()
+				ctx.runIsolatedCodingWorkers("codex", string(body), "coord-TASK.md", runner)
+				if starts() != beforeStarts || receiptJobs() != beforeReceipts {
+					t.Fatalf("unsafe automatic retry launched: starts %d -> %d, receipts %d -> %d", beforeStarts, starts(), beforeReceipts, receiptJobs())
+				}
 			}
 			scope, err := executorScopeForSession(root, id.Principal, id.SessionKey, state)
 			if err != nil || !reflect.DeepEqual(scope, ctx.scope()) {
@@ -1328,6 +1418,11 @@ func TestG06FingerprintHelper(t *testing.T) {
 	if os.Getenv("AW_ESCALATION_HELPER") != "1" {
 		return
 	}
+	if dir := os.Getenv("AW_ESCALATION_STARTS"); dir != "" {
+		if err := os.WriteFile(filepath.Join(dir, fmt.Sprint(os.Getpid())), nil, 0600); err != nil {
+			os.Exit(6)
+		}
+	}
 	args := os.Args
 	for len(args) > 0 && args[0] != "--" {
 		args = args[1:]
@@ -1365,6 +1460,11 @@ func TestG06FingerprintHelper(t *testing.T) {
 func TestCodingEscalationHelper(t *testing.T) {
 	if os.Getenv("AW_ESCALATION_HELPER") != "1" {
 		return
+	}
+	if dir := os.Getenv("AW_ESCALATION_STARTS"); dir != "" {
+		if err := os.WriteFile(filepath.Join(dir, fmt.Sprint(os.Getpid())), nil, 0600); err != nil {
+			os.Exit(6)
+		}
 	}
 	input, _ := io.ReadAll(os.Stdin)
 	if task, err := os.ReadFile(filepath.Join(".woody", "TASK-CODE-WORKER.md")); err == nil && strings.Contains(string(input), string(task)) {
