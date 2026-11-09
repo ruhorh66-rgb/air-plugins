@@ -852,6 +852,42 @@ func TestExitCodeRejectsErrorAfterSuccessfulProcess(t *testing.T) {
 	}
 }
 
+func TestJobReceiptRejectsInvalidAcquiredLock(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows lock handles only")
+	}
+	for _, tc := range []struct {
+		name string
+		lock *osLock
+	}{{"nil", nil}, {"zero handle", &osLock{}}} {
+		t.Run(tc.name, func(t *testing.T) {
+			old := jobReceiptAcquireLock
+			jobReceiptAcquireLock = func(string) (*osLock, bool) { return tc.lock, true }
+			t.Cleanup(func() { jobReceiptAcquireLock = old })
+
+			root := setupSessionProduct(t)
+			scope := newScope(root, sessionIdentity{"gpt", "invalid-lock"})
+			receiptPath, outputPath := jobReceiptPaths(scope, "preflight", "invalid")
+			marker := filepath.Join(t.TempDir(), "child-started")
+			t.Setenv("AW_N123_CHILD_MARKER", marker)
+			cmd := exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$")
+			called := false
+			output, err := runReceiptedWithPreflight(context.Background(), scope, "preflight", "invalid", cmd, func() error {
+				called = true
+				return nil
+			})
+			if err == nil || called || len(output) != 0 || cmd.Process != nil {
+				t.Fatalf("invalid lock: preflight=%v output=%q process=%v err=%v", called, output, cmd.Process, err)
+			}
+			for _, path := range []string{receiptPath, outputPath, marker} {
+				if _, err := os.Lstat(path); !os.IsNotExist(err) {
+					t.Fatalf("invalid lock created %s: %v", path, err)
+				}
+			}
+		})
+	}
+}
+
 func TestJobReceiptPreflightRunsUnderNativeLock(t *testing.T) {
 	root := setupSessionProduct(t)
 	scope := newScope(root, sessionIdentity{"gpt", "preflight-lock"})

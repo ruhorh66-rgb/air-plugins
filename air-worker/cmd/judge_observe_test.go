@@ -1178,3 +1178,35 @@ func TestN123LegacyGoLiveReplayGuard(t *testing.T) {
 	}
 	pollReceiptStatus(t, receiptPath, jobStatusDone, 5*time.Second)
 }
+
+func TestJudgeInvalidWindowsMutex(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows named mutex contract")
+	}
+	for _, report := range []bool{false, true} {
+		t.Run(fmt.Sprintf("report=%t", report), func(t *testing.T) {
+			root := t.TempDir()
+			initJudgeRefreshGitRepo(t, root)
+			scope := legacyScope(root)
+			cmd := newChildCommand(os.Args[0], "-test.run=^TestProvenanceFixtureChild$")
+			cmd.Dir = root
+			operation := "invalid\x00mutex"
+			var err error
+			if report {
+				_, err = runJudgeCheckReceipted(context.Background(), scope, operation, cmd, true)
+			} else {
+				_, err = runSourceAwareJudgeCheck(context.Background(), root, scope, operation, cmd, false)
+			}
+			if err == nil || !strings.Contains(err.Error(), "mutex") || cmd.Process != nil {
+				t.Fatalf("err=%v process=%v", err, cmd.Process)
+			}
+			var result judgeResult
+			if !judgeCheckUnconfirmed(operation, cmd, err, &result) || len(result.Unknown) != 1 || len(result.Passed) != 0 || len(result.Failed) != 0 {
+				t.Fatalf("result=%+v", result)
+			}
+			if _, err := os.Stat(filepath.Join(root, ".woody", "jobs")); !os.IsNotExist(err) {
+				t.Fatalf("judge evidence directory exists or cannot be inspected: %v", err)
+			}
+		})
+	}
+}
