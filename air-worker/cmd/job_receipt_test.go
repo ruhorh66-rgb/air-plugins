@@ -969,3 +969,141 @@ func TestRunReceiptedNilPreflightKeepsLegacyBehavior(t *testing.T) {
 		t.Fatalf("nil preflight receipt=%+v err=%v", r, err)
 	}
 }
+
+func TestJudgeCrossFenceChild(t *testing.T) {
+	started, release := os.Getenv("AW_JUDGE_STARTED"), os.Getenv("AW_JUDGE_RELEASE")
+	if started == "" || release == "" {
+		return
+	}
+	if err := os.WriteFile(started, []byte("started"), 0o600); err != nil {
+		os.Exit(1)
+	}
+	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		if _, err := os.Stat(release); err == nil {
+			fmt.Print(jobReceiptStdoutMarker)
+			os.Exit(0)
+		}
+	}
+	os.Exit(1)
+}
+
+func TestJudgeCrossFenceAfterInterruptedCaller(t *testing.T) {
+	for _, reportFirst := range []bool{false, true} {
+		name := "judge-first"
+		if reportFirst {
+			name = "report-first"
+		}
+		t.Run(name, func(t *testing.T) {
+			root := setupSessionProduct(t)
+			scope := newScope(root, sessionIdentity{"gpt", name})
+			const operation = "cross-fence"
+			firstStep, oppositeStep := "judge", "report-judge"
+			if reportFirst {
+				firstStep, oppositeStep = oppositeStep, firstStep
+			}
+			firstReceipt, firstOutput := jobReceiptPaths(scope, firstStep, operation)
+			oppositeReceipt, oppositeOutput := jobReceiptPaths(scope, oppositeStep, operation)
+			started := filepath.Join(t.TempDir(), "started")
+			release := filepath.Join(t.TempDir(), "release")
+			cmd := exec.Command(os.Args[0], "-test.run=^TestJudgeCrossFenceChild$")
+			cmd.Env = append(os.Environ(), "AW_JUDGE_STARTED="+started, "AW_JUDGE_RELEASE="+release)
+			ctx, cancel := context.WithCancel(context.Background())
+			result := make(chan error, 1)
+			go func() {
+				_, err := runJudgeCheckReceipted(ctx, scope, operation, cmd, reportFirst)
+				result <- err
+			}()
+			t.Cleanup(func() {
+				cancel()
+				_ = os.WriteFile(release, nil, 0o600)
+				if _, err := os.Stat(firstReceipt); err == nil {
+					pollReceiptStatus(t, firstReceipt, jobStatusDone, 10*time.Second)
+				}
+			})
+			pollJudgeMarker(t, started, 5*time.Second)
+			initial := pollReceiptStatus(t, firstReceipt, jobStatusRunning, 5*time.Second)
+			cancel()
+			select {
+			case err := <-result:
+				if !errors.Is(err, errJobStillRunning) {
+					t.Fatalf("interrupted caller: %v", err)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("interrupted caller did not return")
+			}
+			oppositeMarker := filepath.Join(t.TempDir(), "opposite-started")
+			oppositeCmd := exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$")
+			oppositeCmd.Env = append(os.Environ(), "AW_N123_CHILD_MARKER="+oppositeMarker)
+			if _, err := runJudgeCheckReceipted(context.Background(), scope, operation, oppositeCmd, !reportFirst); err == nil {
+				t.Fatal("opposite check started while original child was running")
+			}
+			for _, path := range []string{oppositeReceipt, oppositeOutput, oppositeMarker} {
+				if _, err := os.Lstat(path); !os.IsNotExist(err) {
+					t.Fatalf("opposite check created %s: %v", path, err)
+				}
+			}
+			if err := os.WriteFile(release, nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			finished := pollReceiptStatus(t, firstReceipt, jobStatusDone, 10*time.Second)
+			if finished.JobID != initial.JobID || finished.OutputSHA256 != fmt.Sprintf("%x", sha256.Sum256([]byte(jobReceiptStdoutMarker))) {
+				t.Fatalf("original job was not sealed: initial=%+v finished=%+v", initial, finished)
+			}
+			if data, err := os.ReadFile(firstOutput); err != nil || string(data) != jobReceiptStdoutMarker {
+				t.Fatalf("original output: %q: %v", data, err)
+			}
+			lockName := scopedLockName(jobLockKind(firstStep, operation), scope)
+			for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+				if lock, ok := acquireLock(lockName); ok {
+					lock.release()
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatal("original job lock was not released")
+				}
+			}
+			secondCmd := exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$")
+			secondCmd.Env = append(os.Environ(), "AW_N123_CHILD_MARKER="+oppositeMarker)
+			out, err := runJudgeCheckReceipted(context.Background(), scope, operation, secondCmd, !reportFirst)
+			if err != nil || string(out) != jobReceiptStdoutMarker {
+				t.Fatalf("opposite check after seal: output=%q err=%v", out, err)
+			}
+			if data, err := os.ReadFile(oppositeMarker); err != nil || string(data) != "started" {
+				t.Fatalf("opposite child marker: %q: %v", data, err)
+			}
+		})
+	}
+}
+
+func pollJudgeMarker(t *testing.T, path string, timeout time.Duration) {
+	t.Helper()
+	for deadline := time.Now().Add(timeout); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		if data, err := os.ReadFile(path); err == nil && string(data) == "started" {
+			return
+		}
+	}
+	t.Fatalf("child did not write started marker at %s", path)
+}
+
+func TestReportJudgeRespectsHeldCommonLock(t *testing.T) {
+	root := setupSessionProduct(t)
+	scope := newScope(root, sessionIdentity{"gpt", "held-common-lock"})
+	const operation = "held-lock"
+	lock, ok := acquireLock(scopedLockName(jobLockKind("judge", operation), scope))
+	if !ok {
+		t.Fatal("could not hold common judge lock")
+	}
+	defer lock.release()
+	marker := filepath.Join(t.TempDir(), "started")
+	cmd := exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$")
+	cmd.Env = append(os.Environ(), "AW_N123_CHILD_MARKER="+marker)
+	if _, err := runJudgeCheckReceipted(context.Background(), scope, operation, cmd, true); err == nil {
+		t.Fatal("report check started while common judge lock was held")
+	}
+	receipt, output := jobReceiptPaths(scope, "report-judge", operation)
+	for _, path := range []string{receipt, output, marker} {
+		if _, err := os.Lstat(path); !os.IsNotExist(err) {
+			t.Fatalf("held common lock created %s: %v", path, err)
+		}
+	}
+}

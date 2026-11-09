@@ -3,12 +3,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestJudgeRealLaunchFailurePreservesLog(t *testing.T) {
@@ -124,5 +126,136 @@ func TestJudgeDuplicateRefusalIsUnknownWithoutRerun(t *testing.T) {
 				t.Fatalf("child execution count = %q, want exactly one run", runs)
 			}
 		})
+	}
+}
+
+func TestJudgeReportCrossOperationEvidence(t *testing.T) {
+	for _, firstReport := range []bool{false, true} {
+		for _, evidence := range []string{"running", "output-only", "receipt-only", "tampered-output", "invalid-receipt", "sealed"} {
+			name := fmt.Sprintf("report-first=%t/%s", firstReport, evidence)
+			t.Run(name, func(t *testing.T) {
+				root := t.TempDir()
+				scope := newScope(root, sessionIdentity{"gpt", "cross-operation"})
+				operation := "Проверка Иванова Ивана, отчёт с пробелами"
+				firstStep, secondStep := "judge", "report-judge"
+				if firstReport {
+					firstStep, secondStep = secondStep, firstStep
+				}
+				firstReceipt, firstOutput := jobReceiptPaths(scope, firstStep, operation)
+				secondReceipt, secondOutput := jobReceiptPaths(scope, secondStep, operation)
+				if firstReceipt == secondReceipt || firstOutput == secondOutput {
+					t.Fatal("opposite operations share evidence paths")
+				}
+
+				firstMarker := filepath.Join(root, "first-child")
+				t.Setenv("AW_N123_CHILD_MARKER", firstMarker)
+				firstCmd := exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$")
+				if evidence == "running" {
+					firstCmd = slowHelperCmd(t, 500)
+					ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+					defer cancel()
+					if _, err := runJudgeCheckReceipted(ctx, scope, operation, firstCmd, firstReport); err != errJobStillRunning {
+						t.Fatalf("interrupted first operation: %v", err)
+					}
+					pollReceiptStatus(t, firstReceipt, jobStatusRunning, time.Second)
+				} else if _, err := runJudgeCheckReceipted(context.Background(), scope, operation, firstCmd, firstReport); err != nil {
+					t.Fatalf("first operation: %v", err)
+				}
+
+				switch evidence {
+				case "output-only":
+					if err := os.Remove(firstReceipt); err != nil {
+						t.Fatal(err)
+					}
+				case "receipt-only":
+					if err := os.Remove(firstOutput); err != nil {
+						t.Fatal(err)
+					}
+				case "tampered-output":
+					if err := os.WriteFile(firstOutput, []byte("tampered"), 0600); err != nil {
+						t.Fatal(err)
+					}
+				case "invalid-receipt":
+					if err := os.WriteFile(firstReceipt, []byte("{invalid"), 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				beforeReceipt, receiptErr := os.ReadFile(firstReceipt)
+				beforeOutput, outputErr := os.ReadFile(firstOutput)
+				secondMarker := filepath.Join(root, "second-child")
+				t.Setenv("AW_N123_CHILD_MARKER", secondMarker)
+				secondCmd := func() *exec.Cmd { return exec.Command(os.Args[0], "-test.run=^TestN123ReceiptChildHelper$") }
+				_, err := runJudgeCheckReceipted(context.Background(), scope, operation, secondCmd(), !firstReport)
+				if evidence == "sealed" {
+					if err != nil {
+						t.Fatalf("sealed opposite refused: %v", err)
+					}
+					first, err := readJobReceipt(firstReceipt)
+					if err != nil {
+						t.Fatal(err)
+					}
+					second, err := readJobReceipt(secondReceipt)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if first.JobID == second.JobID || first.Step != firstStep || second.Step != secondStep || first.Status != jobStatusDone || second.Status != jobStatusDone || first.SourceHead != second.SourceHead || first.ArgsSHA256 == "" || second.ArgsSHA256 == "" || first.OutputSHA256 == "" || second.OutputSHA256 == "" {
+						t.Fatalf("distinct sealed identities missing: first=%+v second=%+v", first, second)
+					}
+					sealedReceipt, err := os.ReadFile(secondReceipt)
+					if err != nil {
+						t.Fatal(err)
+					}
+					sealedOutput, err := os.ReadFile(secondOutput)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if _, err := runJudgeCheckReceipted(context.Background(), scope, operation, secondCmd(), !firstReport); err == nil {
+						t.Fatal("same operation replay accepted")
+					}
+					if data, err := os.ReadFile(secondReceipt); err != nil || string(data) != string(sealedReceipt) {
+						t.Fatalf("replay changed receipt: %v", err)
+					}
+					if data, err := os.ReadFile(secondOutput); err != nil || string(data) != string(sealedOutput) {
+						t.Fatalf("replay changed output: %v", err)
+					}
+					if data, err := os.ReadFile(secondMarker); err != nil || string(data) != "started" {
+						t.Fatalf("second child: %q, %v", data, err)
+					}
+					return
+				}
+				if err == nil {
+					t.Fatal("unsafe opposite evidence accepted")
+				}
+				if _, err := os.Stat(secondMarker); !os.IsNotExist(err) {
+					t.Fatalf("refused child started: %v", err)
+				}
+				if _, err := os.Stat(secondReceipt); !os.IsNotExist(err) {
+					t.Fatalf("refusal created receipt: %v", err)
+				}
+				if _, err := os.Stat(secondOutput); !os.IsNotExist(err) {
+					t.Fatalf("refusal created output: %v", err)
+				}
+				if evidence == "running" {
+					original, err := readJobReceipt(firstReceipt)
+					if err != nil {
+						t.Fatal(err)
+					}
+					pollReceiptStatus(t, firstReceipt, jobStatusDone, 3*time.Second)
+					finished, err := readJobReceipt(firstReceipt)
+					if err != nil || finished.JobID != original.JobID || finished.Step != firstStep || finished.OutputSHA256 == "" {
+						t.Fatalf("original child did not seal same job: %+v, %v", finished, err)
+					}
+					if _, err := inspectOwnedJob(scope, firstStep, operation); err != nil {
+						t.Fatalf("original seal invalid: %v", err)
+					}
+					return
+				}
+				afterReceipt, afterReceiptErr := os.ReadFile(firstReceipt)
+				afterOutput, afterOutputErr := os.ReadFile(firstOutput)
+				if string(beforeReceipt) != string(afterReceipt) || string(beforeOutput) != string(afterOutput) || (receiptErr == nil) != (afterReceiptErr == nil) || (outputErr == nil) != (afterOutputErr == nil) {
+					t.Fatal("refusal changed opposite evidence")
+				}
+			})
+		}
 	}
 }
