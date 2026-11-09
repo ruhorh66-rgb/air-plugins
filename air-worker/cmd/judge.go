@@ -521,7 +521,7 @@ func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope,
 	// К42 — durable job receipt пишется RUNNING ДО запуска этой проверки; transport/RDC
 	// timeout здесь не наступает (ctx без дедлайна), поэтому вызов, как и раньше, ждёт
 	// завершения синхронно — только теперь ещё и оставляет receipt/output_path на диске.
-	out, err := runJudgeCheckReceipted(context.Background(), scope, name, cmd, r.forReport)
+	out, err := runNonGoJudgeCheck(context.Background(), root, scope, name, cmd, r.forReport)
 	if judgeCheckUnconfirmed(name, cmd, err, r) {
 		return
 	}
@@ -555,6 +555,38 @@ func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope,
 		why += " — " + logErr.Error()
 	}
 	r.Failed = append(r.Failed, fmt.Sprintf("%s (код %d)%s", name, code, why))
+}
+
+func runNonGoJudgeCheck(ctx context.Context, root string, scope sessionScope, name string, cmd *exec.Cmd, forReport bool) ([]byte, error) {
+	head := jobSourceHead(root)
+	if head == "" {
+		return runJudgeCheckReceipted(ctx, scope, name, cmd, forReport)
+	}
+	lock, ok := acquireLock(scopedLockName(jobLockKind("judge", name), scope))
+	if !ok {
+		return nil, fmt.Errorf("UNKNOWN: legacy judge operation %s is already running", name)
+	}
+	defer lock.release()
+	for _, step := range []string{"judge", "report-judge"} {
+		receipt, output := jobReceiptPaths(scope, step, name)
+		_, receiptErr := os.Lstat(receipt)
+		_, outputErr := os.Lstat(output)
+		if os.IsNotExist(receiptErr) && os.IsNotExist(outputErr) {
+			continue
+		}
+		if receiptErr != nil || outputErr != nil {
+			return nil, fmt.Errorf("UNKNOWN: legacy %s evidence for %s is incomplete or inaccessible", step, name)
+		}
+		view, err := inspectOwnedJob(scope, step, name)
+		if err != nil || !view.Terminal || !operationalSHA.MatchString(view.SourceHead) || view.SourceHead == head {
+			return nil, fmt.Errorf("UNKNOWN: legacy %s evidence for %s does not prove a terminal different source: %v", step, name, err)
+		}
+	}
+	h := sha256.New()
+	for _, part := range []string{head, name, jobCommandFingerprint(cmd)} {
+		_, _ = fmt.Fprintf(h, "%d:%s", len(part), part)
+	}
+	return runJudgeCheckReceipted(ctx, scope, fmt.Sprintf("n123-command-%x", h.Sum(nil)), cmd, forReport)
 }
 
 func n123GoJudgeOperation(root, displayName string, cmd *exec.Cmd) string {
@@ -684,7 +716,12 @@ func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope
 		}
 		cmd.Env, cmd.Err = configuredChildEnvironment(resolved, cmd.Env)
 	}
-	out, err := runJudgeCheckReceipted(ctx, scope, n123GoJudgeOperation(root, name, cmd), cmd, r.forReport)
+	var out []byte
+	if isGoCommand(cmd.Path) {
+		out, err = runJudgeCheckReceipted(ctx, scope, n123GoJudgeOperation(root, name, cmd), cmd, r.forReport)
+	} else {
+		out, err = runNonGoJudgeCheck(ctx, root, scope, name, cmd, r.forReport)
+	}
 	if judgeCheckUnconfirmed(name, cmd, err, r) {
 		return
 	}

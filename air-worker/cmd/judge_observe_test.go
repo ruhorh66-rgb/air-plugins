@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -717,5 +718,118 @@ func TestJudgeInputFingerprintCoversChecklistAndCustomJudgeFile(t *testing.T) {
 		if err := os.WriteFile(path, raw, 0o644); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestN123NonGoCheckIdentity(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("fixture requires Windows PowerShell")
+	}
+	for _, kind := range []string{"script", "command"} {
+		t.Run(kind, func(t *testing.T) {
+			root, _ := writeObservabilityFixture(t, 0)
+			counter := filepath.Join(t.TempDir(), "counter.txt")
+			initJudgeRefreshGitRepo(t, root)
+			scope := legacyScope(root)
+			run := func(arg string) judgeResult {
+				var result judgeResult
+				if kind == "script" {
+					runScriptCheck(root, checkSpec{Script: "check.ps1", Args: []string{counter, arg}}, "probe", scope, &result)
+				} else {
+					runCommandCheck(root, checkSpec{Command: "powershell.exe", Args: []string{"-NoProfile", "-File", filepath.Join(root, "check.ps1"), counter, arg}}, "probe", scope, &result)
+				}
+				return result
+			}
+			assert := func(result judgeResult, count int, pass bool) {
+				t.Helper()
+				if got := readCounter(t, counter); got != count || (len(result.Passed) == 1) != pass || (!pass && len(result.Unknown) != 1) {
+					t.Fatalf("count=%d want=%d result=%+v", got, count, result)
+				}
+			}
+			assert(run("0"), 1, true)
+			assert(run("0"), 1, false)
+			assert(run("00"), 2, true)
+			assert(run("00"), 2, false)
+			commitJudgeRefreshFixture(t, root, "v2\n")
+			assert(run("0"), 3, true)
+			assert(run("0"), 3, false)
+		})
+	}
+}
+
+func TestN123LegacyScriptEvidenceRecovery(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("fixture requires Windows PowerShell")
+	}
+	for _, tc := range []struct {
+		name                                      string
+		advance, unknown, running, tamper, report bool
+		pass                                      bool
+	}{
+		{name: "same source"},
+		{name: "changed source sealed", advance: true, pass: true},
+		{name: "changed source unknown", advance: true, unknown: true},
+		{name: "changed source running", advance: true, running: true},
+		{name: "changed source tampered", advance: true, tamper: true},
+		{name: "opposite report unknown", advance: true, unknown: true, report: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root, _ := writeObservabilityFixture(t, 0)
+			counter := filepath.Join(t.TempDir(), "counter.txt")
+			initJudgeRefreshGitRepo(t, root)
+			scope := legacyScope(root)
+			step := "judge"
+			if tc.report {
+				step = "report-judge"
+			}
+			cmd := newPowerShellCommand("-NoProfile", "-File", filepath.Join(root, "check.ps1"), counter, "0")
+			cmd.Dir = root
+			if _, err := runJudgeCheckReceipted(context.Background(), scope, "probe", cmd, tc.report); err != nil {
+				t.Fatal(err)
+			}
+			receiptPath, outputPath := jobReceiptPaths(scope, step, "probe")
+			receipt, err := readJobReceipt(receiptPath)
+			if err != nil || receipt.SourceHead == "" {
+				t.Fatalf("legacy receipt=%+v err=%v", receipt, err)
+			}
+			if tc.unknown {
+				receipt.SourceHead = ""
+			}
+			if tc.running {
+				receipt.Status = jobStatusRunning
+			}
+			if tc.unknown || tc.running {
+				if err := writeJobReceipt(receiptPath, receipt); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if tc.tamper {
+				if err := os.WriteFile(outputPath, []byte("tampered"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			beforeReceipt, _ := os.ReadFile(receiptPath)
+			beforeOutput, _ := os.ReadFile(outputPath)
+			if tc.advance {
+				commitJudgeRefreshFixture(t, root, "v2\n")
+			}
+			for i := 0; i < 2; i++ {
+				var result judgeResult
+				runScriptCheck(root, checkSpec{Script: "check.ps1", Args: []string{counter, "0"}}, "probe", scope, &result)
+				wantPass := tc.pass && i == 0
+				wantCount := 1
+				if tc.pass {
+					wantCount = 2
+				}
+				if got := readCounter(t, counter); got != wantCount || (len(result.Passed) == 1) != wantPass || (!wantPass && len(result.Unknown) != 1) {
+					t.Fatalf("attempt=%d count=%d result=%+v", i, got, result)
+				}
+			}
+			afterReceipt, _ := os.ReadFile(receiptPath)
+			afterOutput, _ := os.ReadFile(outputPath)
+			if string(beforeReceipt) != string(afterReceipt) || string(beforeOutput) != string(afterOutput) {
+				t.Fatal("legacy evidence changed")
+			}
+		})
 	}
 }
