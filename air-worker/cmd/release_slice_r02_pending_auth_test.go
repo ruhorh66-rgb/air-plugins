@@ -135,3 +135,33 @@ func TestR02PendingRejectsExternalHardlinkAndDuplicateJSONKey(t *testing.T) {
 		}
 	})
 }
+
+func TestReleaseCaptureScratchRootRequiresOrdinaryDirectory(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "file")
+	if err := os.WriteFile(file, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name  string
+		path  string
+		valid bool
+	}{
+		{"empty", "", false},
+		{"nonexistent", filepath.Join(dir, "missing"), false},
+		{"file", file, false},
+		{"directory", dir, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("TMPDIR", tc.path)
+			root, err := releaseCaptureScratchRoot()
+			if tc.valid {
+				if err != nil || root != filepath.Clean(dir) {
+					t.Fatalf("scratch root = %q, error = %v; want %q", root, err, dir)
+				}
+			} else if err == nil {
+				t.Fatalf("invalid scratch root %q accepted as %q", tc.path, root)
+			}
+		})
+	}
+}

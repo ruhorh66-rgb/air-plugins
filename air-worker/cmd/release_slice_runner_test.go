@@ -370,6 +370,7 @@ func TestR02ReplayProcessHelper(t *testing.T) {
 }
 
 func TestR02ReplayDoesNotDuplicateAcrossFreshProcess(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
 	_, settings, _ := selfLearningFixture(t)
 	scratch, err := releaseCaptureScratchRoot()
 	if err != nil {
