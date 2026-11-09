@@ -1190,14 +1190,14 @@ func TestJudgeInvalidWindowsMutex(t *testing.T) {
 			scope := legacyScope(root)
 			cmd := newChildCommand(os.Args[0], "-test.run=^TestProvenanceFixtureChild$")
 			cmd.Dir = root
-			operation := "invalid\x00mutex"
+			operation := "invalid\x00name"
 			var err error
 			if report {
 				_, err = runJudgeCheckReceipted(context.Background(), scope, operation, cmd, true)
 			} else {
 				_, err = runSourceAwareJudgeCheck(context.Background(), root, scope, operation, cmd, false)
 			}
-			if err == nil || !strings.Contains(err.Error(), "mutex") || cmd.Process != nil {
+			if err == nil || !strings.Contains(err.Error(), "judge mutex could not be acquired") || strings.Contains(err.Error(), "already running") || cmd.Process != nil {
 				t.Fatalf("err=%v process=%v", err, cmd.Process)
 			}
 			var result judgeResult

@@ -879,6 +879,10 @@ func TestJobReceiptRejectsInvalidAcquiredLock(t *testing.T) {
 			if err == nil || called || len(output) != 0 || cmd.Process != nil {
 				t.Fatalf("invalid lock: preflight=%v output=%q process=%v err=%v", called, output, cmd.Process, err)
 			}
+			message := strings.ToLower(err.Error())
+			if !strings.Contains(message, "mutex недоступен") || strings.Contains(message, "уже запущен") || strings.Contains(message, "already running") || strings.Contains(message, "duplicate") {
+				t.Fatalf("invalid lock reported an incorrect reason: %v", err)
+			}
 			for _, path := range []string{receiptPath, outputPath, marker} {
 				if _, err := os.Lstat(path); !os.IsNotExist(err) {
 					t.Fatalf("invalid lock created %s: %v", path, err)
