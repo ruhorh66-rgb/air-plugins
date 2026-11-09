@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -832,4 +833,144 @@ func TestN123LegacyScriptEvidenceRecovery(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProvenanceFixtureChild(t *testing.T) {
+	mode := os.Getenv("AW_PROVENANCE_MODE")
+	if mode == "" {
+		t.Skip("helper process only")
+	}
+	f, err := os.OpenFile(os.Getenv("AW_PROVENANCE_COUNTER"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString("started\n"); err != nil {
+		t.Fatal(err)
+	}
+	if mode == "running" {
+		time.Sleep(time.Second)
+		return
+	}
+	if mode == "dirty" || mode == "head" {
+		if err := os.WriteFile("tracked.txt", []byte("changed\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if mode == "head" {
+		for _, args := range [][]string{{"add", "tracked.txt"}, {"commit", "-m", "advance"}} {
+			if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+				t.Fatalf("git %v: %v: %s", args, err, out)
+			}
+		}
+	}
+}
+
+func TestJudgeGoProvenanceTerminal(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("fixture uses a copied go.exe")
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	binary, err := os.ReadFile(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	goExe := filepath.Join(t.TempDir(), "go.exe")
+	if err := os.WriteFile(goExe, binary, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"clean", "dirty-before", "dirty", "head", "missing", "unsealed", "mismatched"} {
+		t.Run(mode, func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".woody/\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			initJudgeRefreshGitRepo(t, root)
+			counter := filepath.Join(t.TempDir(), "started")
+			t.Setenv("AW_PROVENANCE_MODE", mode)
+			t.Setenv("AW_PROVENANCE_COUNTER", counter)
+			if mode == "dirty-before" {
+				if err := os.WriteFile(filepath.Join(root, "tracked.txt"), []byte("dirty\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			oldWriter := writeJobReceiptFunc
+			t.Cleanup(func() { writeJobReceiptFunc = oldWriter })
+			writeJobReceiptFunc = func(path string, receipt *jobReceipt) error {
+				if receipt.Status == jobStatusDone {
+					switch mode {
+					case "missing":
+						return os.Remove(path)
+					case "unsealed":
+						receipt.OutputSHA256 = ""
+					case "mismatched":
+						receipt.SourceHead = strings.Repeat("0", 40)
+					}
+				}
+				return oldWriter(path, receipt)
+			}
+			args := []string{"-test.run=^TestProvenanceFixtureChild$"}
+			cmd := newChildCommand(goExe, args...)
+			cmd.Dir = root
+			operation := n123GoJudgeOperation(root, "unit", cmd)
+			scope := legacyScope(root)
+			receiptPath, outputPath := jobReceiptPaths(scope, "judge", operation)
+			var result judgeResult
+			runCommandCheck(root, checkSpec{Command: goExe, Args: args}, "unit", scope, &result)
+			if mode == "clean" {
+				if len(result.Passed) != 1 || len(result.Unknown) != 0 {
+					t.Fatalf("clean result: %+v", result)
+				}
+			} else if len(result.Passed) != 0 || len(result.Failed) != 0 || len(result.Unknown) != 1 || strings.Contains(strings.ToUpper(strings.Join(result.Unknown, " ")), "RUNNING") {
+				t.Errorf("terminal provenance result: %+v", result)
+			}
+			if mode == "dirty-before" {
+				if _, err := os.Stat(counter); !os.IsNotExist(err) {
+					t.Errorf("dirty source started process: %v", err)
+				}
+				return
+			}
+			if _, err := os.Stat(counter); err != nil {
+				t.Fatalf("fixture did not start: %v", err)
+			}
+			beforeReceipt, receiptErr := os.ReadFile(receiptPath)
+			beforeOutput, outputErr := os.ReadFile(outputPath)
+			var again judgeResult
+			runCommandCheck(root, checkSpec{Command: goExe, Args: args}, "unit", scope, &again)
+			afterReceipt, receiptErr2 := os.ReadFile(receiptPath)
+			afterOutput, outputErr2 := os.ReadFile(outputPath)
+			if mode != "head" {
+				if starts, _ := os.ReadFile(counter); string(starts) != "started\n" {
+					t.Errorf("duplicate start: %q", starts)
+				}
+			}
+			if (receiptErr == nil) != (receiptErr2 == nil) || (outputErr == nil) != (outputErr2 == nil) || string(beforeReceipt) != string(afterReceipt) || string(beforeOutput) != string(afterOutput) {
+				t.Error("repeated check replaced evidence")
+			}
+		})
+	}
+}
+
+func TestJudgeProvenanceLiveRunning(t *testing.T) {
+	root := t.TempDir()
+	initJudgeRefreshGitRepo(t, root)
+	t.Setenv("AW_PROVENANCE_MODE", "running")
+	t.Setenv("AW_PROVENANCE_COUNTER", filepath.Join(t.TempDir(), "started"))
+	cmd := newChildCommand(os.Args[0], "-test.run=^TestProvenanceFixtureChild$")
+	cmd.Dir = root
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	_, err := runJudgeCheckReceipted(ctx, legacyScope(root), "live", cmd, false)
+	if !errors.Is(err, errJobStillRunning) {
+		t.Fatalf("live result: %v", err)
+	}
+	var result judgeResult
+	if !judgeCheckUnconfirmed("live", cmd, err, &result) || len(result.Unknown) != 1 || !strings.Contains(strings.ToUpper(result.Unknown[0]), "RUNNING") {
+		t.Fatalf("live classification: %+v", result)
+	}
+	receipt, _ := jobReceiptPaths(legacyScope(root), "judge", "live")
+	pollReceiptStatus(t, receipt, jobStatusDone, 5*time.Second)
 }

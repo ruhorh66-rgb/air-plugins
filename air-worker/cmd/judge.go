@@ -452,8 +452,11 @@ func powerShellScriptTail(args []string, namedIndices []int) string {
 	}
 	return tail.String()
 }
+
+var errJudgeProvenance = errors.New("judge source provenance unconfirmed")
+
 func judgeCheckUnconfirmed(name string, cmd *exec.Cmd, err error, r *judgeResult) bool {
-	if errors.Is(err, errJobStillRunning) {
+	if errors.Is(err, errJobStillRunning) || errors.Is(err, errJudgeProvenance) {
 		r.Unknown = append(r.Unknown, fmt.Sprintf("%s — результат не подтверждён, проверьте квитанцию: %v", name, err))
 		return true
 	}
@@ -462,6 +465,27 @@ func judgeCheckUnconfirmed(name string, cmd *exec.Cmd, err error, r *judgeResult
 		return true
 	}
 	return false
+}
+
+func runSourceJudgeCheck(ctx context.Context, root string, scope sessionScope, operation, head string, cmd *exec.Cmd, forReport bool) ([]byte, error) {
+	before, clean, err := judgeSourceIdentity(root)
+	if err != nil || !clean || before != head {
+		return nil, fmt.Errorf("%w: source before check differs from operation identity", errJudgeProvenance)
+	}
+	out, runErr := runJudgeCheckReceipted(ctx, scope, operation, cmd, forReport)
+	if errors.Is(runErr, errJobStillRunning) || (runErr != nil && cmd.Process == nil) {
+		return out, runErr
+	}
+	after, clean, err := judgeSourceIdentity(root)
+	step := "judge"
+	if forReport {
+		step = "report-judge"
+	}
+	view, receiptErr := inspectOwnedJob(scope, step, operation)
+	if err != nil || !clean || after != head || receiptErr != nil || !view.Terminal || view.SourceHead != head {
+		return nil, fmt.Errorf("%w: source or sealed receipt differs from operation identity", errJudgeProvenance)
+	}
+	return out, runErr
 }
 
 func runJudgeCheckReceipted(ctx context.Context, scope sessionScope, operation string, cmd *exec.Cmd, forReport bool) ([]byte, error) {
@@ -560,6 +584,9 @@ func runScriptCheck(root string, chk checkSpec, name string, scope sessionScope,
 func runNonGoJudgeCheck(ctx context.Context, root string, scope sessionScope, name string, cmd *exec.Cmd, forReport bool) ([]byte, error) {
 	head := jobSourceHead(root)
 	if head == "" {
+		if source, _, err := judgeSourceIdentity(root); err != nil || source != "" {
+			return nil, fmt.Errorf("%w: cannot identify source: %v", errJudgeProvenance, err)
+		}
 		return runJudgeCheckReceipted(ctx, scope, name, cmd, forReport)
 	}
 	lock, ok := acquireLock(scopedLockName(jobLockKind("judge", name), scope))
@@ -586,7 +613,7 @@ func runNonGoJudgeCheck(ctx context.Context, root string, scope sessionScope, na
 	for _, part := range []string{head, name, jobCommandFingerprint(cmd)} {
 		_, _ = fmt.Fprintf(h, "%d:%s", len(part), part)
 	}
-	return runJudgeCheckReceipted(ctx, scope, fmt.Sprintf("n123-command-%x", h.Sum(nil)), cmd, forReport)
+	return runSourceJudgeCheck(ctx, root, scope, fmt.Sprintf("n123-command-%x", h.Sum(nil)), head, cmd, forReport)
 }
 
 func n123GoJudgeOperation(root, displayName string, cmd *exec.Cmd) string {
@@ -597,6 +624,10 @@ func n123GoJudgeOperation(root, displayName string, cmd *exec.Cmd) string {
 	if head == "" {
 		return displayName
 	}
+	return n123GoJudgeOperationAtHead(head, displayName, cmd)
+}
+
+func n123GoJudgeOperationAtHead(head, displayName string, cmd *exec.Cmd) string {
 	h := sha256.New()
 	for _, part := range []string{head, displayName, jobCommandFingerprint(cmd)} {
 		_, _ = fmt.Fprintf(h, "%d:%s", len(part), part)
@@ -718,7 +749,16 @@ func runCommandCheck(root string, chk checkSpec, name string, scope sessionScope
 	}
 	var out []byte
 	if isGoCommand(cmd.Path) {
-		out, err = runJudgeCheckReceipted(ctx, scope, n123GoJudgeOperation(root, name, cmd), cmd, r.forReport)
+		head := jobSourceHead(root)
+		if head == "" {
+			if source, _, sourceErr := judgeSourceIdentity(root); sourceErr != nil || source != "" {
+				err = fmt.Errorf("%w: cannot identify source: %v", errJudgeProvenance, sourceErr)
+			} else {
+				out, err = runJudgeCheckReceipted(ctx, scope, name, cmd, r.forReport)
+			}
+		} else {
+			out, err = runSourceJudgeCheck(ctx, root, scope, n123GoJudgeOperationAtHead(head, name, cmd), head, cmd, r.forReport)
+		}
 	} else {
 		out, err = runNonGoJudgeCheck(ctx, root, scope, name, cmd, r.forReport)
 	}
