@@ -1699,10 +1699,11 @@ type codingEscalation struct {
 
 // Only a structured terminal error is evidence of a vendor limit; agent prose is not.
 func codingVendorLimit(output []byte) bool {
+	terminal := false
+	limit := false
 	for _, line := range strings.Split(string(output), "\n") {
 		var event struct {
-			Type    string `json:"type"`
-			Message string `json:"message"`
+			Type string `json:"type"`
 			Error   struct {
 				Message string `json:"message"`
 			} `json:"error"`
@@ -1710,14 +1711,15 @@ func codingVendorLimit(output []byte) bool {
 		if json.Unmarshal([]byte(line), &event) != nil {
 			continue
 		}
-		if event.Type == "turn.failed" && isVendorLimit(event.Error.Message) {
-			return true
-		}
-		if event.Type == "error" && isVendorLimit(event.Message) {
-			return true
+		if event.Type == "turn.failed" || event.Type == "turn.completed" {
+			if terminal {
+				return false
+			}
+			terminal = true
+			limit = event.Type == "turn.failed" && isVendorLimit(event.Error.Message)
 		}
 	}
-	return false
+	return terminal && limit
 }
 
 func validateCodingEscalation(root string, cfg runConfig, scope sessionScope, step string, body []byte) (codingEscalation, runnerSpec, string, error) {

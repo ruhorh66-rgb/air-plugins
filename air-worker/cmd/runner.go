@@ -59,12 +59,44 @@ func runnerReceiptMetaForRole(runner runnerSpec, role, sandbox string) jobReceip
 	return meta
 }
 
+var reVendorStatus = regexp.MustCompile(`(?i)(^|[^a-z0-9_/])(?:http(?:/[0-9]+(?:\.[0-9]+)?)?(?:\s+status)?(?:\s+code)?\s+|status(?:\s+code)?\s*:?\s*|error\s+code\s*:?\s*)429`)
+
 func isVendorLimit(detail string) bool {
 	s := strings.ToLower(detail)
-	return strings.Contains(s, "429") || strings.Contains(s, "rate limit") ||
+	for _, loc := range reVendorStatus.FindAllStringIndex(s, -1) {
+		end := loc[1]
+		if end == len(s) || (!(s[end] >= '0' && s[end] <= '9') && !(s[end] == '.' && end+1 < len(s) && s[end+1] >= '0' && s[end+1] <= '9') && !(s[end] >= 'a' && s[end] <= 'z') && s[end] != '_') {
+			return true
+		}
+	}
+	// Bound parsing of embedded provider JSON in potentially large output.
+	jsonText := detail
+	if len(jsonText) > 65536 {
+		jsonText = jsonText[:65536]
+	}
+	for attempts := 0; attempts < 64; attempts++ {
+		start := strings.IndexByte(jsonText, '{')
+		if start < 0 {
+			break
+		}
+		jsonText = jsonText[start:]
+		var obj map[string]json.RawMessage
+		if json.NewDecoder(strings.NewReader(jsonText)).Decode(&obj) == nil {
+			if strings.TrimSpace(string(obj["status"])) == "429" {
+				return true
+			}
+			var providerError map[string]json.RawMessage
+			if json.Unmarshal(obj["error"], &providerError) == nil && strings.TrimSpace(string(providerError["code"])) == "429" {
+				return true
+			}
+		}
+		jsonText = jsonText[1:]
+	}
+	return strings.Contains(s, "rate limit") ||
 		strings.Contains(s, "rate_limit") || strings.Contains(s, "quota exceeded") ||
 		strings.Contains(s, "insufficient_quota") || strings.Contains(s, "too many requests") ||
-		strings.Contains(s, "weekly limit") || strings.Contains(s, "usage limit reached")
+		strings.Contains(s, "weekly limit") || strings.Contains(s, "usage limit reached") ||
+		strings.Contains(s, "you've hit your usage limit") || strings.Contains(s, "you’ve hit your usage limit")
 }
 
 // Ответ исполнителя, которому не дали прав. Образец широкий намеренно: формулировка
