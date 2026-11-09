@@ -8,11 +8,53 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestCanonicalFullGoCheck(t *testing.T) {
+	var cfg runConfig
+	if err := readJSON(filepath.Join("..", "run-config.json"), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	var checks []checkSpec
+	for _, check := range cfg.Judge.Checks {
+		if check.Name == "тесты бинарника" {
+			checks = append(checks, check)
+		}
+	}
+	if len(checks) != 1 {
+		t.Fatalf("canonical Go checks = %d, want 1", len(checks))
+	}
+	check := checks[0]
+	if !isGoCommand(check.Command) || check.Script != "" {
+		t.Fatalf("canonical check executable: command=%q script=%q", check.Command, check.Script)
+	}
+	args := check.Args
+	if len(args) < 6 || !slices.Equal(args[:5], []string{"-C", "cmd", "test", "./...", "-count=1"}) {
+		t.Fatalf("canonical Go arguments = %q", args)
+	}
+	timeout := ""
+	if len(args) == 6 {
+		timeout = strings.TrimPrefix(args[5], "-timeout=")
+		if timeout == args[5] {
+			timeout = ""
+		}
+	} else if len(args) == 7 && args[5] == "-timeout" {
+		timeout = args[6]
+	}
+	duration, err := time.ParseDuration(timeout)
+	if err != nil || duration != 25*time.Minute {
+		t.Fatalf("explicit Go timeout = %q, want 25m", timeout)
+	}
+	bound, err := n123GoJudgeDuration(args)
+	if err != nil || bound != 25*time.Minute+30*time.Second {
+		t.Fatalf("native bound = %v, err = %v, want 25m30s", bound, err)
+	}
+}
 
 func TestN123GoJudgeDuration(t *testing.T) {
 	if n123GoJudgeMaxDuration != 4*time.Minute {
