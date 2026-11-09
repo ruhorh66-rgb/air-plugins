@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -522,6 +523,9 @@ func runJudgeCheckReceipted(ctx context.Context, scope sessionScope, operation s
 	if !ok {
 		return nil, fmt.Errorf("UNKNOWN: judge operation %s is already running", operation)
 	}
+	if runtime.GOOS == "windows" && !validAutoSelfDeliveryLock(lock) {
+		return nil, fmt.Errorf("UNKNOWN: judge mutex could not be acquired")
+	}
 	defer lock.release()
 	return runReceiptedWithPreflight(ctx, scope, step, operation, cmd, preflight)
 }
@@ -592,6 +596,9 @@ func runSourceAwareJudgeCheck(ctx context.Context, root string, scope sessionSco
 	lock, ok := acquireLock(scopedLockName(jobLockKind("judge", name), scope))
 	if !ok {
 		return nil, fmt.Errorf("UNKNOWN: legacy judge operation %s is already running", name)
+	}
+	if runtime.GOOS == "windows" && !validAutoSelfDeliveryLock(lock) {
+		return nil, fmt.Errorf("UNKNOWN: judge mutex could not be acquired")
 	}
 	defer lock.release()
 	for _, step := range []string{"judge", "report-judge"} {

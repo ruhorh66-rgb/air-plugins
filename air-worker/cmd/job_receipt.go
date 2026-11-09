@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 	"unicode/utf16"
@@ -77,6 +78,8 @@ func startJobReceipt(scope sessionScope, step, operation, receiptPath, outputPat
 	return startJobReceiptWithPreflight(scope, step, operation, receiptPath, outputPath, nil)
 }
 
+var jobReceiptAcquireLock = acquireLock
+
 func startJobReceiptWithPreflight(scope sessionScope, step, operation, receiptPath, outputPath string, preflight func() error) (*jobReceipt, *osLock, error) {
 	canonicalReceipt, canonicalOutput := jobReceiptPaths(scope, step, operation)
 	if filepath.Clean(receiptPath) == filepath.Clean(canonicalReceipt) || filepath.Clean(outputPath) == filepath.Clean(canonicalOutput) {
@@ -84,10 +87,19 @@ func startJobReceiptWithPreflight(scope sessionScope, step, operation, receiptPa
 			return nil, nil, err
 		}
 	}
-	lock, ok := acquireLock(scopedLockName(jobLockKind(step, operation), scope))
+	lock, ok := jobReceiptAcquireLock(scopedLockName(jobLockKind(step, operation), scope))
 	if !ok {
+		if lock != nil {
+			lock.release()
+		}
 		return nil, nil, fmt.Errorf("ОТКАЗ: job %s/%s уже запущен в scope %s — duplicate start внутри owned scope запрещён",
 			step, operation, scope.key())
+	}
+	if runtime.GOOS == "windows" && !validAutoSelfDeliveryLock(lock) {
+		if lock != nil {
+			lock.release()
+		}
+		return nil, nil, fmt.Errorf("ОТКАЗ: mutex недоступен для job %s/%s в scope %s", step, operation, scope.key())
 	}
 	if preflight != nil {
 		if err := preflight(); err != nil {
