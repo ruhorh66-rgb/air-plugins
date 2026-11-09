@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -258,6 +259,62 @@ func TestRefreshJudgeSkipsWhileProductLoopOwnsLock(t *testing.T) {
 
 	if _, err := refreshPortfolioJudge(root, cfg); err == nil || !strings.Contains(err.Error(), "loop is running") {
 		t.Fatalf("refresh did not fail closed while loop lock held: %v", err)
+	}
+}
+
+func TestReportFailsClosedWhileSharedLoopGateHeld(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("report loop gate requires Windows")
+	}
+	root, counter := writeObservabilityFixture(t, 0)
+	var cfg runConfig
+	if err := readJSON(filepath.Join(root, "run-config.json"), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	res := runJudge(root, cfg, -1, legacyScope(root))
+	code, verdictText := verdict(res)
+	if code != 0 {
+		t.Fatalf("fixture must produce PASS: code=%d text=%s", code, verdictText)
+	}
+	res.InputFingerprint = judgeInputFingerprint(root, cfg, filepath.Join(root, "run-config.json"), filepath.Join(root, "PLAN.md"))
+	publishVerdict(root, code, verdictText, res)
+	before, err := os.ReadFile(filepath.Join(root, ".goal-verdict.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	release, err := acquireReportLoopGate(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+
+	report := buildReportMode(root, false)
+	if got := readCounter(t, counter); got != 1 {
+		t.Fatalf("report ran judge while shared gate held: count=%d", got)
+	}
+	if report.JudgeCode != 2 || report.Measure.Verdict != verdictNotProven {
+		t.Fatalf("report did not fail closed with cached PASS: %#v", report)
+	}
+	after, err := os.ReadFile(filepath.Join(root, ".goal-verdict.json"))
+	if err != nil || string(after) != string(before) {
+		t.Fatalf("report changed cached verdict while gate held: err=%v", err)
+	}
+}
+
+func TestReportRunsJudgeWhenLoopGateAvailable(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("report loop gate requires Windows")
+	}
+	root, counter := writeObservabilityFixture(t, 0)
+	report := buildReportMode(root, false)
+	if got := readCounter(t, counter); got != 1 {
+		t.Fatalf("report did not run judge with gate available: count=%d report=%#v", got, report)
+	}
+	if report.JudgeCode != 0 {
+		t.Fatalf("uncontended report did not pass: %#v", report)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".goal-verdict.json")); err != nil {
+		t.Fatalf("report did not publish verdict: %v", err)
 	}
 }
 

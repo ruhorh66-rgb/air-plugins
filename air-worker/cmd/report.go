@@ -307,6 +307,17 @@ func buildReportMode(root string, noJudge bool) productReport {
 
 	var cfg runConfig
 	cfgErr := readJSON(filepath.Join(root, "run-config.json"), &cfg)
+	var gateErr error
+	if cfgErr == nil {
+		gateErr = ensureOwnedJobsDir(root)
+		if gateErr == nil {
+			var releaseGate func()
+			releaseGate, gateErr = acquireReportLoopGate(root, true)
+			if gateErr == nil {
+				defer releaseGate()
+			}
+		}
+	}
 
 	// ПЕТЛЯ ИДЁТ — СУДЬЯ ОТЧЁТОМ НЕ ПРОГОНЯЕТСЯ. Единственное исключение из правила шапки,
 	// и причина в устройстве петли: после каждой итерации она прогоняет судью, пишет
@@ -322,6 +333,13 @@ func buildReportMode(root string, noJudge bool) productReport {
 	case cfgErr != nil:
 		r.JudgeCode = 2
 		r.JudgeText = "НЕ ПРОВЕРЕНО: нет конфигурации run-config.json"
+	case gateErr != nil:
+		note := "report-loop gate unavailable: " + gateErr.Error()
+		r.JudgeCode = 2
+		r.JudgeText = "НЕ ПРОВЕРЕНО: " + note
+		r.Measure = cachedUnknownMeasure(root, cfg, note)
+		r.Limits = append(r.Limits, note)
+		measureReady = true
 	case noJudge:
 		r.JudgeCached = true
 		mv, current, err := readFreshCachedVerdict(root, cfg)
