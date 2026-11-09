@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -315,6 +316,54 @@ func TestReportRunsJudgeWhenLoopGateAvailable(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, ".goal-verdict.json")); err != nil {
 		t.Fatalf("report did not publish verdict: %v", err)
+	}
+}
+
+func TestPreviewGateChild(t *testing.T) {
+	root := os.Getenv("AIR_WORKER_PREVIEW_GATE_ROOT")
+	if root == "" {
+		return
+	}
+	os.Exit(cmdLoop([]string{"-product", root, "-principal", "test", "-session-key", "preview", os.Getenv("AIR_WORKER_PREVIEW_GATE_FLAG")}))
+}
+
+func TestPreviewJudgeBlockedByExclusiveReportGate(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("report loop gate requires Windows")
+	}
+	for _, flag := range []string{"-plan-only", "-whatif"} {
+		t.Run(flag, func(t *testing.T) {
+			root, counter := writeObservabilityFixture(t, 1)
+			if err := ensureOwnedJobsDir(root); err != nil {
+				t.Fatal(err)
+			}
+			release, err := acquireReportLoopGate(root, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer release()
+
+			child := exec.Command(os.Args[0], "-test.run=^TestPreviewGateChild$")
+			child.Env = append(os.Environ(), "AIR_WORKER_PREVIEW_GATE_ROOT="+root, "AIR_WORKER_PREVIEW_GATE_FLAG="+flag)
+			output, err := child.CombinedOutput()
+			if err == nil || !strings.Contains(string(output), "cannot acquire report-loop gate") {
+				t.Fatalf("preview did not fail at gate: err=%v output=%s", err, output)
+			}
+			if got := readCounter(t, counter); got != 0 {
+				t.Fatalf("preview ran judge while exclusive gate held: count=%d", got)
+			}
+		})
+	}
+}
+
+func TestPlanOnlyRunsJudgeWhenReportGateAvailable(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("report loop gate requires Windows")
+	}
+	root, counter := writeObservabilityFixture(t, 1)
+	code := cmdLoop([]string{"-product", root, "-principal", "test", "-session-key", "preview", "-plan-only"})
+	if got := readCounter(t, counter); code != 0 || got != 1 {
+		t.Fatalf("uncontended plan-only: code=%d judge count=%d", code, got)
 	}
 }
 

@@ -310,6 +310,18 @@ func cmdLoopWithReleaseSliceRunner(argv []string, releaseRunner func(string, run
 		line("ОТКАЗ: AirWorker release-slices.json is missing; numeric PLAN fallback запрещён.")
 		return 2
 	}
+	if *whatIf || *planOnly {
+		if err := ensureOwnedJobsDir(root); err != nil {
+			line("ОТКАЗ: cannot prepare owned jobs directory: " + err.Error())
+			return 2
+		}
+		releaseGate, err := acquireReportLoopGate(root, false)
+		if err != nil {
+			line("ОТКАЗ: cannot acquire report-loop gate: " + err.Error())
+			return 2
+		}
+		defer releaseGate()
+	}
 
 	c := &loopCtx{
 		Root: root, Cfg: cfg, CfgPath: cfgPath, WhatIf: *whatIf,
