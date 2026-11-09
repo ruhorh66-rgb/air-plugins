@@ -185,6 +185,7 @@ func (c *checklistFile) UnmarshalJSON(data []byte) error {
 type machineVerdict struct {
 	At               string   `json:"at"`
 	GitHead          string   `json:"git_head,omitempty"`
+	SourceClean      bool     `json:"source_clean,omitempty"`
 	Code             int      `json:"code"`
 	Distance         *int     `json:"distance"`
 	InputFingerprint string   `json:"input_fingerprint,omitempty"`
@@ -249,6 +250,8 @@ type judgeResult struct {
 	CheckObservations     []judgeCheckObservation
 	CriterionObservations []judgeCriterionObservation
 	InputFingerprint      string
+	SourceHead            string
+	SourceClean           bool
 
 	CriteriaPassed  []string
 	CriteriaFailed  []string
@@ -343,6 +346,8 @@ func runJudgeForReport(root string, cfg runConfig, minFactsOverride int, scope s
 
 func runJudgeChecks(root string, cfg runConfig, minFactsOverride int, scope sessionScope, forReport bool) judgeResult {
 	r := judgeResult{scope: &scope, forReport: forReport}
+	headBefore, cleanBefore, errBefore := judgeSourceIdentity(root)
+	r.SourceHead = headBefore
 
 	for _, chk := range cfg.Judge.Checks {
 		name := chk.Name
@@ -418,6 +423,8 @@ func runJudgeChecks(root string, cfg runConfig, minFactsOverride int, scope sess
 			r.CriterionObservations = append([]judgeCriterionObservation(nil), ps.CriterionObservations...)
 		}
 	}
+	headAfter, cleanAfter, errAfter := judgeSourceIdentity(root)
+	r.SourceClean = errBefore == nil && errAfter == nil && headBefore != "" && headBefore == headAfter && cleanBefore && cleanAfter
 	return r
 }
 
@@ -863,6 +870,8 @@ func publishVerdict(root string, code int, text string, r judgeResult) machineVe
 	// «вердикт пуст». Замок здесь не нужен: атомарная запись дешевле и надёжнее.
 	_ = writeFileAtomic(filepath.Join(root, ".goal-verdict"), []byte(text+lineEnding))
 	mv := machineVerdictFromResult(root, code, text, r)
+	mv.GitHead = r.SourceHead
+	mv.SourceClean = r.SourceClean
 	if b, err := json.MarshalIndent(mv, "", "  "); err == nil {
 		_ = writeFileAtomic(filepath.Join(root, ".goal-verdict.json"), b)
 	}
