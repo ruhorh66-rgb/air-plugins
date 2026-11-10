@@ -34,7 +34,8 @@ func validateOperationalGoalAdvance(root string, prior operationalGoal, nodeID, 
 	cancellation := nodeID == "N-139_n136-native-operational-goal-selector-for-real-a" &&
 		fromHead == "8c96ffd01a9b036f39b85141876804b258b1c842" &&
 		prior.ReleaseSHA256 == "811a37794842d8ed575f478d0a84665579daee5f5afe94e5e4ad6e9e7627ab9a" &&
-		next.ReleaseSHA256 == "6bbe0fdb1c21fb5449f5b5f03a7d9b286461954e8fac2a1e449b7010cc38a22c" &&
+		(next.ReleaseSHA256 == "6bbe0fdb1c21fb5449f5b5f03a7d9b286461954e8fac2a1e449b7010cc38a22c" ||
+			next.ReleaseSHA256 == "600a062f120d63f986d92ea962a8c629a3b99bb502dd028f112b70637dae0fd6") &&
 		validN124Cancellation(root)
 	if prior.Owner != next.Owner || prior.Trigger != next.Trigger ||
 		prior.DoneWhen != next.DoneWhen || (prior.ReleaseSHA256 != next.ReleaseSHA256 && !cancellation) {

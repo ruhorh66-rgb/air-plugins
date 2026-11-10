@@ -44,6 +44,41 @@ func TestOperationalGoalAdvanceRecordedN124Cancellation(t *testing.T) {
 	if got, err := validateOperationalGoalAdvance(root, prior, id, oldHead, newHead); err != nil || got != next {
 		t.Fatalf("recorded cancellation rejected: %+v %v", got, err)
 	}
+	t.Run("CRLF plan", func(t *testing.T) {
+		path := filepath.Join(root, "plan", "release-slices.json")
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := os.WriteFile(path, raw, 0600); err != nil {
+				t.Error(err)
+			}
+		})
+		crlf := bytes.ReplaceAll(bytes.ReplaceAll(raw, []byte("\r\n"), []byte("\n")), []byte("\n"), []byte("\r\n"))
+		if got := fmt.Sprintf("%x", sha256.Sum256(crlf)); got != "600a062f120d63f986d92ea962a8c629a3b99bb502dd028f112b70637dae0fd6" {
+			t.Fatalf("CRLF digest mismatch: %s", got)
+		}
+		if err := os.WriteFile(path, crlf, 0600); err != nil {
+			t.Fatal(err)
+		}
+		crlfNext, err := operationalGoalInputs(root, id, newHead)
+		if err != nil || crlfNext.ReleaseSHA256 != "600a062f120d63f986d92ea962a8c629a3b99bb502dd028f112b70637dae0fd6" {
+			t.Fatalf("CRLF goal or digest mismatch: %+v %v", crlfNext, err)
+		}
+		if got, err := validateOperationalGoalAdvance(root, prior, id, oldHead, newHead); err != nil || got != crlfNext {
+			t.Fatalf("CRLF cancellation rejected: %+v %v", got, err)
+		}
+		wrongPrior := prior
+		wrongPrior.ReleaseSHA256 = strings.Repeat("a", 64)
+		if _, err := validateOperationalGoalAdvance(root, wrongPrior, id, oldHead, newHead); err == nil {
+			t.Fatal("CRLF plan accepted wrong old digest")
+		}
+		replaceN124File(t, root, "plan/release-slices.json", "0.11.9", "0.11.8")
+		if _, err := validateOperationalGoalAdvance(root, prior, id, oldHead, newHead); err == nil {
+			t.Fatal("altered CRLF plan accepted")
+		}
+	})
 	for _, tc := range []struct {
 		name, from, to string
 		prior          operationalGoal
