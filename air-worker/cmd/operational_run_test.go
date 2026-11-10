@@ -134,6 +134,118 @@ func TestN139CodingTaskSelection(t *testing.T) {
 	}
 }
 
+func TestN139DescriptorTaskSelection(t *testing.T) {
+	const taskPath = "docs/tasks/N139.json"
+	const descriptorPath = "docs/tasks/N139_ACTIVE_BINDING.json"
+	for _, nested := range []bool{false, true} {
+		for _, tc := range []struct {
+			name, nodeID, path, hash string
+			marker                   bool
+			mutate                   func(*testing.T, string)
+			want                     bool
+		}{
+			{name: "committed binding", want: true},
+			{name: "marker and descriptor are ambiguous", marker: true},
+			{name: "wrong node", nodeID: "N-140_other"},
+			{name: "wrong hash", hash: strings.Repeat("0", 64)},
+			{name: "path escape", path: "docs/tasks/../../outside.json"},
+			{name: "untracked descriptor", mutate: func(t *testing.T, root string) { n124Git(t, root, "rm", "--cached", descriptorPath) }},
+			{name: "untracked task", mutate: func(t *testing.T, root string) { n124Git(t, root, "rm", "--cached", taskPath) }},
+			{name: "modified descriptor", mutate: func(t *testing.T, root string) {
+				if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(descriptorPath)), []byte("{}"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}},
+			{name: "modified task", mutate: func(t *testing.T, root string) {
+				if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(taskPath)), []byte("{}"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}},
+			{name: "modified node", mutate: func(t *testing.T, root string) {
+				if err := os.WriteFile(filepath.Join(root, "plan", n139ID+".md"), []byte("changed"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}},
+			{name: "source HEAD mismatch", mutate: func(t *testing.T, root string) {
+				if err := os.WriteFile(filepath.Join(root, "extra.txt"), []byte("next"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				n124Git(t, root, "add", "extra.txt")
+				n124Git(t, root, "commit", "-m", "next")
+			}},
+		} {
+			name := tc.name
+			if nested {
+				name = "nested product/" + name
+			}
+			t.Run(name, func(t *testing.T) {
+				c := n139Fixture(t)
+				repoRoot := c.Root
+				if nested {
+					c.Root = filepath.Join(repoRoot, "air-worker")
+					if err := os.Mkdir(c.Root, 0o755); err != nil {
+						t.Fatal(err)
+					}
+					for _, name := range []string{"cmd", "plan", "goal", "PLAN.md"} {
+						if err := os.Rename(filepath.Join(repoRoot, name), filepath.Join(c.Root, name)); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}
+				if err := os.MkdirAll(filepath.Join(c.Root, "docs", "tasks"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				task := codingMicrostepTask(t)
+				if err := os.WriteFile(filepath.Join(c.Root, filepath.FromSlash(taskPath)), []byte(task), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				nodeID, path, hash := n139ID, taskPath, sha256Hex([]byte(task))
+				if tc.nodeID != "" {
+					nodeID = tc.nodeID
+				}
+				if tc.path != "" {
+					path = tc.path
+				}
+				if tc.hash != "" {
+					hash = tc.hash
+				}
+				descriptor, err := json.Marshal(map[string]string{"node_id": nodeID, "task_path": path, "task_sha256": hash})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(c.Root, filepath.FromSlash(descriptorPath)), descriptor, 0o644); err != nil {
+					t.Fatal(err)
+				}
+				marker := ""
+				if tc.marker {
+					marker = "<!-- air-worker-coding-task: " + taskPath + " sha256=" + sha256Hex([]byte(task)) + " -->\n"
+				}
+				node := fmt.Sprintf("---\nid: %q\nparent: %q\nstatus: open\nowner: test\n---\n%s", n139ID, "N-136_prove-autonomous-plan-coding-factual-anthropic-c", marker)
+				if err := os.WriteFile(filepath.Join(c.Root, "plan", n139ID+".md"), []byte(node), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				n124Git(t, repoRoot, "init")
+				n124Git(t, c.Root, "config", "user.name", "N139")
+				n124Git(t, c.Root, "config", "user.email", "n139@test.local")
+				n124Git(t, c.Root, "add", ".")
+				n124Git(t, c.Root, "commit", "-m", "bound task")
+				goal := operationalGoal{NodeID: n139ID, SourceHead: n124Git(t, c.Root, "rev-parse", "HEAD")}
+				if tc.mutate != nil {
+					tc.mutate(t, c.Root)
+				}
+				got, err := selectN139CodingTask(c.Root, goal)
+				if tc.want {
+					if err != nil || got != task {
+						t.Fatalf("selected task = %q, err = %v", got, err)
+					}
+				} else if err == nil || got != "" {
+					t.Fatalf("invalid binding selected task = %q, err = %v", got, err)
+				}
+			})
+		}
+	}
+}
+
 func TestN139AbsentOrStaleSelectorDoesNotDispatch(t *testing.T) {
 	c := n139Fixture(t)
 	calls := 0

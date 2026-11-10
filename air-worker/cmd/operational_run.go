@@ -481,6 +481,9 @@ var n139TaskMarker = regexp.MustCompile(`(?m)^<!-- air-worker-coding-task: (docs
 
 // selectN139CodingTask accepts only the live bytes of regular files tracked at the selected HEAD.
 func selectN139CodingTask(root string, goal operationalGoal) (string, error) {
+	if goal.NodeID != "N-139_n136-native-operational-goal-selector-for-real-a" {
+		return "", errors.New("invalid N139 node")
+	}
 	nodePath, err := planNodePathByID(root, goal.NodeID)
 	if err != nil {
 		return "", err
@@ -493,10 +496,43 @@ func selectN139CodingTask(root string, goal operationalGoal) (string, error) {
 		return "", errors.New("node missing or oversized")
 	}
 	matches := n139TaskMarker.FindAllSubmatch(node, -1)
-	if len(matches) != 1 || bytes.Count(node, []byte("air-worker-coding-task:")) != 1 {
-		return "", errors.New("exactly one valid N139 coding task marker required")
+	markerCount := bytes.Count(node, []byte("air-worker-coding-task:"))
+	const bindingPath = "docs/tasks/N139_ACTIVE_BINDING.json"
+	bindingFile := filepath.Join(root, filepath.FromSlash(bindingPath))
+	_, bindingErr := os.Lstat(bindingFile)
+	trackedBinding, err := gitCodingOutput(root, "ls-tree", "HEAD", "--", bindingPath)
+	if err != nil || (bindingErr != nil && !os.IsNotExist(bindingErr)) {
+		return "", errors.New("binding inventory unavailable")
 	}
-	relTask := string(matches[0][1])
+	var binding []byte
+	var relTask, taskSHA string
+	if markerCount != 0 {
+		if len(matches) != 1 || markerCount != 1 || bindingErr == nil || trackedBinding != "" {
+			return "", errors.New("ambiguous or invalid N139 coding task binding")
+		}
+		relTask, taskSHA = string(matches[0][1]), string(matches[0][2])
+	} else {
+		if err := verifyPlanRephaseControlledPaths(root, filepath.Join(root, "docs"), filepath.Join(root, "docs", "tasks"), bindingFile); err != nil {
+			return "", err
+		}
+		info, err := os.Lstat(bindingFile)
+		if err != nil || !info.Mode().IsRegular() || info.Size() > 4096 {
+			return "", errors.New("binding missing, non-regular, or oversized")
+		}
+		binding, err = os.ReadFile(bindingFile)
+		if err != nil || len(binding) > 4096 || !json.Valid(binding) || codingJSONValue(json.NewDecoder(bytes.NewReader(binding))) != nil {
+			return "", errors.New("invalid binding JSON")
+		}
+		var fields map[string]string
+		if json.Unmarshal(binding, &fields) != nil || len(fields) != 3 || fields["node_id"] != goal.NodeID {
+			return "", errors.New("invalid binding schema or node")
+		}
+		relTask, taskSHA = fields["task_path"], fields["task_sha256"]
+		bindingMarker := n139TaskMarker.FindStringSubmatch("<!-- air-worker-coding-task: " + relTask + " sha256=" + taskSHA + " -->")
+		if len(bindingMarker) != 3 || bindingMarker[1] != relTask || bindingMarker[2] != taskSHA {
+			return "", errors.New("invalid binding task path or SHA256")
+		}
+	}
 	taskPath := filepath.Join(root, filepath.FromSlash(relTask))
 	if err := verifyPlanRephaseControlledPaths(root, filepath.Join(root, "docs"), filepath.Join(root, "docs", "tasks"), taskPath); err != nil {
 		return "", err
@@ -509,7 +545,7 @@ func selectN139CodingTask(root string, goal operationalGoal) (string, error) {
 	if err != nil || len(task) > 48*1024 {
 		return "", errors.New("task unreadable or oversized")
 	}
-	if fmt.Sprintf("%x", sha256.Sum256(task)) != string(matches[0][2]) {
+	if fmt.Sprintf("%x", sha256.Sum256(task)) != taskSHA {
 		return "", errors.New("task SHA256 mismatch")
 	}
 	if _, err := parseCodingMicrosteps(string(task)); err != nil {
@@ -532,10 +568,17 @@ func selectN139CodingTask(root string, goal operationalGoal) (string, error) {
 	if err != nil || filepath.IsAbs(prefix) || prefix == ".." || strings.HasPrefix(prefix, ".."+string(filepath.Separator)) {
 		return "", errors.New("product root is outside Git worktree")
 	}
-	for _, item := range []struct {
+	items := []struct {
 		path string
 		live []byte
-	}{{filepath.ToSlash(filepath.Join("plan", filepath.Base(nodePath))), node}, {relTask, task}} {
+	}{{filepath.ToSlash(filepath.Join("plan", filepath.Base(nodePath))), node}, {relTask, task}}
+	if binding != nil {
+		items = append(items, struct {
+			path string
+			live []byte
+		}{bindingPath, binding})
+	}
+	for _, item := range items {
 		state, stateErr := gitCodingOutput(root, "status", "--porcelain=v1", "--untracked-files=all", "--", item.path)
 		if stateErr != nil || state != "" {
 			return "", fmt.Errorf("tracked file is not clean: %s", item.path)
@@ -553,6 +596,11 @@ func selectN139CodingTask(root string, goal operationalGoal) (string, error) {
 		committed, err := blob.Output()
 		if err != nil || !bytes.Equal(committed, item.live) {
 			return "", fmt.Errorf("live file differs from HEAD: %s", item.path)
+		}
+	}
+	if binding == nil {
+		if _, err := os.Lstat(bindingFile); err == nil || !os.IsNotExist(err) {
+			return "", errors.New("binding appeared during task selection")
 		}
 	}
 	head, err = gitCodingOutput(root, "rev-parse", "HEAD")
