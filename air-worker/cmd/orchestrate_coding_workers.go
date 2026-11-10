@@ -280,43 +280,78 @@ func prepareCodingWorktrees(root string, scope sessionScope, step, sourceHead st
 	return base, productDirs, nil
 }
 
-func codingChangedFiles(root string) ([]string, []byte, error) {
+func codingChangedFiles(root, assigned string) ([]string, []byte, error) {
 	// Changes are inspected against HEAD, not from an LLM text response.
-	before, err := gitCodingOutput(root, "rev-parse", "HEAD")
+	if _, err := gitCodingOutput(root, "rev-parse", "HEAD"); err != nil {
+		return nil, nil, err
+	}
+	top, err := gitCodingOutput(root, "rev-parse", "--show-toplevel")
 	if err != nil {
 		return nil, nil, err
 	}
-	_ = before
-	// Include new source files without staging their contents or committing.
-	untracked, err := gitCodingOutput(root, "ls-files", "--others", "--exclude-standard")
+	rel, err := filepath.Rel(top, root)
+	if err != nil || (rel != "." && !isCodingProductPath(rel)) {
+		return nil, nil, errors.New("product is outside its verified Git repository")
+	}
+	prefix := ""
+	if rel != "." {
+		prefix = filepath.ToSlash(rel) + "/"
+	}
+	expected := prefix + assigned
+	readPaths := func(args ...string) ([]string, error) {
+		out, err := exec.Command("git", append([]string{"-C", root}, args...)...).Output()
+		if err != nil {
+			return nil, fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+		}
+		if len(out) == 0 {
+			return nil, nil
+		}
+		if out[len(out)-1] != 0 {
+			return nil, errors.New("unterminated Git path output")
+		}
+		return strings.Split(string(out[:len(out)-1]), "\x00"), nil
+	}
+	tracked, err := readPaths("diff", "--name-only", "--no-renames", "-z", "HEAD", "--", ".")
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, name := range strings.Split(untracked, "\n") {
-		name = strings.TrimSpace(name)
-		if name == "" || name == ".woody" || strings.HasPrefix(filepath.ToSlash(name), ".woody/") {
+	untracked, err := readPaths("ls-files", "--others", "--full-name", "-z", "--", ".")
+	if err != nil {
+		return nil, nil, err
+	}
+	newAssigned := false
+	for _, name := range untracked {
+		if name == prefix+".woody" || strings.HasPrefix(name, prefix+".woody/") {
 			continue
 		}
-		if !isCodingProductPath(name) {
-			return nil, nil, fmt.Errorf("invalid untracked path %q", name)
+		if name != expected {
+			return nil, nil, fmt.Errorf("worker changed file outside declared scope: %s", name)
 		}
-		if _, err := gitCodingOutput(root, "add", "-N", "--", name); err != nil {
+		newAssigned = true
+	}
+	for _, name := range tracked {
+		if name != expected {
+			return nil, nil, fmt.Errorf("worker changed file outside declared scope: %s", name)
+		}
+	}
+	if newAssigned {
+		if _, err := gitCodingOutput(root, "add", "-N", "-f", "--", assigned); err != nil {
 			return nil, nil, err
 		}
 	}
-	files, err := gitCodingOutput(root, "diff", "--name-only", "HEAD", "--", ".")
+	names, err := readPaths("diff", "--name-only", "--no-renames", "-z", "HEAD", "--", ".")
 	if err != nil {
 		return nil, nil, err
 	}
-	if files == "" {
+	if len(names) == 0 {
 		return nil, nil, errors.New("worker wrote no source files; textual patch is not coding")
 	}
-	names := strings.Split(files, "\n")
 	for _, name := range names {
-		if !isCodingProductPath(name) || strings.HasPrefix(filepath.ToSlash(name), ".woody/") {
-			return nil, nil, fmt.Errorf("unsafe changed path %q", name)
+		if name != expected {
+			return nil, nil, fmt.Errorf("worker changed file outside declared scope: %s", name)
 		}
 	}
+
 	cmd := exec.Command("git", "-C", root, "diff", "--no-ext-diff", "--binary", "HEAD", "--", ".")
 	raw, err := cmd.Output()
 	if err != nil {
@@ -455,7 +490,7 @@ func (c *loopCtx) runIsolatedCodingWorkersOnce(exePath, task, step string, runne
 				ch <- outcome{work}
 				return
 			}
-			names, patch, err := codingChangedFiles(dirs[i-1])
+			names, patch, err := codingChangedFiles(dirs[i-1], microstep.File)
 			if err != nil {
 				work.Error = err.Error()
 				ch <- outcome{work}
@@ -1703,8 +1738,8 @@ func codingVendorLimit(output []byte) bool {
 	limit := false
 	for _, line := range strings.Split(string(output), "\n") {
 		var event struct {
-			Type string `json:"type"`
-			Error   struct {
+			Type  string `json:"type"`
+			Error struct {
 				Message string `json:"message"`
 			} `json:"error"`
 		}

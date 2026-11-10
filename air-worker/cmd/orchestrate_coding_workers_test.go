@@ -2081,3 +2081,89 @@ func testDW32N139BoundCoordinatorAck(t *testing.T, principal string) {
 	codingFixtureGit(t, repo, "merge", "--no-ff", "-m", "merge parent", "side")
 	verify("merge parent", c.scope(), n139ID, task, original, false)
 }
+
+func TestCodingChangedFilesScope(t *testing.T) {
+	for _, tc := range []struct {
+		name, assigned     string
+		unexpected, nested bool
+	}{
+		{name: "tracked file with spaces", assigned: "source file.go"},
+		{name: "new file with spaces", assigned: "new source.go"},
+		{name: "unrelated untracked file", assigned: "new source.go", unexpected: true},
+		{name: "nested repository", assigned: "new source.go", nested: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := t.TempDir()
+			product := filepath.Join(repo, "nested product")
+			if err := os.MkdirAll(product, 0700); err != nil {
+				t.Fatal(err)
+			}
+			write := func(path, body string) {
+				t.Helper()
+				if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			git := func(root string, args ...string) []byte {
+				t.Helper()
+				cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+				out, err := cmd.Output()
+				if err != nil {
+					t.Fatalf("git %v: %v", args, err)
+				}
+				return out
+			}
+			write(filepath.Join(product, "source file.go"), "package demo\n")
+			write(filepath.Join(repo, "outside.txt"), "original\n")
+			codingFixtureGit(t, repo, "init")
+			codingFixtureGit(t, repo, "config", "user.name", "Test")
+			codingFixtureGit(t, repo, "config", "user.email", "test@example.invalid")
+			codingFixtureGit(t, repo, "add", ".")
+			codingFixtureGit(t, repo, "commit", "-m", "base")
+			write(filepath.Join(product, tc.assigned), "package demo\nvar Changed = true\n")
+			// A change outside the product must not enter the returned patch.
+			write(filepath.Join(repo, "outside.txt"), "outside change\n")
+			unexpected := filepath.Join(product, "unexpected file.txt")
+			if tc.unexpected {
+				write(unexpected, "preserve me\n")
+			}
+			nested := filepath.Join(product, "nested repo")
+			if tc.nested {
+				if err := os.MkdirAll(nested, 0700); err != nil {
+					t.Fatal(err)
+				}
+				codingFixtureGit(t, nested, "init")
+				write(filepath.Join(nested, "keep.txt"), "preserve repository\n")
+			}
+			before := git(repo, "ls-files", "--stage", "--debug")
+			names, patch, err := codingChangedFiles(product, tc.assigned)
+			if tc.unexpected || tc.nested {
+				if err == nil {
+					t.Fatalf("unexpected files accepted: %v", names)
+				}
+				if after := git(repo, "ls-files", "--stage", "--debug"); !bytes.Equal(before, after) {
+					t.Fatalf("index changed on rejection:\nbefore: %s\nafter: %s", before, after)
+				}
+				if tc.unexpected {
+					if body, err := os.ReadFile(unexpected); err != nil || string(body) != "preserve me\n" {
+						t.Fatalf("unexpected file changed: %q, %v", body, err)
+					}
+				}
+				if tc.nested {
+					if body, err := os.ReadFile(filepath.Join(nested, "keep.txt")); err != nil || string(body) != "preserve repository\n" {
+						t.Fatalf("nested repository content changed: %q, %v", body, err)
+					}
+					git(nested, "rev-parse", "--git-dir")
+				}
+				return
+			}
+			if err != nil || !reflect.DeepEqual(names, []string{filepath.ToSlash(filepath.Join("nested product", tc.assigned))}) {
+				t.Fatalf("assigned file rejected: names=%q err=%v", names, err)
+			}
+			want := git(product, "diff", "--no-ext-diff", "--binary", "HEAD", "--", tc.assigned)
+			if len(want) == 0 || !bytes.Equal(patch, want) || shaCodingBytes(patch) != shaCodingBytes(want) {
+				t.Fatalf("source patch mismatch: got %q, want %q", patch, want)
+			}
+		})
+	}
+}
