@@ -1,0 +1,1311 @@
+{
+    "schema":  "air-worker.release-slices/v1",
+    "policy":  "micro-releases/v1",
+    "product":  "AirWorker",
+    "decision_sgt":  "2026-10-12",
+    "trigger":  "ЛПР: первым релизом блок самообучения; остальное сдвинуть, разбить на много маленьких релизов; обрывы не должны приводить к потере/повтору работы; закрепить в AIR_VIBECODING и ядре AirWorker.",
+    "active_release":  "0.11.9",
+    "installed_baseline":  "0.11.8",
+    "authority_branch":  "dev/airworker-0.11.9-selflearning-only-20261011",
+    "machine_plan":  "PLAN.md",
+    "native_nodes":  "plan/N-*.md",
+    "release_gate_policy":  "Source-only development allowed; tag/release only after exact signed acceptance and explicit LPR authorization, installation/UAC/reboot/foreign services separately approved.",
+    "interval_policy":  {
+                            "max_active_step_minutes":  15,
+                            "preferred_step_minutes":  8,
+                            "source_change_budget":  "No fixed file-count cap for active 0.11.9 autonomous source coding; implement across as many files/tests as required for the scoped effect, while keeping changes reviewable and excluding later-release scope.",
+                            "model_or_qa_long_job":  "submit once with immutable job_id/source SHA; status readback is a separate step, no duplicate dispatch",
+                            "interruption_recovery":  "read PLAN + release-slices.json + Git HEAD/remote/dirty + native RUNNING/DONE/FAILED receipts and process roster before any mutation; resume only earliest OPEN step",
+                            "checkpoint":  "atomic scoped commit + remote readback + immutable JSON receipt before next mutation; do not synthesize PASS on missing information",
+                            "freeze":  "scoped tests then freeze clean SHA -\u003e one full QA/vet/build + independent Sol -\u003e release receipt; no unrelated fixes after freeze",
+                            "defects":  "only security P0/P1 on active release are in critical path; other findings become deferred next release, preserving original node",
+                            "parallel":  "one owner per file; one heavy Go or Codex task at a time; unfinished foreign WIP must not be staged or cleaned",
+                            "metadata":  "UTC receipt/run timestamps with SGT reporting",
+                            "max_steps_per_release":  7,
+                            "lpr_authorized_codex_execution":  {
+                                                                   "schema":  "air-worker.release.codex-ladder/v1",
+                                                                   "decision_sgt":  "2026-10-12",
+                                                                   "executor_units":  2,
+                                                                   "execution_order":  [
+                                                                                           "AirWorker executor dispatch -class complex; Codex tier auto-selected",
+                                                                                           "after first terminal readback: AirWorker executor dispatch -class bulk; Codex tier auto-selected"
+                                                                                       ],
+                                                                   "independent_judge":  "AirWorker review code pinned Codex gpt-6-sol medium read-only, on exact source SHA",
+                                                                   "no_duplicate_submit":  true,
+                                                                   "scope":  "source-only active 0.11.9",
+                                                                   "no_installed_change":  "0.11.8"
+                                                               }
+                        },
+    "releases":  [
+                     {
+                         "version":  "0.11.9",
+                         "status":  "active",
+                         "feature":  "Самообучение: один реальный класс ошибки native CLI, безопасная процедура, загрузка и измеренное использование в новом процессе",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Без ручной инъекции события AirWorker фиксирует реальный missing run-config/validate rc2 со стабильным run/source; shared learning из существующего pinned immutable Git SHA выполняет review, применяет только безопасную Markdown-процедуру; новый независимый процесс выбирает target@SHA, применяет и пишет procedure_used+outcome. Проверены негативные forgery/replay/unsafe и минимум один новый sealed кейс. Полный QA+Sol medium на exact SHA, rollback к 0.11.8; исполнимые/blocking rules не включаются.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:medium read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_9_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.8",
+                         "dependencies":  [
+
+                                           ],
+                         "pre_release_gates":  [
+                                                   {
+                                                       "id":  "N-070",
+                                                       "status":  "NOT_PROVEN",
+                                                       "required_before":  "R0.11.9-05",
+                                                       "requirement":  "Exact published air-modules/learning 0.1.0 tag/SHA, AirWorker consumer pin, and integration regression through the module's own publication gate."
+                                                   },
+                                                   {
+                                                       "id":  "N-071_rel-0-11-9-next-airworker-release-with-shared-le",
+                                                       "status":  "OPEN",
+                                                       "required_before":  "R0.11.9-05",
+                                                       "requirement":  "Reconcile node-level acceptance against active 0.11.9 scope using native AirWorker; verify node/index/receipt readback. Do not edit or close the node manually."
+                                                   }
+                                               ],
+                         "node_refs":  [
+                                           "N-118",
+                                           "N-110",
+                                           "N-093",
+                                           "N-073"
+                                       ],
+                         "deferred":  [
+                                          "N-120 full judge rc2",
+                                          "N-124 Git distributed plan",
+                                          "N-123 durable host QA automation",
+                                          "N-121 Go/PowerShell host capture",
+                                          "N-122 multi-P1 prevention",
+                                          "N-125 7-day causal effect",
+                                          "N-092 13/13 broader factual",
+                                          "Nous provider subscription"
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.9-01",
+                                           "status":  "closed",
+                                           "title":  "Зафиксировать минимальный контракт и pinned shared-learning источник",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "Одна read-only матрица текущего shared-module SHA, входа `validate` rc2, установленного 0.11.8 и выбранного единственного класса отказа; непроверенные свойства помечены NOT_PROVEN",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_01.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "audit",
+                                           "node_refs":  [
+                                                             "N-118",
+                                                             "N-110"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.9-02",
+                                           "status":  "closed",
+                                           "title":  "Реальное автоматическое принятие первой ошибки",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "Одна неинжектированная CLI ошибка зафиксирована native adapter, typed signed run_id/source + outcome и не дублируется после нового сеанса",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:medium read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-110"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.9-03",
+                                           "status":  "closed",
+                                           "title":  "Автоматический review и только safe Markdown apply",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "Единый модуль review выдал реальный machine verdict; SHA ledger before/after и rollback для nonblocking Markdown; unsafe controls остаются отключены",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:medium read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_03.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-073"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.9-04",
+                                           "status":  "closed",
+                                           "title":  "Доказать использование с новой сессии",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "Второй реальный процесс загрузил target@SHA, выбрал/использовал процедуру и записал procedure_used + outcome/effect; нельзя имитировать use, минимум 1 новый sealed case",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:medium read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_04.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "test",
+                                           "node_refs":  [
+                                                             "N-118",
+                                                             "N-093"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.9-05",
+                                           "status":  "open",
+                                           "title":  "Заморозить SHA и запустить одну полную QA-задачу",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "До freeze подтверждены точный опубликованный tag/SHA air-modules/learning 0.1.0, pin AirWorker и integration regression по собственному publication gate N-070; acceptance N-071 согласовано только штатным AirWorker с readback node/index/receipt. Затем фиксируются неизменяемые source+plan SHA; Go tests/vet/build, безопасность, smoke и rollback dry-run получают собственный job_id, код завершения и JSON; после обрыва только readback",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:medium read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_05.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "qa_submit",
+                                           "node_refs":  [
+
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.9-06",
+                                           "status":  "planned",
+                                           "title":  "Прочесть QA, получить независимого судью и оформить готовность",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "QA exit=0, независимый Codex gpt-6-sol medium P0/P1=0 на том же SHA и factual scoped acceptance; NEXT готовый release receipt без ложного N-120/N-124 close",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:medium read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_06.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.9-07",
+                                           "status":  "planned",
+                                           "title":  "Выпустить узкий релиз только по отдельному гейту ЛПР",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
+                                           "done_when":  "До выпуска подтверждено, что N-070 и N-071 были reconciliation-gated до R0.11.9-05 freeze, их node/index/receipt и pinned module SHA не менялись после QA, а release source+plan SHA совпадают с review. При незакрытом N-070 или N-071 не создавать tag/release. После этого сохранить exact tag+artifact SHA, GitHub receipt, ограничение одного класса и rollback на установленную 0.11.8; установка/UAC/reboot отдельно не разрешаются",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:medium read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_9_07.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "release",
+                                           "node_refs":  [
+                                                             "N-071_rel-0-11-9-next-airworker-release-with-shared-le"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.10",
+                         "status":  "planned",
+                         "feature":  "Hermes phase 1: preserve and verify the existing AirWorker Codex executor ladder, opt-in Hermes model route only after explicit config.",
+                         "owner":  "AirWorker native development / SRVLM01",
+                         "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                         "done_when":  "With Hermes integration disabled, script→Codex executor retains exact tier/runner/factual exit/receipt and old Claude review; optional Hermes runner accepts only strict pinned declared backend, no ambient auth/secret copies, scoped negative regressions and clean-SHA independent Sol Low PASS.",
+                         "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_10_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.9",
+                         "dependencies":  [
+                                              "0.11.9"
+                                          ],
+                         "node_refs":  [
+                                           "N-114",
+                                           "N-115"
+                                       ],
+                         "deferred":  [
+                                          "Nous Sonnet/Opus semantic judges not part of 0.11.10",
+                                          "OmniRouter independent"
+                                      ],
+                         "stage":  "HERMES_1_CODEX_LADDER",
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.10-01",
+                                           "status":  "planned",
+                                           "title":  "Verify Hermes WIP and existing Codex ladder without integration",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Read existing Hermes branch 6857152 dirty/5 files and native executor statuses; save exact allowlist/base SHA; do not overwrite foreign dirty WIP; verify Codex baseline via scoped test and factual receipt.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_10_01.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-115"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.10-02",
+                                           "status":  "planned",
+                                           "title":  "Prepare opt-in Hermes config/policy for Codex jobs",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Fail closed unknown provider/model/scope; no change to default AirLLMRouter/Codex/Claude, and no Nous login or model calls; targeted Go tests PASS.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_10_02.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-115"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.10-03",
+                                           "status":  "planned",
+                                           "title":  "Codex ladder independent acceptance \u0026 separate release gate",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Native executor dispatch on isolated source SHA yields real edit/tool/action evidence+factual PASS; independent Sol Low source review and GitHub artifact/rollback receipt; no tag/install without LPR gate.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_10_03.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-115"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.11",
+                         "status":  "planned",
+                         "feature":  "Hermes phase 2: opt-in read-only Sonnet semantic judge through an authorized Nous Research subscription.",
+                         "owner":  "AirWorker native development / SRVLM01",
+                         "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                         "done_when":  "One configured Sonnet model through Hermes Nous Portal is confirmed by actual allowed entitlement/model and real sandboxed read-only receipt, not name alone; independent actual upstream Anthropic family distinct from Codex executor OpenAI; strict JSON, exact SHA, terminal/quotas, no tools/no fallback/PAYG; factual judge remains in AirWorker.",
+                         "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_11_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.10",
+                         "dependencies":  [
+                                              "0.11.10"
+                                          ],
+                         "node_refs":  [
+                                           "N-114",
+                                           "N-115"
+                                       ],
+                         "deferred":  [
+                                          "Do not assume Hermes local subscription equals API PAYG entitlement",
+                                          "Opus enabled in 0.11.12 only"
+                                      ],
+                         "stage":  "HERMES_2_SONNET_JUDGE",
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.11-01",
+                                           "status":  "planned",
+                                           "title":  "Verify Nous Portal/Sonnet entitlement without modifying auth",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Read approved Hermes model catalog+policy, actual model ID and subscription quota in native non-secret status; if unavailable report BLOCKED, no invented model/refresh token.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_11_01.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-115"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.11-02",
+                                           "status":  "planned",
+                                           "title":  "Add opt-in read-only Hermes→Nous Sonnet judge",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Typed provider=Nous, verified upstream Anthropic family/model proof, exact model ID from entitlement, max turns/budget, no shell/tools and no judge mutation; unauthorized/403/429/missing model fail closed.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_11_02.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-115"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.11-03",
+                                           "status":  "planned",
+                                           "title":  "One Codex→Sonnet judge independent acceptance",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Clean native Codex executor source SHA, factual AirWorker judge, independently bounded Hermes Sonnet verdict with redacted receipt and negative forged verdict; separate Sol Low code approval and rollback.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_11_03.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-115"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.12",
+                         "status":  "planned",
+                         "feature":  "Hermes phase 3: opt-in read-only Opus semantic judge through the same authorized Nous Research subscription.",
+                         "owner":  "AirWorker native development / SRVLM01",
+                         "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                         "done_when":  "Opus distinct pinned actual subscription model works through Hermes without billable API fallback; source/factual SHA, read-only tool refusal, independent judge family, strict terminal, high-cost budget hard cap, no silent Sonnet/Opus swaps; Sol Low source approval PASS.",
+                         "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_12_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.11",
+                         "dependencies":  [
+                                              "0.11.11"
+                                          ],
+                         "node_refs":  [
+                                           "N-114",
+                                           "N-115"
+                                       ],
+                         "deferred":  [
+                                          "Actual Nous subscription use and quota require factual verification; no OAuth copy to AirWorker"
+                                      ],
+                         "stage":  "HERMES_3_OPUS_JUDGE",
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.12-01",
+                                           "status":  "planned",
+                                           "title":  "Verify Opus availability and quota from non-secret provider status",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Prove exact model ID and usable entitlement/limits; different from hardcoded model in unmerged Hermes WIP if available; otherwise BLOCKED and default unchanged.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_12_01.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-115"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.12-02",
+                                           "status":  "planned",
+                                           "title":  "Bounded Opus read-only semantics / no paid fallback",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Explicit model and role; zero tools, strict JSON/terminal/session evidence, unknown price or consent blocks before request; no alternate paid path.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_12_02.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-115"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.12-03",
+                                           "status":  "planned",
+                                           "title":  "Independent Codex→Opus judge regression and rollback",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "True Codex factual packet reviewed by Opus on exact SHA; negative 401/403/429, invalid auth, unknown upstream vendor, quotas and read-only PASS; Sol Low source review + receipt.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_12_03.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-115"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.13",
+                         "status":  "planned",
+                         "feature":  "Hermes phase 4: accept native Codex executor + selectable Nous Sonnet/Opus semantic reviewer profiles, default unchanged.",
+                         "owner":  "AirWorker native development / SRVLM01",
+                         "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                         "done_when":  "One native AirWorker task uses Codex ladder followed by factual judge and selected independent Sonnet OR Opus via Hermes/Nous; two model routes have distinct immutable receipts, scoped and full QA/vet/build on frozen SHA, no model/provider ambiguity, single-command rollback to Codex/Claude/AirLLMRouter. Other roles/providers unaffected.",
+                         "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_13_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.12",
+                         "dependencies":  [
+                                              "0.11.12"
+                                          ],
+                         "node_refs":  [
+                                           "N-114",
+                                           "N-115"
+                                       ],
+                         "deferred":  [
+                                          "No OmniRouter backend in Hermes release"
+                                      ],
+                         "stage":  "HERMES_4_E2E",
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.13-01",
+                                           "status":  "planned",
+                                           "title":  "Freeze exact Hermes branch allowlist with safe merge base",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Source-only integration from Hermes WIP preserving all N-/LEARN/default runner settings; no blind merge or overwriting Hermes dirty worktree.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_13_01.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-115"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.13-02",
+                                           "status":  "planned",
+                                           "title":  "Run paired Sonnet and Opus route E2E with negative fallbacks",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "One native Codex task tested with each subscription judge; AirWorker factual exit and verified provider family; transport/timeout/entitlement failure NOT_PROVEN; rollback tested.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_13_02.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-115"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.13-03",
+                                           "status":  "planned",
+                                           "title":  "Full Hermes-ladder acceptance and independently reviewed release gate",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "One clean source SHA; scoped→full Go/vet/build + independent Codex Sol Low and artifact digest; native receipts, rollback, explicit release approval needed.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_13_03.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-115"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.14",
+                         "status":  "planned",
+                         "feature":  "Air OmniRouter phase 1: optional typed route/profile registry and read-only provider/combo entitlement verification; no model inference.",
+                         "owner":  "AirWorker native development / SRVLM01",
+                         "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                         "done_when":  "N126 umbrella and N127 policy promoted through native AirWorker after verified unique IDs; Air OmniRouter health plus non-secret provider+combo+model entitlement confirmed from read-only evidence, not just service health. No live provider inference/model call in 0.11.14. Runtime default preserved; explicit opt-in only; AirLLMRouter never double-hopped; no API PAYG fallback.",
+                         "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_14_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.13",
+                         "dependencies":  [
+                                              "0.11.13"
+                                          ],
+                         "node_refs":  [
+                                           "N-114",
+                                           "N-126",
+                                           "N-127"
+                                       ],
+                         "deferred":  [
+                                          "N126–N131 source lives in isolated unpublished plan branch; publish/promotion only with authority safety and LPR visibility gate",
+                                          "Do not install/update OmniRoute Docker"
+                                      ],
+                         "stage":  "OMNI_1_POLICY",
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.14-01",
+                                           "status":  "planned",
+                                           "title":  "Read-only Omni private node identity \u0026 real combo/provider fact",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Compare isolated N126–N131 branch to canonical Git refs; forbid duplicate IDs/PLAN overwrites; record Omni N016 and subscription combo/cost prerequisites from read-only evidence; make no provider inference/model calls in 0.11.14 and mark unknown entitlement NOT_PROVEN.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_14_01.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-126",
+                                                             "N-127"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.14-02",
+                                           "status":  "planned",
+                                           "title":  "Opt-in runner/profile policy schema without changing defaults",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Versioned backend=omnirouter with explicit role/provider/model/cost/privacy, reject missing combo/entitlement, unknown endpoint and double-hop to AirLLMRouter.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_14_02.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-126",
+                                                             "N-127"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.14-03",
+                                           "status":  "planned",
+                                           "title":  "Judge route-policy negative matrix and scoped release gate",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "No model choice without factual combo; clean SHA scoped QA and read-only code judge PASS, receipts redacted, default + rollback identical to baseline.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_14_03.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-126",
+                                                             "N-127"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.15",
+                         "status":  "planned",
+                         "feature":  "Air OmniRouter phase 2: bounded optional coding-agent shell adapter and synthetic tool-path tests; no live inference before N-130 guards.",
+                         "owner":  "AirWorker native development / SRVLM01",
+                         "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                         "done_when":  "Prepare the explicit OmniRoute route and coding-agent read/edit/bash adapter using disposable synthetic tasks and a deterministic provider fixture; no live Omni model/provider call in 0.11.15. Preserve native factual checks/tool-effect evidence/source SHA requirements for 0.11.18 live acceptance; chat/completions HTTP200 alone is NOT coding success; preserve original Codex ladder unchanged.",
+                         "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_15_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.14",
+                         "dependencies":  [
+                                              "0.11.14"
+                                          ],
+                         "node_refs":  [
+                                           "N-126",
+                                           "N-128"
+                                       ],
+                         "deferred":  [
+                                          "Text-only OmniRoute API never qualifies as coding executor"
+                                      ],
+                         "stage":  "OMNI_2_CODE_AGENT",
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.15-01",
+                                           "status":  "planned",
+                                           "title":  "Verify coding-shell and route capability",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Read-only provenance of actual route and coding-agent shell (OpenCode or documented official CLI); no tools =\u003e BLOCKED, no ambient OAuth copying.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_15_01.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-126",
+                                                             "N-128"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.15-02",
+                                           "status":  "planned",
+                                           "title":  "Add protected opt-in coding-agent executor adapter",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "One registered backend per job, receipt actual vendor/model/agent tool effects, timeout/privacy/no double-hop, default unchanged; targeted Go negative tests.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_15_02.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-126",
+                                                             "N-128"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.15-03",
+                                           "status":  "planned",
+                                           "title":  "Native source-edit smoke and independent judge",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Isolated synthetic edit with actual diff and deterministic fake provider; factual AirWorker PASS, independent source-code review, rollback and SHA receipt. No live Omni inference before N-130 PASS in 0.11.17.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_15_03.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-126",
+                                                             "N-128"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.16",
+                         "status":  "planned",
+                         "feature":  "Air OmniRouter phase 3: independent read-only semantic-judge route and provenance validation on synthetic fixtures; no live inference before N-130 guards.",
+                         "owner":  "AirWorker native development / SRVLM01",
+                         "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                         "done_when":  "Native AirWorker factual judge remains mandatory; implement and test the separate OmniRouter judge route against fixtures, strict JSON, no write/tools, exact SHA; no live Omni judge inference in 0.11.16. Verify actual upstream provider family DIFFERENT from executor on the first live call only after N-130 PASS in 0.11.17; same/unknown family or masked alias =\u003e NOT_PROVEN.",
+                         "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_16_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.15",
+                         "dependencies":  [
+                                              "0.11.15"
+                                          ],
+                         "node_refs":  [
+                                           "N-126",
+                                           "N-129"
+                                       ],
+                         "deferred":  [
+                                          "Do not claim independent vendor only from OmniRouter runner identity"
+                                      ],
+                         "stage":  "OMNI_3_SEMANTIC",
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.16-01",
+                                           "status":  "planned",
+                                           "title":  "Verify actual provider family vs executing backend",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Attest true upstream provider/model from trusted runtime record, not Omni alias; independence matrix for Codex/Hermes/Omni.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_16_01.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-126",
+                                                             "N-129"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.16-02",
+                                           "status":  "planned",
+                                           "title":  "Build explicit opt-in read-only semantic reviewer",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Pin source SHA, max turns/cost, fail closed unknown provider/no result/same family; no change to default Claude or Hermes judges.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_16_02.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-126",
+                                                             "N-129"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.16-03",
+                                           "status":  "planned",
+                                           "title":  "Independent positive/negative judge acceptance",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Fixture-based factual-then-semantic route tests reject same-family, forged source/cost, bad JSON and user tools; no live Omni inference before N-130 PASS in 0.11.17; independent Sol Low code QA.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_16_03.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-126",
+                                                             "N-129"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.17",
+                         "status":  "planned",
+                         "feature":  "Air OmniRouter phase 4: subscription-only budgets, privacy and resumable model jobs.",
+                         "owner":  "AirWorker native development / SRVLM01",
+                         "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                         "done_when":  "Before any Omni live inference, establish machine-passing stable native run/job ID, immutable source SHA and provider receipt; prove two interruptions are not billed/processed twice; reject unknown quota/cost, PAYG, overage, secret exfiltration or external inference when privacy=local; zero silent fallback. Slices 0.11.14–0.11.16 use no live Omni model calls; first live call is deferred to 0.11.18.",
+                         "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_17_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.16",
+                         "dependencies":  [
+                                              "0.11.16"
+                                          ],
+                         "node_refs":  [
+                                           "N-126",
+                                           "N-130"
+                                       ],
+                         "deferred":  [
+                                          "Do not require AirWorker N123 global job recovery for earlier bounded local tests; keep Omni-specific protective guarantees"
+                                      ],
+                         "stage":  "OMNI_4_GUARDS",
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.17-01",
+                                           "status":  "planned",
+                                           "title":  "Define privacy/subscription budget \u0026 consent caps",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Explicit LPR permitted route and max budget; undefined cost/entitlement blocks BEFORE native dispatch; no auth material in AirWorker receipts.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_17_01.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-126",
+                                                             "N-130"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.17-02",
+                                           "status":  "planned",
+                                           "title":  "Add durable idempotent job receipts / retries",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Synthetic provider fixture proves exactly one planned model invocation/job ID across interruptions; 401/403/429/5xx, timeout, wrong role, forged receipt fail closed. No live Omni call until N-130 passes.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_17_02.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-126",
+                                                             "N-130"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.17-03",
+                                           "status":  "planned",
+                                           "title":  "Two interruption and rollback tests with judge",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Synthetic capped retry and recovery prove no double billing, exact provider/model/usage/accounting, read-only Sol Low and machine PASS; this gate must pass before any live Omni model call.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_17_03.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-126",
+                                                             "N-130"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.18",
+                         "status":  "planned",
+                         "feature":  "Air OmniRouter phase 5: optional dual-ladder E2E acceptance and independent release approval.",
+                         "owner":  "AirWorker native development / SRVLM01",
+                         "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                         "done_when":  "After N-130 safeguards PASS in 0.11.17, N-016 actual combo and Hermes ladder acceptance, run the first live Omni executor coding-shell edit→native factual judge→independent upstream-different Omni semantic judge; freeze SHA/full QA/rollback to baseline Codex+Claude+AirLLMRouter; no release/tag/install without explicit LPR gate.",
+                         "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_18_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.17",
+                         "dependencies":  [
+                                              "0.11.17"
+                                          ],
+                         "node_refs":  [
+                                           "N-114",
+                                           "N-126",
+                                           "N-131"
+                                       ],
+                         "deferred":  [
+                                          "Any production release requires separate LPR yes; changing Docker/services separately authorized"
+                                      ],
+                         "stage":  "OMNI_5_E2E_RELEASE",
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.18-01",
+                                           "status":  "planned",
+                                           "title":  "Pin single authorized Omni route and frozen SHA",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Verify all N127–N130 receipts, unchanged fallback/default, no live secrets in repo, source authority and upstream family.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_18_01.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-126",
+                                                             "N-131"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.18-02",
+                                           "status":  "planned",
+                                           "title":  "After N-130 PASS: synthetic then scoped live dual-ladder with interruption recovery",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "Only after verified N-130 PASS: one real edit and true independent verdict; two resume tests, no duplicate payment/work, 401/429, and unknown-combo negatives.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_18_02.json",
+                                           "budget_minutes":  10,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-126",
+                                                             "N-131"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.18-03",
+                                           "status":  "planned",
+                                           "title":  "Full QA and separately approved publish gate",
+                                           "owner":  "AirWorker native development / SRVLM01",
+                                           "trigger":  "ЛПР 12.10.2026: после модуля самообучения доработать лестницу Codex + Sonnet/Opus через подписку Nous Research в Hermes; лишь затем включить дополнительные лестницу/судей Air OmniRouter; остальные возможности отложить.",
+                                           "done_when":  "One clean source SHA full Go/vet/build, Sol Low acceptance, rollback one-step default, receipt with provider/model/cost and independent release/install gates.",
+                                           "judge":  "AirWorker native factual judge (exit, SHA, receipt) + independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_18_03.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-114",
+                                                             "N-126",
+                                                             "N-131"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.19",
+                         "status":  "planned",
+                         "feature":  "Расширить самообучение до двух классов native CLI, не включая host-tool transport",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Два независимых разрешённых native CLI класса дают проверяемые new process select/use+outcome без ложных signed use, негативы PASS.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_19_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.18",
+                         "dependencies":  [
+                                              "0.11.18",
+                                              "0.11.9"
+                                          ],
+                         "node_refs":  [
+                                           "N-110",
+                                           "N-073"
+                                       ],
+                         "deferred":  [
+                                          "N-121 host tools",
+                                          "N-120 full judge",
+                                          "12.10.2026 LPR sequence: self-learning 0.11.9 -\u003e Hermes 0.11.10-0.11.13 -\u003e OmniRouter 0.11.14-0.11.18 -\u003e this backlog."
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.19-01",
+                                           "status":  "planned",
+                                           "title":  "Второй честный native CLI error class",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.1 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "Второй класс native rc2 покрыт automatic capture/review+safe apply и не создаёт duplicate/nonexistent procedure_used",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_19_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-110"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.19-02",
+                                           "status":  "planned",
+                                           "title":  "Новая сессия + релизный гейт второго класса",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.1 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "Отдельная новая сессия PASS на обоих классах, exact QA and Sol Low, atomic signed release receipt",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_19_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-073"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.20",
+                         "status":  "planned",
+                         "feature":  "Общая автоматическая фиксация реальных ошибок Go/PowerShell/reviewer",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Три реальные ошибки из двух сессий имеют authenticated origin/run id, приватный журнал, review без ручного learn event; повторные ошибки dedup.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_20_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.19",
+                         "dependencies":  [
+                                              "0.11.19"
+                                          ],
+                         "node_refs":  [
+                                           "N-121"
+                                       ],
+                         "deferred":  [
+                                          "Новые providers и агентные очереди",
+                                          "12.10.2026 LPR sequence: self-learning 0.11.9 -\u003e Hermes 0.11.10-0.11.13 -\u003e OmniRouter 0.11.14-0.11.18 -\u003e this backlog."
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.20-01",
+                                           "status":  "planned",
+                                           "title":  "Подключить один штатный host-tool adapter",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.2 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "Реальная ошибка Go без ручной записи принята AirWorker, нет секретов, стабильный run_id, signed receipt",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_20_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-121"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.20-02",
+                                           "status":  "planned",
+                                           "title":  "Подтвердить три транспорта и выпуск",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.2 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "Go, PowerShell, reviewer дают 3 подтверждённых события из 2 сессий; QA + Sol Low на exact SHA",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_20_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-121"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.21",
+                         "status":  "planned",
+                         "feature":  "Самостоятельное предотвращение двух повторных P1",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "В двух новых сессиях AirWorker сам находит safe preflight и предотвращает два разных класса повторных P1; минимум четыре fresh sealed cases после freeze; без unsafe auto grant.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_21_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.20",
+                         "dependencies":  [
+                                              "0.11.20"
+                                          ],
+                         "node_refs":  [
+                                           "N-122"
+                                       ],
+                         "deferred":  [
+                                          "12.10.2026 LPR sequence: self-learning 0.11.9 -\u003e Hermes 0.11.10-0.11.13 -\u003e OmniRouter 0.11.14-0.11.18 -\u003e this backlog."
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.21-01",
+                                           "status":  "planned",
+                                           "title":  "Safe preflight до рискованной операции",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.3 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "Один P1 действительно предотвращён preflight без ручного выбора, журнал корреляции прикреплён",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_21_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-122"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.21-02",
+                                           "status":  "planned",
+                                           "title":  "Два класса и независимая проверка",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.3 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "Два класса P1 подтверждены в новых сессиях и новых sealed случаях, exact QA+Sol Low",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_21_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-122"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.22",
+                         "status":  "planned",
+                         "feature":  "Доказать причинный эффект самообучения",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Валидация capture→review→applied→loaded→selected→used→outcome→effect против baseline; минимум четыре свежих sealed случая и ноль ложных причинных PASS.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_22_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.21",
+                         "dependencies":  [
+                                              "0.11.21"
+                                          ],
+                         "node_refs":  [
+                                           "N-125",
+                                           "N-093"
+                                       ],
+                         "deferred":  [
+                                          "7-дневный эффект как обязательная post-release метрика, не фиктивный мгновенный гейт",
+                                          "12.10.2026 LPR sequence: self-learning 0.11.9 -\u003e Hermes 0.11.10-0.11.13 -\u003e OmniRouter 0.11.14-0.11.18 -\u003e this backlog."
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.22-01",
+                                           "status":  "planned",
+                                           "title":  "Одно цепное доказательство эффекта",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.4 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "В одном повторяемом прогонах baseline/after и exact target SHA исключают чужие ручные фиксы",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_22_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "test",
+                                           "node_refs":  [
+                                                             "N-125"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.22-02",
+                                           "status":  "planned",
+                                           "title":  "Судья причинности и релиз",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.4 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "Не менее четырех fresh sealed, ноль ложных эффектов, Sol Low + factual PASS",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_22_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-093"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.23",
+                         "status":  "planned",
+                         "feature":  "Восстановление Go/QA/judge после обрыва без второго запуска",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Две искусственные потери транспорта завершаются исходной квитанцией/exit без дублированного Go/Codex и без остановки чужих процессов.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_23_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.22",
+                         "dependencies":  [
+                                              "0.11.22"
+                                          ],
+                         "node_refs":  [
+                                           "N-123"
+                                       ],
+                         "deferred":  [
+                                          "12.10.2026 LPR sequence: self-learning 0.11.9 -\u003e Hermes 0.11.10-0.11.13 -\u003e OmniRouter 0.11.14-0.11.18 -\u003e this backlog."
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.23-01",
+                                           "status":  "planned",
+                                           "title":  "Зафиксировать generation-safe persistent job state",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.5 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "Долгая задача имеет stable ID/generation/owner/status/terminal и прекращает duplicate dispatch",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_23_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-123"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.23-02",
+                                           "status":  "planned",
+                                           "title":  "Две потери связи и независимое принятие",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.5 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "После двух обрывов readback находит ровно один live/terminal job; QA+Sol Low",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_23_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-123"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.24",
+                         "status":  "planned",
+                         "feature":  "Глобально безопасные ID и PLAN по нескольким веткам",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Native plan node new/close в двух реальных конкурирующих тестовых ветках без коллизий и с каноническим authority + outbox; успешно создаёт N121 и закрывает принятый узел только после factual PASS.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_24_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.23",
+                         "dependencies":  [
+                                              "0.11.23"
+                                          ],
+                         "node_refs":  [
+                                           "N-124"
+                                       ],
+                         "deferred":  [
+                                          "Незавершённый A3-1 scoped PASS хранится отдельной квитанцией, не закрывает N-124",
+                                          "12.10.2026 LPR sequence: self-learning 0.11.9 -\u003e Hermes 0.11.10-0.11.13 -\u003e OmniRouter 0.11.14-0.11.18 -\u003e this backlog."
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.24-01",
+                                           "status":  "planned",
+                                           "title":  "Завершить A3 native new/close/outbox reconcile",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.6 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "Тестовая каноническая ветка поддерживает атомарный remote-first new/close с durable replay и отсутствием локальной мутации при отказе",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_24_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-124"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.24-02",
+                                           "status":  "planned",
+                                           "title":  "Реальная cross-branch конкуренция и Sol Low",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.6 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "Две stale ветки: ровно один writer, новых повторных IDs нет, negative tests и Sol Low PASS",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_24_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-124"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.25",
+                         "status":  "planned",
+                         "feature":  "Полный N-120 защищённый native judge rc2 и safe auto-apply",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Trusted absence/Windows junction case обеспечивает typed HMAC cause/event, настоящий reviewer, безопасную Markdown-процедуру, без ложного rc0/rc1 PASS и replay.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_25_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.24",
+                         "dependencies":  [
+                                              "0.11.24"
+                                          ],
+                         "node_refs":  [
+                                           "N-120"
+                                       ],
+                         "deferred":  [
+                                          "12.10.2026 LPR sequence: self-learning 0.11.9 -\u003e Hermes 0.11.10-0.11.13 -\u003e OmniRouter 0.11.14-0.11.18 -\u003e this backlog."
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.25-01",
+                                           "status":  "planned",
+                                           "title":  "Trusted native judge rc2 negative tests",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.7 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "rc2 из допустимой команды и trust path; HMAC metadata unduplicated, forged Windows reparse отклоняется",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_25_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-120"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.25-02",
+                                           "status":  "planned",
+                                           "title":  "Native reviewer → safe apply acceptance",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.7 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "На чистом SHA автоматический reviewer и только safe procedure, adverse tests PASS, Sol Low, machine receipt",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_25_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-120"
+                                                         ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "version":  "0.11.26",
+                         "status":  "planned",
+                         "feature":  "Нативный автономный цикл разработки и продуктовый контроль",
+                         "owner":  "AirWorker native executor ladder / SRVLM01",
+                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
+                         "done_when":  "Один source-only шаг от PLAN open node через собственный AirWorker ladder → factual judge → semantic → receipt → native close, без ручной GPT PowerShell/Go оркестрации; восстановление после двух обрывов.",
+                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                         "receipt":  "docs/receipts/RELEASE_0_11_26_ACCEPTANCE.json",
+                         "rollback_to":  "0.11.25",
+                         "dependencies":  [
+                                              "0.11.25"
+                                          ],
+                         "node_refs":  [
+                                           "N-073",
+                                           "N-110",
+                                           "N-092"
+                                       ],
+                         "deferred":  [
+                                          "Внешний Nous provider, расширенный Cloud, UX, stable tag shared learning 0.1.0 — отдельный будущий релиз/обязательство",
+                                          "12.10.2026 LPR sequence: self-learning 0.11.9 -\u003e Hermes 0.11.10-0.11.13 -\u003e OmniRouter 0.11.14-0.11.18 -\u003e this backlog."
+                                      ],
+                         "steps":  [
+                                       {
+                                           "id":  "R0.11.26-01",
+                                           "status":  "planned",
+                                           "title":  "Полный native executor loop",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.8 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "Один реальный source-only шаг прошёл без ручного выбора исполнителя или остановки на ручном переносе",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_26_01.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "source",
+                                           "node_refs":  [
+                                                             "N-073"
+                                                         ]
+                                       },
+                                       {
+                                           "id":  "R0.11.26-02",
+                                           "status":  "planned",
+                                           "title":  "Релизный factual judge и опытная эксплуатация",
+                                           "owner":  "AirWorker native executor ladder / SRVLM01",
+                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.8 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
+                                           "done_when":  "Применимые 13/13 фактов, automation PASS, native close после receipt, rollback+Sol Low",
+                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
+                                           "receipt":  "docs/receipts/RELEASE_0_11_26_02.json",
+                                           "budget_minutes":  12,
+                                           "kind":  "judge",
+                                           "node_refs":  [
+                                                             "N-092"
+                                                         ]
+                                       }
+                                   ]
+                     }
+                 ],
+    "version_policy":  {
+                           "format":  "semver/v2.0.0",
+                           "basis":  "GitHub latest published air-worker--v0.11.8 and installed 0.11.8",
+                           "next_version":  "0.11.9",
+                           "reason":  "0.x pre-stable existing 0.11 patch train; no unapproved promotion to 1.0.0, no reused 0.12.0",
+                           "preserve_prior_architecture_reservation":  "0.12.0 remains separate architecture-cleanup target; not one of these nine micro-releases",
+                           "remote_tag_prefix":  "air-worker--v",
+                           "version_is_not_ordinal":  "0.11.10 sorts numerically after 0.11.9, never use lexicographic string ordering",
+                           "guard":  "Tag cannot preexist, immutable installed/released version cannot be reused, numeric SemVer monotonicity required",
+                           "planned_patch_tail":  "0.11.26",
+                           "verified_precedence":  "0.11.9 then Hermes 0.11.10-0.11.13 then Omni 0.11.14-0.11.18 then prior backlog 0.11.19-0.11.26"
+                       },
+    "milestone_sequence":  {
+                               "schema":  "air-worker.release.milestone-order/v1",
+                               "lpr_decision_sgt":  "2026-10-12",
+                               "priority_order":  [
+                                                      "0.11.9: self-learning native real use",
+                                                      "0.11.10-0.11.13: Hermes Codex + Nous Sonnet/Opus subscription semantic judges",
+                                                      "0.11.14-0.11.18: Air OmniRouter optional executors and independently verified judges",
+                                                      "0.11.19-0.11.26: previous learning and architecture backlog"
+                                                  ],
+                               "current_execution_mode":  "plan-only; no release/tag/install permission",
+                               "docs":  {
+                                            "hermes":  "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/guides/run-hermes-with-nous-portal.md",
+                                            "nous":  "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/integrations/nous-portal.md",
+                                            "omni":  "https://github.com/diegosouzapw/OmniRoute"
+                                        },
+                               "judge_policy":  "native AirWorker factual exit/receipt MUST PASS, independent semantic actual upstream vendor different from executor; unsupported/unknown provider =\u003e NOT_PROVEN",
+                               "permissions":  "Preserve existing AirLLMRouter/Codex/Claude defaults; Hermes/Omni opt-in only; no API PAYG/autotopup, no auth export, separate LPR gates for release/install/Docker/UAC/service changes",
+                               "private_details":  "Internal Hermes and N126-N131 source branch/commit IDs and subscription route checks are retained only in private AirWorker_Wiki; public train carries milestone names, objective and gate status, not credentials or private pending node content."
+                           }
+}

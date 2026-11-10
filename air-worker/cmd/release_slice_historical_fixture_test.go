@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"github.com/ruhorh66-rgb/air-modules/learning"
@@ -17,20 +18,23 @@ import (
 //
 // This routine changes only bytes in the caller's t.TempDir fixture. It
 // refuses unknown versions, absent/duplicate status tokens or a drifted
-// operational source. No product PLAN, plan/N-* or LEARN journal is modified.
+// archival source. No product PLAN, plan/N-* or LEARN journal is modified.
 var n042HistoricalR02Status = regexp.MustCompile(`("id"\s*:\s*"(R0\.11\.9-0[2345])"\s*,\s*"status"\s*:\s*")(closed|open|planned)(")`)
 
 func n042HistoricalR02SourceBytes() ([]byte, error) {
-	raw, err := os.ReadFile("../plan/release-slices.json")
+	raw, err := os.ReadFile("testdata/release-slices-pre-n124-cancel.json")
 	if err != nil {
 		return nil, err
+	}
+	raw = bytes.ReplaceAll(raw, []byte("\r\n"), []byte("\n"))
+	if sum := fmt.Sprintf("%x", sha256.Sum256(raw)); sum != "4914785397401d3dc314e3d77c89a9c8220d91b8a54a2cabdbf866a91a533881" {
+		return nil, fmt.Errorf("N042 historical source SHA-256 mismatch: %s", sum)
 	}
 	matches := n042HistoricalR02Status.FindAllSubmatchIndex(raw, -1)
 	if len(matches) != 4 {
 		return nil, fmt.Errorf("N042 historical transition fixture: found %d status tokens, expected four", len(matches))
 	}
-	// Exact current source checkpoint is R05; all earlier finished
-	// signed statuses are preserved in the canonical product plan.
+	// The pinned source checkpoint is R05 with earlier signed statuses preserved.
 	expected := map[string]string{
 		"R0.11.9-02": "closed",
 		"R0.11.9-03": "closed",

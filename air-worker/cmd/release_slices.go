@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -194,8 +195,6 @@ func validateReleaseSlices(root string, doc releaseSlicesDoc, out *releaseSlices
 	expectedReleases, rangeOK := releaseCountFromVersionPolicy(doc.VersionPolicy.NextVersion, doc.VersionPolicy.PlannedPatchTail)
 	if !rangeOK {
 		out.problem("version-policy", "next_version and planned_patch_tail must define one numeric patch train")
-	} else if len(doc.Releases) != expectedReleases {
-		out.problem("release-count", fmt.Sprintf("expected %d releases from version policy, got %d", expectedReleases, len(doc.Releases)))
 	}
 	out.ReleasesCount = len(doc.Releases)
 	versions := map[string]int{}
@@ -208,7 +207,10 @@ func validateReleaseSlices(root string, doc releaseSlicesDoc, out *releaseSlices
 		major, minor, patch, ok := parseReleaseVersion(r.Version)
 		if !ok {
 			out.problem("version", fmt.Sprintf("release %q is not strict numeric SemVer X.Y.Z", r.Version))
-		} else if i > 0 {
+		} else if rangeOK && !releaseVersionInPolicy(r.Version, doc.VersionPolicy.NextVersion, doc.VersionPolicy.PlannedPatchTail) {
+			out.problem("version-range", "release version outside version policy: "+r.Version)
+		}
+		if ok && i > 0 {
 			pm, pn, pp, prevOK := parseReleaseVersion(doc.Releases[i-1].Version)
 			if prevOK && compareVersion(major, minor, patch, pm, pn, pp) <= 0 {
 				out.problem("version-order", "release versions must be strictly numerically ascending")
@@ -291,6 +293,14 @@ func validateReleaseSlices(root string, doc releaseSlicesDoc, out *releaseSlices
 			}
 		}
 	}
+	if rangeOK && len(doc.Releases) != expectedReleases {
+		_, hasCancelled := versions["0.11.24"]
+		if len(doc.Releases) != expectedReleases-1 || hasCancelled ||
+			doc.VersionPolicy.NextVersion != "0.11.9" || doc.VersionPolicy.PlannedPatchTail != "0.11.26" ||
+			!validN124Cancellation(root) {
+			out.problem("release-count", fmt.Sprintf("expected %d releases from version policy, got %d", expectedReleases, len(doc.Releases)))
+		}
+	}
 	if activeCount != 1 {
 		out.problem("active-release", "exactly one release must be active")
 	}
@@ -307,6 +317,48 @@ func validateReleaseSlices(root string, doc releaseSlicesDoc, out *releaseSlices
 		out.problem("version-policy", "first release and next_version must be 0.11.9")
 	}
 	out.ActiveVersion = activeVersion
+}
+
+func releaseVersionInPolicy(version, start, tail string) bool {
+	major, minor, patch, ok := parseReleaseVersion(version)
+	sMajor, sMinor, sPatch, _ := parseReleaseVersion(start)
+	tMajor, tMinor, tPatch, _ := parseReleaseVersion(tail)
+	return ok && compareVersion(major, minor, patch, sMajor, sMinor, sPatch) >= 0 &&
+		compareVersion(major, minor, patch, tMajor, tMinor, tPatch) <= 0 && major == sMajor && minor == sMinor
+}
+
+func validN124Cancellation(root string) bool {
+	const receipt = "docs/receipts/AIRWORKER_N124_CANCELLED_BY_LPR_20261110.md"
+	const nodeID = "N-124_p1-detect-cross-branch-node-id-collision-and-sta"
+	read := func(name string) ([]byte, error) {
+		path := root
+		for _, part := range strings.Split(name, "/") {
+			path = filepath.Join(path, part)
+			info, err := os.Lstat(path)
+			if err != nil || info.Mode()&os.ModeSymlink != 0 {
+				return nil, fmt.Errorf("unsafe or missing evidence path")
+			}
+		}
+		return os.ReadFile(path)
+	}
+	raw, err := read(receipt)
+	if err != nil || fmt.Sprintf("%x", sha256.Sum256(bytes.ReplaceAll(raw, []byte("\r\n"), []byte("\n")))) != "5b554878f5a044e8b3d13f0081cb931fc2d3d2b4f1f05ba70ecbbcd8735bb7bb" {
+		return false
+	}
+	raw, err = read("plan/" + nodeID + ".md")
+	if err != nil {
+		return false
+	}
+	node, err := parsePlanNode(nodeID+".md", raw)
+	if err != nil || node.ID != nodeID || node.Parent != "N-110_p0-auto-capture-persist-every-real-airworker-ses" || node.Status != "closed" {
+		return false
+	}
+	for _, name := range node.Receipts {
+		if name == receipt {
+			return true
+		}
+	}
+	return false
 }
 
 func releaseCountFromVersionPolicy(start, tail string) (int, bool) {
