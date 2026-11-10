@@ -1,0 +1,20 @@
+{
+  "schema": "air-worker.coding-microsteps/v1",
+  "context": "P0/G07 real worker status: an existing native job receipt has status RUNNING and process_started=true but its recorded PID was not observed. Current inspectOwnedJob returns RUNNING without checking that the process identity remains verifiable; readAdapterReceipts exposes raw RUNNING even when it has no verified live worker. This must remain nonterminal and must never permit duplicate redispatch. Existing adapterProcessMatches performs a conservative native process/PID-start check; inability to prove liveness is EXECUTION_UNKNOWN, not proof of failure or completion. This change is not by itself G07 acceptance; two real chat interruptions of the same live job and evidence remain required. Preserve existing pre-start RUNNING semantics for receipts with ProcessStarted=false and all terminal sealing, ownership and source checks. No security rights changes, symlink tests, release/install, plan modification or other source files. Tests follow separately after this native two-writer pilot; do not run tests/build or create cache/temp files within your worktree.",
+  "workers": [
+    {
+      "index": 1,
+      "title": "Report unverified running process as unknown",
+      "file": "cmd/job_status.go",
+      "done_when": "For a RUNNING receipt whose ProcessStarted=true and whose PID/start identity cannot be verified, inspectOwnedJob returns nonterminal EXECUTION_UNKNOWN with same job_id and recovery_ref, no seal or mutation and a do-not-redispatch reason; verified live and pre-start RUNNING and terminal semantics remain.",
+      "instructions": "Edit only cmd/job_status.go. Use existing adapterProcessMatches with receipt PID and StartedAt, conservatively treat errors/inability to verify as unknown rather than failed/done; return EXECUTION_UNKNOWN nonterminal without modifying receipt or launching a process, preserving job identity and explicit do-not-redispatch guidance. Leave pre-start ProcessStarted=false behavior and valid live behavior intact. Do not make stronger guarantees about PID reuse than the underlying helper provides. Do not touch tests, plan, permissions, install, release, commit, run tests or create temp files inside your worktree."
+    },
+    {
+      "index": 2,
+      "title": "Show unverified running receipts accurately in adapter",
+      "file": "cmd/adapter.go",
+      "done_when": "Adapter status reports EXECUTION_UNKNOWN for a RUNNING receipt with ProcessStarted=true and no verifiable live PID; it retains original job identity and never reports a confirmed live worker or terminal result; verified live and pre-start behavior remain.",
+      "instructions": "Edit only cmd/adapter.go. Reuse the existing adapterProcessMatches judgment consistently for selected receipt presentation, keeping raw receipt immutable. If ProcessStarted=true and live identity cannot be verified, expose EXECUTION_UNKNOWN instead of RUNNING; do not claim failure, completion or permit new dispatch; preserve selection, identity and pre-start semantics. Do not alter source tests or create temp/cache files within your worktree, run tests, commit, change permissions, plan, installation or release."
+    }
+  ]
+}
