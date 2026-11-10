@@ -9,7 +9,7 @@
     "authority_branch":  "dev/airworker-0.11.9-selflearning-only-20261011",
     "machine_plan":  "PLAN.md",
     "native_nodes":  "plan/N-*.md",
-    "release_gate_policy":  "Source-only development allowed; tag/release only after exact signed acceptance and explicit LPR authorization, installation/UAC/reboot/foreign services separately approved.",
+    "release_gate_policy":  "Source-only development allowed; tag/release only after exact signed acceptance and explicit LPR authorization, installation/UAC/reboot/foreign services separately approved. N-124 cancelled by LPR 2026-11-10; it is not an active release or N-120 prerequisite.",
     "interval_policy":  {
                             "max_active_step_minutes":  15,
                             "preferred_step_minutes":  8,
@@ -72,8 +72,7 @@
                                        ],
                          "deferred":  [
                                           "N-120 full judge rc2",
-                                          "N-124 Git distributed plan",
-                                          "N-123 durable host QA automation",
+                                                                                    "N-123 durable host QA automation",
                                           "N-121 Go/PowerShell host capture",
                                           "N-122 multi-P1 prevention",
                                           "N-125 7-day causal effect",
@@ -164,7 +163,7 @@
                                            "title":  "Прочесть QA, получить независимого судью и оформить готовность",
                                            "owner":  "AirWorker native executor ladder / SRVLM01",
                                            "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9",
-                                           "done_when":  "QA exit=0, независимый Codex gpt-6-sol medium P0/P1=0 на том же SHA и factual scoped acceptance; NEXT готовый release receipt без ложного N-120/N-124 close",
+                                           "done_when":  "QA exit=0, независимый Codex gpt-6-sol medium P0/P1=0 на том же SHA и factual scoped acceptance; NEXT готовый release receipt без ложного N-120 close",
                                            "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:medium read-only",
                                            "receipt":  "docs/receipts/RELEASE_0_11_9_06.json",
                                            "budget_minutes":  12,
@@ -1117,59 +1116,6 @@
                                    ]
                      },
                      {
-                         "version":  "0.11.24",
-                         "status":  "planned",
-                         "feature":  "Глобально безопасные ID и PLAN по нескольким веткам",
-                         "owner":  "AirWorker native executor ladder / SRVLM01",
-                         "trigger":  "Решение ЛПР 12.10.2026: выпускать небольшими релизами, первым — реальное самообучение AirWorker; другое позже.",
-                         "done_when":  "Native plan node new/close в двух реальных конкурирующих тестовых ветках без коллизий и с каноническим authority + outbox; успешно создаёт N121 и закрывает принятый узел только после factual PASS.",
-                         "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
-                         "receipt":  "docs/receipts/RELEASE_0_11_24_ACCEPTANCE.json",
-                         "rollback_to":  "0.11.23",
-                         "dependencies":  [
-                                              "0.11.23"
-                                          ],
-                         "node_refs":  [
-                                           "N-124"
-                                       ],
-                         "deferred":  [
-                                          "Незавершённый A3-1 scoped PASS хранится отдельной квитанцией, не закрывает N-124",
-                                          "12.10.2026 LPR sequence: self-learning 0.11.9 -\u003e Hermes 0.11.10-0.11.13 -\u003e OmniRouter 0.11.14-0.11.18 -\u003e this backlog."
-                                      ],
-                         "steps":  [
-                                       {
-                                           "id":  "R0.11.24-01",
-                                           "status":  "planned",
-                                           "title":  "Завершить A3 native new/close/outbox reconcile",
-                                           "owner":  "AirWorker native executor ladder / SRVLM01",
-                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.6 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
-                                           "done_when":  "Тестовая каноническая ветка поддерживает атомарный remote-first new/close с durable replay и отсутствием локальной мутации при отказе",
-                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
-                                           "receipt":  "docs/receipts/RELEASE_0_11_24_01.json",
-                                           "budget_minutes":  12,
-                                           "kind":  "source",
-                                           "node_refs":  [
-                                                             "N-124"
-                                                         ]
-                                       },
-                                       {
-                                           "id":  "R0.11.24-02",
-                                           "status":  "planned",
-                                           "title":  "Реальная cross-branch конкуренция и Sol Low",
-                                           "owner":  "AirWorker native executor ladder / SRVLM01",
-                                           "trigger":  "Решение ЛПР 12.10.2026: первый релиз — самообучение, короткие прерываемые шаги; релиз 0.11.9.6 Sequencing LPR 12.10.2026: AFTER Hermes+OmniRouter.",
-                                           "done_when":  "Две stale ветки: ровно один writer, новых повторных IDs нет, negative tests и Sol Low PASS",
-                                           "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
-                                           "receipt":  "docs/receipts/RELEASE_0_11_24_02.json",
-                                           "budget_minutes":  12,
-                                           "kind":  "judge",
-                                           "node_refs":  [
-                                                             "N-124"
-                                                         ]
-                                       }
-                                   ]
-                     },
-                     {
                          "version":  "0.11.25",
                          "status":  "planned",
                          "feature":  "Полный N-120 защищённый native judge rc2 и safe auto-apply",
@@ -1178,9 +1124,9 @@
                          "done_when":  "Trusted absence/Windows junction case обеспечивает typed HMAC cause/event, настоящий reviewer, безопасную Markdown-процедуру, без ложного rc0/rc1 PASS и replay.",
                          "judge":  "AirWorker factual exit+receipt; independent Codex gpt-6-sol:low read-only",
                          "receipt":  "docs/receipts/RELEASE_0_11_25_ACCEPTANCE.json",
-                         "rollback_to":  "0.11.24",
+                         "rollback_to":  "0.11.23",
                          "dependencies":  [
-                                              "0.11.24"
+                                              "0.11.23"
                                           ],
                          "node_refs":  [
                                            "N-120"
