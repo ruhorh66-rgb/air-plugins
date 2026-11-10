@@ -13,6 +13,7 @@ import (
 )
 
 var operationalGoalAdvanceAcquireLock = acquireLock
+var operationalGoalAdvanceGitState = sourceReviewGitState
 
 // validateOperationalGoalAdvance verifies a previously owned pinned goal
 // against the exact current Git HEAD. The old selector cannot use the usual
@@ -118,7 +119,7 @@ func cmdOperationalGoalAdvance(argv []string) int {
 	defer writerLock.release()
 	// Source clean gate is checked before mutation and again after readback;
 	// the selector is never used to bypass the historical release guard.
-	currentHead, err := sourceReviewGitState(root)
+	currentHead, err := operationalGoalAdvanceGitState(root)
 	if err != nil || currentHead != *toHead {
 		fmt.Fprintln(os.Stderr, "operational-goal advance: current source is dirty or unverified")
 		return 2
@@ -155,15 +156,26 @@ func cmdOperationalGoalAdvance(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	if err := writeFileAtomic(path, append(nextRaw, '\n')); err != nil {
+	nextRaw = append(nextRaw, '\n')
+	if head, err := operationalGoalAdvanceGitState(root); err != nil || head != *toHead {
+		fmt.Fprintln(os.Stderr, "operational-goal advance: current source is dirty or unverified")
+		return 2
+	}
+	if err := writeFileAtomic(path, nextRaw); err != nil {
 		fmt.Fprintln(os.Stderr, "operational-goal advance: write:", err)
 		return 2
 	}
 	verified, err := readOperationalGoal(root)
-	if err != nil || verified != next {
-		// This is a host-local selector, not a plan file. A failed readback
-		// restores only the known original state under the same native locks.
-		_ = writeFileAtomic(path, oldRaw)
+	head, sourceErr := operationalGoalAdvanceGitState(root)
+	if err != nil || verified != next || sourceErr != nil || head != *toHead {
+		current, readErr := os.ReadFile(path)
+		if readErr != nil {
+			fmt.Fprintln(os.Stderr, "operational-goal advance: rollback read:", readErr)
+		} else if !bytes.Equal(current, nextRaw) {
+			fmt.Fprintln(os.Stderr, "operational-goal advance: selector changed by another writer; rollback refused")
+		} else if rollbackErr := writeFileAtomic(path, oldRaw); rollbackErr != nil {
+			fmt.Fprintln(os.Stderr, "operational-goal advance: rollback:", rollbackErr)
+		}
 		fmt.Fprintln(os.Stderr, "operational-goal advance: postwrite verification failed")
 		return 2
 	}

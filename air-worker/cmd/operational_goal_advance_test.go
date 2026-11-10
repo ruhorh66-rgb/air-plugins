@@ -307,3 +307,116 @@ func TestOperationalGoalMutationRejectsInvalidMutex(t *testing.T) {
 		}
 	}
 }
+
+func TestOperationalGoalAdvanceRechecksSource(t *testing.T) {
+	source, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := filepath.Join(t.TempDir(), "repo")
+	if out, err := exec.Command("git", "clone", "--shared", "--no-checkout", source, repo).CombinedOutput(); err != nil {
+		t.Fatalf("clone: %s: %v", out, err)
+	}
+	if out, err := exec.Command("git", "-C", repo, "-c", "core.autocrlf=false", "checkout", "--detach", "HEAD").CombinedOutput(); err != nil {
+		t.Fatalf("checkout: %s: %v", out, err)
+	}
+	root := filepath.Join(repo, "air-worker")
+	head, err := planRephaseGit(root, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous, err := planRephaseGit(root, "rev-parse", "HEAD^")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const node = "N-139_n136-native-operational-goal-selector-for-real-a"
+	next, err := operationalGoalInputs(root, node, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prior := next
+	prior.SourceHead = previous
+	oldRaw, err := json.MarshalIndent(prior, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldRaw = append(oldRaw, '\n')
+	path := operationalGoalPath(root)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ProgramData", t.TempDir())
+	state := sessionStateDir()
+	id := sessionIdentity{Principal: "chatgpt", SessionKey: "goal-recheck-fixture"}
+	if err := writeStateJSON(sessionModePath(state, id), sessionModeState{Enabled: true, Principal: id.Principal, SessionKey: id.SessionKey}); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeStateJSON(sessionProductPath(state, id), sessionProductState{Path: root, Principal: id.Principal, SessionKey: id.SessionKey}); err != nil {
+		t.Fatal(err)
+	}
+	originalGitState := operationalGoalAdvanceGitState
+	t.Cleanup(func() { operationalGoalAdvanceGitState = originalGitState })
+	foreign := []byte("foreign selector\n")
+	for _, tc := range []struct {
+		name    string
+		dirtyAt int
+		foreign bool
+	}{
+		{"dirty before write", 2, false},
+		{"dirty after write", 3, false},
+		{"foreign edit after write", 3, true},
+		{"clean", 0, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := os.WriteFile(path, oldRaw, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			calls := 0
+			operationalGoalAdvanceGitState = func(gotRoot string) (string, error) {
+				calls++
+				if gotRoot != root {
+					t.Errorf("source check root=%q, want %q", gotRoot, root)
+				}
+				if calls == tc.dirtyAt {
+					got, err := os.ReadFile(path)
+					if err != nil || (calls == 2 && !bytes.Equal(got, oldRaw)) || (calls == 3 && bytes.Equal(got, oldRaw)) {
+						t.Errorf("selector at check %d: %q, %v", calls, got, err)
+					}
+					if tc.foreign {
+						if err := os.WriteFile(path, foreign, 0o600); err != nil {
+							t.Fatal(err)
+						}
+					}
+					return "", fmt.Errorf("fixture source is dirty")
+				}
+				return head, nil
+			}
+			var stderr string
+			stdout, code := captureStdout(t, func() int {
+				var code int
+				stderr, code = captureStderr(t, func() int {
+					return cmdOperationalGoalAdvance([]string{"-product", root, "-node", node, "-from-head", previous, "-source-head", head, "-principal", id.Principal, "-session-key", id.SessionKey})
+				})
+				return code
+			})
+			got, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.dirtyAt != 0 {
+				want := oldRaw
+				if tc.foreign {
+					want = foreign
+				}
+				if code == 0 || stdout != "" || stderr == "" || calls != tc.dirtyAt || !bytes.Equal(got, want) {
+					t.Fatalf("code=%d stdout=%q stderr=%q checks=%d selector=%q", code, stdout, stderr, calls, got)
+				}
+			} else {
+				verified, err := decodeOperationalGoalPinned(got)
+				if code != 0 || stderr != "" || !strings.Contains(stdout, `"schema":"air-worker.operational-goal.advance/v1"`) || calls != 3 || err != nil || verified != next {
+					t.Fatalf("code=%d stdout=%q stderr=%q checks=%d selector=%q decode=%v", code, stdout, stderr, calls, got, err)
+				}
+			}
+		})
+	}
+}
