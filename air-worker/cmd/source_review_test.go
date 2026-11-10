@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -332,7 +333,7 @@ func TestSourceReviewClaudeCommandUsesStrictSchemaAndReadOnlyTools(t *testing.T)
 		t.Fatalf("missing %s in %v", flag, args)
 		return ""
 	}
-	if !containsArg(args, "-p") || value("--output-format") != "json" || value("--allowed-tools") != "Read,Glob,Grep" {
+	if !containsArg(args, "-p") || value("--output-format") != "stream-json" || value("--allowed-tools") != "Read,Glob,Grep" || value("--tools") != "Read,Glob,Grep" || !containsArg(args, "--strict-mcp-config") || value("--mcp-config") != `{ "mcpServers": {} }` || value("--permission-mode") != "dontAsk" || value("--permission-prompts") != "none" || !containsArg(args, "--no-chrome") {
 		t.Fatalf("unexpected source review command: %v", args)
 	}
 	raw := value("--json-schema")
@@ -582,5 +583,73 @@ func TestSourceReviewProductPrefixCitations(t *testing.T) {
 	v.Checked[0].Path = "air-worker/cmd/escape.go"
 	if _, err := parseSourceReviewVerdict(sourceReviewJSON(t, v), root, commit, task); err == nil {
 		t.Error("accepted symlink escape")
+	}
+}
+
+func TestSourceReviewRestrictionsRefuseMissingAndChangedFlags(t *testing.T) {
+	cmd := sourceReviewClaudeCommand("claude", t.TempDir(), "task", runnerSpec{})
+	if _, err := sourceReviewRestrictions(cmd.Args); err != nil {
+		t.Fatal(err)
+	}
+	for i, arg := range cmd.Args {
+		if arg != "--tools" && arg != "--strict-mcp-config" && arg != "--mcp-config" {
+			continue
+		}
+		altered := append([]string(nil), cmd.Args...)
+		altered[i] = "--unrelated"
+		if _, err := sourceReviewRestrictions(altered); err == nil {
+			t.Fatalf("accepted missing %s", arg)
+		}
+	}
+}
+
+func TestSourceReviewTraceRequiresSuccessfulReadsAndNoMCP(t *testing.T) {
+	root, commit, _, refs := sourceReviewFixture(t)
+	task := []byte("review this task\n")
+	taskPath := filepath.Join(root, "task.md")
+	if err := os.WriteFile(taskPath, task, 0600); err != nil {
+		t.Fatal(err)
+	}
+	sha := sha256Hex(task)
+	v := sourceReviewVerdict{Verdict: "PASS_SOURCE_ONLY", SourceCommit: commit, TaskSHA256: sha, TaskRead: "TASK_READ_OK", Checked: refs, Findings: []sourceReviewFinding{}, Next: "ok"}
+	enc := func(x any) string {
+		b, err := json.Marshal(x)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	events := []string{enc(map[string]any{"type": "system", "subtype": "init", "session_id": "s", "tools": []string{"Read", "Glob", "Grep"}, "mcp_servers": []any{}})}
+	paths := []string{taskPath}
+	for _, r := range refs {
+		paths = append(paths, filepath.Join(root, filepath.FromSlash(r.Path)))
+	}
+	for i, p := range paths {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id := fmt.Sprintf("r%d", i)
+		events = append(events, enc(map[string]any{"type": "assistant", "message": map[string]any{"content": []any{map[string]any{"type": "tool_use", "id": id, "name": "Read", "input": map[string]any{"file_path": p}}}}}))
+		events = append(events, enc(map[string]any{"type": "user", "message": map[string]any{"content": []any{map[string]any{"type": "tool_result", "tool_use_id": id}}}, "tool_use_result": map[string]any{"file": map[string]any{"filePath": p, "content": string(data), "startLine": 1}}}))
+	}
+	events = append(events, enc(map[string]any{"type": "result", "session_id": "s", "structured_output": v}))
+	if _, _, err := parseAndVerifySourceReviewStream(strings.Join(events, "\n"), nil, root, sha); err != nil {
+		t.Fatal(err)
+	}
+	missing := append([]string(nil), events...)
+	missing[2] = "{}"
+	if _, _, err := parseAndVerifySourceReviewStream(strings.Join(missing, "\n"), nil, root, sha); err == nil {
+		t.Fatal("accepted task without successful read")
+	}
+	missing = append([]string(nil), events...)
+	missing[4] = "{}"
+	if _, _, err := parseAndVerifySourceReviewStream(strings.Join(missing, "\n"), nil, root, sha); err == nil {
+		t.Fatal("accepted citation without successful read")
+	}
+	foreign := append([]string(nil), events...)
+	foreign[0] = enc(map[string]any{"type": "system", "subtype": "init", "session_id": "s", "tools": []string{"Read"}, "mcp_servers": []any{map[string]any{"name": "remote"}}})
+	if _, _, err := parseAndVerifySourceReviewStream(strings.Join(foreign, "\n"), nil, root, sha); err == nil {
+		t.Fatal("accepted active MCP server")
 	}
 }

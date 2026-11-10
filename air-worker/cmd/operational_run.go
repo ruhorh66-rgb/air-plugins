@@ -82,7 +82,7 @@ func reviewN139BoundSource(c *loopCtx, goal operationalGoal, task string) error 
 	}
 	taskSHA := sha256Hex([]byte(task))
 	prompt := sourceReviewPrompt("NATIVE_NODE_ID: "+node.ID+"\nNATIVE_NODE_DONE_WHEN: "+node.DoneWhen+"\n"+task, goal.SourceHead, taskSHA)
-	reply, _, err := invokeNativeSourceReview(c.scope(), prompt, reviewer, step)
+	reply, _, err := invokeNativeSourceReview(c.scope(), prompt, reviewer, step, taskSHA)
 	if err != nil {
 		return err
 	}

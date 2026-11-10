@@ -33,33 +33,37 @@ const (
 // jobReceipt — durable запись о долгой команде: всё необходимое, чтобы прочитать финал по
 // output_path, не удерживая сам процесс/сессию, которая её запустила.
 type jobReceipt struct {
-	JobID          string    `json:"job_id"`
-	PID            int       `json:"pid"`
-	StartedAt      time.Time `json:"started_at"`
-	Status         string    `json:"status"`
-	OutputPath     string    `json:"output_path"`
-	Product        string    `json:"product"`
-	Principal      string    `json:"principal"`
-	Session        string    `json:"session"`
-	Step           string    `json:"step"`
-	Operation      string    `json:"operation"`
-	Runner         string    `json:"runner,omitempty"`
-	Provider       string    `json:"provider,omitempty"`
-	Model          string    `json:"model,omitempty"`
-	Effort         string    `json:"effort,omitempty"`
-	Role           string    `json:"role,omitempty"`
-	Sandbox        string    `json:"sandbox,omitempty"`
-	ProcessStarted bool      `json:"process_started"`
-	RequestStarted bool      `json:"request_started,omitempty"`
-	Cost           *float64  `json:"cost,omitempty"`
-	OutputSHA256   string    `json:"output_sha256,omitempty"`
-	OutputBytes    int64     `json:"output_bytes,omitempty"`
-	SourceHead     string    `json:"source_head,omitempty"`
-	ArgsSHA256     string    `json:"args_sha256,omitempty"`
-	StdinSHA256    string    `json:"stdin_sha256,omitempty"`
-	ExitCode       *int      `json:"exit_code,omitempty"`
-	RecoveryRef    string    `json:"recovery_ref,omitempty"`
-	DeadlineUTC    string    `json:"deadline_utc,omitempty"`
+	JobID            string    `json:"job_id"`
+	PID              int       `json:"pid"`
+	StartedAt        time.Time `json:"started_at"`
+	Status           string    `json:"status"`
+	OutputPath       string    `json:"output_path"`
+	Product          string    `json:"product"`
+	Principal        string    `json:"principal"`
+	Session          string    `json:"session"`
+	Step             string    `json:"step"`
+	Operation        string    `json:"operation"`
+	Runner           string    `json:"runner,omitempty"`
+	Provider         string    `json:"provider,omitempty"`
+	Model            string    `json:"model,omitempty"`
+	Effort           string    `json:"effort,omitempty"`
+	Role             string    `json:"role,omitempty"`
+	Sandbox          string    `json:"sandbox,omitempty"`
+	ToolPath         string    `json:"tool_path,omitempty"`
+	ToolVersion      string    `json:"tool_version,omitempty"`
+	ToolRestrictions []string  `json:"tool_restrictions,omitempty"`
+	ReviewTaskSHA256 string    `json:"review_task_sha256,omitempty"`
+	ProcessStarted   bool      `json:"process_started"`
+	RequestStarted   bool      `json:"request_started,omitempty"`
+	Cost             *float64  `json:"cost,omitempty"`
+	OutputSHA256     string    `json:"output_sha256,omitempty"`
+	OutputBytes      int64     `json:"output_bytes,omitempty"`
+	SourceHead       string    `json:"source_head,omitempty"`
+	ArgsSHA256       string    `json:"args_sha256,omitempty"`
+	StdinSHA256      string    `json:"stdin_sha256,omitempty"`
+	ExitCode         *int      `json:"exit_code,omitempty"`
+	RecoveryRef      string    `json:"recovery_ref,omitempty"`
+	DeadlineUTC      string    `json:"deadline_utc,omitempty"`
 }
 
 // jobLockKind — duplicate-start guard именует замок по (step, operation) внутри scope: тот
@@ -289,12 +293,16 @@ type jobCmdResult struct {
 // того же job в том же scope должен продолжать отказывать, пока ПЕРВЫЙ процесс жив, даже
 // если caller этого первого уже перестал ждать.
 type jobReceiptMeta struct {
-	Runner   string
-	Provider string
-	Model    string
-	Effort   string
-	Role     string
-	Sandbox  string
+	ToolPath         string
+	ToolVersion      string
+	ToolRestrictions []string
+	ReviewTaskSHA256 string
+	Runner           string
+	Provider         string
+	Model            string
+	Effort           string
+	Role             string
+	Sandbox          string
 }
 
 func runReceipted(ctx context.Context, scope sessionScope, step, operation string, cmd *exec.Cmd) ([]byte, error) {
@@ -403,6 +411,10 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 	r.Effort = meta.Effort
 	r.Role = meta.Role
 	r.Sandbox = meta.Sandbox
+	r.ToolPath = meta.ToolPath
+	r.ToolVersion = meta.ToolVersion
+	r.ToolRestrictions = meta.ToolRestrictions
+	r.ReviewTaskSHA256 = meta.ReviewTaskSHA256
 	r.SourceHead = jobSourceHead(scope.Root)
 	r.ArgsSHA256 = jobCommandFingerprint(cmd)
 	r.StdinSHA256 = jobStdinFingerprint(cmd)

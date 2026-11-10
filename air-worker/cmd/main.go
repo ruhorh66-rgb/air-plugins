@@ -75,7 +75,7 @@ func usage() {
         GPT-safe вход к утверждённой OpenAI/Codex лестнице. Dispatch требует объявленную
         активную сессию и durable receipt; vendor-limit использует только зарегистрированные fallback.
 
-  air-worker review source -product <корень> -node <N-ID> -task-file <файл> -executor codex
+  air-worker review source -product <корень> -node <N-ID> -source-head <SHA> -task-file <файл> -executor codex
         -principal <p> -session-key <k> [-class default|complex] [-json]
         Native independent Anthropic source/code-security reviewer, Git SHA + task SHA + citations.
         Does not use Codex executor dispatch or legacy PLAN step as release judge.
