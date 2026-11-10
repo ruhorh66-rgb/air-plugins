@@ -145,8 +145,9 @@ func sameAdapterProduct(root, receiptProduct string) bool {
 }
 
 type adapterReceiptItem struct {
-	path string
-	r    *jobReceipt
+	path        string
+	r           *jobReceipt
+	verifiedLive bool
 }
 
 func receiptIdentityMatches(r *jobReceipt, principal, sessionKey string) bool {
@@ -173,7 +174,7 @@ func readAdapterReceipts(root, currentStep, principal, sessionKey string) ([]ada
 		if currentStep != "" && r.Step != currentStep && !crossStepReviewer {
 			continue
 		}
-		items = append(items, adapterReceiptItem{path: path, r: r})
+		items = append(items, adapterReceiptItem{path: path, r: r, verifiedLive: verifiedLive})
 		if verifiedLive {
 			workers = append(workers, adapterWorker{
 				JobID: r.JobID, PID: r.PID, Step: r.Step, Operation: r.Operation,
@@ -204,7 +205,9 @@ func readAdapterReceipts(root, currentStep, principal, sessionKey string) ([]ada
 	for _, item := range selected {
 		r := item.r
 		status, outputPath := r.Status, r.OutputPath
-		if status == jobStatusDone || status == jobStatusFailed {
+		if status == jobStatusRunning && r.ProcessStarted && !item.verifiedLive {
+			status, outputPath = "EXECUTION_UNKNOWN", ""
+		} else if status == jobStatusDone || status == jobStatusFailed {
 			scope := newScope(root, sessionIdentity{Principal: r.Principal, SessionKey: r.Session})
 			snapshot, err := inspectOwnedJob(scope, r.Step, r.Operation)
 			if err != nil || !snapshot.Terminal || snapshot.Status != status || snapshot.JobID != r.JobID ||

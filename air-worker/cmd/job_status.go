@@ -100,6 +100,11 @@ func inspectOwnedJob(scope sessionScope, step, operation string) (jobStatusSnaps
 	s.ExitCode, s.RecoveryRef, s.DeadlineUTC = r.ExitCode, r.RecoveryRef, r.DeadlineUTC
 	s.Terminal = r.Status == jobStatusDone || r.Status == jobStatusFailed
 	if !s.Terminal {
+		if r.ProcessStarted && !adapterProcessMatches(r.PID, r.StartedAt) {
+			s.Status = "EXECUTION_UNKNOWN"
+			s.Reason = "EXECUTION_UNKNOWN: started process identity cannot be verified; job remains nonterminal, do not redispatch"
+			return s, nil
+		}
 		s.Reason = "RUNNING is not terminal; read this identity again later, do not redispatch"
 		return s, nil
 	}
