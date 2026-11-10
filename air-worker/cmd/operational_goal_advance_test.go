@@ -2,13 +2,92 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 )
+
+func TestOperationalGoalAdvanceRecordedN124Cancellation(t *testing.T) {
+	const oldHead = "8c96ffd01a9b036f39b85141876804b258b1c842"
+	const newHead = "eccce10cc3e665755afc2995a0832fd58866e160"
+	const oldDigest = "811a37794842d8ed575f478d0a84665579daee5f5afe94e5e4ad6e9e7627ab9a"
+	const newDigest = "6bbe0fdb1c21fb5449f5b5f03a7d9b286461954e8fac2a1e449b7010cc38a22c"
+	const id = "N-139_n136-native-operational-goal-selector-for-real-a"
+	source, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := filepath.Join(t.TempDir(), "repo")
+	root := filepath.Join(repo, "air-worker")
+	if out, err := exec.Command("git", "clone", "--shared", "--no-checkout", source, repo).CombinedOutput(); err != nil {
+		t.Fatalf("clone: %s: %v", out, err)
+	}
+	if out, err := exec.Command("git", "-C", repo, "-c", "core.autocrlf=false", "checkout", "--detach", newHead).CombinedOutput(); err != nil {
+		t.Fatalf("checkout: %s: %v", out, err)
+	}
+	historical, err := exec.Command("git", "-C", root, "show", oldHead+":air-worker/plan/release-slices.json").Output()
+	if err != nil || fmt.Sprintf("%x", sha256.Sum256(bytes.ReplaceAll(historical, []byte("\n"), []byte("\r\n")))) != oldDigest {
+		t.Fatalf("historical release digest mismatch: %v", err)
+	}
+	next, err := operationalGoalInputs(root, id, newHead)
+	if err != nil || next.ReleaseSHA256 != newDigest {
+		t.Fatalf("current goal or digest mismatch: %+v %v", next, err)
+	}
+	prior := next
+	prior.SourceHead, prior.ReleaseSHA256 = oldHead, oldDigest
+	if got, err := validateOperationalGoalAdvance(root, prior, id, oldHead, newHead); err != nil || got != next {
+		t.Fatalf("recorded cancellation rejected: %+v %v", got, err)
+	}
+	for _, tc := range []struct {
+		name, from, to string
+		prior          operationalGoal
+	}{
+		{"wrong old digest", oldHead, newHead, func() operationalGoal { p := prior; p.ReleaseSHA256 = strings.Repeat("a", 64); return p }()},
+		{"changed criteria", oldHead, newHead, func() operationalGoal { p := prior; p.DoneWhen = "changed"; return p }()},
+		{"unrelated source", strings.Repeat("f", 40), newHead, func() operationalGoal { p := prior; p.SourceHead = strings.Repeat("f", 40); return p }()},
+		{"stale head", oldHead, oldHead, prior},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := validateOperationalGoalAdvance(root, tc.prior, id, tc.from, tc.to); err == nil {
+				t.Fatal("unverified transition accepted")
+			}
+		})
+	}
+	for _, tc := range []struct{ name, path, before, after string }{
+		{"wrong new digest", "plan/release-slices.json", "0.11.9", "0.11.8"},
+		{"altered receipt", n124ReceiptPath, "CANCELLED_BY_LPR", "NOT_CANCELLED"},
+		{"altered node", n124NodePath, `status: "closed"`, `status: "open"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(root, filepath.FromSlash(tc.path))
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() {
+				if err := os.WriteFile(path, raw, 0600); err != nil {
+					t.Error(err)
+				}
+			})
+			replaceN124File(t, root, tc.path, tc.before, tc.after)
+			if _, err := validateOperationalGoalAdvance(root, prior, id, oldHead, newHead); err == nil {
+				t.Fatal("altered evidence accepted")
+			}
+		})
+	}
+	t.Run("absent receipt", func(t *testing.T) {
+		removeN124File(t, root, n124ReceiptPath)
+		if _, err := validateOperationalGoalAdvance(root, prior, id, oldHead, newHead); err == nil {
+			t.Fatal("missing evidence accepted")
+		}
+	})
+}
 
 func operationalAdvanceRealFixture(t *testing.T) (string, operationalGoal, string, string, string) {
 	t.Helper()

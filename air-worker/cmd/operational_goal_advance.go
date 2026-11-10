@@ -30,8 +30,14 @@ func validateOperationalGoalAdvance(root string, prior operationalGoal, nodeID, 
 	if err != nil {
 		return empty, err
 	}
+	// This recorded cancellation is the only authorized release digest transition.
+	cancellation := nodeID == "N-139_n136-native-operational-goal-selector-for-real-a" &&
+		fromHead == "8c96ffd01a9b036f39b85141876804b258b1c842" &&
+		prior.ReleaseSHA256 == "811a37794842d8ed575f478d0a84665579daee5f5afe94e5e4ad6e9e7627ab9a" &&
+		next.ReleaseSHA256 == "6bbe0fdb1c21fb5449f5b5f03a7d9b286461954e8fac2a1e449b7010cc38a22c" &&
+		validN124Cancellation(root)
 	if prior.Owner != next.Owner || prior.Trigger != next.Trigger ||
-		prior.DoneWhen != next.DoneWhen || prior.ReleaseSHA256 != next.ReleaseSHA256 {
+		prior.DoneWhen != next.DoneWhen || (prior.ReleaseSHA256 != next.ReleaseSHA256 && !cancellation) {
 		return empty, errors.New("prior goal owner/criteria/release digest differs from current N-node")
 	}
 	// Require forward history from the exact old source; no force pushes,
