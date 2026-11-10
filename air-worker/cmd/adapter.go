@@ -207,6 +207,9 @@ func readAdapterReceipts(root, currentStep, principal, sessionKey string) ([]ada
 		status, outputPath := r.Status, r.OutputPath
 		if status == jobStatusRunning && r.ProcessStarted && !item.verifiedLive {
 			status, outputPath = "EXECUTION_UNKNOWN", ""
+		} else if status == jobStatusRunning && !r.ProcessStarted && runtime.GOOS == "windows" &&
+			!lockHeld(scopedLockName(jobLockKind(r.Step, r.Operation), newScope(root, sessionIdentity{Principal: r.Principal, SessionKey: r.Session}))) {
+			status, outputPath = "EXECUTION_UNKNOWN", ""
 		} else if status == jobStatusDone || status == jobStatusFailed {
 			scope := newScope(root, sessionIdentity{Principal: r.Principal, SessionKey: r.Session})
 			snapshot, err := inspectOwnedJob(scope, r.Step, r.Operation)

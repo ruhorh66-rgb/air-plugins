@@ -87,6 +87,10 @@ func TestJobStatusOwnerExit(t *testing.T) {
 	if err != nil || live.JobID != receipt.JobID || live.Status != jobStatusRunning || live.Terminal {
 		t.Fatalf("live owner status: %+v, %v", live, err)
 	}
+	adapterLive, _, _, _, _ := readAdapterReceipts(root, step, "gpt", "owner-exit")
+	if len(adapterLive) != 1 || adapterLive[0].JobID != receipt.JobID || adapterLive[0].Status != jobStatusRunning {
+		t.Fatalf("live adapter receipts: %+v", adapterLive)
+	}
 	if err := os.WriteFile(filepath.Join(root, "release"), []byte("release"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -101,6 +105,10 @@ func TestJobStatusOwnerExit(t *testing.T) {
 	unknown, err := inspectOwnedJob(scope, step, operation)
 	if err != nil || unknown.JobID != receipt.JobID || unknown.Status != "EXECUTION_UNKNOWN" || unknown.Terminal || unknown.ExitCode != nil || unknown.OutputSHA256 != "" {
 		t.Fatalf("exited owner status: %+v, %v", unknown, err)
+	}
+	adapterUnknown, workers, detailPath, _, hasLiveWorker := readAdapterReceipts(root, step, "gpt", "owner-exit")
+	if len(adapterUnknown) != 1 || adapterUnknown[0].JobID != receipt.JobID || adapterUnknown[0].Status != "EXECUTION_UNKNOWN" || adapterUnknown[0].OutputPath != "" || detailPath == outputPath || len(workers) != 0 || hasLiveWorker {
+		t.Fatalf("exited owner adapter: receipts=%+v workers=%+v detail=%q live=%v", adapterUnknown, workers, detailPath, hasLiveWorker)
 	}
 	if _, duplicateLock, err := startJobReceipt(scope, step, operation, receiptPath, outputPath); err == nil {
 		if duplicateLock != nil {
