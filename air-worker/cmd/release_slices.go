@@ -342,7 +342,11 @@ func validN124Cancellation(root string) bool {
 		return os.ReadFile(path)
 	}
 	raw, err := read(receipt)
-	if err != nil || fmt.Sprintf("%x", sha256.Sum256(bytes.ReplaceAll(raw, []byte("\r\n"), []byte("\n")))) != "5b554878f5a044e8b3d13f0081cb931fc2d3d2b4f1f05ba70ecbbcd8735bb7bb" {
+	if err != nil {
+		return false
+	}
+	hash := fmt.Sprintf("%x", sha256.Sum256(raw))
+	if hash != "5b554878f5a044e8b3d13f0081cb931fc2d3d2b4f1f05ba70ecbbcd8735bb7bb" && hash != "95a69b75c614eaaaa9341f1f87d9a201c3a5a8a184b2e10f435840c84d734c72" {
 		return false
 	}
 	raw, err = read("plan/" + nodeID + ".md")

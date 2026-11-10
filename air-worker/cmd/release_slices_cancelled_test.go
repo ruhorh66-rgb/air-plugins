@@ -21,6 +21,12 @@ func TestReleaseSlicesN124Cancellation(t *testing.T) {
 		change func(string)
 	}{
 		{"current plan", true, nil},
+		{"exact LF receipt", true, func(root string) { setN124ReceiptLineEndings(t, root, "\n") }},
+		{"exact CRLF receipt", true, func(root string) { setN124ReceiptLineEndings(t, root, "\r\n") }},
+		{"mixed line endings receipt", false, func(root string) {
+			setN124ReceiptLineEndings(t, root, "\n")
+			replaceN124File(t, root, n124ReceiptPath, "\n", "\r\n")
+		}},
 		{"historical complete train", true, func(root string) {
 			editN124Releases(t, root, func(d *releaseSlicesDoc) { restoreN124(t, d) })
 			removeN124File(t, root, n124ReceiptPath)
@@ -84,6 +90,19 @@ func TestReleaseSlicesN124Cancellation(t *testing.T) {
 				t.Fatalf("found=%v problems=%+v; want valid=%v", state.Found, state.Problems, tc.valid)
 			}
 		})
+	}
+}
+
+func setN124ReceiptLineEndings(t *testing.T, root, ending string) {
+	t.Helper()
+	path := filepath.Join(root, filepath.FromSlash(n124ReceiptPath))
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lf := strings.ReplaceAll(string(raw), "\r\n", "\n")
+	if err := os.WriteFile(path, []byte(strings.ReplaceAll(lf, "\n", ending)), 0600); err != nil {
+		t.Fatal(err)
 	}
 }
 
