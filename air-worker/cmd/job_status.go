@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"unicode/utf8"
 )
@@ -100,6 +101,11 @@ func inspectOwnedJob(scope sessionScope, step, operation string) (jobStatusSnaps
 	s.ExitCode, s.RecoveryRef, s.DeadlineUTC = r.ExitCode, r.RecoveryRef, r.DeadlineUTC
 	s.Terminal = r.Status == jobStatusDone || r.Status == jobStatusFailed
 	if !s.Terminal {
+		if !r.ProcessStarted && runtime.GOOS == "windows" && !lockHeld(scopedLockName(jobLockKind(step, operation), scope)) {
+			s.Status = "EXECUTION_UNKNOWN"
+			s.Reason = "EXECUTION_UNKNOWN: pre-start job lock is absent; job remains nonterminal, do not redispatch"
+			return s, nil
+		}
 		if r.ProcessStarted && !adapterProcessMatches(r.PID, r.StartedAt) {
 			s.Status = "EXECUTION_UNKNOWN"
 			s.Reason = "EXECUTION_UNKNOWN: started process identity cannot be verified; job remains nonterminal, do not redispatch"
