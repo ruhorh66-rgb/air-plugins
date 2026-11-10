@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -755,6 +756,85 @@ func TestN139ManagedCleanFirstDispatch(t *testing.T) {
 			return semanticRun{}
 		}, owner); rc != 2 || models != 1 || factuals != 0 || reviews != 0 {
 		t.Fatalf("clean dispatch: rc=%d models=%d factuals=%d reviews=%d", rc, models, factuals, reviews)
+	}
+}
+
+func TestN139ManagedTaskChangedBeforeDispatch(t *testing.T) {
+	for _, changed := range []string{"", "N139.json", "N139_ACTIVE_BINDING.json"} {
+		name := changed
+		if name == "" {
+			name = "unchanged"
+		}
+		t.Run(name, func(t *testing.T) {
+			c, goal, task := n139BoundHandoffFixture(t)
+			dir := filepath.Join(c.Root, "docs", "tasks")
+			descriptor, err := json.Marshal(map[string]string{"node_id": n139ID, "task_path": "docs/tasks/N139.json", "task_sha256": sha256Hex([]byte(task))})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(c.Root, "plan", n139ID+".md"), []byte("node\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "N139_ACTIVE_BINDING.json"), descriptor, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			n124Git(t, c.Root, "add", ".")
+			n124Git(t, c.Root, "commit", "-m", "bind descriptor")
+			goal.SourceHead = n124Git(t, c.Root, "rev-parse", "HEAD")
+			owner := n139TestOwner(t, c.Root)
+			oldWait := n139CoordinatorWait
+			n139CoordinatorWait = func(*loopCtx, workStep) error { return errors.New("coordinator pending") }
+			t.Cleanup(func() { n139CoordinatorWait = oldWait })
+			verifies, models, reviews := 0, 0, 0
+			verify := func(root string, goal operationalGoal) error {
+				verifies++
+				if verifies == 2 {
+					selected, err := selectN139CodingTask(root, goal)
+					if err != nil || selected != task {
+						t.Fatalf("initial selection did not survive to recheck: %v", err)
+					}
+					if changed != "" {
+						if err := os.WriteFile(filepath.Join(dir, changed), []byte("{}"), 0o644); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}
+				return nil
+			}
+			reader, writer, err := os.Pipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			stdout := os.Stdout
+			os.Stdout = writer
+			t.Cleanup(func() { os.Stdout = stdout; writer.Close(); reader.Close() })
+			rc := runN139Step(c, goal, verify, func(step workStep, _, _ string, _ runnerSpec) stepResult {
+				models++
+				if step.CodingTask != task {
+					t.Error("model received wrong task")
+				}
+				return stepResult{Subtype: "coordinator_handoff"}
+			}, func(workStep, runnerSpec, semanticFactualPacket, string) semanticRun {
+				reviews++
+				return semanticRun{}
+			}, owner)
+			os.Stdout = stdout
+			writer.Close()
+			output, err := io.ReadAll(reader)
+			reader.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantModels := 0
+			if changed == "" {
+				wantModels = 1
+			} else if !strings.Contains(string(output), "NOT_PROVEN: N139_CODING_TASK_CHANGED:") {
+				t.Errorf("missing task-change rejection: %s", output)
+			}
+			if rc != 2 || verifies != 2 || models != wantModels || reviews != 0 {
+				t.Fatalf("rc=%d verifies=%d models=%d reviews=%d output=%s", rc, verifies, models, reviews, output)
+			}
+		})
 	}
 }
 
