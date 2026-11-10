@@ -457,14 +457,26 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 				r.PID = cmd.Process.Pid
 				r.ProcessStarted = true
 				writeErr := writeJobReceiptFunc(receiptPath, r)
-				if tree != nil && stop() == nil {
-					_ = cmd.Wait()
-					if writeErr == nil && cmd.ProcessState != nil {
-						exit := cmd.ProcessState.ExitCode()
-						_ = finishJobReceiptWithExit(receiptPath, jobStatusFailed, &exit)
-					}
+				if tree == nil {
+					return nil, errors.Join(startErr, writeErr, errors.New("owned process cleanup unavailable"))
+				}
+				cleanupErr := stop()
+				if cleanupErr != nil {
+					return nil, errors.Join(startErr, writeErr, cleanupErr)
+				}
+				waitErr := cmd.Wait()
+				if cmd.ProcessState == nil {
+					return nil, errors.Join(startErr, writeErr, waitErr, errors.New("owned process exit not verified"))
+				}
+				if writeErr != nil {
+					return nil, errors.Join(startErr, writeErr, waitErr)
+				}
+				exit := cmd.ProcessState.ExitCode()
+				sealErr := finishJobReceiptWithExit(receiptPath, jobStatusFailed, &exit)
+				if sealErr == nil {
 					lock.release()
 				}
+				return nil, errors.Join(startErr, waitErr, sealErr)
 			}
 			return nil, startErr
 		}
