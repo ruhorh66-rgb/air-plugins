@@ -8,6 +8,7 @@
 - Source worktree: D:/Devbox/AirWorker/worktrees/airworker-01111-rc2-20261031
 - Branch: dev/airworker-native-reviewer-readonly-20261110
 - Исходный HEAD до изменений: 0befb40e246b091916c7f321db2b3c56b36c3ade
+- Проверенный source commit с патчем: ab02899babdf4d1b7424f1c04daf8239a966e679 (последующие receipt-only коммиты могут сдвинуть HEAD).
 - Актуальный SHA опубликованного source checkpoint сверять по Git HEAD/remote; не использовать base SHA вместо него.
 - N-126: plan/N-126_p1-enforce-native-claude-reviewer-read-only-in-a.md, создан только через air-worker plan node new.
 - Патч: air-worker/skills/run-worker-task/scripts/claude_judge_run.py

@@ -1,6 +1,6 @@
 {
   "schema": "airworker.native-anthropic-reviewer-readonly-source/v1",
-  "status": "SOURCE_ONLY_N126_OPEN__TESTS_8_PASS__INSTALLED_UNCHANGED",
+  "status": "SOURCE_ONLY_COMMITTED_AND_GITHUB_VERIFIED__N126_OPEN__INDEPENDENT_POSTPATCH_QA_PENDING",
   "timestamp_sgt": "2026-11-10T18:53:35+08:00",
   "owner": "AirWorker curator Voody source and release; Dev HR18 integration; independent Codex read-only reviewer; LPR installed/business gate",
   "trigger": "LPR Dev HR18: Codex review of AirWorker helper read-only blocker and close the defect",
@@ -43,7 +43,7 @@
   "rollback": "git revert source branch, installed AirWorker0.11.11-rc.2 unchanged; later installed release must include rollback to exact current version with no auth changes",
   "pii_or_tokens_in_receipt": false,
   "final_effect": "SOURCE_ONLY_OPEN",
-  "source_commit_sha": "PENDING_COMMIT",
+  "source_commit_sha": "ab02899babdf4d1b7424f1c04daf8239a966e679",
   "native_learning_event": "LR-20261110T233634Z-9184f30c",
   "next_steps": "Independent postpatch Codex review; isolated Claude 2.1.319 deny-write and MCP negative tests; no live Anthropic until approved installed read-only runner; LPR exact yes before install.",
   "tree_inventory": {
@@ -65,5 +65,9 @@
   "final_handoff_path": "docs/receipts/AIRWORKER_N126_SOURCE_HANDOFF_20261111.md",
   "owner_native_node_status": "OPEN_NO_PRETEND_PASS",
   "installed_not_changed": true,
-  "recorded_at_sgt_latest": "2026-11-11T07:40:06+08:00"
+  "recorded_at_sgt_latest": "2026-11-11T07:40:06+08:00",
+  "source_commit_github": "https://github.com/ruhorh66-rgb/air-plugins/commit/ab02899babdf4d1b7424f1c04daf8239a966e679",
+  "source_commit_remote_verified": true,
+  "source_git_worktree_clean_at_first_checkpoint": true,
+  "verified_at_sgt": "2026-11-11T07:41:50+08:00"
 }
