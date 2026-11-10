@@ -110,6 +110,29 @@ def _environment_with_token() -> dict:
     return env
 
 
+# The reviewer is a reading-only judge. A prompt asking it not to write is
+# not a permission boundary: constrain Claude's available tools in argv.
+# Strict MCP exclusion is independent of the built-in tool allowlist.
+# Preserve the original two-argument helper contract and token transport.
+REVIEWER_READ_TOOLS = "Read,Grep,Glob"
+REVIEWER_DENY_TOOLS = "Write,Edit,Bash,PowerShell,Task,mcp__*"
+
+
+def _readonly_claude_argv(executable: str, model: str) -> list[str]:
+    return [
+        executable, "-p",
+        "--model", model,
+        "--output-format", "json",
+        "--restricted",
+        "--tools", REVIEWER_READ_TOOLS,
+        "--strict-mcp-config",
+        "--disallowedTools", REVIEWER_DENY_TOOLS,
+        "--permission-mode", "plan",
+        "--permission-prompts", "none",
+        "--no-session-persistence",
+    ]
+
+
 def main() -> int:
     if len(sys.argv) != 3:
         print("использование: claude_judge_run.py <model> <prompt_file>", file=sys.stderr)
@@ -133,7 +156,7 @@ def main() -> int:
     # получает обрывок, не сообщая об этом: норма AUTO-080, требование 3, куплена
     # там дважды, а 12.09.2026 — в третий раз на отцепленных ветвях.
     proc = subprocess.run(
-        [claude_exe, "-p", "--model", model, "--output-format", "json"],
+        _readonly_claude_argv(claude_exe, model),
         input=prompt, env=env,
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
     sys.stdout.write(proc.stdout)

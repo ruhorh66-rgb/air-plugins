@@ -1,5 +1,8 @@
 # PLAN — air-worker: механизм в бинарнике, скил — описание
 
+**11.11.2026 SGT · N-126 · handoff Dev HR18/Voody:** самостоятельная source-only ветка dev/airworker-native-reviewer-readonly-20261110, новый helper с фиксированными read-only argv, синтетические тесты 8/8 PASS, AirWorker LEARN LR-20261110T233634Z-9184f30c. Каноническая квитанция: docs/receipts/AIRWORKER_REVIEWER_READONLY_20261110.json; хендофф: docs/receipts/AIRWORKER_N126_SOURCE_HANDOFF_20261111.md. Установленный AirWorker0.11.11-rc.2 не изменялся; postpatch Codex, реальный Claude deny-write и независимый Anthropic N057/N058 OPEN. Из 423 зарегистрированных AW worktree 374 относятся к coding workspaces; чужие деревья не удалялись. До установки — отдельное точное да ЛПР. Не закрывать N126 техническим PASS.
+
+
 **Текущий handoff:** [AirWorker 0.11.9 — release continuation](docs/receipts/AIRWORKER_0_11_9_RELEASE_CONTINUATION_HANDOFF_20261015.md) (2026-10-15; WIP checkpoint, release gates remain open).
 
 Постановка: `AIR_OS/04_AI_OPERATIONS/CHANGE_PACKAGES/AIR-CHG-2026-000092_AIR_WORKER_BINARY_ARCHITECTURE_OBJECTIVE.md`
@@ -802,3 +805,4 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [open] N-110_p0-auto-capture-persist-every-real-airworker-ses · owner:gpt-airworker-retro-curriculum-20261011 · [[N-123_p0-resume-durable-qa-judge-jobs-after-chat-inter]] · P0 resume durable QA judge jobs after chat interruption without duplicates
 - [open] N-110_p0-auto-capture-persist-every-real-airworker-ses · owner:gpt-airworker-retro-curriculum-20261011 · [[N-124_p1-detect-cross-branch-node-id-collision-and-sta]] · P1 detect cross-branch node ID collision and stale authority before merge
 - [open] N-093_p0-self-use-verifiable-outcome-for-newly-learned · owner:gpt-airworker-retro-curriculum-20261011 · [[N-125_p0-causal-learned-use-effect-and-recurrence-prev]] · P0 causal learned-use effect and recurrence prevention benchmark
+- [open] N-122_p0-learned-safety-preflight-prevents-recurrent-p · owner:AirWorker curator Voody source, Dev HR18 integration, independent Codex QA, LPR install/business gate · [[N-126_p1-enforce-native-claude-reviewer-read-only-in-a]] · P1 enforce native Claude reviewer read-only in AirWorker helper for N-057/N-058
