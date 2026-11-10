@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf16"
 )
@@ -421,11 +422,55 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 	}
 	cmd.Stdout = outFile
 	cmd.Stderr = outFile
-	if err := cmd.Start(); err != nil {
+	owned := runtime.GOOS == "windows" && meta.Role == "factual-judge"
+	var tree *routerOwnedTree
+	var stopMu sync.Mutex
+	var stopErr error
+	stop := func() error {
+		stopMu.Lock()
+		defer stopMu.Unlock()
+		err := stopRouterOwnedTree(tree)
+		stopErr = errors.Join(stopErr, err)
+		return err
+	}
+	var startErr error
+	if owned {
+		ready := make(chan struct{})
+		if cmd.Cancel != nil {
+			cmd.Cancel = func() error {
+				<-ready
+				return stop()
+			}
+		}
+		tree, startErr = startRouterOwnedTree(cmd)
+		close(ready)
+	} else {
+		startErr = cmd.Start()
+	}
+	if startErr != nil {
 		outFile.Close()
+		if owned {
+			if cmd.Process == nil {
+				_ = finishJobReceipt(receiptPath, jobStatusFailed)
+				lock.release()
+			} else {
+				r.PID = cmd.Process.Pid
+				r.ProcessStarted = true
+				writeErr := writeJobReceiptFunc(receiptPath, r)
+				if tree != nil && stop() == nil {
+					_ = cmd.Wait()
+					if writeErr == nil && cmd.ProcessState != nil {
+						exit := cmd.ProcessState.ExitCode()
+						_ = finishJobReceiptWithExit(receiptPath, jobStatusFailed, &exit)
+					}
+					lock.release()
+				}
+			}
+			return nil, startErr
+		}
 		_ = finishJobReceipt(receiptPath, jobStatusFailed)
 		lock.release()
-		return nil, err
+		return nil, startErr
 	}
 	// PID известен только после Start: receipt уже RUNNING на диске (см. startJobReceipt),
 	// здесь он лишь дополняется настоящим PID вместо нуля placeholder.
@@ -433,6 +478,14 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 	r.ProcessStarted = true
 	if err := writeJobReceiptFunc(receiptPath, r); err != nil {
 		registrationErr := fmt.Errorf("не удалось зарегистрировать PID %d: %w", r.PID, err)
+		if owned {
+			cleanupErr := stop()
+			if cleanupErr == nil {
+				_ = cmd.Wait()
+				_ = outFile.Close()
+			}
+			return nil, errors.Join(registrationErr, cleanupErr)
+		}
 		// Запуск без записи настоящего PID не считается успешным: немедленно убиваем
 		// дочерний процесс и дожидаемся его завершения до освобождения job-lock.
 		_ = cmd.Process.Kill()
@@ -448,6 +501,17 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 	resultCh := make(chan jobCmdResult, 1)
 	go func() {
 		waitErr := cmd.Wait()
+		if owned {
+			_ = stop()
+			stopMu.Lock()
+			cleanupErr := stopErr
+			stopMu.Unlock()
+			if cleanupErr != nil || cmd.ProcessState == nil {
+				_ = outFile.Close()
+				resultCh <- jobCmdResult{err: errors.Join(waitErr, cleanupErr, errors.New("owned process cleanup or exit not verified"))}
+				return
+			}
+		}
 		outFile.Close()
 		status := jobStatusDone
 		actualExit := 0
@@ -457,6 +521,12 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 			var processError *exec.ExitError
 			if errors.As(waitErr, &processError) {
 				actualExit = processError.ExitCode()
+			}
+		}
+		if owned {
+			actualExit = cmd.ProcessState.ExitCode()
+			if actualExit != 0 {
+				status = jobStatusFailed
 			}
 		}
 		finishErr := finishJobReceiptWithExit(receiptPath, status, &actualExit)

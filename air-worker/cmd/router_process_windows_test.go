@@ -131,6 +131,25 @@ func TestRouterOwnedTreeStartStop(t *testing.T) {
 	_ = cmd.Wait()
 }
 
+func TestRouterOwnedTreeReleaseAfterWait(t *testing.T) {
+	cmd := exec.Command("cmd.exe", "/c", "exit", "0")
+	tree, err := startRouterOwnedTree(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stopRouterOwnedTree(tree); _ = cmd.Process.Kill() })
+	routerTestWait(t, cmd)
+	if err := releaseRouterOwnedTree(tree); err != nil {
+		t.Fatal(err)
+	}
+	if tree.job != 0 {
+		t.Fatal("release left the job handle open")
+	}
+	if err := releaseRouterOwnedTree(tree); err != nil {
+		t.Fatalf("repeated release: %v", err)
+	}
+}
+
 func TestRouterOwnedTreeInvalidExecutable(t *testing.T) {
 	cmd := exec.Command(filepath.Join(t.TempDir(), "missing.exe"))
 	tree, err := startRouterOwnedTree(cmd)

@@ -27,6 +27,9 @@ var (
 	routerResumeThread    = routerKernel.NewProc("ResumeThread")
 	routerGetProcessID    = routerKernel.NewProc("GetProcessId")
 	routerThreadProcessID = routerKernel.NewProc("GetProcessIdOfThread")
+	routerAssignJobCall   = func(job, process uintptr) (uintptr, uintptr, error) {
+		return routerAssignJob.Call(job, process)
+	}
 )
 
 const (
@@ -71,6 +74,7 @@ type routerOwnedTree struct {
 	job      syscall.Handle
 	process  *os.Process
 	assigned bool
+	stopped  bool
 }
 
 func routerCallError(name string, err error) error {
@@ -106,22 +110,16 @@ func startRouterOwnedTree(cmd *exec.Cmd) (*routerOwnedTree, error) {
 		return nil, err
 	}
 	tree.process = cmd.Process
-	// The suspended process cannot exit and have its PID reused before we open it.
+	// cmd.Process retains a handle, preventing PID reuse until the caller waits.
 	process, err := syscall.OpenProcess(routerProcessTerminate|routerProcessSetQuota|routerProcessQueryLimited|routerSynchronize, false, uint32(cmd.Process.Pid))
 	if err != nil {
 		cleanupErr := stopRouterOwnedTree(tree)
-		if cleanupErr != nil {
-			return tree, errors.Join(err, cleanupErr)
-		}
-		return nil, err
+		return tree, errors.Join(err, cleanupErr)
 	}
 	defer syscall.CloseHandle(process)
 	fail := func(cause error) (*routerOwnedTree, error) {
 		cleanupErr := stopRouterOwnedTree(tree)
-		if cleanupErr != nil {
-			return tree, errors.Join(cause, cleanupErr)
-		}
-		return nil, cause
+		return tree, errors.Join(cause, cleanupErr)
 	}
 	pid, _, err := routerGetProcessID.Call(uintptr(process))
 	if pid == 0 || uint32(pid) != uint32(cmd.Process.Pid) {
@@ -162,7 +160,7 @@ func startRouterOwnedTree(cmd *exec.Cmd) (*routerOwnedTree, error) {
 	if owner != pid {
 		return fail(fmt.Errorf("thread owner changed"))
 	}
-	ok, _, err = routerAssignJob.Call(job, uintptr(process))
+	ok, _, err = routerAssignJobCall(job, uintptr(process))
 	if ok == 0 {
 		return fail(routerCallError("AssignProcessToJobObject", err))
 	}
@@ -170,20 +168,10 @@ func startRouterOwnedTree(cmd *exec.Cmd) (*routerOwnedTree, error) {
 	previous, _, err := routerResumeThread.Call(thread)
 	if previous != 1 {
 		// A successful resume with an unexpected count may have run code: kill the whole job.
-		terminateErr := stopRouterOwnedTree(tree)
-		if terminateErr == nil {
-			_, terminateErr = cmd.Process.Wait()
-		}
 		if previous == 0xffffffff {
-			if terminateErr != nil {
-				return tree, errors.Join(routerCallError("ResumeThread", err), terminateErr)
-			}
-			return nil, routerCallError("ResumeThread", err)
+			return fail(routerCallError("ResumeThread", err))
 		}
-		if terminateErr != nil {
-			return tree, errors.Join(fmt.Errorf("unexpected thread suspend count %d", previous), terminateErr)
-		}
-		return nil, fmt.Errorf("unexpected thread suspend count %d", previous)
+		return fail(fmt.Errorf("unexpected thread suspend count %d", previous))
 	}
 	return tree, nil
 }
@@ -195,7 +183,10 @@ func stopRouterOwnedTree(tree *routerOwnedTree) error {
 	tree.mu.Lock()
 	defer tree.mu.Unlock()
 	if tree.job == 0 {
-		return nil
+		if tree.stopped {
+			return nil
+		}
+		return errors.New("job termination not verified")
 	}
 	if !tree.assigned && tree.process != nil {
 		process, err := syscall.OpenProcess(routerProcessTerminate|routerSynchronize, false, uint32(tree.process.Pid))
@@ -207,9 +198,6 @@ func stopRouterOwnedTree(tree *routerOwnedTree) error {
 		syscall.CloseHandle(process)
 		if waitErr != nil || status != syscall.WAIT_OBJECT_0 {
 			return errors.Join(killErr, waitErr, fmt.Errorf("process termination not verified: wait status %d", status))
-		}
-		if _, err := tree.process.Wait(); err != nil {
-			return err
 		}
 		tree.process = nil
 	}
@@ -229,6 +217,7 @@ func stopRouterOwnedTree(tree *routerOwnedTree) error {
 				return err
 			}
 			tree.job = 0
+			tree.stopped = true
 			return nil
 		}
 		if time.Now().After(deadline) {
@@ -236,4 +225,9 @@ func stopRouterOwnedTree(tree *routerOwnedTree) error {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+}
+
+// A successful stop or release confirms the tree is gone; cmd.Wait remains the caller's responsibility.
+func releaseRouterOwnedTree(tree *routerOwnedTree) error {
+	return stopRouterOwnedTree(tree)
 }

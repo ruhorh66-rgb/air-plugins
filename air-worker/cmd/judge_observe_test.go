@@ -116,7 +116,7 @@ func TestN123GoJudgeTimeoutHelper(t *testing.T) {
 	_, _ = f.WriteString("started\n")
 	_ = f.Close()
 	fmt.Println("owned Go judge fixture started")
-	time.Sleep(5 * time.Second)
+	time.Sleep(time.Minute)
 }
 
 func TestN123GoJudgeTimeoutSealsOwnedProcess(t *testing.T) {
@@ -141,7 +141,7 @@ func TestN123GoJudgeTimeoutSealsOwnedProcess(t *testing.T) {
 	t.Setenv("AW_N123_TIMEOUT_HELPER", "1")
 	t.Setenv("AW_N123_STARTS", starts)
 	old := n123GoJudgeMaxDuration
-	n123GoJudgeMaxDuration = 500 * time.Millisecond
+	n123GoJudgeMaxDuration = 10 * time.Second
 	t.Cleanup(func() { n123GoJudgeMaxDuration = old })
 	args := []string{"-test.run=^TestN123GoJudgeTimeoutHelper$"}
 	cmd := newChildCommand(goExe, args...)
@@ -158,10 +158,27 @@ func TestN123GoJudgeTimeoutSealsOwnedProcess(t *testing.T) {
 		runCommandCheck(root, checkSpec{Command: goExe, Args: args}, "unit", scope, &r)
 		result <- r
 	}()
+	startDeadline := time.NewTimer(15 * time.Second)
+	defer startDeadline.Stop()
+	startPoll := time.NewTicker(20 * time.Millisecond)
+	defer startPoll.Stop()
+waitForStart:
+	for {
+		select {
+		case verdict := <-result:
+			t.Fatalf("NOT_PROVEN: owned Go judge returned before start marker: %+v", verdict)
+		case <-startDeadline.C:
+			t.Fatal("NOT_PROVEN: owned Go judge did not write start marker")
+		case <-startPoll.C:
+			if data, err := os.ReadFile(starts); err == nil && string(data) == "started\n" {
+				break waitForStart
+			}
+		}
+	}
 	var verdict judgeResult
 	select {
 	case verdict = <-result:
-	case <-time.After(2 * time.Second):
+	case <-time.After(15 * time.Second):
 		receipt, output := jobReceiptPaths(scope, "judge", operation)
 		data, _ := os.ReadFile(output)
 		t.Fatalf("NOT_PROVEN: owned Go judge did not terminate; receipt=%s output=%s log=%q", receipt, output, data)
@@ -178,7 +195,7 @@ func TestN123GoJudgeTimeoutSealsOwnedProcess(t *testing.T) {
 		t.Fatalf("NOT_PROVEN: inspect receipt: %v", err)
 	}
 	deadline, err := time.Parse(time.RFC3339Nano, view.DeadlineUTC)
-	if err != nil || deadline.Before(before) || deadline.After(before.Add(2*time.Second)) {
+	if err != nil || deadline.Before(before) || deadline.After(before.Add(15*time.Second)) {
 		t.Fatalf("invalid deadline %q: %v", view.DeadlineUTC, err)
 	}
 	if !view.Terminal || view.Status != jobStatusFailed || view.ExitCode == nil || *view.ExitCode == 0 || view.OutputSHA256 == "" || view.OutputBytes == 0 {

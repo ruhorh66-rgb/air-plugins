@@ -20,3 +20,8 @@ func stopRouterOwnedTree(tree *routerOwnedTree) error {
 	}
 	return terminateLearningProcessTree(tree.cmd)
 }
+
+// After Wait, releasing the tree cannot safely terminate remaining descendants.
+func releaseRouterOwnedTree(tree *routerOwnedTree) error {
+	return nil
+}
