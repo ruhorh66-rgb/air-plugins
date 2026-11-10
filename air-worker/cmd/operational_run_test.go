@@ -382,13 +382,27 @@ func TestN139FactualGoSourceHeadAllowsNewImmutableReceipt(t *testing.T) {
 	n124Git(t, c.Root, "add", "cmd", "PLAN.md", "plan")
 	n124Git(t, c.Root, "commit", "-m", "first source")
 	operation := func() string {
-		return n123GoJudgeOperation(c.Root, "factual-go-test", exec.Command("go", "-C", "cmd", "test", "-run", n139GoSelector, "-count=1", "."))
+		return n139FactualGoOperation(t, c, workStep{Num: n139ID})
 	}
 	step := workStep{Num: n139ID}
-	first := operation()
+	if n139GoSelector != "^(TestOperationalGoal|TestN139|TestN123|TestCriterion42Pending)" {
+		t.Fatalf("fixed selector changed: %q", n139GoSelector)
+	}
+	old := n123GoJudgeOperation(c.Root, "factual-go-test", exec.Command("go", "-C", "cmd", "test", "-run", n139GoSelector, "-count=1", "."))
+	oldPath, _ := jobReceiptPaths(c.scope(), step.Num, old)
+	if err := os.MkdirAll(filepath.Dir(oldPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(oldPath, []byte("historical receipt"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := runN139FactualGo(c, step); err != nil {
 		t.Fatal(err)
 	}
+	if data, err := os.ReadFile(oldPath); err != nil || string(data) != "historical receipt" {
+		t.Fatalf("old-argument receipt changed: %q %v", data, err)
+	}
+	first := operation()
 	snapshot, err := inspectOwnedJob(c.scope(), step.Num, first)
 	if err != nil || snapshot.Status != jobStatusDone || !snapshot.Terminal || snapshot.OutputSHA256 == "" {
 		t.Fatalf("first receipt is not sealed DONE: %+v %v", snapshot, err)
@@ -408,12 +422,12 @@ func TestN139FactualGoSourceHeadAllowsNewImmutableReceipt(t *testing.T) {
 	}
 	n124Git(t, c.Root, "add", "PLAN.md")
 	n124Git(t, c.Root, "commit", "-m", "second source")
+	if _, err := runN139FactualGo(c, step); err != nil {
+		t.Fatal(err)
+	}
 	second := operation()
 	if second == first {
 		t.Fatal("new HEAD retained the same operation")
-	}
-	if _, err := runN139FactualGo(c, step); err != nil {
-		t.Fatal(err)
 	}
 	next, err := inspectOwnedJob(c.scope(), step.Num, second)
 	if err != nil || next.Status != jobStatusDone || !next.Terminal || next.OutputSHA256 == "" || next.ReceiptPath == snapshot.ReceiptPath {
@@ -421,6 +435,48 @@ func TestN139FactualGoSourceHeadAllowsNewImmutableReceipt(t *testing.T) {
 	}
 	if after, err := os.ReadFile(snapshot.ReceiptPath); err != nil || string(after) != string(raw) {
 		t.Fatalf("new HEAD changed original receipt: %v", err)
+	}
+}
+
+// n139FactualGoOperation uses exactly the same arguments as the owned factual Go command.
+func n139FactualGoOperation(t *testing.T, c *loopCtx, step workStep) string {
+	t.Helper()
+	cmd := exec.Command("go", "-C", "cmd", "test", "-timeout=14m30s", "-run", n139GoSelector, "-count=1", ".")
+	return n123GoJudgeOperation(c.Root, "factual-go-test", cmd)
+}
+
+func TestN139FactualGoGitCeiling(t *testing.T) {
+	c := n139Fixture(t)
+	n124Git(t, c.Root, "init")
+	fixture := `package main
+import (
+ "os"
+ "os/exec"
+ "path/filepath"
+ "strings"
+ "testing"
+)
+func TestN139Fixture(t *testing.T) {
+ tmp, err := os.MkdirTemp("", "git-ceiling-")
+ if err != nil { t.Fatal(err) }
+ defer os.RemoveAll(tmp)
+ git := func(dir string, args ...string) (string, error) {
+  cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+  out, err := cmd.CombinedOutput()
+  return strings.TrimSpace(string(out)), err
+ }
+ if out, err := git(tmp, "rev-parse", "--show-toplevel"); err == nil { t.Fatalf("temporary fixture inherited parent repo: %s", out) }
+ if out, err := git(tmp, "init"); err != nil { t.Fatalf("init nested repo: %s %v", out, err) }
+ if out, err := git(tmp, "rev-parse", "--show-toplevel"); err != nil || !strings.EqualFold(filepath.Clean(out), filepath.Clean(tmp)) { t.Fatalf("nested repo: %s %v", out, err) }
+ product, err := filepath.Abs("..")
+ if err != nil { t.Fatal(err) }
+ if out, err := git(product, "rev-parse", "--show-toplevel"); err != nil || !strings.EqualFold(filepath.Clean(out), filepath.Clean(product)) { t.Fatalf("product repo: %s %v", out, err) }
+}`
+	if err := os.WriteFile(filepath.Join(c.Root, "cmd", "main_test.go"), []byte(fixture), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if fact, err := runN139FactualGo(c, workStep{Num: n139ID}); err != nil || fact.Code != 0 {
+		t.Fatalf("factual Git boundary: %+v %v", fact, err)
 	}
 }
 

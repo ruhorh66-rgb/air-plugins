@@ -641,6 +641,25 @@ func configureN139OwnedGoCommand(cmd *exec.Cmd) {
 	cmd.WaitDelay = 3 * time.Second
 }
 
+func waitN139FactualSeal(ctx context.Context, scope sessionScope, step, operation string) error {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		snapshot, err := inspectOwnedJob(scope, step, operation)
+		if err == nil && snapshot.Terminal {
+			receipt, readErr := readJobReceipt(snapshot.ReceiptPath)
+			if readErr == nil && receipt != nil && receipt.ProcessStarted && receipt.PID > 0 && snapshot.ExitCode != nil {
+				return fmt.Errorf("deadline expired; verified terminal job %s status=%s exit=%d", snapshot.JobID, snapshot.Status, *snapshot.ExitCode)
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return errors.New("deadline expired; cancellation or terminal seal not proven, inspect same job, never redispatch")
+		case <-ticker.C:
+		}
+	}
+}
+
 func runN139FactualGo(c *loopCtx, step workStep) (semanticFactualPacket, error) {
 	var factual semanticFactualPacket
 	if step.Num != "N-139_n136-native-operational-goal-selector-for-real-a" {
@@ -666,23 +685,36 @@ func runN139FactualGo(c *loopCtx, step workStep) (semanticFactualPacket, error) 
 			return factual, errors.New("Go cache/temp must remain inside the owned product root")
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	ceiling, err := filepath.EvalSymlinks(goTmp)
+	if err != nil {
+		return factual, fmt.Errorf("resolve Go temp ceiling: %w", err)
+	}
+	ceiling, err = filepath.Abs(ceiling)
+	if err != nil || strings.ContainsRune(ceiling, os.PathListSeparator) {
+		return factual, errors.New("Go temp ceiling cannot be represented in Git path list")
+	}
+	if existing := os.Getenv("GIT_CEILING_DIRECTORIES"); existing != "" {
+		ceiling += string(os.PathListSeparator) + existing
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 	// Fixed literal selector and arguments only. No plan text or model output
 	// becomes an executable command. Timeout only affects this owned child.
-	cmd := exec.CommandContext(ctx, "go", "-C", "cmd", "test", "-run", n139GoSelector, "-count=1", ".")
+	cmd := exec.CommandContext(ctx, "go", "-C", "cmd", "test", "-timeout=14m30s", "-run", n139GoSelector, "-count=1", ".")
 	configureN139OwnedGoCommand(cmd)
 	cmd.Dir = c.Root
-	cmd.Env = append(os.Environ(), "GOCACHE="+goCache, "GOTMPDIR="+goTmp, "TEMP="+goTmp, "TMP="+goTmp)
+	cmd.Env = append(os.Environ(), "GOCACHE="+goCache, "GOTMPDIR="+goTmp, "TEMP="+goTmp, "TMP="+goTmp, "GIT_CEILING_DIRECTORIES="+ceiling)
 	operation := n123GoJudgeOperation(c.Root, "factual-go-test", cmd)
 	out, err := runReceiptedWithMeta(ctx, c.scope(), step.Num, operation, cmd, jobReceiptMeta{
 		Runner: "script", Provider: "local", Model: "go-test", Effort: "none",
 		Role: "factual-judge", Sandbox: "owned-product",
 	})
+	if errors.Is(err, errJobStillRunning) || ctx.Err() != nil {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cleanupCancel()
+		return factual, waitN139FactualSeal(cleanupCtx, c.scope(), step.Num, operation)
+	}
 	if err != nil {
-		if errors.Is(err, errJobStillRunning) {
-			return factual, fmt.Errorf("factual Go remains RUNNING/timeout: recover same job, never redispatch")
-		}
 		detail := strings.TrimSpace(decodeOutput(out))
 		if len(detail) > 2048 {
 			detail = detail[:2048]
