@@ -49,13 +49,7 @@ func parseAndVerifySourceReviewStream(raw string, runErr error, root, taskSHA st
 					} `json:"input"`
 				} `json:"content"`
 			} `json:"message"`
-			ToolResult struct {
-				File struct {
-					Path    string `json:"filePath"`
-					Content string `json:"content"`
-					Start   int    `json:"startLine"`
-				} `json:"file"`
-			} `json:"tool_use_result"`
+			ToolResult json.RawMessage `json:"tool_use_result"`
 		}
 		if err := json.Unmarshal([]byte(line), &e); err != nil {
 			return "", "", errors.New("invalid source review event")
@@ -89,8 +83,21 @@ func parseAndVerifySourceReviewStream(raw string, runErr error, root, taskSHA st
 				continue
 			}
 			path, ok := calls[b.ToolUseID]
-			f := e.ToolResult.File
-			if !ok || path == "" || f.Path == "" || f.Start < 1 {
+			if !ok || path == "" {
+				continue
+			}
+			var parsed struct {
+				File struct {
+					Path    string `json:"filePath"`
+					Content string `json:"content"`
+					Start   int    `json:"startLine"`
+				} `json:"file"`
+			}
+			if json.Unmarshal(e.ToolResult, &parsed) != nil {
+				continue
+			}
+			f := parsed.File
+			if f.Path == "" || f.Start < 1 {
 				continue
 			}
 			if !filepath.IsAbs(path) {

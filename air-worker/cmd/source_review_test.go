@@ -633,6 +633,7 @@ func TestSourceReviewTraceRequiresSuccessfulReadsAndNoMCP(t *testing.T) {
 		events = append(events, enc(map[string]any{"type": "assistant", "message": map[string]any{"content": []any{map[string]any{"type": "tool_use", "id": id, "name": "Read", "input": map[string]any{"file_path": p}}}}}))
 		events = append(events, enc(map[string]any{"type": "user", "message": map[string]any{"content": []any{map[string]any{"type": "tool_result", "tool_use_id": id}}}, "tool_use_result": map[string]any{"file": map[string]any{"filePath": p, "content": string(data), "startLine": 1}}}))
 	}
+	events = append(events, enc(map[string]any{"type": "user", "message": map[string]any{"content": []any{map[string]any{"type": "tool_result", "tool_use_id": "structured"}}}, "tool_use_result": "structured output accepted"}))
 	events = append(events, enc(map[string]any{"type": "result", "session_id": "s", "structured_output": v}))
 	if _, _, err := parseAndVerifySourceReviewStream(strings.Join(events, "\n"), nil, root, sha); err != nil {
 		t.Fatal(err)
