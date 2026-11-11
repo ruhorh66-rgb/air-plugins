@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
   "version": "0.11.11-rc.5",
-  "description": "AirWorker 0.11.11-rc.5 source candidate: mandatory two native Codex code-patch subagents plus single writing leader, GPT-6.1 model ladder and independent Anthropic review; release/install pending.",
+  "description": "AirWorker 0.11.11-rc.5: mandatory two native Codex code-patch subagents plus single writing leader, GPT-6.1 model ladder and independent Anthropic review.",
   "author": {
     "name": "AIR OS"
   },
