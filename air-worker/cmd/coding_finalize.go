@@ -32,7 +32,7 @@ func finalizeRetainedCodingWorkspace(top, productRel, base string) error {
 	root := filepath.Join(top, productRel)
 	scope := newScope(root, sessionIdentity{Principal: reservation.Principal, SessionKey: reservation.SessionKey})
 	step := strings.TrimSuffix(reservation.Step, "-retry-1")
-	return finalizeCodingWorkspaces(root, scope, step, string(task))
+	return finalizeCodingWorkspacesAt(root, scope, step, string(task), base)
 }
 
 func cmdCodingFinalize(argv []string) int {
@@ -180,9 +180,13 @@ func pinCodingArchiveCommits(top, id, source, accepted string) error {
 // finalizeCodingWorkspaces applies only to newly reserved workers with a
 // verified process-tree receipt. Unknown historical attempts remain intact.
 func finalizeCodingWorkspaces(root string, scope sessionScope, step, task string) error {
+	return finalizeCodingWorkspacesAt(root, scope, step, task, "")
+}
+
+func finalizeCodingWorkspacesAt(root string, scope sessionScope, step, task, expectedBase string) error {
 	doc, physical, err := effectiveCodingEvidence(root, scope, step, task)
 	if err != nil || len(doc.Workers) != 2 {
-		return errors.New("worker evidence is not verified")
+		return errors.New("worker evidence is not verified; interrupted removal or changed evidence requires manual recovery")
 	}
 	top, err := gitCodingOutput(root, "rev-parse", "--show-toplevel")
 	if err != nil {
@@ -198,6 +202,9 @@ func finalizeCodingWorkspaces(root string, scope sessionScope, step, task string
 	}
 	id := shaCodingBytes([]byte(top + "|" + scope.key() + "|" + physical))[:18]
 	base := filepath.Join(filepath.Dir(top), ".airworker-coding-workspaces", filepath.Base(top), id)
+	if expectedBase != "" && !sameCodingPath(base, expectedBase) {
+		return errors.New("unaccepted original attempt retained; verified retry belongs to a different workspace")
+	}
 	if !sameCodingPath(filepath.Dir(doc.Report), base) || filepath.Base(doc.Report) != "handoff.json" {
 		return errors.New("worker namespace is not owned by this task")
 	}
@@ -320,7 +327,7 @@ func finalizeCodingWorkspaces(root string, scope sessionScope, step, task string
 		status, err := exec.Command("git", "-C", workerTop, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored").Output()
 		archivedStatus, readErr := readOwnedCodingArchiveInput(archive, filepath.Join(archive, prefix+"status"), 1<<20)
 		if err != nil || readErr != nil || !bytes.Equal(status, archivedStatus) {
-			return errors.New("worker state changed after archive")
+			return errors.New("worker state changed after archive or removal was interrupted; retained for manual recovery")
 		}
 		for _, item := range []struct {
 			path, archive string

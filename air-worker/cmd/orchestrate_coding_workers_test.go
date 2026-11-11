@@ -811,6 +811,32 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 				t.Fatal("worktree disappeared after simulated removal failure")
 			}
 		}
+		// A real interrupted removal may delete some content before returning an
+		// error. Retain the checkout and the sealed archive until it is recovered.
+		codingRemoveWorktree = func(_, _ string) error {
+			if err := os.Remove(extraPath); err != nil {
+				return err
+			}
+			return fmt.Errorf("simulated interruption after deleting archived data")
+		}
+		midErr := finalizeCodingWorkspaces(root, ctx.scope(), "coord-TASK.md", base)
+		codingRemoveWorktree = removeOriginal
+		if midErr == nil {
+			t.Fatal("interrupted removal was accepted")
+		}
+		if err := finalizeCodingWorkspaces(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+			t.Fatal("partly removed checkout was silently finalized")
+		}
+		if _, err := loadVerifiedCodingArchive(workspaceBase, root, doc.TaskSHA256, doc.SourceHead); err != nil {
+			t.Fatalf("sealed archive lost after interrupted removal: %v", err)
+		}
+		restored, err := os.ReadFile(filepath.Join(archivePath, extraName))
+		if err != nil || !bytes.Equal(restored, extraData) {
+			t.Fatal("cannot read archived data for recovery")
+		}
+		if err := os.WriteFile(extraPath, restored, 0600); err != nil {
+			t.Fatal(err)
+		}
 		var attempts atomic.Int32
 		codingRemoveWorktree = func(top, worker string) error {
 			if attempts.Add(1) == 2 {
@@ -1300,6 +1326,16 @@ func TestCodingEscalation(t *testing.T) {
 					t.Fatalf("archive retry evidence: %v", err)
 				}
 				if runtime.GOOS == "windows" {
+					originalBase := filepath.Dir(original.Report)
+					if err := finalizeRetainedCodingWorkspace(root, ".", originalBase); err == nil || !strings.Contains(err.Error(), "different workspace") {
+						t.Fatalf("original attempt selected a different retry workspace: %v", err)
+					}
+					if _, err := os.Stat(retry.Workers[0].Product); err != nil {
+						t.Fatal("finalizing original removed a retry checkout")
+					}
+					if codingRetainedFailedPredecessor(root, ".", originalBase) {
+						t.Fatal("unarchived retry freed failed predecessor capacity")
+					}
 					nextHead, err := gitCodingOutput(root, "rev-parse", "HEAD")
 					if err != nil {
 						t.Fatal(err)
@@ -1312,6 +1348,9 @@ func TestCodingEscalation(t *testing.T) {
 					}
 					if err := finalizeCodingWorkspaces(root, ctx.scope(), "coord-TASK.md", string(body)); err != nil {
 						t.Fatalf("retry finalization: %v", err)
+					}
+					if !codingRetainedFailedPredecessor(root, ".", originalBase) {
+						t.Fatal("verified failed predecessor was not separately accounted")
 					}
 				} else {
 					for i := range retry.Workers {
@@ -1331,6 +1370,9 @@ func TestCodingEscalation(t *testing.T) {
 				}
 				if _, _, err := effectiveCodingEvidence(root, ctx.scope(), "coord-TASK.md", string(body)); err == nil {
 					t.Fatal("tampered archived retry accepted")
+				}
+				if codingRetainedFailedPredecessor(root, ".", filepath.Dir(original.Report)) {
+					t.Fatal("tampered retry freed failed predecessor capacity")
 				}
 				if starts() != beforeJobs || receiptJobs() != beforeReceipts {
 					t.Fatal("archived retry readback launched another process")

@@ -53,6 +53,46 @@ func codingWorkspaceReleased(repoTop, productRel, base string) bool {
 	return err == nil && codingArchivePinsMatch(repoTop, id, manifest.SourceHead, manifest.AcceptedCommit)
 }
 
+// A failed predecessor stays on disk. It can be accounted separately only
+// after both failed process trees and the accepted, archived retry verify.
+func codingRetainedFailedPredecessor(repoTop, productRel, base string) bool {
+	raw, err := readOwnedCodingArchiveInput(base, filepath.Join(base, "reservation.json"), 8192)
+	if err != nil {
+		return false
+	}
+	r, err := decodeCodingWorkspaceReservation(raw)
+	if err != nil || strings.HasSuffix(r.Step, "-retry-1") {
+		return false
+	}
+	root := filepath.Join(repoTop, productRel)
+	scope := newScope(root, sessionIdentity{Principal: r.Principal, SessionKey: r.SessionKey})
+	id := shaCodingBytes([]byte(repoTop + "|" + scope.key() + "|" + r.Step))[:18]
+	if filepath.Base(base) != id {
+		return false
+	}
+	task, err := readOwnedCodingArchiveInput(base, filepath.Join(base, "task.json"), 48<<10)
+	if err != nil || shaCodingBytes(task) != r.TaskSHA256 {
+		return false
+	}
+	original, err := codingStatus(root, scope, r.Step, string(task))
+	if err != nil || original.Status != jobStatusFailed || original.SourceHead != r.SourceHead || len(original.Workers) != 2 || !sameCodingPath(filepath.Dir(original.Report), base) {
+		return false
+	}
+	for _, worker := range original.Workers {
+		receipt, err := readJobReceipt(worker.Receipt)
+		if err != nil || receipt == nil || receipt.Status != jobStatusFailed || receipt.Role != "coding-subagent/worker" || !receipt.ProcessTreeVerified || receipt.SourceHead != r.SourceHead {
+			return false
+		}
+	}
+	_, physical, err := effectiveCodingEvidence(root, scope, r.Step, string(task))
+	if err != nil || physical != r.Step+"-retry-1" {
+		return false
+	}
+	retryID := shaCodingBytes([]byte(repoTop + "|" + scope.key() + "|" + physical))[:18]
+	retryBase := filepath.Join(filepath.Dir(base), retryID)
+	return codingWorkspaceReleased(repoTop, productRel, retryBase)
+}
+
 func sameCodingPath(a, b string) bool {
 	a, b = filepath.Clean(a), filepath.Clean(b)
 	if runtime.GOOS == "windows" {
@@ -183,6 +223,7 @@ func reserveCodingWorkspace(repoTop, productRel string, scope sessionScope, step
 	}
 	held := make([]string, 0)
 	legacy := make([]string, 0)
+	retainedCandidates := make([]string, 0)
 	for _, entry := range entries {
 		if entry.Name() == ".reserve-lock" {
 			continue
@@ -216,7 +257,15 @@ func reserveCodingWorkspace(repoTop, productRel string, scope sessionScope, step
 			if finalizeErr != nil {
 				reason = finalizeErr.Error()
 			}
-			held = append(held, entry.Name()+" ("+reason+")")
+			retainedCandidates = append(retainedCandidates, entry.Name()+"\x00"+reason)
+		}
+	}
+	for _, item := range retainedCandidates {
+		name, reason, _ := strings.Cut(item, "\x00")
+		if codingRetainedFailedPredecessor(repoTop, productRel, filepath.Join(filepath.Dir(base), name)) {
+			legacy = append(legacy, name+" (verified failed predecessor retained)")
+		} else {
+			held = append(held, name+" ("+reason+")")
 		}
 	}
 	if len(legacy) >= codingWorkspaceLegacyLimit {
