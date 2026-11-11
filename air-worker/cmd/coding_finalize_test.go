@@ -125,3 +125,53 @@ func TestCodingArchiveCommitPins(t *testing.T) {
 		t.Fatal("archive pin changed on mismatch")
 	}
 }
+
+func TestCodingAdminRejectsUnarchivedMetadataAndHiddenIndex(t *testing.T) {
+	parent := t.TempDir()
+	root, worker := filepath.Join(parent, "repo"), filepath.Join(parent, "worker")
+	if err := os.Mkdir(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	codingFixtureGit(t, root, "init")
+	codingFixtureGit(t, root, "config", "--local", "user.name", "Test")
+	codingFixtureGit(t, root, "config", "--local", "user.email", "test@example.invalid")
+	if err := os.WriteFile(filepath.Join(root, "source.go"), []byte("package demo\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	codingFixtureGit(t, root, "add", ".")
+	codingFixtureGit(t, root, "commit", "-m", "base")
+	head, err := gitCodingOutput(root, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	codingFixtureGit(t, root, "worktree", "add", "--detach", worker, head)
+	t.Cleanup(func() { _, _ = gitCodingOutput(root, "worktree", "remove", "--force", worker) })
+	if err := verifyCodingAdminDisposable(worker, head); err != nil {
+		t.Fatalf("ordinary metadata rejected: %v", err)
+	}
+	admin, err := gitCodingOutput(worker, "rev-parse", "--path-format=absolute", "--git-dir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := filepath.Join(admin, "config.worktree")
+	if err := os.WriteFile(config, []byte("preserve"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyCodingAdminDisposable(worker, head); err == nil {
+		t.Fatal("private worktree config accepted for deletion")
+	}
+	if data, err := os.ReadFile(config); err != nil || string(data) != "preserve" {
+		t.Fatal("private config changed")
+	}
+	if err := os.Remove(config); err != nil {
+		t.Fatal(err)
+	}
+	codingFixtureGit(t, worker, "update-index", "--assume-unchanged", "source.go")
+	if err := verifyCodingAdminDisposable(worker, head); err == nil {
+		t.Fatal("hidden index entry accepted")
+	}
+	codingFixtureGit(t, worker, "update-index", "--no-assume-unchanged", "source.go")
+	if err := verifyCodingAdminDisposable(worker, head); err != nil {
+		t.Fatalf("restored metadata rejected: %v", err)
+	}
+}

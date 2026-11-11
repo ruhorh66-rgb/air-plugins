@@ -48,6 +48,9 @@ func TestCodingWorkersStatusRecoveryLongIdentity(t *testing.T) {
 }
 
 func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
+	if runtime.GOOS != "windows" {
+		t.Skip("coding worktree lifecycle requires Windows")
+	}
 	if testing.Short() {
 		t.Skip("requires local Git worktree lifecycle")
 	}
@@ -930,6 +933,9 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 }
 
 func TestChatGPTCoordinatorTwoCodexWorkersOwnRealEdits(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("coding worktree lifecycle requires Windows")
+	}
 	if testing.Short() {
 		t.Skip("requires local Git worktree lifecycle")
 	}
@@ -1030,6 +1036,9 @@ func TestChatGPTCoordinatorTwoCodexWorkersOwnRealEdits(t *testing.T) {
 }
 
 func TestCodingMicrostepDispatch(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("coding worktree lifecycle requires Windows")
+	}
 	if testing.Short() {
 		t.Skip("requires local Git worktrees")
 	}
@@ -1123,6 +1132,9 @@ func TestTwoWorkerIsolatedHelperProcess(t *testing.T) {
 
 // TestCodingEscalation uses actual receipted helper processes; no model is invoked.
 func TestCodingEscalation(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("coding worktree lifecycle requires Windows")
+	}
 	if testing.Short() {
 		t.Skip("requires local Git worktrees")
 	}
@@ -1841,6 +1853,9 @@ func TestCodingEscalationHelper(t *testing.T) {
 }
 
 func TestDW32IntegrationNestedProduct(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("coding worktree lifecycle requires Windows")
+	}
 	repo := t.TempDir()
 	root := filepath.Join(repo, "air-worker")
 	if err := os.MkdirAll(root, 0700); err != nil {
@@ -1923,6 +1938,9 @@ func TestDW32N139BoundCoordinatorAck(t *testing.T) {
 }
 
 func testDW32N139BoundCoordinatorAck(t *testing.T, principal string) {
+	if runtime.GOOS != "windows" {
+		t.Skip("coding worktree lifecycle requires Windows")
+	}
 	repo := t.TempDir()
 	root := filepath.Join(repo, "air-worker")
 	for _, d := range []string{"cmd", "plan", "goal", "docs/tasks"} {
@@ -1948,6 +1966,7 @@ func testDW32N139BoundCoordinatorAck(t *testing.T, principal string) {
 			t.Fatal(e)
 		}
 	}
+	copyCancellationEvidenceFixture(t, root)
 	codingFixtureGit(t, repo, "init")
 	codingFixtureGit(t, repo, "config", "--local", "user.name", "Test")
 	codingFixtureGit(t, repo, "config", "--local", "user.email", "test@example.invalid")

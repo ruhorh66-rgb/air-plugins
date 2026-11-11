@@ -61,8 +61,12 @@ func sameCodingPath(a, b string) bool {
 	return a == b
 }
 
-// codingWorkspaceLimit bounds retained attempts, including unknown legacy attempts.
-const codingWorkspaceLimit = 8
+// New attempts and unregistered legacy entries have separate observed bounds.
+// Legacy data is never deleted merely to free capacity.
+const (
+	codingWorkspaceLimit       = 8
+	codingWorkspaceLegacyLimit = 256
+)
 
 type codingWorkspaceReservation struct {
 	Schema      string    `json:"schema"`
@@ -122,6 +126,9 @@ func codingWorkspaceWriteNew(root *os.Root, name string, data []byte) error {
 // reserveCodingWorkspace records ownership before git creates either checkout.
 // A crash leaves the reservation or lock in place; neither is guessed safe to clear.
 func reserveCodingWorkspace(repoTop, productRel string, scope sessionScope, step, sourceHead, task string) (string, error) {
+	if runtime.GOOS != "windows" {
+		return "", errors.New("coding workspace lifecycle is not supported on this platform")
+	}
 	repoParent := filepath.Dir(repoTop)
 	resolved, err := filepath.EvalSymlinks(repoParent)
 	if err != nil || !sameCodingPath(resolved, repoParent) {
@@ -142,25 +149,18 @@ func reserveCodingWorkspace(repoTop, productRel string, scope sessionScope, step
 		return "", err
 	}
 	defer attempts.Close()
-	if runtime.GOOS == "windows" {
-		lock, ok := acquireLock(lockName("coding-reserve", filepath.Join(repoParent, ".airworker-coding-workspaces", filepath.Base(repoTop))))
-		if !ok || !validAutoSelfDeliveryLock(lock) {
-			if lock != nil {
-				lock.release()
-			}
-			return "", errors.New("coding workspace reservation is busy or its lock is unavailable")
+	lock, ok := acquireLock(lockName("coding-reserve", filepath.Join(repoParent, ".airworker-coding-workspaces", filepath.Base(repoTop))))
+	if !ok || !validAutoSelfDeliveryLock(lock) {
+		if lock != nil {
+			lock.release()
 		}
-		defer lock.release()
-		if _, err := attempts.Lstat(".reserve-lock"); err == nil {
-			return "", errors.New("coding workspace reservation is busy or interrupted")
-		} else if !os.IsNotExist(err) {
-			return "", err
-		}
-	} else {
-		if err := attempts.Mkdir(".reserve-lock", 0700); err != nil {
-			return "", fmt.Errorf("coding workspace reservation is busy or interrupted: %w", err)
-		}
-		defer attempts.Remove(".reserve-lock")
+		return "", errors.New("coding workspace reservation is busy or its lock is unavailable")
+	}
+	defer lock.release()
+	if _, err := attempts.Lstat(".reserve-lock"); err == nil {
+		return "", errors.New("coding workspace reservation is busy or interrupted")
+	} else if !os.IsNotExist(err) {
+		return "", err
 	}
 	id := shaCodingBytes([]byte(repoTop + "|" + scope.key() + "|" + step))[:18]
 	base := filepath.Join(repoParent, ".airworker-coding-workspaces", filepath.Base(repoTop), id)
@@ -182,21 +182,48 @@ func reserveCodingWorkspace(repoTop, productRel string, scope sessionScope, step
 		return "", closeErr
 	}
 	held := make([]string, 0)
+	legacy := make([]string, 0)
 	for _, entry := range entries {
 		if entry.Name() == ".reserve-lock" {
 			continue
 		}
 		candidate := filepath.Join(filepath.Dir(base), entry.Name())
+		if !entry.IsDir() || entry.Type()&os.ModeSymlink != 0 {
+			legacy = append(legacy, entry.Name()+" (not an owned directory)")
+			continue
+		}
+		owned, err := attempts.OpenRoot(entry.Name())
+		if err != nil {
+			held = append(held, entry.Name()+" (directory unavailable)")
+			continue
+		}
+		_, statErr := owned.Lstat("reservation.json")
+		_ = owned.Close()
+		if os.IsNotExist(statErr) {
+			legacy = append(legacy, entry.Name()+" (legacy or unregistered)")
+			continue
+		}
+		if statErr != nil {
+			held = append(held, entry.Name()+" (reservation unavailable)")
+			continue
+		}
 		if codingWorkspaceReleased(repoTop, productRel, candidate) {
 			continue
 		}
-		finalizeRetainedCodingWorkspace(repoTop, productRel, candidate)
+		finalizeErr := finalizeRetainedCodingWorkspace(repoTop, productRel, candidate)
 		if !codingWorkspaceReleased(repoTop, productRel, candidate) {
-			held = append(held, entry.Name())
+			reason := "not verified"
+			if finalizeErr != nil {
+				reason = finalizeErr.Error()
+			}
+			held = append(held, entry.Name()+" ("+reason+")")
 		}
 	}
+	if len(legacy) >= codingWorkspaceLegacyLimit {
+		return "", fmt.Errorf("legacy workspace limit %d reached; retained entries: %s", codingWorkspaceLegacyLimit, strings.Join(legacy, ", "))
+	}
 	if len(held) >= codingWorkspaceLimit {
-		return "", fmt.Errorf("coding workspace limit %d reached; retained attempts: %s", codingWorkspaceLimit, strings.Join(held, ", "))
+		return "", fmt.Errorf("coding workspace limit %d reached; retained attempts: %s; legacy entries held separately: %d", codingWorkspaceLimit, strings.Join(held, ", "), len(legacy))
 	}
 	if err := attempts.Mkdir(id, 0700); err != nil {
 		return "", err

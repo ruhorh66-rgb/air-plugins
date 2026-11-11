@@ -16,23 +16,23 @@ import (
 )
 
 // Complete previously accepted owned attempts before counting the capacity.
-func finalizeRetainedCodingWorkspace(top, productRel, base string) {
+func finalizeRetainedCodingWorkspace(top, productRel, base string) error {
 	raw, err := readOwnedCodingArchiveInput(base, filepath.Join(base, "reservation.json"), 8192)
 	if err != nil {
-		return
+		return errors.New("reservation unavailable")
 	}
 	reservation, err := decodeCodingWorkspaceReservation(raw)
 	if err != nil {
-		return
+		return errors.New("reservation invalid")
 	}
 	task, err := readOwnedCodingArchiveInput(base, filepath.Join(base, "task.json"), 48<<10)
 	if err != nil || shaCodingBytes(task) != reservation.TaskSHA256 {
-		return
+		return errors.New("reserved task is not verified")
 	}
 	root := filepath.Join(top, productRel)
 	scope := newScope(root, sessionIdentity{Principal: reservation.Principal, SessionKey: reservation.SessionKey})
 	step := strings.TrimSuffix(reservation.Step, "-retry-1")
-	_ = finalizeCodingWorkspaces(root, scope, step, string(task))
+	return finalizeCodingWorkspaces(root, scope, step, string(task))
 }
 
 func cmdCodingFinalize(argv []string) int {
@@ -358,6 +358,9 @@ func finalizeCodingWorkspaces(root string, scope sessionScope, step, task string
 			if err != nil || storedErr != nil || !bytes.Equal(actual, stored) {
 				return errors.New("worker extra file changed after archive")
 			}
+		}
+		if err := verifyCodingAdminDisposable(workerTop, doc.SourceHead); err != nil {
+			return err
 		}
 		if !codingArchivePinsMatch(top, id, manifest.SourceHead, manifest.AcceptedCommit) {
 			return errors.New("archive commit references changed before removal")

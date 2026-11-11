@@ -4,11 +4,15 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestCodingPartialPreparationCleanupAndRetention(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("coding worktree lifecycle requires Windows")
+	}
 	for _, withIgnored := range []bool{false, true} {
 		name := "clean"
 		if withIgnored {

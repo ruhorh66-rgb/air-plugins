@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,6 +66,9 @@ func TestCodingWorkspaceLockProcessExit(t *testing.T) {
 }
 
 func TestCodingWorkspaceReservationCapacityAndIdentity(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows lifecycle")
+	}
 	root := filepath.Join(t.TempDir(), "repo")
 	scope := sessionScope{ID: sessionIdentity{Principal: "codex", SessionKey: "test-session"}}
 	for i := 0; i < codingWorkspaceLimit; i++ {
@@ -94,6 +98,109 @@ func TestCodingWorkspaceReservationCapacityAndIdentity(t *testing.T) {
 	}
 }
 
+func TestCodingWorkspaceReservationKeepsLegacyWithoutBlockingPilot(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows lifecycle")
+	}
+	work := t.TempDir()
+	root := filepath.Join(work, "repo")
+	namespace := filepath.Join(work, ".airworker-coding-workspaces", "repo")
+	if err := os.MkdirAll(namespace, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 187; i++ {
+		if err := os.Mkdir(filepath.Join(namespace, fmt.Sprintf("legacy-%03d", i)), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sentinel := filepath.Join(namespace, "legacy-000", "data")
+	if err := os.WriteFile(sentinel, []byte("preserve"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	scope := sessionScope{ID: sessionIdentity{Principal: "codex", SessionKey: "legacy-test"}}
+	for i := 0; i < codingWorkspaceLimit; i++ {
+		if _, err := reserveCodingWorkspace(root, ".", scope, fmt.Sprintf("new-%d", i), "base", "task"); err != nil {
+			t.Fatalf("legacy blocked new attempt %d: %v", i, err)
+		}
+	}
+	if _, err := reserveCodingWorkspace(root, ".", scope, "overflow", "base", "task"); err == nil || !strings.Contains(err.Error(), "legacy entries held separately: 187") || !strings.Contains(err.Error(), "retained attempts:") {
+		t.Fatalf("managed capacity or legacy diagnosis missing: %v", err)
+	}
+	data, err := os.ReadFile(sentinel)
+	if err != nil || string(data) != "preserve" {
+		t.Fatal("legacy data was changed")
+	}
+	entries, err := os.ReadDir(namespace)
+	if err != nil || len(entries) != 187+codingWorkspaceLimit {
+		t.Fatalf("unexpected retained entries: %d %v", len(entries), err)
+	}
+}
+
+func TestCodingWorkspaceReservationCapsLegacyGrowth(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows lifecycle")
+	}
+	work := t.TempDir()
+	root := filepath.Join(work, "repo")
+	namespace := filepath.Join(work, ".airworker-coding-workspaces", "repo")
+	if err := os.MkdirAll(namespace, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < codingWorkspaceLegacyLimit; i++ {
+		if err := os.Mkdir(filepath.Join(namespace, fmt.Sprintf("legacy-%03d", i)), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scope := sessionScope{ID: sessionIdentity{Principal: "codex", SessionKey: "legacy-limit"}}
+	if _, err := reserveCodingWorkspace(root, ".", scope, "next", "base", "task"); err == nil || !strings.Contains(err.Error(), "legacy workspace limit") {
+		t.Fatalf("legacy growth was not bounded: %v", err)
+	}
+	entries, err := os.ReadDir(namespace)
+	if err != nil || len(entries) != codingWorkspaceLegacyLimit {
+		t.Fatalf("legacy data was changed: %d %v", len(entries), err)
+	}
+}
+
+func TestCodingWorkspaceReservationCorruptEntriesStillCount(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows lifecycle")
+	}
+	work := t.TempDir()
+	root := filepath.Join(work, "repo")
+	namespace := filepath.Join(work, ".airworker-coding-workspaces", "repo")
+	if err := os.MkdirAll(namespace, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < codingWorkspaceLimit; i++ {
+		dir := filepath.Join(namespace, fmt.Sprintf("broken-%02d", i))
+		if err := os.Mkdir(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "reservation.json"), []byte("{"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scope := sessionScope{ID: sessionIdentity{Principal: "codex", SessionKey: "corrupt-limit"}}
+	if _, err := reserveCodingWorkspace(root, ".", scope, "next", "base", "task"); err == nil || !strings.Contains(err.Error(), "reservation invalid") {
+		t.Fatalf("corrupt reservations did not hold capacity: %v", err)
+	}
+}
+
+func TestCodingWorkspaceReservationUnsupportedPlatformCreatesNothing(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("non-Windows contract")
+	}
+	work := t.TempDir()
+	root := filepath.Join(work, "repo")
+	scope := sessionScope{ID: sessionIdentity{Principal: "codex", SessionKey: "unsupported"}}
+	if _, err := reserveCodingWorkspace(root, ".", scope, "step", "base", "task"); err == nil || !strings.Contains(err.Error(), "not supported") {
+		t.Fatalf("unsupported platform was accepted: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(work, ".airworker-coding-workspaces")); !os.IsNotExist(err) {
+		t.Fatal("unsupported platform created workspace state")
+	}
+}
+
 func TestCodingWorkspaceReservationRequiresExactlyTwoPaths(t *testing.T) {
 	base := map[string]any{"schema": "air-worker.coding-workspace-reservation/v1", "step": "coord-task", "principal": "codex", "session_key": "session", "source_head": "sha", "task_sha256": "hash"}
 	for _, paths := range [][]string{{}, {"one"}, {"one", "two", "three"}} {
@@ -114,6 +221,9 @@ func TestCodingWorkspaceReservationRequiresExactlyTwoPaths(t *testing.T) {
 }
 
 func TestCodingWorkspaceReservationConcurrentLastSlot(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows lifecycle")
+	}
 	root := filepath.Join(t.TempDir(), "repo")
 	scope := sessionScope{ID: sessionIdentity{Principal: "codex", SessionKey: "test-session"}}
 	for i := 0; i < codingWorkspaceLimit-1; i++ {
@@ -148,6 +258,9 @@ func TestCodingWorkspaceReservationConcurrentLastSlot(t *testing.T) {
 }
 
 func TestCodingWorkspaceReservationConcurrentProcesses(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows lifecycle")
+	}
 	if root := os.Getenv("AW_RESERVATION_CHILD_ROOT"); root != "" {
 		gate := os.Getenv("AW_RESERVATION_GATE")
 		deadline := time.Now().Add(10 * time.Second)
@@ -212,6 +325,9 @@ func TestCodingWorkspaceReservationConcurrentProcesses(t *testing.T) {
 	}
 }
 func TestCodingWorkspaceReservationInterruptedAndDuplicate(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows lifecycle")
+	}
 	work := t.TempDir()
 	root := filepath.Join(work, "repo")
 	scope := sessionScope{ID: sessionIdentity{Principal: "codex", SessionKey: "session"}}
@@ -239,6 +355,7 @@ func TestCodingWorkspaceReservationInterruptedAndDuplicate(t *testing.T) {
 }
 
 func TestCodingWorkspaceReservationRejectsForeignNamespace(t *testing.T) {
+	if runtime.GOOS != "windows" { t.Skip("coding worktree lifecycle requires Windows") }
 	work := t.TempDir()
 	root := filepath.Join(work, "repo")
 	foreign := filepath.Join(work, ".airworker-coding-workspaces")
@@ -255,6 +372,7 @@ func TestCodingWorkspaceReservationRejectsForeignNamespace(t *testing.T) {
 	}
 }
 func TestCodingWorkspaceReservationRejectsForeignLink(t *testing.T) {
+	if runtime.GOOS != "windows" { t.Skip("coding worktree lifecycle requires Windows") }
 	work := t.TempDir()
 	root := filepath.Join(work, "repo")
 	foreign := filepath.Join(t.TempDir(), "outside")
