@@ -104,8 +104,9 @@ func sameCodingPath(a, b string) bool {
 // New attempts and unregistered legacy entries have separate observed bounds.
 // Legacy data is never deleted merely to free capacity.
 const (
-	codingWorkspaceLimit       = 8
-	codingWorkspaceLegacyLimit = 256
+	codingWorkspaceLimit            = 8
+	codingWorkspaceLegacyLimit      = 256
+	codingWorkspacePredecessorLimit = 256
 )
 
 type codingWorkspaceReservation struct {
@@ -223,6 +224,7 @@ func reserveCodingWorkspace(repoTop, productRel string, scope sessionScope, step
 	}
 	held := make([]string, 0)
 	legacy := make([]string, 0)
+	predecessors := make([]string, 0)
 	retainedCandidates := make([]string, 0)
 	for _, entry := range entries {
 		if entry.Name() == ".reserve-lock" {
@@ -263,13 +265,16 @@ func reserveCodingWorkspace(repoTop, productRel string, scope sessionScope, step
 	for _, item := range retainedCandidates {
 		name, reason, _ := strings.Cut(item, "\x00")
 		if codingRetainedFailedPredecessor(repoTop, productRel, filepath.Join(filepath.Dir(base), name)) {
-			legacy = append(legacy, name+" (verified failed predecessor retained)")
+			predecessors = append(predecessors, name+" (verified failed predecessor retained)")
 		} else {
 			held = append(held, name+" ("+reason+")")
 		}
 	}
 	if len(legacy) >= codingWorkspaceLegacyLimit {
 		return "", fmt.Errorf("legacy workspace limit %d reached; retained entries: %s", codingWorkspaceLegacyLimit, strings.Join(legacy, ", "))
+	}
+	if len(predecessors) >= codingWorkspacePredecessorLimit {
+		return "", fmt.Errorf("failed predecessor limit %d reached; retained entries require operator decision: %s", codingWorkspacePredecessorLimit, strings.Join(predecessors, ", "))
 	}
 	if len(held) >= codingWorkspaceLimit {
 		return "", fmt.Errorf("coding workspace limit %d reached; retained attempts: %s; legacy entries held separately: %d", codingWorkspaceLimit, strings.Join(held, ", "), len(legacy))

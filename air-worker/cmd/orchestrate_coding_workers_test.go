@@ -1336,6 +1336,13 @@ func TestCodingEscalation(t *testing.T) {
 					if codingRetainedFailedPredecessor(root, ".", originalBase) {
 						t.Fatal("unarchived retry freed failed predecessor capacity")
 					}
+					// A verified failed predecessor has its own bound and must not
+					// consume the last slot reserved for unrelated legacy entries.
+					for n := 0; n < codingWorkspaceLegacyLimit-1; n++ {
+						if err := os.Mkdir(filepath.Join(filepath.Dir(originalBase), fmt.Sprintf("legacy-fixture-%03d", n)), 0700); err != nil {
+							t.Fatal(err)
+						}
+					}
 					nextHead, err := gitCodingOutput(root, "rev-parse", "HEAD")
 					if err != nil {
 						t.Fatal(err)
