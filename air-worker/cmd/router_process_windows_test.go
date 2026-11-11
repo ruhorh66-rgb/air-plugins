@@ -3,6 +3,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +21,9 @@ func TestRouterProcessHelper(t *testing.T) {
 		return
 	}
 	mode, dir := os.Args[3], os.Args[4]
+	if mode == "instant" {
+		os.Exit(0)
+	}
 	if mode == "parent" {
 		deadline := time.Now().Add(15 * time.Second)
 		for {
@@ -112,6 +117,123 @@ func TestRouterOwnedTreeStopsChildAfterParentExit(t *testing.T) {
 		t.Fatal(err)
 	}
 	routerTestWaitStatus(t, child, 5000, syscall.WAIT_OBJECT_0)
+}
+
+func TestCodingTreeQuiescentRejectsLiveChild(t *testing.T) {
+	dir := t.TempDir()
+	cmd := routerTestCommand("parent", dir)
+	tree, err := startRouterOwnedTree(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stopRouterOwnedTree(tree) })
+	if err := os.WriteFile(filepath.Join(dir, "start"), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	child := routerTestChildHandle(t, dir)
+	routerTestWait(t, cmd)
+	if err := codingTreeQuiescent(tree); err == nil {
+		t.Fatal("live descendant accepted as quiescent")
+	}
+	routerTestWaitStatus(t, child, 0, syscall.WAIT_TIMEOUT)
+	if err := stopRouterOwnedTree(tree); err != nil {
+		t.Fatal(err)
+	}
+	routerTestWaitStatus(t, child, 5000, syscall.WAIT_OBJECT_0)
+}
+
+func TestCodingTreeQuiescentAcceptsExitedTree(t *testing.T) {
+	dir := t.TempDir()
+	cmd := routerTestCommand("invalid", dir)
+	tree, err := startRouterOwnedTree(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stopRouterOwnedTree(tree) })
+	_ = cmd.Wait()
+	if err := codingTreeQuiescent(tree); err != nil {
+		t.Fatalf("exited tree rejected: %v", err)
+	}
+}
+
+func TestCodingReceiptPreservesLiveDescendant(t *testing.T) {
+	root, dir := t.TempDir(), t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "start"), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	scope := newScope(root, sessionIdentity{Principal: "codex", SessionKey: "tree-test"})
+	step, operation := "tree-test", "tree-test-operation"
+	done := make(chan error, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 800*time.Millisecond)
+	defer cancel()
+	go func() {
+		_, err := runReceiptedWithMeta(ctx, scope, step, operation, routerTestCommand("parent", dir), jobReceiptMeta{Role: "coding-subagent/worker"})
+		done <- err
+	}()
+	child := routerTestChildHandle(t, dir)
+	defer func() {
+		data, _ := os.ReadFile(filepath.Join(dir, "pid"))
+		pid, _ := strconv.ParseUint(strings.TrimSpace(string(data)), 10, 32)
+		if h, err := syscall.OpenProcess(routerProcessTerminate, false, uint32(pid)); err == nil {
+			_ = syscall.TerminateProcess(h, 1)
+			_ = syscall.CloseHandle(h)
+		}
+	}()
+	select {
+	case err := <-done:
+		if !errors.Is(err, errJobStillRunning) {
+			t.Fatalf("live child not reported: %v", err)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("parent completion not observed")
+	}
+	routerTestWaitStatus(t, child, 0, syscall.WAIT_TIMEOUT)
+	path, _ := jobReceiptPaths(scope, step, operation)
+	receipt, err := readJobReceipt(path)
+	if err != nil || receipt.Status != jobStatusRunning || receipt.ProcessTreeVerified {
+		t.Fatalf("live tree was sealed: %+v %v", receipt, err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "pid"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, err := strconv.ParseUint(strings.TrimSpace(string(data)), 10, 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	process, err := syscall.OpenProcess(routerProcessTerminate, false, uint32(pid))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = syscall.TerminateProcess(process, 1)
+	_ = syscall.CloseHandle(process)
+	if err != nil {
+		t.Fatal(err)
+	}
+	routerTestWaitStatus(t, child, 5000, syscall.WAIT_OBJECT_0)
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		receipt, err = readJobReceipt(path)
+		if err == nil && receipt.Status == jobStatusDone && receipt.ProcessTreeVerified {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("tree termination was not sealed after timeout: %+v %v", receipt, err)
+}
+
+func TestCodingReceiptSealsExitedTree(t *testing.T) {
+	root, dir := t.TempDir(), t.TempDir()
+	scope := newScope(root, sessionIdentity{Principal: "codex", SessionKey: "tree-complete"})
+	step, operation := "complete", "complete-operation"
+	if _, err := runReceiptedWithMeta(context.Background(), scope, step, operation, routerTestCommand("instant", dir), jobReceiptMeta{Role: "coding-subagent/worker"}); err != nil {
+		t.Fatal(err)
+	}
+	path, _ := jobReceiptPaths(scope, step, operation)
+	receipt, err := readJobReceipt(path)
+	if err != nil || receipt.Status != jobStatusDone || !receipt.ProcessTreeVerified {
+		t.Fatalf("exited tree not sealed: %+v %v", receipt, err)
+	}
 }
 
 func TestRouterOwnedTreeStartStop(t *testing.T) {

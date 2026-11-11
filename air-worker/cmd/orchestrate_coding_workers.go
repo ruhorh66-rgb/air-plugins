@@ -226,7 +226,11 @@ func isCodingProductPath(relative string) bool {
 		!strings.Contains(relative, ":")
 }
 
-func prepareCodingWorktrees(root string, scope sessionScope, step, sourceHead string) (string, [2]string, error) {
+var codingWorktreeAdd = func(repoTop, workerRepo, sourceHead string) (string, error) {
+	return gitCodingOutput(repoTop, "worktree", "add", "--detach", workerRepo, sourceHead)
+}
+
+func prepareCodingWorktrees(root string, scope sessionScope, step, sourceHead, task string) (string, [2]string, error) {
 	var productDirs [2]string
 	repoTop, err := gitCodingOutput(root, "rev-parse", "--show-toplevel")
 	if err != nil {
@@ -253,27 +257,31 @@ func prepareCodingWorktrees(root string, scope sessionScope, step, sourceHead st
 	if err != nil || head != sourceHead {
 		return "", productDirs, errors.New("Git source HEAD changed before two-worker launch")
 	}
-	id := shaCodingBytes([]byte(repoTop + "|" + scope.key() + "|" + step))[:18]
-	base := filepath.Join(filepath.Dir(repoTop), ".airworker-coding-workspaces", filepath.Base(repoTop), id)
-	if _, err := os.Lstat(base); err == nil {
-		return "", productDirs, fmt.Errorf("worker workspace %s already exists; use receipt readback, never rerun", base)
-	} else if !os.IsNotExist(err) {
+	base, err := reserveCodingWorkspace(repoTop, relativeProduct, scope, step, sourceHead, task)
+	if err != nil {
 		return "", productDirs, err
 	}
-	if err := os.MkdirAll(base, 0700); err != nil {
-		return "", productDirs, err
+	var created []string
+	cleanup := func(cause error) error {
+		for _, worker := range created {
+			if err := removeUnstartedCodingWorker(repoTop, base, worker, sourceHead); err != nil {
+				cause = errors.Join(cause, fmt.Errorf("unstarted worktree retained: %w", err))
+			}
+		}
+		return cause
 	}
 	for index := 1; index <= 2; index++ {
 		workerRepo := filepath.Join(base, fmt.Sprintf("worker-%d", index))
-		if _, err := gitCodingOutput(repoTop, "worktree", "add", "--detach", workerRepo, sourceHead); err != nil {
-			return "", productDirs, fmt.Errorf("cannot create independent Git worktree %d: %w", index, err)
+		if _, err := codingWorktreeAdd(repoTop, workerRepo, sourceHead); err != nil {
+			return "", productDirs, cleanup(fmt.Errorf("cannot create independent Git worktree %d: %w", index, err))
 		}
+		created = append(created, workerRepo)
 		directory := workerRepo
 		if relativeProduct != "." {
 			directory = filepath.Join(workerRepo, relativeProduct)
 		}
 		if info, err := os.Stat(directory); err != nil || !info.IsDir() {
-			return "", productDirs, fmt.Errorf("worker product %d missing after checkout: %v", index, err)
+			return "", productDirs, cleanup(fmt.Errorf("worker product %d missing after checkout: %v", index, err))
 		}
 		productDirs[index-1] = directory
 	}
@@ -431,7 +439,7 @@ func (c *loopCtx) runIsolatedCodingWorkersOnce(exePath, task, step string, runne
 		return doc
 	}
 	doc.SourceHead = originalHead
-	base, dirs, err := prepareCodingWorktrees(c.Root, c.scope(), step, originalHead)
+	base, dirs, err := prepareCodingWorktrees(c.Root, c.scope(), step, originalHead, task)
 	if err != nil {
 		doc.Error = err.Error()
 		return doc
@@ -576,6 +584,9 @@ func (c *loopCtx) runIsolatedCodingWorkersOnce(exePath, task, step string, runne
 }
 
 func cmdOrchestrateCode(argv []string) int {
+	if len(argv) > 0 && argv[0] == "finalize" {
+		return cmdCodingFinalize(argv[1:])
+	}
 	if len(argv) > 0 && argv[0] == "ack-status" {
 		return cmdCodingAckStatus(argv[1:])
 	}
@@ -734,6 +745,21 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 		doc.Report = report
 		doc.Workers = []codingWorkerEvidence{{Index: 1, Status: "EXECUTION_UNKNOWN"}, {Index: 2, Status: "EXECUTION_UNKNOWN"}}
 	}
+	var removed [2]bool
+	if doc.SourceHead != "" && len(doc.Workers) == 2 {
+		for i := 0; i < 2; i++ {
+			workerTop := filepath.Join(base, fmt.Sprintf("worker-%d", i+1))
+			removed[i], err = codingCheckoutIsRemoved(top, workerTop)
+			if err != nil {
+				return doc, err
+			}
+		}
+		if removed[0] || removed[1] {
+			if _, err := loadVerifiedCodingArchive(base, root, taskSHA, doc.SourceHead); err != nil {
+				return doc, err
+			}
+		}
+	}
 	entries, err := os.ReadDir(filepath.Join(root, ".woody", "jobs"))
 	if err != nil && !os.IsNotExist(err) {
 		return doc, err
@@ -756,7 +782,7 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 			} else {
 				failedProven = false
 			}
-		} else {
+		} else if !removed[i-1] {
 			failedProven = false
 		}
 		if w.Index != i {
@@ -869,11 +895,21 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 			taskPath := filepath.Join(product, ".woody", "TASK-CODE-WORKER.md")
 			fullTask := codingWorkerTaskVersion(parsed, parsed.Workers[i-1], taskSHA, snap.SourceHead, version)
 			expected := shaCodingBytes([]byte(ponytailPrompt(codingWorkerPrompt(taskPath, fullTask))))
-			ownedErr := jobOwnedEvidencePath(base, taskPath)
+			readTaskPath := taskPath
+			if removed[i-1] {
+				readTaskPath = filepath.Join(base, "archive-candidate", fmt.Sprintf("worker-%d.task", i))
+				stdinPath := filepath.Join(base, "archive-candidate", fmt.Sprintf("worker-%d.stdin", i))
+				stdin, stdinErr := readOwnedCodingArchiveInput(base, stdinPath, 32<<20)
+				if stdinErr != nil {
+					return doc, stdinErr
+				}
+				expected = shaCodingBytes(stdin)
+			}
+			ownedErr := jobOwnedEvidencePath(base, readTaskPath)
 			var actual []byte
 			var readErr error
 			if ownedErr == nil {
-				actual, readErr = os.ReadFile(taskPath)
+				actual, readErr = os.ReadFile(readTaskPath)
 			}
 			if version == "" || ownedErr != nil || readErr != nil || string(actual) != fullTask || receipt.StdinSHA256 != expected {
 				w.Status = "EXECUTION_UNKNOWN"
@@ -891,9 +927,11 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 		}
 		if w.Patch != "" {
 			product := filepath.Join(base, fmt.Sprintf("worker-%d", i), rel)
-			realProduct, evalErr := filepath.EvalSymlinks(product)
-			if evalErr != nil || !strings.EqualFold(filepath.Clean(realProduct), filepath.Clean(product)) {
-				return doc, errors.New("unsafe worker product")
+			if !removed[i-1] {
+				realProduct, evalErr := filepath.EvalSymlinks(product)
+				if evalErr != nil || !strings.EqualFold(filepath.Clean(realProduct), filepath.Clean(product)) {
+					return doc, errors.New("unsafe worker product")
+				}
 			}
 			patch := filepath.Join(base, fmt.Sprintf("worker-%d.patch", i))
 			if filepath.Clean(w.Product) != filepath.Clean(product) || filepath.Clean(w.Patch) != patch || jobOwnedEvidencePath(base, patch) != nil {
@@ -902,6 +940,9 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 			data, err := os.ReadFile(patch)
 			if err != nil || len(data) == 0 || len(data) > 256*1024 || shaCodingBytes(data) != w.PatchSHA256 {
 				return doc, errors.New("patch hash mismatch")
+			}
+			if removed[i-1] {
+				continue
 			}
 			if head, err := gitCodingOutput(product, "rev-parse", "HEAD"); err != nil || head != doc.SourceHead {
 				return doc, errors.New("worker source mismatch")
@@ -926,6 +967,20 @@ func codingStatus(root string, scope sessionScope, step, task string) (codingWor
 			}
 		} else if w.PatchSHA256 != "" || len(w.Changed) != 0 || doc.Status == "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" {
 			return doc, errors.New("incomplete patch evidence")
+		}
+	}
+	if removed[0] || removed[1] {
+		if _, err := loadVerifiedCodingArchive(base, root, taskSHA, doc.SourceHead); err != nil {
+			return doc, err
+		}
+		for i := 0; i < 2; i++ {
+			if !removed[i] {
+				continue
+			}
+			stillRemoved, err := codingCheckoutIsRemoved(top, filepath.Join(base, fmt.Sprintf("worker-%d", i+1)))
+			if err != nil || !stillRemoved {
+				return doc, errors.New("worker removal state changed during archive readback")
+			}
 		}
 	}
 	if !anyReceipt && os.IsNotExist(baseErr) {
@@ -1080,7 +1135,19 @@ func effectiveCodingEvidence(root string, scope sessionScope, step, task string)
 		}
 		taskPath := filepath.Join(w.Product, ".woody", "TASK-CODE-WORKER.md")
 		fullTask := codingWorkerTaskVersion(parsed, parsed.Workers[i], retry.TaskSHA256, retry.SourceHead, version)
-		actual, err := os.ReadFile(taskPath)
+		readTaskPath := taskPath
+		base := filepath.Dir(retry.Report)
+		removed, err := codingCheckoutIsRemoved(top, filepath.Join(base, fmt.Sprintf("worker-%d", i+1)))
+		if err != nil {
+			return fail()
+		}
+		if removed {
+			if _, err := loadVerifiedCodingArchive(base, root, retry.TaskSHA256, retry.SourceHead); err != nil {
+				return fail()
+			}
+			readTaskPath = filepath.Join(base, "archive-candidate", fmt.Sprintf("worker-%d.task", i+1))
+		}
+		actual, err := readOwnedCodingArchiveInput(base, readTaskPath, 32<<20)
 		if err != nil || string(actual) != fullTask {
 			return fail()
 		}
@@ -1154,12 +1221,41 @@ func verifiedCodingWorkerEvidence(root string, scope sessionScope, step, task st
 			return fail("worker receipt is not sealed or owned")
 		}
 		workerFile := filepath.Join(w.Product, filepath.FromSlash(w.File))
-		if err := jobOwnedEvidencePath(w.Product, workerFile); err != nil {
+		workerOwner := w.Product
+		workerTop := filepath.Join(filepath.Dir(doc.Report), fmt.Sprintf("worker-%d", i+1))
+		removed, err := codingCheckoutIsRemoved(top, workerTop)
+		if err != nil {
+			return fail("worker removal state not verified")
+		}
+		archiveHash := ""
+		if removed {
+			base := filepath.Dir(doc.Report)
+			manifest, err := loadVerifiedCodingArchive(base, root, doc.TaskSHA256, doc.SourceHead)
+			if err != nil {
+				return fail("archived worker evidence not verified")
+			}
+			workerOwner = filepath.Join(base, "archive-candidate")
+			name := fmt.Sprintf("worker-%d.changed", i+1)
+			workerFile = filepath.Join(workerOwner, name)
+			for _, entry := range manifest.Entries {
+				if entry.Name == name {
+					archiveHash = entry.SHA256
+					break
+				}
+			}
+			if archiveHash == "" {
+				return fail("archived worker file identity missing")
+			}
+		}
+		if err := jobOwnedEvidencePath(workerOwner, workerFile); err != nil {
 			return fail("unsafe worker file")
 		}
-		_, err = os.ReadFile(workerFile)
+		workerData, err := os.ReadFile(workerFile)
 		if err != nil {
 			return doc, nil, err
+		}
+		if removed && shaCodingBytes(workerData) != archiveHash {
+			return fail("archived worker file changed")
 		}
 		expected[filepath.ToSlash(filepath.Join(relRoot, filepath.FromSlash(w.File)))] = w.PatchSHA256
 	}
@@ -1455,10 +1551,17 @@ func cmdCodingAckStatus(argv []string) int {
 			return errors.New("invalid original task")
 		}
 		ack, err := readCodingIntegrationAck(root, scope, *step, string(body))
+		acceptedCommit := ""
+		if err != nil {
+			ack, acceptedCommit, err = verifyHistoricalCodingAck(root, scope, *step, string(body))
+		}
 		if err != nil {
 			return err
 		}
 		result["status"] = ack.Status
+		if acceptedCommit != "" {
+			result["accepted_commit"] = acceptedCommit
+		}
 		if ack.Status == "ACK_RECORDED" {
 			doc, _, err := effectiveCodingEvidence(root, scope, *step, string(body))
 			if err != nil {

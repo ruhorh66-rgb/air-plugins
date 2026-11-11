@@ -77,6 +77,27 @@ type routerOwnedTree struct {
 	stopped  bool
 }
 
+// codingTreeQuiescent never terminates descendants to make a cleanup appear safe.
+func codingTreeQuiescent(tree *routerOwnedTree) error {
+	if tree == nil {
+		return errors.New("coding process tree unavailable")
+	}
+	tree.mu.Lock()
+	defer tree.mu.Unlock()
+	if tree.job == 0 || !tree.assigned || tree.stopped {
+		return errors.New("coding process tree identity unavailable")
+	}
+	var info routerJobAccounting
+	ok, _, err := routerQueryJob.Call(uintptr(tree.job), 1, uintptr(unsafe.Pointer(&info)), unsafe.Sizeof(info), 0)
+	if ok == 0 {
+		return routerCallError("QueryInformationJobObject", err)
+	}
+	if info.ActiveProcesses != 0 {
+		return fmt.Errorf("%w: %d", errCodingTreeActive, info.ActiveProcesses)
+	}
+	return nil
+}
+
 func routerCallError(name string, err error) error {
 	return fmt.Errorf("%s: %w", name, err)
 }

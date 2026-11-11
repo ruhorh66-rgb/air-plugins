@@ -69,6 +69,11 @@ func usage() {
         Returns coordinator handoff, NEVER auto-merges or calls a third model;
         ChatGPT inspects/applies and runs QA plus independent Anthropic judge.
 
+  air-worker orchestrate code finalize -product <корень> -task-file <TASK.md>
+        -step coord-<TASK.md> -principal <owner> -session-key <session> [-json]
+        After verified integration and commit, archive the owned evidence and
+        release the two worktrees; unknown or unverified attempts remain held.
+
   air-worker executor list -product <корень> [-json]
   air-worker executor dispatch -product <корень> -class bulk|standard|complex|hardest -task-file <путь>
         -principal <p> -session-key <k> [-tier <approved-tier>] [-json]

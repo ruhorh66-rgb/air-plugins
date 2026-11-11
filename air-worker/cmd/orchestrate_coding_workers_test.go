@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -407,8 +408,8 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 		t.Fatal(err)
 	}
 	_, running := status(task, id.SessionKey)
-	if !strings.Contains(fmt.Sprint(running), "RUNNING") || strings.Contains(fmt.Sprint(running), "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION") {
-		t.Fatalf("running recovery: %+v", running)
+	if !strings.Contains(fmt.Sprint(running), "EXECUTION_UNKNOWN") || strings.Contains(fmt.Sprint(running), "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION") {
+		t.Fatalf("dead-process recovery: %+v", running)
 	}
 	receipt.Status, receipt.OutputSHA256 = jobStatusDone, ""
 	if err := writeJobReceipt(doc.Workers[0].Receipt, receipt); err != nil {
@@ -643,9 +644,107 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 	if !strings.Contains(string(afterA), "NEW_A") || !strings.Contains(string(afterB), "NEW_B") {
 		t.Fatal("ChatGPT coordinator could not integrate the two real worker changes")
 	}
+	if err := os.WriteFile(ackPath, ackBytes, 0600); err != nil {
+		t.Fatal(err)
+	}
 	codingFixtureGit(t, root, "add", "a.go", "b.go")
 	codingFixtureGit(t, root, "commit", "-m", "integrate workers")
 	verify(false, "changed HEAD")
+	accepted, err := gitCodingOutput(root, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	codingFixtureGit(t, root, "commit", "--allow-empty", "-m", "subsequent work")
+	gotAck, gotCommit, err := verifyHistoricalCodingAck(root, ctx.scope(), "coord-TASK.md", base)
+	if err != nil || gotAck.Status != "ACK_RECORDED" || gotCommit != accepted {
+		t.Fatalf("historical acknowledgement not verified: commit=%s err=%v", gotCommit, err)
+	}
+	if err := os.WriteFile(ackPath, []byte("{"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := verifyHistoricalCodingAck(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+		t.Fatal("corrupt historical acknowledgement accepted")
+	}
+	if err := os.WriteFile(ackPath, ackBytes, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(doc.Workers[0].Patch, append(append([]byte(nil), patchBytes...), 'x'), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := verifyHistoricalCodingAck(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+		t.Fatal("corrupt historical worker patch accepted")
+	}
+	if err := os.WriteFile(doc.Workers[0].Patch, patchBytes, 0600); err != nil {
+		t.Fatal(err)
+	}
+	extraPath := filepath.Join(doc.Workers[0].Product, ".woody", "retained-output.bin")
+	extraData := []byte{0, 1, 2, 255, 10}
+	if err := os.WriteFile(extraPath, extraData, 0600); err != nil {
+		t.Fatal(err)
+	}
+	var archivePath, archiveSHA string
+	if runtime.GOOS == "windows" {
+		receiptPath := doc.Workers[0].Receipt
+		receiptBytes, err := os.ReadFile(receiptPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		receipt, err := readJobReceipt(receiptPath)
+		if err != nil || !receipt.ProcessTreeVerified {
+			t.Fatalf("worker tree was not verified: %+v %v", receipt, err)
+		}
+		receipt.ProcessTreeVerified = false
+		if err := writeJobReceipt(receiptPath, receipt); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := prepareCodingFinalization(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+			t.Fatal("finalization prepared without process tree evidence")
+		}
+		if err := os.WriteFile(receiptPath, receiptBytes, 0600); err != nil {
+			t.Fatal(err)
+		}
+		archivePath, archiveSHA, err = prepareCodingFinalization(root, ctx.scope(), "coord-TASK.md", base)
+	} else {
+		if _, _, err := prepareCodingFinalization(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+			t.Fatal("unsupported platform claimed verified process tree")
+		}
+		archivePath, archiveSHA, err = archiveCodingEvidence(root, ctx.scope(), "coord-TASK.md", base)
+	}
+	if err != nil {
+		t.Fatalf("archive preparation failed: %v", err)
+	}
+	manifest, err := verifyCodingArchive(archivePath, archiveSHA, root)
+	if err != nil || manifest.AcceptedCommit != accepted {
+		t.Fatalf("archive readback failed: %+v %v", manifest, err)
+	}
+	extraName := codingArchiveExtraName(1, ".woody/retained-output.bin")
+	archivedExtra, err := os.ReadFile(filepath.Join(archivePath, extraName))
+	if err != nil || !bytes.Equal(archivedExtra, extraData) {
+		t.Fatal("worker ignored data was not preserved")
+	}
+	if _, err := verifyCodingArchive(archivePath, strings.Repeat("0", 64), root); err == nil {
+		t.Fatal("wrong external manifest anchor accepted")
+	}
+	if _, _, err := archiveCodingEvidence(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+		t.Fatal("existing archive overwritten")
+	}
+	if _, err := verifyCodingArchive(archivePath, archiveSHA, root); err != nil {
+		t.Fatalf("repeat changed archive: %v", err)
+	}
+	archivedFile := filepath.Join(archivePath, "worker-1.changed")
+	originalArchived, err := os.ReadFile(archivedFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(archivedFile, append(append([]byte(nil), originalArchived...), 'x'), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := verifyCodingArchive(archivePath, archiveSHA, root); err == nil {
+		t.Fatal("corrupt archived file accepted")
+	}
+	if err := os.WriteFile(archivedFile, originalArchived, 0600); err != nil {
+		t.Fatal(err)
+	}
 	afterCommit := ctx.runIsolatedCodingWorkers("codex", base, "coord-TASK.md", runnerSpec{
 		Kind: "codex", Model: "gpt-6.1-terra", Effort: "low"})
 	if afterCommit.SourceHead == doc.SourceHead || afterCommit.Status != "NOT_PROVEN" || !strings.Contains(afterCommit.Error, "already exists") {
@@ -654,6 +753,179 @@ func testCodingWorkersStatusRecovery(t *testing.T, sessionKey string) {
 	assertRecovered()
 	if jobs.Load() != 2 {
 		t.Fatalf("integration or duplicate launched additional model jobs: %d", jobs.Load())
+	}
+	workspaceBase := filepath.Dir(doc.Report)
+	if runtime.GOOS == "windows" {
+		if err := os.WriteFile(extraPath, []byte("changed-after-archive"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := finalizeCodingWorkspaces(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+			t.Fatal("changed ignored data authorized worktree removal")
+		}
+		if err := os.WriteFile(extraPath, extraData, 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(archivedFile, []byte("tampered"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := finalizeCodingWorkspaces(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+			t.Fatal("corrupt archive authorized worktree removal")
+		}
+		if err := os.WriteFile(archivedFile, originalArchived, 0600); err != nil {
+			t.Fatal(err)
+		}
+		foreign := filepath.Join(doc.Workers[0].Product, "unexpected-test-file")
+		if err := os.WriteFile(foreign, []byte("preserve"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := finalizeCodingWorkspaces(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+			t.Fatal("unarchived file authorized worktree removal")
+		}
+		if data, err := os.ReadFile(foreign); err != nil || string(data) != "preserve" {
+			t.Fatal("unarchived test file was changed")
+		}
+		if err := os.Remove(foreign); err != nil {
+			t.Fatal(err)
+		}
+		finalizeLock, ok := acquireLock(lockName("coding-finalize", workspaceBase))
+		if !ok || !validAutoSelfDeliveryLock(finalizeLock) {
+			t.Fatal("could not hold test finalization lock")
+		}
+		if err := finalizeCodingWorkspaces(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+			finalizeLock.release()
+			t.Fatal("concurrent finalization lock was ignored")
+		}
+		finalizeLock.release()
+		removeOriginal := codingRemoveWorktree
+		codingRemoveWorktree = func(_, _ string) error { return fmt.Errorf("simulated Git removal failure") }
+		if err := finalizeCodingWorkspaces(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+			codingRemoveWorktree = removeOriginal
+			t.Fatal("worktree removal failure ignored")
+		}
+		codingRemoveWorktree = removeOriginal
+		for i := range doc.Workers {
+			if _, err := os.Stat(filepath.Join(workspaceBase, fmt.Sprintf("worker-%d", i+1))); err != nil {
+				t.Fatal("worktree disappeared after simulated removal failure")
+			}
+		}
+		var attempts atomic.Int32
+		codingRemoveWorktree = func(top, worker string) error {
+			if attempts.Add(1) == 2 {
+				return fmt.Errorf("simulated second worktree failure")
+			}
+			return removeOriginal(top, worker)
+		}
+		partialErr := finalizeCodingWorkspaces(root, ctx.scope(), "coord-TASK.md", base)
+		codingRemoveWorktree = removeOriginal
+		if partialErr == nil || attempts.Load() != 2 {
+			t.Fatalf("partial removal was not reported: %v", partialErr)
+		}
+		if _, err := os.Stat(filepath.Join(workspaceBase, "worker-1")); !os.IsNotExist(err) {
+			t.Fatal("first worktree was not removed after archive")
+		}
+		if _, err := os.Stat(filepath.Join(workspaceBase, "worker-2")); err != nil {
+			t.Fatal("failed worktree was not retained")
+		}
+	}
+	if codingWorkspaceReleased(root, ".", workspaceBase) {
+		t.Fatal("workspace capacity released before worktree removal")
+	}
+	if runtime.GOOS == "windows" {
+		oldRemove := codingRemoveWorktree
+		var removals atomic.Int32
+		codingRemoveWorktree = func(top, worker string) error {
+			removals.Add(1)
+			return oldRemove(top, worker)
+		}
+		start := make(chan struct{})
+		results := make(chan error, 2)
+		for i := 0; i < 2; i++ {
+			go func() {
+				<-start
+				results <- finalizeCodingWorkspaces(root, ctx.scope(), "coord-TASK.md", base)
+			}()
+		}
+		close(start)
+		first, second := <-results, <-results
+		codingRemoveWorktree = oldRemove
+		if (first != nil && second != nil) || removals.Load() != 1 {
+			t.Fatalf("concurrent finalization: first=%v second=%v removals=%d", first, second, removals.Load())
+		}
+		rc := cmdOrchestrateCode([]string{"finalize", "-product", root, "-task-file", task, "-step", "coord-TASK.md", "-principal", ctx.Principal, "-session-key", ctx.SessionKey, "-state-dir", state, "-json"})
+		if rc != 0 {
+			t.Fatalf("native finalization failed: %d", rc)
+		}
+		if err := finalizeCodingWorkspaces(root, ctx.scope(), "coord-TASK.md", base); err != nil {
+			t.Fatalf("repeated finalization failed: %v", err)
+		}
+	} else {
+		for _, worker := range doc.Workers {
+			workerTop, err := gitCodingOutput(worker.Product, "rev-parse", "--show-toplevel")
+			if err != nil {
+				t.Fatal(err)
+			}
+			codingFixtureGit(t, root, "worktree", "remove", "--force", workerTop)
+		}
+	}
+	if _, err := verifyCodingArchive(archivePath, archiveSHA, root); err != nil {
+		t.Fatalf("archive unreadable after synthetic worktree removal: %v", err)
+	}
+	archivedExtra, err = os.ReadFile(filepath.Join(archivePath, extraName))
+	if err != nil || !bytes.Equal(archivedExtra, extraData) {
+		t.Fatal("worker ignored data was not recoverable")
+	}
+	restoreRoot := t.TempDir()
+	restorePath := filepath.Join(restoreRoot, ".woody", "retained-output.bin")
+	if err := os.MkdirAll(filepath.Dir(restorePath), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(restorePath, archivedExtra, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if restored, err := os.ReadFile(restorePath); err != nil || !bytes.Equal(restored, extraData) {
+		t.Fatal("archived worker data was not restored")
+	}
+	if !codingWorkspaceReleased(root, ".", workspaceBase) {
+		t.Fatal("verified archive and removed worktrees did not release capacity")
+	}
+	afterRemoval, err := codingStatus(root, ctx.scope(), "coord-TASK.md", base)
+	if err != nil || afterRemoval.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" {
+		t.Fatalf("archived status not verified: %+v %v", afterRemoval, err)
+	}
+	archivedAck, archivedCommit, err := verifyHistoricalCodingAck(root, ctx.scope(), "coord-TASK.md", base)
+	if err != nil || archivedAck.Status != "ACK_RECORDED" || archivedCommit != accepted {
+		t.Fatalf("archived acknowledgement not verified: %s %v", archivedCommit, err)
+	}
+	beforeDuplicate := jobs.Load()
+	duplicateAfterRemoval := ctx.runIsolatedCodingWorkers("codex", base, "coord-TASK.md", runnerSpec{Kind: "codex", Model: "gpt-6.1-terra", Effort: "low"})
+	if duplicateAfterRemoval.Status != "NOT_PROVEN" || jobs.Load() != beforeDuplicate {
+		t.Fatalf("duplicate worker launched after archive: %+v", duplicateAfterRemoval)
+	}
+	sealPath := filepath.Join(filepath.Dir(doc.Report), "archive-seal.json")
+	sealBytes, err := os.ReadFile(sealPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sealPath, []byte("{"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if codingWorkspaceReleased(root, ".", workspaceBase) {
+		t.Fatal("corrupt archive released workspace capacity")
+	}
+	if _, err := codingStatus(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+		t.Fatal("corrupt archive seal accepted after removal")
+	}
+	if err := os.WriteFile(sealPath, sealBytes, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(archivedFile, append(append([]byte(nil), originalArchived...), 'x'), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := codingStatus(root, ctx.scope(), "coord-TASK.md", base); err == nil {
+		t.Fatal("corrupt archived worker accepted after removal")
+	}
+	if err := os.WriteFile(archivedFile, originalArchived, 0600); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -1011,6 +1283,45 @@ func TestCodingEscalation(t *testing.T) {
 				}
 				if starts() != beforeJobs || receiptJobs() != beforeReceipts {
 					t.Fatal("repeated automatic call launched another process")
+				}
+				if _, _, err := archiveCodingEvidence(root, ctx.scope(), "coord-TASK.md", string(body)); err != nil {
+					t.Fatalf("archive retry evidence: %v", err)
+				}
+				if runtime.GOOS == "windows" {
+					nextHead, err := gitCodingOutput(root, "rev-parse", "HEAD")
+					if err != nil {
+						t.Fatal(err)
+					}
+					if _, err := reserveCodingWorkspace(root, ".", ctx.scope(), "coord-next", nextHead, "next-task"); err != nil {
+						t.Fatalf("next reservation after automatic finalization: %v", err)
+					}
+					if _, err := os.Stat(filepath.Dir(original.Report)); err != nil {
+						t.Fatal("unaccepted original attempt was removed")
+					}
+					if err := finalizeCodingWorkspaces(root, ctx.scope(), "coord-TASK.md", string(body)); err != nil {
+						t.Fatalf("retry finalization: %v", err)
+					}
+				} else {
+					for i := range retry.Workers {
+						codingFixtureGit(t, root, "worktree", "remove", "--force", filepath.Join(filepath.Dir(retry.Report), fmt.Sprintf("worker-%d", i+1)))
+					}
+				}
+				archived, physical, err := effectiveCodingEvidence(root, ctx.scope(), "coord-TASK.md", string(body))
+				if err != nil || physical != "coord-TASK.md-retry-1" || archived.Status != "READY_FOR_CHATGPT_COORDINATOR_INTEGRATION" {
+					t.Fatalf("archived retry readback: %+v, %s, %v", archived, physical, err)
+				}
+				if _, err := verifyCodingCommitted(root, ctx.scope(), "coord-TASK.md", string(body), ack); err != nil {
+					t.Fatalf("archived retry commit: %v", err)
+				}
+				archiveTask := filepath.Join(filepath.Dir(retry.Report), "archive-candidate", "worker-1.task")
+				if err := os.WriteFile(archiveTask, []byte("tampered"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				if _, _, err := effectiveCodingEvidence(root, ctx.scope(), "coord-TASK.md", string(body)); err == nil {
+					t.Fatal("tampered archived retry accepted")
+				}
+				if starts() != beforeJobs || receiptJobs() != beforeReceipts {
+					t.Fatal("archived retry readback launched another process")
 				}
 				return
 			}

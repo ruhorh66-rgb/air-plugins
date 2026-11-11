@@ -429,6 +429,27 @@ var invokeNativeSourceReview = func(scope sessionScope, prompt string, reviewer 
 	return invokeNativeSourceReviewWithNode(scope, prompt, reviewer, step, taskSHA, nil)
 }
 
+func verifySourceReviewStderr(scope sessionScope, step string) error {
+	receiptPath, outputPath := jobReceiptPaths(scope, step, "semantic-reviewer")
+	receipt, err := readJobReceipt(receiptPath)
+	if err != nil || filepath.Clean(receipt.StderrPath) != filepath.Clean(outputPath+".stderr") || receipt.StderrSHA256 == "" || jobOwnedEvidencePath(scope.Root, receipt.StderrPath) != nil {
+		return errors.New("source review stderr receipt is not sealed")
+	}
+	file, err := os.Open(receipt.StderrPath)
+	if err != nil {
+		return errors.New("source review stderr cannot be read")
+	}
+	stderr, readErr := io.ReadAll(io.LimitReader(file, (32<<20)+1))
+	closeErr := file.Close()
+	if readErr != nil || closeErr != nil || len(stderr) > 32<<20 || int64(len(stderr)) != receipt.StderrBytes || sha256Hex(stderr) != receipt.StderrSHA256 {
+		return errors.New("source review stderr does not match receipt")
+	}
+	if len(stderr) != 0 {
+		return errors.New("source review emitted stderr; inspect sealed diagnostics and hook outcome")
+	}
+	return nil
+}
+
 var invokeNativeSourceReviewWithNode = func(scope sessionScope, prompt string, reviewer runnerSpec, step, taskSHA string, binding *sourceReviewNodeBinding) (string, string, error) {
 	exe, err := resolveRunnerTool("claude")
 	if err != nil {
@@ -447,7 +468,8 @@ var invokeNativeSourceReviewWithNode = func(scope sessionScope, prompt string, r
 	}
 	_ = applyClaudeRunnerEnv(cmd)
 	meta := jobReceiptMeta{
-		Runner: reviewer.Kind, Provider: reviewer.Kind, Model: reviewer.Model, Effort: reviewer.Effort,
+		SeparateStderr: true,
+		Runner:         reviewer.Kind, Provider: reviewer.Kind, Model: reviewer.Model, Effort: reviewer.Effort,
 		Role: "semantic-reviewer", Sandbox: "tool-restricted",
 		ToolPath: exe, ToolVersion: strings.TrimSpace(string(versionOut)), ReviewTaskSHA256: taskSHA,
 		ToolRestrictions: restrictions,
@@ -457,6 +479,11 @@ var invokeNativeSourceReviewWithNode = func(scope sessionScope, prompt string, r
 		meta.ReviewNodeProduct = binding.Root
 	}
 	out, runErr := runReceiptedWithMeta(context.Background(), scope, step, "semantic-reviewer", cmd, meta)
+	if runErr == nil {
+		if err := verifySourceReviewStderr(scope, step); err != nil {
+			return "", "", err
+		}
+	}
 	return parseAndVerifySourceReviewStream(decodeOutput(out), runErr, scope.Root, taskSHA)
 }
 

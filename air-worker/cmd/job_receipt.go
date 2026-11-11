@@ -33,41 +33,45 @@ const (
 // jobReceipt — durable запись о долгой команде: всё необходимое, чтобы прочитать финал по
 // output_path, не удерживая сам процесс/сессию, которая её запустила.
 type jobReceipt struct {
-	JobID             string    `json:"job_id"`
-	PID               int       `json:"pid"`
-	StartedAt         time.Time `json:"started_at"`
-	Status            string    `json:"status"`
-	OutputPath        string    `json:"output_path"`
-	Product           string    `json:"product"`
-	Principal         string    `json:"principal"`
-	Session           string    `json:"session"`
-	Step              string    `json:"step"`
-	Operation         string    `json:"operation"`
-	Runner            string    `json:"runner,omitempty"`
-	Provider          string    `json:"provider,omitempty"`
-	Model             string    `json:"model,omitempty"`
-	Effort            string    `json:"effort,omitempty"`
-	Role              string    `json:"role,omitempty"`
-	Sandbox           string    `json:"sandbox,omitempty"`
-	ToolPath          string    `json:"tool_path,omitempty"`
-	ToolVersion       string    `json:"tool_version,omitempty"`
-	ToolRestrictions  []string  `json:"tool_restrictions,omitempty"`
-	ReviewTaskSHA256  string    `json:"review_task_sha256,omitempty"`
-	ReviewNodeID      string    `json:"review_node_id,omitempty"`
-	ReviewNodeProduct string    `json:"review_node_product,omitempty"`
-	ReviewNodeCommit  string    `json:"review_node_commit,omitempty"`
-	ReviewNodeSHA256  string    `json:"review_node_sha256,omitempty"`
-	ProcessStarted    bool      `json:"process_started"`
-	RequestStarted    bool      `json:"request_started,omitempty"`
-	Cost              *float64  `json:"cost,omitempty"`
-	OutputSHA256      string    `json:"output_sha256,omitempty"`
-	OutputBytes       int64     `json:"output_bytes,omitempty"`
-	SourceHead        string    `json:"source_head,omitempty"`
-	ArgsSHA256        string    `json:"args_sha256,omitempty"`
-	StdinSHA256       string    `json:"stdin_sha256,omitempty"`
-	ExitCode          *int      `json:"exit_code,omitempty"`
-	RecoveryRef       string    `json:"recovery_ref,omitempty"`
-	DeadlineUTC       string    `json:"deadline_utc,omitempty"`
+	JobID               string    `json:"job_id"`
+	PID                 int       `json:"pid"`
+	StartedAt           time.Time `json:"started_at"`
+	Status              string    `json:"status"`
+	OutputPath          string    `json:"output_path"`
+	StderrPath          string    `json:"stderr_path,omitempty"`
+	Product             string    `json:"product"`
+	Principal           string    `json:"principal"`
+	Session             string    `json:"session"`
+	Step                string    `json:"step"`
+	Operation           string    `json:"operation"`
+	Runner              string    `json:"runner,omitempty"`
+	Provider            string    `json:"provider,omitempty"`
+	Model               string    `json:"model,omitempty"`
+	Effort              string    `json:"effort,omitempty"`
+	Role                string    `json:"role,omitempty"`
+	Sandbox             string    `json:"sandbox,omitempty"`
+	ToolPath            string    `json:"tool_path,omitempty"`
+	ToolVersion         string    `json:"tool_version,omitempty"`
+	ToolRestrictions    []string  `json:"tool_restrictions,omitempty"`
+	ReviewTaskSHA256    string    `json:"review_task_sha256,omitempty"`
+	ReviewNodeID        string    `json:"review_node_id,omitempty"`
+	ReviewNodeProduct   string    `json:"review_node_product,omitempty"`
+	ReviewNodeCommit    string    `json:"review_node_commit,omitempty"`
+	ReviewNodeSHA256    string    `json:"review_node_sha256,omitempty"`
+	ProcessStarted      bool      `json:"process_started"`
+	ProcessTreeVerified bool      `json:"process_tree_verified,omitempty"`
+	RequestStarted      bool      `json:"request_started,omitempty"`
+	Cost                *float64  `json:"cost,omitempty"`
+	OutputSHA256        string    `json:"output_sha256,omitempty"`
+	OutputBytes         int64     `json:"output_bytes,omitempty"`
+	StderrSHA256        string    `json:"stderr_sha256,omitempty"`
+	StderrBytes         int64     `json:"stderr_bytes,omitempty"`
+	SourceHead          string    `json:"source_head,omitempty"`
+	ArgsSHA256          string    `json:"args_sha256,omitempty"`
+	StdinSHA256         string    `json:"stdin_sha256,omitempty"`
+	ExitCode            *int      `json:"exit_code,omitempty"`
+	RecoveryRef         string    `json:"recovery_ref,omitempty"`
+	DeadlineUTC         string    `json:"deadline_utc,omitempty"`
 }
 
 // jobLockKind — duplicate-start guard именует замок по (step, operation) внутри scope: тот
@@ -192,6 +196,24 @@ func finishJobReceiptWithExit(receiptPath, status string, code *int) error {
 	if status == jobStatusDone && (r.ProcessStarted || r.RequestStarted || r.Runner == "router" || code != nil) && r.OutputSHA256 == "" {
 		return errors.New("cannot seal terminal output")
 	}
+	if r.StderrPath != "" {
+		if filepath.Clean(r.StderrPath) != filepath.Clean(r.OutputPath+".stderr") {
+			return errors.New("invalid stderr path")
+		}
+		stderr, err := os.Open(r.StderrPath)
+		if err != nil {
+			return errors.New("cannot seal stderr output")
+		}
+		info, statErr := stderr.Stat()
+		link, linkErr := os.Lstat(r.StderrPath)
+		h := sha256.New()
+		n, readErr := io.Copy(h, io.LimitReader(stderr, (32<<20)+1))
+		closeErr := stderr.Close()
+		if statErr != nil || linkErr != nil || readErr != nil || closeErr != nil || !info.Mode().IsRegular() || !link.Mode().IsRegular() || !os.SameFile(info, link) || n != info.Size() || n > 32<<20 {
+			return errors.New("cannot seal stderr output")
+		}
+		r.StderrSHA256, r.StderrBytes = hex.EncodeToString(h.Sum(nil)), n
+	}
 	r.Status = status
 	r.ExitCode = code
 	return writeJobReceiptFunc(receiptPath, r)
@@ -199,6 +221,8 @@ func finishJobReceiptWithExit(receiptPath, status string, code *int) error {
 
 // writeJobReceiptFunc — seam для проверки отказа записи квитанции на каждом этапе запуска.
 var writeJobReceiptFunc = writeJobReceipt
+
+var errCodingTreeActive = errors.New("coding process tree still has active processes")
 
 func writeJobReceipt(path string, r *jobReceipt) error {
 	data, err := json.MarshalIndent(r, "", "  ")
@@ -297,6 +321,7 @@ type jobCmdResult struct {
 // того же job в том же scope должен продолжать отказывать, пока ПЕРВЫЙ процесс жив, даже
 // если caller этого первого уже перестал ждать.
 type jobReceiptMeta struct {
+	SeparateStderr    bool
 	ToolPath          string
 	ToolVersion       string
 	ToolRestrictions  []string
@@ -427,6 +452,9 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 	r.ReviewNodeProduct = meta.ReviewNodeProduct
 	r.ReviewNodeCommit = meta.ReviewNodeCommit
 	r.ReviewNodeSHA256 = meta.ReviewNodeSHA256
+	if meta.SeparateStderr {
+		r.StderrPath = outputPath + ".stderr"
+	}
 	r.SourceHead = jobSourceHead(scope.Root)
 	r.ArgsSHA256 = jobCommandFingerprint(cmd)
 	r.StdinSHA256 = jobStdinFingerprint(cmd)
@@ -440,13 +468,39 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 	}
 	outFile, err := root.OpenFile(filepath.Join(".woody", "jobs", filepath.Base(outputPath)), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o666)
 	if err != nil {
+		if meta.SeparateStderr {
+			r.StderrPath = ""
+			_ = writeJobReceiptFunc(receiptPath, r)
+		}
 		_ = finishJobReceipt(receiptPath, jobStatusFailed)
 		lock.release()
 		return nil, err
 	}
 	cmd.Stdout = outFile
 	cmd.Stderr = outFile
-	owned := runtime.GOOS == "windows" && meta.Role == "factual-judge"
+	var stderrFile *os.File
+	if meta.SeparateStderr {
+		stderrFile, err = root.OpenFile(filepath.Join(".woody", "jobs", filepath.Base(r.StderrPath)), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if err != nil {
+			_ = outFile.Close()
+			r.StderrPath = ""
+			writeErr := writeJobReceiptFunc(receiptPath, r)
+			if writeErr == nil {
+				writeErr = finishJobReceipt(receiptPath, jobStatusFailed)
+			}
+			lock.release()
+			return nil, errors.Join(fmt.Errorf("cannot create separate stderr: %w", err), writeErr)
+		}
+		cmd.Stderr = stderrFile
+	}
+	closeOutputs := func() {
+		_ = outFile.Close()
+		if stderrFile != nil {
+			_ = stderrFile.Close()
+		}
+	}
+	codingOwned := runtime.GOOS == "windows" && meta.Role == "coding-subagent/worker"
+	owned := runtime.GOOS == "windows" && (meta.Role == "factual-judge" || codingOwned)
 	var tree *routerOwnedTree
 	var stopMu sync.Mutex
 	var stopErr error
@@ -472,7 +526,7 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 		startErr = cmd.Start()
 	}
 	if startErr != nil {
-		outFile.Close()
+		closeOutputs()
 		if owned {
 			if cmd.Process == nil {
 				_ = finishJobReceipt(receiptPath, jobStatusFailed)
@@ -518,7 +572,7 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 			cleanupErr := stop()
 			if cleanupErr == nil {
 				_ = cmd.Wait()
-				_ = outFile.Close()
+				closeOutputs()
 			}
 			return nil, errors.Join(registrationErr, cleanupErr)
 		}
@@ -526,7 +580,7 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 		// дочерний процесс и дожидаемся его завершения до освобождения job-lock.
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
-		_ = outFile.Close()
+		closeOutputs()
 		r.Status = jobStatusFailed
 		r.ProcessStarted = false
 		_ = writeJobReceiptFunc(receiptPath, r)
@@ -538,17 +592,39 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 	go func() {
 		waitErr := cmd.Wait()
 		if owned {
+			if codingOwned {
+				for {
+					err := codingTreeQuiescent(tree)
+					if err == nil {
+						break
+					}
+					if !errors.Is(err, errCodingTreeActive) {
+						closeOutputs()
+						resultCh <- jobCmdResult{err: errors.Join(waitErr, err)}
+						return
+					}
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
 			_ = stop()
 			stopMu.Lock()
 			cleanupErr := stopErr
 			stopMu.Unlock()
 			if cleanupErr != nil || cmd.ProcessState == nil {
-				_ = outFile.Close()
+				closeOutputs()
 				resultCh <- jobCmdResult{err: errors.Join(waitErr, cleanupErr, errors.New("owned process cleanup or exit not verified"))}
 				return
 			}
+			if codingOwned {
+				r.ProcessTreeVerified = true
+				if err := writeJobReceiptFunc(receiptPath, r); err != nil {
+					closeOutputs()
+					resultCh <- jobCmdResult{err: fmt.Errorf("coding process tree receipt: %w", err)}
+					return
+				}
+			}
 		}
-		outFile.Close()
+		closeOutputs()
 		status := jobStatusDone
 		actualExit := 0
 		if waitErr != nil {

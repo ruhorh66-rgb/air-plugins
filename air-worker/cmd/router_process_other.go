@@ -2,9 +2,16 @@
 
 package main
 
-import "os/exec"
+import (
+	"errors"
+	"os/exec"
+)
 
 type routerOwnedTree struct{ cmd *exec.Cmd }
+
+func codingTreeQuiescent(*routerOwnedTree) error {
+	return errors.New("coding process tree quiescence is not verified on this platform")
+}
 
 func startRouterOwnedTree(cmd *exec.Cmd) (*routerOwnedTree, error) {
 	prepareLearningProcessTree(cmd)
