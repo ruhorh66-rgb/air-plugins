@@ -1,23 +1,23 @@
 {
   "schema": 1,
   "channel": "prerelease",
-  "version": "0.11.11-rc.4",
-  "published_at": "2026-11-06T15:48:31Z",
-  "vcs_revision": "0cb69306e0c4dd1cd388cd7a498e3f0ec4ea2a60",
-  "payload_sha256": "ff63974dd86cf3653a7a5dd3cd118fd6da5f201c33451875604381ef4ac43715",
+  "version": "0.11.11-rc.5",
+  "published_at": "2026-11-11T15:17:47Z",
+  "vcs_revision": "7e7130399cc833e0921f746a77ee31ebb6502254",
+  "payload_sha256": "76a601d943c9fddce32f44151e5af4a3c514e2fd87c8379752fdccef902728ec",
   "cli": {
-    "name": "air-worker-0.11.11-rc.4-windows-x64.exe",
-    "url": "https://github.com/ruhorh66-rgb/air-plugins/releases/download/air-worker--v0.11.11-rc.4/air-worker-0.11.11-rc.4-windows-x64.exe",
-    "sha256": "a1734684f2de42cf7a8442e0b1f982681e4e16e5d10258eafe534877f13124b5",
-    "size": 15168512
+    "name": "air-worker-0.11.11-rc.5-windows-x64.exe",
+    "url": "https://github.com/ruhorh66-rgb/air-plugins/releases/download/air-worker--v0.11.11-rc.5/air-worker-0.11.11-rc.5-windows-x64.exe",
+    "sha256": "80c29dac0ba135209e42ee70024e720576d19d9734f0f3c946dbce7eae28c145",
+    "size": 11730432
   },
   "tray": {
-    "name": "air-worker-tray-0.11.11-rc.4-windows-x64.exe",
-    "url": "https://github.com/ruhorh66-rgb/air-plugins/releases/download/air-worker--v0.11.11-rc.4/air-worker-tray-0.11.11-rc.4-windows-x64.exe",
-    "sha256": "baea887f66b3849c1d84ffe3137acf5b8fa34dd41e971580fea133b3380fd7b2",
-    "size": 3697664
+    "name": "air-worker-tray-0.11.11-rc.5-windows-x64.exe",
+    "url": "https://github.com/ruhorh66-rgb/air-plugins/releases/download/air-worker--v0.11.11-rc.5/air-worker-tray-0.11.11-rc.5-windows-x64.exe",
+    "sha256": "d8366c53e646e5eaf73aaa7e7b4dec22de7b81f15cb90bff69f8b993ecdfc522",
+    "size": 2527744
   },
   "signing_key_id": "air-worker-update-2026-01",
-  "manifest_signature": "hR3euNn7H2vPDp5MLGoDxHuRFFOFF3Igjj2qxdDGZwObvEfPd+W6EMoEOShdjd8+i9CkIMS0Yk6HIjPbISrtAg==",
-  "release_notes_url": "https://github.com/ruhorh66-rgb/air-plugins/releases/tag/air-worker--v0.11.11-rc.4"
+  "manifest_signature": "wqPOAp7LgU9qxXz/DfvC46wmSbVlk58zRiTadtG1WQMwk9tZPz+DCQB+0FuP4dO33UvqAVdPVHePVH24Ml2kBA==",
+  "release_notes_url": "https://github.com/ruhorh66-rgb/air-plugins/releases/tag/air-worker--v0.11.11-rc.5"
 }
