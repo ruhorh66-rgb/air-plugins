@@ -49,6 +49,9 @@ type sourceReviewReport struct {
 	Schema       string               `json:"schema"`
 	SourceCommit string               `json:"source_commit"`
 	NodeID       string               `json:"node_id"`
+	NodeProduct  string               `json:"node_product,omitempty"`
+	NodeCommit   string               `json:"node_commit,omitempty"`
+	NodeSHA256   string               `json:"node_sha256,omitempty"`
 	TaskFile     string               `json:"task_file"`
 	TaskSHA256   string               `json:"task_sha256"`
 	Executor     string               `json:"executor"`
@@ -423,6 +426,10 @@ func parseClaudeStructuredSourceResult(raw string, runErr error) (string, string
 }
 
 var invokeNativeSourceReview = func(scope sessionScope, prompt string, reviewer runnerSpec, step, taskSHA string) (string, string, error) {
+	return invokeNativeSourceReviewWithNode(scope, prompt, reviewer, step, taskSHA, nil)
+}
+
+var invokeNativeSourceReviewWithNode = func(scope sessionScope, prompt string, reviewer runnerSpec, step, taskSHA string, binding *sourceReviewNodeBinding) (string, string, error) {
 	exe, err := resolveRunnerTool("claude")
 	if err != nil {
 		return "", "", err
@@ -439,12 +446,17 @@ var invokeNativeSourceReview = func(scope sessionScope, prompt string, reviewer 
 		return "", "", err
 	}
 	_ = applyClaudeRunnerEnv(cmd)
-	out, runErr := runReceiptedWithMeta(context.Background(), scope, step, "semantic-reviewer", cmd, jobReceiptMeta{
+	meta := jobReceiptMeta{
 		Runner: reviewer.Kind, Provider: reviewer.Kind, Model: reviewer.Model, Effort: reviewer.Effort,
 		Role: "semantic-reviewer", Sandbox: "tool-restricted",
 		ToolPath: exe, ToolVersion: strings.TrimSpace(string(versionOut)), ReviewTaskSHA256: taskSHA,
 		ToolRestrictions: restrictions,
-	})
+	}
+	if binding != nil {
+		meta.ReviewNodeID, meta.ReviewNodeCommit, meta.ReviewNodeSHA256 = binding.Node.ID, binding.Head, binding.SHA256
+		meta.ReviewNodeProduct = binding.Root
+	}
+	out, runErr := runReceiptedWithMeta(context.Background(), scope, step, "semantic-reviewer", cmd, meta)
 	return parseAndVerifySourceReviewStream(decodeOutput(out), runErr, scope.Root, taskSHA)
 }
 
@@ -455,6 +467,8 @@ func cmdSourceReview(argv []string) int {
 	taskPath := fs.String("task-file", "", "bounded source review task inside product")
 	expectedHead := fs.String("source-head", "", "required exact source commit SHA")
 	nodeID := fs.String("node", "", "required native PLAN node ID, e.g. N-130")
+	nodeProduct := fs.String("node-product", "", "optional separate clean checkout of the same product containing the node")
+	nodeHead := fs.String("node-head", "", "required exact node checkout SHA when -node-product is provided")
 	executor := fs.String("executor", "codex", "must be codex")
 	class := fs.String("class", "default", "Anthropic judge class: default|complex")
 	principal := fs.String("principal", "", "declared session principal")
@@ -490,11 +504,6 @@ func cmdSourceReview(argv []string) int {
 	if strings.TrimSpace(*nodeID) == "" {
 		return emit(errors.New("native node is mandatory: -node N-130"), 2)
 	}
-	node, err := sourceReviewNode(root, *nodeID)
-	if err != nil {
-		return emit(err, 2)
-	}
-	report.NodeID = node.ID
 	scope, err := executorScopeForSession(root, *principal, *sessionKey, *stateDir)
 	if err != nil {
 		return emit(err, 2)
@@ -514,6 +523,18 @@ func cmdSourceReview(argv []string) int {
 	if !operationalSHA.MatchString(*expectedHead) || head != *expectedHead {
 		return emit(errors.New("source-head must equal the exact clean current source SHA"), 2)
 	}
+	nodeRoot, expectedNodeHead := root, head
+	if strings.TrimSpace(*nodeProduct) != "" {
+		nodeRoot, expectedNodeHead = *nodeProduct, *nodeHead
+	} else if strings.TrimSpace(*nodeHead) != "" {
+		return emit(errors.New("node-head requires node-product"), 2)
+	}
+	binding, err := bindSourceReviewNode(root, head, nodeRoot, expectedNodeHead, *nodeID)
+	if err != nil {
+		return emit(err, 2)
+	}
+	node := binding.Node
+	report.NodeID, report.NodeProduct, report.NodeCommit, report.NodeSHA256 = node.ID, binding.Root, binding.Head, binding.SHA256
 	reviewer, err := judgeLaneRunner(cfg, *class)
 	if err == nil {
 		err = enforceIndependentAnthropicReviewer(cfg, runnerSpec{Kind: "codex"}, reviewer)
@@ -524,9 +545,16 @@ func cmdSourceReview(argv []string) int {
 	report.Reviewer = reviewer
 	report.SourceCommit, report.TaskFile, report.TaskSHA256 = head, taskFile, sha256Hex(rawTask)
 	step := "source-review-" + node.ID + "-" + head[:12]
+	if binding.Head != head {
+		step += "-node-" + binding.Head[:12] + "-task-" + report.TaskSHA256[:12]
+	}
 	report.Receipt, _ = jobReceiptPaths(scope, step, "semantic-reviewer")
-	prompt := sourceReviewPrompt("NATIVE_NODE_ID: "+node.ID+"\nNATIVE_NODE_DONE_WHEN: "+node.DoneWhen+"\n"+string(rawTask), head, report.TaskSHA256)
-	reply, session, err := invokeNativeSourceReview(scope, prompt, reviewer, step, report.TaskSHA256)
+	nodeContext := "NATIVE_NODE_ID: " + node.ID + "\nNATIVE_NODE_DONE_WHEN: " + node.DoneWhen + "\n"
+	if binding.Head != head {
+		nodeContext = "NATIVE_NODE_ID: " + node.ID + "\nNATIVE_NODE_COMMIT: " + binding.Head + "\nNATIVE_NODE_FILE_SHA256: " + binding.SHA256 + "\nNATIVE_NODE_DONE_WHEN: " + node.DoneWhen + "\n"
+	}
+	prompt := sourceReviewPrompt(nodeContext+string(rawTask), head, report.TaskSHA256)
+	reply, session, err := invokeNativeSourceReviewWithNode(scope, prompt, reviewer, step, report.TaskSHA256, &binding)
 	report.Session = session
 	if err != nil {
 		return emit(err, 2)
@@ -534,6 +562,10 @@ func cmdSourceReview(argv []string) int {
 	afterHead, err := sourceReviewGitState(root)
 	if err != nil || afterHead != head {
 		return emit(errors.New("source changed during reviewer execution"), 2)
+	}
+	afterBinding, err := bindSourceReviewNode(root, head, binding.Root, binding.Head, *nodeID)
+	if err != nil || afterBinding.Path != binding.Path || afterBinding.SHA256 != binding.SHA256 {
+		return emit(errors.New("native node changed during reviewer execution"), 2)
 	}
 	afterTask, err := os.ReadFile(taskFile)
 	if err != nil || sha256Hex(afterTask) != report.TaskSHA256 {

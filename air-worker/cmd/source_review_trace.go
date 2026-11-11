@@ -26,7 +26,7 @@ func parseAndVerifySourceReviewStream(raw string, runErr error, root, taskSHA st
 	var resultLine string
 	initSeen := false
 	session := ""
-	for _, line := range strings.Split(raw, "\n") {
+	for lineIndex, line := range strings.Split(raw, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
@@ -52,7 +52,7 @@ func parseAndVerifySourceReviewStream(raw string, runErr error, root, taskSHA st
 			ToolResult json.RawMessage `json:"tool_use_result"`
 		}
 		if err := json.Unmarshal([]byte(line), &e); err != nil {
-			return "", "", errors.New("invalid source review event")
+			return "", "", fmt.Errorf("invalid source review event at line %d", lineIndex+1)
 		}
 		if e.Type == "system" && e.Subtype == "init" {
 			if initSeen || len(e.MCP) != 0 {

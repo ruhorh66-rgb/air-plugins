@@ -668,3 +668,13 @@ func TestSourceReviewTraceRequiresSuccessfulReadsAndNoMCP(t *testing.T) {
 		t.Fatal("accepted active MCP server")
 	}
 }
+
+func TestSourceReviewTraceRejectsNonJSONAfterTerminal(t *testing.T) {
+	stream := "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"s\",\"tools\":[],\"mcp_servers\":[]}\n" +
+		"{\"type\":\"result\",\"subtype\":\"success\",\"session_id\":\"s\"}\n" +
+		"SessionEnd hook failed: Hook cancelled\n"
+	_, _, err := parseAndVerifySourceReviewStream(stream, nil, t.TempDir(), strings.Repeat("a", 64))
+	if err == nil || !strings.Contains(err.Error(), "invalid source review event at line 3") {
+		t.Fatalf("non-JSON hook output was not rejected with its line: %v", err)
+	}
+}
