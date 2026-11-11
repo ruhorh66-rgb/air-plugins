@@ -320,6 +320,20 @@ func TestSourceReviewRejectsOneBadCitationEvenWithThreeValid(t *testing.T) {
 	}
 }
 
+func TestSourceReviewPromptIsProductNeutral(t *testing.T) {
+	commit := strings.Repeat("a", 40)
+	taskSHA := strings.Repeat("b", 64)
+	prompt := sourceReviewPrompt("NATIVE_NODE_ID: N-063", commit, taskSHA)
+	if strings.Contains(prompt, "frozen AirWorker source") || strings.Contains(prompt, "air-worker/cmd/source_review.go") {
+		t.Fatal("review prompt must not identify an unrelated product")
+	}
+	for _, required := range []string{"frozen product source commit", "NATIVE_NODE_ID: N-063", commit, taskSHA, "relative to the product root"} {
+		if !strings.Contains(prompt, required) {
+			t.Fatalf("prompt missing %q", required)
+		}
+	}
+}
+
 func TestSourceReviewClaudeCommandUsesStrictSchemaAndReadOnlyTools(t *testing.T) {
 	cmd := sourceReviewClaudeCommand("claude", t.TempDir(), "review task", runnerSpec{Model: "sonnet"})
 	args := cmd.Args

@@ -266,7 +266,7 @@ func sourceReviewHasSeverity(items []sourceReviewFinding, severity string) bool 
 
 func sourceReviewPrompt(task, commit, taskSHA string) string {
 	return `You are the INDEPENDENT Anthropic source-security reviewer, not the Codex executor.
-Review code for the frozen AirWorker source commit and its stated native N-node task.
+Review code for the frozen product source commit and its stated native N-node task.
 Use only read-only tools. Actually inspect the task and relevant source files. No edits,
 no auth changes, no install, no payment API, no agent/subagent orchestration.
 You must not claim the task or source were read if access was denied.
@@ -279,7 +279,7 @@ Output exactly ONE JSON object and no Markdown, in this contract:
  "findings":[{"severity":"P0|P1|P2|P3","path":"relative/file.go","line":15,
  "quote":"exact substring from that line","detail":"specific verified issue","next":"optional concise fix"}],
  "next":"concrete next action"}
-Citation paths must be relative to the product root, e.g. cmd/source_review.go, not air-worker/cmd/source_review.go.
+Citation paths must be relative to the product root; do not prepend the product directory name.
 PASS_SOURCE_ONLY requires 0 findings and at least three distinct source-code citations.
 For PASS_SOURCE_ONLY, include EXACTLY THREE checked citations, one per DISTINCT
 source code file. Do not add a ninth or fourth redundant citation. Each line
