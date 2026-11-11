@@ -32,27 +32,21 @@ func parseAndVerifySourceReviewStream(raw string, runErr error, root, taskSHA st
 			continue
 		}
 		var e struct {
-			Type    string            `json:"type"`
-			Subtype string            `json:"subtype"`
-			Session string            `json:"session_id"`
-			Tools   []string          `json:"tools"`
-			MCP     []json.RawMessage `json:"mcp_servers"`
-			Message struct {
-				Content []struct {
-					Type      string `json:"type"`
-					ID        string `json:"id"`
-					Name      string `json:"name"`
-					ToolUseID string `json:"tool_use_id"`
-					IsError   bool   `json:"is_error"`
-					Input     struct {
-						FilePath string `json:"file_path"`
-					} `json:"input"`
-				} `json:"content"`
-			} `json:"message"`
-			ToolResult json.RawMessage `json:"tool_use_result"`
+			Type         string            `json:"type"`
+			Subtype      string            `json:"subtype"`
+			Session      string            `json:"session_id"`
+			Tools        []string          `json:"tools"`
+			MCP          []json.RawMessage `json:"mcp_servers"`
+			Message      json.RawMessage   `json:"message"`
+			HookOutcome  string            `json:"outcome"`
+			HookExitCode *int              `json:"exit_code"`
+			ToolResult   json.RawMessage   `json:"tool_use_result"`
 		}
 		if err := json.Unmarshal([]byte(line), &e); err != nil {
 			return "", "", fmt.Errorf("invalid source review event at line %d", lineIndex+1)
+		}
+		if e.Type == "system" && e.Subtype == "hook_response" && (e.HookOutcome != "success" || e.HookExitCode == nil || *e.HookExitCode != 0) {
+			return "", session, fmt.Errorf("source review hook failed or was not verified at line %d", lineIndex+1)
 		}
 		if e.Type == "system" && e.Subtype == "init" {
 			if initSeen || len(e.MCP) != 0 {
@@ -72,7 +66,25 @@ func parseAndVerifySourceReviewStream(raw string, runErr error, root, taskSHA st
 			}
 			resultLine = line
 		}
-		for _, b := range e.Message.Content {
+		if e.Type != "assistant" && e.Type != "user" {
+			continue
+		}
+		var message struct {
+			Content []struct {
+				Type      string `json:"type"`
+				ID        string `json:"id"`
+				Name      string `json:"name"`
+				ToolUseID string `json:"tool_use_id"`
+				IsError   bool   `json:"is_error"`
+				Input     struct {
+					FilePath string `json:"file_path"`
+				} `json:"input"`
+			} `json:"content"`
+		}
+		if len(e.Message) == 0 || json.Unmarshal(e.Message, &message) != nil {
+			return "", session, fmt.Errorf("invalid source review message at line %d", lineIndex+1)
+		}
+		for _, b := range message.Content {
 			if b.Type == "tool_use" && b.Name == "Read" && b.ID != "" {
 				if _, exists := calls[b.ID]; exists {
 					return "", "", errors.New("duplicate read id")

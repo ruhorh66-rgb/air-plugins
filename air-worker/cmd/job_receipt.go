@@ -593,6 +593,7 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 		waitErr := cmd.Wait()
 		if owned {
 			if codingOwned {
+				// A caller timeout is not permission to terminate live descendants.
 				for {
 					err := codingTreeQuiescent(tree)
 					if err == nil {

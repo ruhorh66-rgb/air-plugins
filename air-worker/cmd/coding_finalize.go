@@ -8,7 +8,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,13 +18,11 @@ import (
 // Complete previously accepted owned attempts before counting the capacity.
 func finalizeRetainedCodingWorkspace(top, productRel, base string) {
 	raw, err := readOwnedCodingArchiveInput(base, filepath.Join(base, "reservation.json"), 8192)
-	if err != nil || rejectDuplicateJSONKeys(raw) != nil {
+	if err != nil {
 		return
 	}
-	var reservation codingWorkspaceReservation
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	if decoder.Decode(&reservation) != nil || decoder.Decode(new(any)) != io.EOF || reservation.Schema != "air-worker.coding-workspace-reservation/v1" || reservation.Principal == "" || reservation.SessionKey == "" {
+	reservation, err := decodeCodingWorkspaceReservation(raw)
+	if err != nil {
 		return
 	}
 	task, err := readOwnedCodingArchiveInput(base, filepath.Join(base, "task.json"), 48<<10)
@@ -229,13 +226,11 @@ func finalizeCodingWorkspaces(root string, scope sessionScope, step, task string
 	}
 	defer lock.release()
 	raw, err := readOwnedCodingArchiveInput(base, filepath.Join(base, "reservation.json"), 8192)
-	if err != nil || rejectDuplicateJSONKeys(raw) != nil {
+	if err != nil {
 		return errors.New("workspace reservation is not verified")
 	}
-	var reservation codingWorkspaceReservation
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	if decoder.Decode(&reservation) != nil || decoder.Decode(new(any)) != io.EOF || reservation.Schema != "air-worker.coding-workspace-reservation/v1" || reservation.Step != physical || reservation.Principal != scope.ID.Principal || reservation.SessionKey != scope.ID.SessionKey || reservation.SourceHead != doc.SourceHead || reservation.TaskSHA256 != doc.TaskSHA256 {
+	reservation, err := decodeCodingWorkspaceReservation(raw)
+	if err != nil || reservation.Step != physical || reservation.Principal != scope.ID.Principal || reservation.SessionKey != scope.ID.SessionKey || reservation.SourceHead != doc.SourceHead || reservation.TaskSHA256 != doc.TaskSHA256 {
 		return errors.New("workspace reservation identity mismatch")
 	}
 	for i, path := range reservation.WorkerPaths {

@@ -43,6 +43,7 @@ func TestN139BoundReviewRejectsChangedTaskBeforeDispatch(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	copyCancellationEvidenceFixture(t, root)
 	n124Git(t, repo, "init")
 	n124Git(t, repo, "config", "user.name", "Test")
 	n124Git(t, repo, "config", "user.email", "test@example.invalid")

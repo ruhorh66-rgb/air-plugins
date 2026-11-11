@@ -652,6 +652,18 @@ func TestSourceReviewTraceRequiresSuccessfulReadsAndNoMCP(t *testing.T) {
 	if _, _, err := parseAndVerifySourceReviewStream(strings.Join(events, "\n"), nil, root, sha); err != nil {
 		t.Fatal(err)
 	}
+	withDenial := append([]string{events[0], enc(map[string]any{"type": "system", "subtype": "permission_denied", "tool_name": "Grep", "message": "outside reads blocked"}), enc(map[string]any{"type": "system", "subtype": "hook_response", "outcome": "success", "exit_code": 0})}, events[1:]...)
+	if _, _, err := parseAndVerifySourceReviewStream(strings.Join(withDenial, "\n"), nil, root, sha); err != nil {
+		t.Fatalf("valid permission denial event rejected: %v", err)
+	}
+	badHook := append([]string{events[0], enc(map[string]any{"type": "system", "subtype": "hook_response", "outcome": "error", "exit_code": 1})}, events[1:]...)
+	if _, _, err := parseAndVerifySourceReviewStream(strings.Join(badHook, "\n"), nil, root, sha); err == nil {
+		t.Fatal("failed hook event accepted")
+	}
+	badMessage := append([]string{events[0], enc(map[string]any{"type": "assistant", "message": "not an object"})}, events[1:]...)
+	if _, _, err := parseAndVerifySourceReviewStream(strings.Join(badMessage, "\n"), nil, root, sha); err == nil {
+		t.Fatal("malformed assistant message accepted")
+	}
 	missing := append([]string(nil), events...)
 	missing[2] = "{}"
 	if _, _, err := parseAndVerifySourceReviewStream(strings.Join(missing, "\n"), nil, root, sha); err == nil {

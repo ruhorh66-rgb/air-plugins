@@ -76,6 +76,24 @@ func TestCodingArchiveExtraPaths(t *testing.T) {
 	if data, err := os.ReadFile(foreign); err != nil || string(data) != "preserve" {
 		t.Fatal("foreign file modified")
 	}
+	if err := os.Remove(foreign); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "foreign-empty"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := codingArchiveExtraPaths(root, "."); err == nil {
+		t.Fatal("unowned empty directory accepted")
+	}
+	if err := os.Remove(filepath.Join(root, "foreign-empty")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, ".woody", "empty"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := codingArchiveExtraPaths(root, "."); err == nil {
+		t.Fatal("unarchived empty directory accepted")
+	}
 }
 
 func TestCodingArchiveCommitPins(t *testing.T) {

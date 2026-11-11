@@ -18,6 +18,23 @@ import (
 
 const n139ID = "N-139_n136-native-operational-goal-selector-for-real-a"
 
+func copyCancellationEvidenceFixture(t *testing.T, root string) {
+	t.Helper()
+	for _, name := range []string{n124NodePath, n124ReceiptPath} {
+		raw, err := os.ReadFile(filepath.Join("..", filepath.FromSlash(name)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, raw, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func n139Fixture(t *testing.T) *loopCtx {
 	t.Helper()
 	root := t.TempDir()
@@ -1042,6 +1059,7 @@ func TestN139AdvanceOwnedGoalRealGit(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
+			copyCancellationEvidenceFixture(t, root)
 			n124Git(t, repo, "init")
 			n124Git(t, repo, "config", "user.name", "Test")
 			n124Git(t, repo, "config", "user.email", "test@example.invalid")

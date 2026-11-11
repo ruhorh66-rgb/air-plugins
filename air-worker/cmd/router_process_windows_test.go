@@ -45,7 +45,13 @@ func TestRouterProcessHelper(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(dir, "pid"), []byte(strconv.Itoa(os.Getpid())), 0600); err != nil {
 			os.Exit(4)
 		}
-		time.Sleep(30 * time.Second)
+		deadline := time.Now().Add(30 * time.Second)
+		for time.Now().Before(deadline) {
+			if _, err := os.Stat(filepath.Join(dir, "release-child")); err == nil {
+				break
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
 		os.Exit(0)
 	}
 	os.Exit(5)
@@ -193,21 +199,7 @@ func TestCodingReceiptPreservesLiveDescendant(t *testing.T) {
 	if err != nil || receipt.Status != jobStatusRunning || receipt.ProcessTreeVerified {
 		t.Fatalf("live tree was sealed: %+v %v", receipt, err)
 	}
-	data, err := os.ReadFile(filepath.Join(dir, "pid"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	pid, err := strconv.ParseUint(strings.TrimSpace(string(data)), 10, 32)
-	if err != nil {
-		t.Fatal(err)
-	}
-	process, err := syscall.OpenProcess(routerProcessTerminate, false, uint32(pid))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = syscall.TerminateProcess(process, 1)
-	_ = syscall.CloseHandle(process)
-	if err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "release-child"), nil, 0600); err != nil {
 		t.Fatal(err)
 	}
 	routerTestWaitStatus(t, child, 5000, syscall.WAIT_OBJECT_0)

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -78,8 +79,11 @@ func TestSourceReviewSeparateNodeCheckoutBinding(t *testing.T) {
 	oldInvoke := invokeNativeSourceReviewWithNode
 	defer func() { invokeNativeSourceReviewWithNode = oldInvoke }()
 	called := false
-	invokeNativeSourceReviewWithNode = func(_ sessionScope, _ string, _ runnerSpec, _, _ string, _ *sourceReviewNodeBinding) (string, string, error) {
+	invokeNativeSourceReviewWithNode = func(_ sessionScope, prompt string, _ runnerSpec, _, _ string, _ *sourceReviewNodeBinding) (string, string, error) {
 		called = true
+		if !strings.Contains(prompt, "TASK_FILE_PATH: "+filepath.ToSlash(task)) {
+			t.Fatal("reviewer prompt omitted the actual task file")
+		}
 		if err := os.WriteFile(nodePath, append(append([]byte(nil), nodeBytes...), []byte("changed")...), 0600); err != nil {
 			t.Fatal(err)
 		}

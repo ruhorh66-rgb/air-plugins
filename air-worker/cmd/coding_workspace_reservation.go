@@ -15,13 +15,11 @@ import (
 // An archive frees capacity only when its identity and both removals verify.
 func codingWorkspaceReleased(repoTop, productRel, base string) bool {
 	raw, err := readOwnedCodingArchiveInput(base, filepath.Join(base, "reservation.json"), 8192)
-	if err != nil || rejectDuplicateJSONKeys(raw) != nil {
+	if err != nil {
 		return false
 	}
-	var r codingWorkspaceReservation
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.DisallowUnknownFields()
-	if dec.Decode(&r) != nil || dec.Decode(new(any)) != io.EOF || r.Schema != "air-worker.coding-workspace-reservation/v1" || r.Step == "" || r.Principal == "" || r.SessionKey == "" {
+	r, err := decodeCodingWorkspaceReservation(raw)
+	if err != nil {
 		return false
 	}
 	product := filepath.Join(repoTop, productRel)
@@ -74,6 +72,24 @@ type codingWorkspaceReservation struct {
 	SourceHead  string    `json:"source_head"`
 	TaskSHA256  string    `json:"task_sha256"`
 	WorkerPaths [2]string `json:"worker_paths"`
+}
+
+func decodeCodingWorkspaceReservation(raw []byte) (codingWorkspaceReservation, error) {
+	var r codingWorkspaceReservation
+	if rejectDuplicateJSONKeys(raw) != nil {
+		return r, errors.New("invalid workspace reservation JSON")
+	}
+	var fields map[string]json.RawMessage
+	var paths []string
+	if json.Unmarshal(raw, &fields) != nil || json.Unmarshal(fields["worker_paths"], &paths) != nil || len(paths) != 2 {
+		return r, errors.New("workspace reservation must contain exactly two paths")
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if dec.Decode(&r) != nil || dec.Decode(new(any)) != io.EOF || r.Schema != "air-worker.coding-workspace-reservation/v1" || r.Step == "" || r.Principal == "" || r.SessionKey == "" {
+		return r, errors.New("invalid workspace reservation")
+	}
+	return r, nil
 }
 
 func codingWorkspaceOpenDir(parent *os.Root, name string) (*os.Root, error) {

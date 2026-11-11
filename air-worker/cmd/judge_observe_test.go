@@ -586,9 +586,25 @@ func TestActualJudgeCachedReportTracksSourceIdentity(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				_, code := captureStdout(t, func() int { return cmdJudge([]string{"-product", product}) })
+				judgeOutput, code := captureStdout(t, func() int { return cmdJudge([]string{"-product", product}) })
+				if dirtyAtJudge {
+					if code != 2 || readCounter(t, counter) != 0 || !strings.Contains(judgeOutput, "source before check differs") {
+						t.Fatalf("dirty source was not refused: code=%d count=%d output=%s", code, readCounter(t, counter), judgeOutput)
+					}
+					if err := os.WriteFile(source, original, 0o644); err != nil {
+						t.Fatal(err)
+					}
+					if status := git("status", "--porcelain"); status != "" {
+						t.Fatalf("restored source is not clean: %s", status)
+					}
+					report := buildReportMode(product, true)
+					if report.JudgeCode != 2 || readCounter(t, counter) != 0 {
+						t.Fatalf("dirty result accepted after restore: %#v", report)
+					}
+					return
+				}
 				if readCounter(t, counter) != 1 {
-					t.Fatalf("judge code=%d, check count=%d", code, readCounter(t, counter))
+					t.Fatalf("judge code=%d, check count=%d, output=%s", code, readCounter(t, counter), judgeOutput)
 				}
 				if err := os.WriteFile(source, original, 0o644); err != nil {
 					t.Fatal(err)
@@ -602,10 +618,6 @@ func TestActualJudgeCachedReportTracksSourceIdentity(t *testing.T) {
 					if !report.JudgeCached || report.JudgeCode != want || report.JudgeStale != (want == 2) || readCounter(t, counter) != 1 {
 						t.Fatalf("cached report=%#v; check count=%d, want code=%d", report, readCounter(t, counter), want)
 					}
-				}
-				if dirtyAtJudge {
-					cached(2)
-					return
 				}
 				if code != 0 {
 					t.Fatalf("clean judge code=%d, want PASS", code)

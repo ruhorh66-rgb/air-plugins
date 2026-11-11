@@ -580,7 +580,7 @@ func cmdSourceReview(argv []string) int {
 	if binding.Head != head {
 		nodeContext = "NATIVE_NODE_ID: " + node.ID + "\nNATIVE_NODE_COMMIT: " + binding.Head + "\nNATIVE_NODE_FILE_SHA256: " + binding.SHA256 + "\nNATIVE_NODE_DONE_WHEN: " + node.DoneWhen + "\n"
 	}
-	prompt := sourceReviewPrompt(nodeContext+string(rawTask), head, report.TaskSHA256)
+	prompt := sourceReviewPrompt("TASK_FILE_PATH: "+filepath.ToSlash(taskFile)+"\n"+nodeContext+string(rawTask), head, report.TaskSHA256)
 	reply, session, err := invokeNativeSourceReviewWithNode(scope, prompt, reviewer, step, report.TaskSHA256, &binding)
 	report.Session = session
 	if err != nil {

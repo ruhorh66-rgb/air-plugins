@@ -94,6 +94,25 @@ func TestCodingWorkspaceReservationCapacityAndIdentity(t *testing.T) {
 	}
 }
 
+func TestCodingWorkspaceReservationRequiresExactlyTwoPaths(t *testing.T) {
+	base := map[string]any{"schema": "air-worker.coding-workspace-reservation/v1", "step": "coord-task", "principal": "codex", "session_key": "session", "source_head": "sha", "task_sha256": "hash"}
+	for _, paths := range [][]string{{}, {"one"}, {"one", "two", "three"}} {
+		base["worker_paths"] = paths
+		raw, err := json.Marshal(base)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := decodeCodingWorkspaceReservation(raw); err == nil {
+			t.Fatalf("accepted %d worker paths", len(paths))
+		}
+	}
+	base["worker_paths"] = []string{"one", "two"}
+	raw, _ := json.Marshal(base)
+	if _, err := decodeCodingWorkspaceReservation(raw); err != nil {
+		t.Fatalf("two paths rejected: %v", err)
+	}
+}
+
 func TestCodingWorkspaceReservationConcurrentLastSlot(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "repo")
 	scope := sessionScope{ID: sessionIdentity{Principal: "codex", SessionKey: "test-session"}}
