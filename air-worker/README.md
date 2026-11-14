@@ -1,5 +1,9 @@
 # air-worker
 
+## 0.12.0-rc.1 - bounded runtime discovery/update candidate (NOT RELEASED)
+
+Supersedes the isolated rc.6 package number only. Scope is the existing runtime discovery, signed acceptance binding, native update recovery and manager-independent CLI/tray path. It does not complete the wider reserved 0.12.0 architecture. The historical release-slices active target remains 0.11.9 and requires separate native reconciliation before any release; no plan nodes or acceptance receipts are closed by this bump. No publication, installation, model, learning or schedule changes are authorized here. Process-crash tests prove file consistency, not eventual tray restart after intent cleanup or hardware power-loss recovery.
+
 ## 0.11.11-rc.6 · accepted runtime discovery and native update recovery (SOURCE CANDIDATE)
 
 This isolated candidate adds release-signed runtime acceptance packets, exact installed-consumer binding, immutable current/previous slots and guarded native update recovery. Native CLI/tray updates no longer require a host plugin manager when no host plugins are installed; existing managed-host installations retain their checks. Synthetic process-kill tests cover durable apply/recovery cutpoints and foreign-state refusal. Publication, real owner/consumer acceptance, clean-source CLI/tray packaging and production activation remain separate gates. No learning/model policy changes are included.

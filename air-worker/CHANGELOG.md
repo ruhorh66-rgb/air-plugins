@@ -1,5 +1,12 @@
 # CHANGELOG — air-worker
 
+## 0.12.0-rc.1 - bounded runtime candidate renumbering - SOURCE CANDIDATE / NOT RELEASED
+
+- Owner-approved candidate renumbering from 0.11.11-rc.6; retained rc.6 source/distribution history and all historical evidence.
+- No additional feature scope: runtime discovery and native signed-update preparation/recovery only. The wider 0.12.0 architecture remains incomplete; native active-release/plan reconciliation is a separate outstanding gate.
+- Current CLI/plugin/Hermes version metadata and version-binding tests are aligned. Learning module pins, model rules, schedule and native plan nodes are unchanged.
+- Clean source and distribution identities require new regression and CLI/tray builds; previous rc.6 acceptance or binaries cannot authorize the renamed candidate.
+
 ## 0.11.11-rc.6 — runtime discovery and native updater recovery · 14.11.2026 · SOURCE CANDIDATE / NOT RELEASED
 
 - Adds a separately signed runtime acceptance packet bound to exact release/source/bootstrap/payload/consumer identities, immutable current/previous runtime slots and fail-closed discovery. Production acceptance requires real gate evidence; synthetic test signatures are not release authority.
