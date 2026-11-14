@@ -210,24 +210,9 @@ func migrateLegacyProposals(target, legacy string) error {
 	if err != nil {
 		return err
 	}
-	byID := make(map[string]learnProposal, len(canonical))
-	for _, row := range canonical {
-		if previous, ok := byID[row.ID]; ok && !sameLearnProposal(previous, row) {
-			return fmt.Errorf("canonical proposal id conflict: %s", row.ID)
-		}
-		byID[row.ID] = row
-	}
-	added := false
-	for _, row := range old {
-		if previous, ok := byID[row.ID]; ok {
-			if !sameLearnProposal(previous, row) && !learnProposalSupersedes(previous, row) {
-				return fmt.Errorf("legacy/canonical proposal id conflict: %s", row.ID)
-			}
-			continue
-		}
-		canonical = append(canonical, row)
-		byID[row.ID] = row
-		added = true
+	canonical, added, err := mergeLearnProposalRows(canonical, old)
+	if err != nil {
+		return err
 	}
 	if !added {
 		return nil
@@ -237,6 +222,77 @@ func migrateLegacyProposals(target, legacy string) error {
 		return err
 	}
 	return writeLearnAtomic(target, b)
+}
+
+// mergeLearnProposalRows shares the existing migration conflict/supersession semantics.
+// It only computes a projection; callers choose whether to persist it.
+func mergeLearnProposalRows(canonical, old []learnProposal) ([]learnProposal, bool, error) {
+	canonical = append([]learnProposal(nil), canonical...)
+	byID := make(map[string]learnProposal, len(canonical))
+	for _, row := range canonical {
+		if previous, ok := byID[row.ID]; ok && !sameLearnProposal(previous, row) {
+			return nil, false, fmt.Errorf("canonical proposal id conflict: %s", row.ID)
+		}
+		byID[row.ID] = row
+	}
+	added := false
+	for _, row := range old {
+		if previous, ok := byID[row.ID]; ok {
+			if !sameLearnProposal(previous, row) && !learnProposalSupersedes(previous, row) {
+				return nil, false, fmt.Errorf("legacy/canonical proposal id conflict: %s", row.ID)
+			}
+			continue
+		}
+		canonical = append(canonical, row)
+		byID[row.ID] = row
+		added = true
+	}
+	return canonical, added, nil
+}
+
+// Missing ledgers are allowed; existing ledgers and every ancestor must be ordinary paths.
+func validateLearnReadOnlyPath(path string) error {
+	for q := filepath.Clean(path); ; q = filepath.Dir(q) {
+		info, err := os.Lstat(q)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if err == nil {
+			if info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+				return fmt.Errorf("read-only learning path is a reparse attachment: %s", q)
+			}
+			if q == filepath.Clean(path) {
+				if !info.Mode().IsRegular() {
+					return fmt.Errorf("learning ledger is not a regular file: %s", q)
+				}
+			} else if !info.IsDir() {
+				return fmt.Errorf("learning ancestor is not a directory: %s", q)
+			}
+		}
+		if filepath.Dir(q) == q {
+			return nil
+		}
+	}
+}
+
+func readLearnProposalsReadOnly(product string) ([]learnProposal, error) {
+	target := learnPaths(product).Proposals
+	legacy := filepath.Join(product, ".air-worker", "learn", "proposals.jsonl")
+	for _, path := range []string{target, legacy} {
+		if err := validateLearnReadOnlyPath(path); err != nil {
+			return nil, err
+		}
+	}
+	canonical, err := readLearnProposalsNoMigration(target)
+	if err != nil {
+		return nil, err
+	}
+	old, err := readLearnProposalsNoMigration(legacy)
+	if err != nil {
+		return nil, err
+	}
+	rows, _, err := mergeLearnProposalRows(canonical, old)
+	return rows, err
 }
 
 func sameLearnProposal(a, b learnProposal) bool {
@@ -560,6 +616,7 @@ func cmdLearnPropose(argv []string) int {
 func cmdLearnPending(argv []string) int {
 	fs := flag.NewFlagSet("learn pending", flag.ContinueOnError)
 	product := fs.String("product", "", "managed product root")
+	readOnly := fs.Bool("read-only", false, "read canonical and legacy proposals without migration or writes")
 	asJSON := fs.Bool("json", false, "JSON output")
 	if err := fs.Parse(argv); err != nil {
 		return 2
@@ -569,7 +626,16 @@ func cmdLearnPending(argv []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	rows, err := readLearnProposals(learnPaths(root).Proposals)
+	var rows []learnProposal
+	if *readOnly {
+		if fs.NArg() != 0 {
+			fmt.Fprintln(os.Stderr, "unexpected pending arguments")
+			return 2
+		}
+		rows, err = readLearnProposalsReadOnly(root)
+	} else {
+		rows, err = readLearnProposals(learnPaths(root).Proposals)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "learn pending:", err)
 		return 2
@@ -581,7 +647,11 @@ func cmdLearnPending(argv []string) int {
 		}
 	}
 	if *asJSON {
-		b, _ := json.Marshal(map[string]any{"schema": learnSchemaVersion, "status": learnPending, "count": len(pending), "proposals": pending})
+		result := map[string]any{"schema": learnSchemaVersion, "status": learnPending, "count": len(pending), "proposals": pending}
+		if *readOnly {
+			result["read_only"] = true
+		}
+		b, _ := json.Marshal(result)
 		fmt.Println(string(b))
 		return 0
 	}
