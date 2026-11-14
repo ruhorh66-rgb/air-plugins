@@ -1,5 +1,3 @@
-//go:build windows
-
 package main
 
 import (
@@ -282,22 +280,50 @@ func TestLegacyNonGoConcurrentCrossModeRefusal(t *testing.T) {
 				cmd.Dir = root
 				cmd.Env = append(os.Environ(), "AW_JUDGE_STARTED="+started, "AW_JUDGE_RELEASE="+release)
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				defer cancel()
 				result := make(chan error, 1)
 				go func() {
 					_, err := runJudgeCheckReceipted(ctx, scope, operation, cmd, firstReport)
 					result <- err
 				}()
 				t.Cleanup(func() {
+					defer cancel()
 					_ = os.WriteFile(release, nil, 0o600)
 					select {
 					case <-result:
 					case <-time.After(10 * time.Second):
 						t.Error("first check did not finish")
 					}
+					// Caller cancellation/timeout can return before the child exits.
+					// Preserve its cwd until the owned child has sealed its receipt.
+					deadline := time.Now().Add(10 * time.Second)
+					for time.Now().Before(deadline) {
+						r, err := readJobReceipt(firstReceipt)
+						if os.IsNotExist(err) {
+							return
+						}
+						if err == nil && (r.Status == jobStatusDone || r.Status == jobStatusFailed) {
+							return
+						}
+						time.Sleep(10 * time.Millisecond)
+					}
+					t.Error("first child did not seal receipt before cleanup")
 				})
 				pollJudgeMarker(t, started, 5*time.Second)
-				initial := pollReceiptStatus(t, firstReceipt, jobStatusRunning, 5*time.Second)
+				// The child marker can precede the parent's post-Start PID update.
+				// RUNNING alone includes a pre-start placeholder and is not a barrier.
+				var initial *jobReceipt
+				deadline := time.Now().Add(5 * time.Second)
+				for time.Now().Before(deadline) {
+					r, err := readJobReceipt(firstReceipt)
+					if err == nil && r.Status == jobStatusRunning && r.ProcessStarted && r.PID > 0 {
+						initial = r
+						break
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+				if initial == nil {
+					t.Fatal("first check did not register its started process")
+				}
 				beforeReceipt, err := os.ReadFile(firstReceipt)
 				if err != nil {
 					t.Fatal(err)

@@ -272,6 +272,8 @@ func run(argv []string) int {
 		return 2
 	}
 	switch argv[0] {
+	case "runtime":
+		return cmdRuntime(argv[1:])
 	case "judge":
 		return cmdJudge(argv[1:])
 	case "drift":
