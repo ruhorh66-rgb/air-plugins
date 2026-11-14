@@ -1,5 +1,13 @@
 # CHANGELOG — air-worker
 
+## 0.11.11-rc.6 — runtime discovery and native updater recovery · 14.11.2026 · SOURCE CANDIDATE / NOT RELEASED
+
+- Adds a separately signed runtime acceptance packet bound to exact release/source/bootstrap/payload/consumer identities, immutable current/previous runtime slots and fail-closed discovery. Production acceptance requires real gate evidence; synthetic test signatures are not release authority.
+- Extends the existing native updater with durable intent/commit recovery, old/new identity checks, guarded pointer rollback and whole-transaction path protection. Empty host-profile installations do not invoke plugin managers; the CLI/tray pair and existing managed-host checks remain intact.
+- Isolated tests terminate real child processes at apply/recovery cutpoints, recover in fresh processes, verify prior-pointer presence/absence and committed-new consistency, and refuse foreign or torn state without overwriting it. This is process-crash evidence, not hardware power-loss or real vendor-cache acceptance.
+- N139 deadline coverage retains FAILED/no-process/no-duplicate checks with a realistic Windows startup budget and failure diagnostics. Learning module pins and model/scheduling policy are unchanged.
+- Clean-source build identity, final package/consumer gates, publication and production installation are not implied by this source version bump. Historical release receipts and plans remain unchanged.
+
 ## 0.11.11-rc.4 — native model route enforcement · 04.11.2026 SGT · SOURCE CANDIDATE / NOT INSTALLED
 
 - The existing SessionStart hook now emits a native Codex/Claude runbook **before** session declaration. Active PreToolUse detects direct Codex exec/app-server, direct Claude model calls and misleading bare Claude auth checks; it also handles AIR Commander start_process events when delivered by the Claude plugin. Legacy hooks and non-AirWorker products remain unchanged unless their own config opts in.

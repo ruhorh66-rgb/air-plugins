@@ -1,5 +1,9 @@
 # air-worker
 
+## 0.11.11-rc.6 · accepted runtime discovery and native update recovery (SOURCE CANDIDATE)
+
+This isolated candidate adds release-signed runtime acceptance packets, exact installed-consumer binding, immutable current/previous slots and guarded native update recovery. Native CLI/tray updates no longer require a host plugin manager when no host plugins are installed; existing managed-host installations retain their checks. Synthetic process-kill tests cover durable apply/recovery cutpoints and foreign-state refusal. Publication, real owner/consumer acceptance, clean-source CLI/tray packaging and production activation remain separate gates. No learning/model policy changes are included.
+
 ## 0.11.11-rc.5 · two Codex coding subagents and GPT-6.1 ladder (SOURCE CANDIDATE)
 
 **Owner:** AirWorker / Dev Work 26, SRVLM01. **Goal:** eliminate the recurring

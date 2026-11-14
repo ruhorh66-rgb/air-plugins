@@ -219,6 +219,12 @@ func prepareNativeRuntimePacket(m updateManifest, stage, home, root string, pack
 	return &nativeRuntimeUpdate{releaseRoot: releaseRoot, tx: tx, root: root, intent: nativeRuntimeIntent{Schema: "air-worker.runtime-update-intent/v1", Manifest: m, Packet: packet, Before: tx.before, Existed: tx.existed, After: tx.after}}, nil
 }
 func (u *nativeRuntimeUpdate) Begin(snapshot string, caches managedCacheSnapshot) error {
+	return u.beginWithKey(snapshot, caches, updatePublicKeyB64)
+}
+
+// Test-only callers may supply an ephemeral public key. The native updater
+// always enters through Begin with the compiled release authority.
+func (u *nativeRuntimeUpdate) beginWithKey(snapshot string, caches managedCacheSnapshot, key string) error {
 	u.intent.SnapshotID = filepath.Base(snapshot)
 	if !runtimeComponent(u.intent.SnapshotID) || !samePath(snapshot, filepath.Join(updateRootDir(), "rollback", u.intent.SnapshotID)) {
 		return errors.New("runtime snapshot outside updater")
@@ -262,7 +268,7 @@ func (u *nativeRuntimeUpdate) Begin(snapshot string, caches managedCacheSnapshot
 	if e != nil {
 		return e
 	}
-	if _, e = decodeNativeRuntimeIntent(u.raw, updatePublicKeyB64); e != nil {
+	if _, e = decodeNativeRuntimeIntent(u.raw, key); e != nil {
 		return e
 	}
 	if _, e = os.Lstat(runtimeIntentPath(u.root)); e == nil {
@@ -300,6 +306,31 @@ func recoverNativeRuntimeUpdate(home string) (bool, error) {
 // Internal seam for isolated signed fixtures; no key/profile override is
 // exposed by the CLI. Production always uses the compiled release authority.
 func recoverNativeRuntimeUpdateWithTrust(home, key string, profiles func() []distributionProfile) (bool, error) {
+	return recoverNativeRuntimeUpdateWithActions(home, key, profiles, nativeRuntimeRecoveryActions{
+		stop: stopTray, restart: startTrayDetached, disabled: trayDisabled, version: binaryVersion,
+	})
+}
+
+type nativeRuntimeRecoveryActions struct {
+	stop       func() (bool, bool)
+	restart    func(string) error
+	disabled   func() bool
+	version    func(string) string
+	checkpoint func(string)
+}
+
+func (a nativeRuntimeRecoveryActions) reached(stage string) {
+	if a.checkpoint != nil {
+		a.checkpoint(stage)
+	}
+}
+
+// This private seam lets process-kill tests use genuine disk recovery without
+// stopping production tray processes or launching a fixture as an executable.
+func recoverNativeRuntimeUpdateWithActions(home, key string, profiles func() []distributionProfile, actions nativeRuntimeRecoveryActions) (bool, error) {
+	if actions.stop == nil || actions.restart == nil || actions.disabled == nil || actions.version == nil {
+		return false, errors.New("runtime recovery process controls unavailable")
+	}
 	root, e := runtimeOwnerRoot()
 	if e != nil {
 		return false, e
@@ -381,7 +412,7 @@ func recoverNativeRuntimeUpdateWithTrust(home, key string, profiles func() []dis
 		return false, e
 	}
 	defer release()
-	if asked, gone := stopTray(); asked && !gone {
+	if asked, gone := actions.stop(); asked && !gone {
 		return false, errors.New("tray did not stop for runtime recovery")
 	}
 	// Recheck after stopping the tray. A conflict aborts without restoring
@@ -389,27 +420,32 @@ func recoverNativeRuntimeUpdateWithTrust(home, key string, profiles func() []dis
 	if e = validateNativeRuntimeRecoveryState(root, home, intent); e != nil {
 		return false, e
 	}
+	actions.reached("recovery-before-pointer")
 	if e = tx.Rollback(); e != nil {
 		return false, e
 	}
+	actions.reached("recovery-after-pointer")
 	var problems []error
 	if e = restoreUpdateSnapshot(snapshot, home); e != nil {
 		problems = append(problems, e)
 	}
+	actions.reached("recovery-after-binaries")
 	if e = caches.rollback(); e != nil {
 		problems = append(problems, e)
 	}
 	if len(problems) > 0 {
 		return false, errors.Join(problems...)
 	}
-	if e = writeUpdateState(updateState{CurrentVersion: binaryVersion(filepath.Join(home, "bin", "air-worker.exe")), Channel: intent.Manifest.Channel, LatestVersion: intent.Manifest.Version, Phase: "rolled_back", Error: "recovered interrupted runtime update"}); e != nil {
+	if e = writeUpdateState(updateState{CurrentVersion: actions.version(filepath.Join(home, "bin", "air-worker.exe")), Channel: intent.Manifest.Channel, LatestVersion: intent.Manifest.Version, Phase: "rolled_back", Error: "recovered interrupted runtime update"}); e != nil {
 		return false, e
 	}
+	actions.reached("recovery-after-state")
 	if e = os.Remove(path); e != nil {
 		return false, e
 	}
-	if !trayDisabled() {
-		if e = startTrayDetached(filepath.Join(home, "bin", "air-worker-tray.exe")); e != nil {
+	actions.reached("recovery-after-intent-clear")
+	if !actions.disabled() {
+		if e = actions.restart(filepath.Join(home, "bin", "air-worker-tray.exe")); e != nil {
 			return true, e
 		}
 	}
