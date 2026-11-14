@@ -225,7 +225,7 @@ func restoreOtherManagedVersionFiles(p managedCacheProfileSnapshot) error {
 func snapshotManagedUpdateCaches(snapshotDir string, m updateManifest, profiles []distributionProfile) (managedCacheSnapshot, error) {
 	var out managedCacheSnapshot
 	if len(profiles) == 0 {
-		return out, errors.New("no canonical installed AirWorker host plugins")
+		return out, nil // native CLI/tray installation without vendor host plugins
 	}
 	seen := make(map[string]bool)
 	for index, p := range profiles {

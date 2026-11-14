@@ -577,7 +577,12 @@ func TestN139OwnedGoTreeDeadlineFailsWithoutDuplicate(t *testing.T) {
 	pidPath := filepath.Join(root, "child.pid")
 	scope := newScope(root, sessionIdentity{"gpt", "n139-tree-deadline"})
 	const step, operation = "N139", "factual-go-test"
-	ctx, cancel := context.WithTimeout(context.Background(), 600*time.Millisecond)
+	// Durable receipt publication and two Windows process starts need headroom
+	// under full-suite load. The helper still must expire naturally and all
+	// FAILED/no-process/no-duplicate assertions below remain unchanged.
+	const startupBudget = 4 * time.Second
+	const deadlineBudget = 5 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), deadlineBudget)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, exe, "-test.run=^TestN139OwnedGoTreeDeadlineHelper$")
 	cmd.Env = append(os.Environ(), "AW_N139_TREE_HELPER=parent", "AW_N139_TREE_PID="+pidPath)
@@ -590,7 +595,7 @@ func TestN139OwnedGoTreeDeadlineFailsWithoutDuplicate(t *testing.T) {
 	receiptPath, outputPath := jobReceiptPaths(scope, step, operation)
 	var childPID string
 	var parentPID int
-	until := time.Now().Add(550 * time.Millisecond)
+	until := time.Now().Add(startupBudget)
 	for time.Now().Before(until) {
 		if b, err := os.ReadFile(pidPath); err == nil {
 			childPID = strings.TrimSpace(string(b))
@@ -604,14 +609,29 @@ func TestN139OwnedGoTreeDeadlineFailsWithoutDuplicate(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	if childPID == "" || parentPID <= 0 {
-		t.Fatal("NOT_PROVEN: owned tree was not observed RUNNING before deadline")
+		contextBeforeCleanup := ctx.Err()
+		cancel()
+		var readinessResult error
+		resultReady := false
+		select {
+		case readinessResult = <-result:
+			resultReady = true
+		case <-time.After(5 * time.Second):
+		}
+		receipt, receiptErr := readJobReceipt(receiptPath)
+		output, outputErr := os.ReadFile(outputPath)
+		if len(output) > 2048 {
+			output = output[len(output)-2048:]
+		}
+		t.Fatalf("NOT_PROVEN: owned tree was not observed RUNNING before deadline; parent=%d child=%q context=%v result_ready=%t result=%v receipt=%+v receipt_error=%v output_tail=%q output_error=%v",
+			parentPID, childPID, contextBeforeCleanup, resultReady, readinessResult, receipt, receiptErr, output, outputErr)
 	}
 	select {
 	case err := <-result:
 		if err == nil || ctx.Err() != context.DeadlineExceeded {
 			t.Fatalf("timeout credited as success: %v, context=%v", err, ctx.Err())
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(deadlineBudget + 5*time.Second):
 		t.Fatal("NOT_PROVEN: deadline did not return")
 	}
 	_ = pollReceiptStatus(t, receiptPath, jobStatusFailed, 5*time.Second)

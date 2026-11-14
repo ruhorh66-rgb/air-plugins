@@ -121,7 +121,7 @@ func verifyUpdateLiveIdentity(m updateManifest, livePath string) error {
 // A native update must never discover and mutate another host profile after
 // the cache snapshot. The exact profile set is fixed before any vendor command.
 func validatePinnedUpdateProfiles(expected, actual []distributionProfile) error {
-	if len(expected) == 0 || len(expected) != len(actual) {
+	if len(expected) != len(actual) {
 		return fmt.Errorf("host profile set changed since rollback snapshot: expected %d actual %d", len(expected), len(actual))
 	}
 	byKey := make(map[string]distributionProfile, len(actual))
@@ -154,6 +154,14 @@ func validatePinnedUpdateProfiles(expected, actual []distributionProfile) error 
 }
 
 func syncKnownPluginCaches(m updateManifest, pinnedProfiles []distributionProfile) ([]updateCacheSyncResult, error) {
+	// No host installation is a supported native-manager-independent update.
+	// Do not invoke a vendor manager or silently adopt a newly appeared profile.
+	if len(pinnedProfiles) == 0 {
+		if err := validatePinnedUpdateProfiles(pinnedProfiles, knownUpdateProfiles()); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
 	if strings.TrimSpace(os.Getenv("CLAUDE_CONFIG_DIR")) == "" && strings.TrimSpace(userEnvVar("CLAUDE_CONFIG_DIR")) == "" {
 		return nil, fmt.Errorf("active Claude profile is not explicit; set CLAUDE_CONFIG_DIR before plugin update")
 	}

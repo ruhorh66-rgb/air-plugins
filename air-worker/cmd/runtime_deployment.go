@@ -291,7 +291,7 @@ func (t *runtimeDeploymentTransaction) Publish() error {
 	// Mark intent before the atomic writer: an error may occur after replacement.
 	// Rollback reconciles the actual pointer; it never blindly overwrites a third party.
 	t.published = true
-	if err := writeFileAtomic(filepath.Join(t.root, "production.json"), t.after); err != nil {
+	if err := writeFileAtomicDurable(filepath.Join(t.root, "production.json"), t.after); err != nil {
 		return err
 	}
 	return sameRuntimeDeploymentPointer(t.root, t.after, true)
@@ -313,7 +313,7 @@ func (t *runtimeDeploymentTransaction) Rollback() error {
 	}
 	var err error
 	if t.existed {
-		err = writeFileAtomic(filepath.Join(t.root, "production.json"), t.before)
+		err = writeFileAtomicDurable(filepath.Join(t.root, "production.json"), t.before)
 	} else {
 		err = os.Remove(filepath.Join(t.root, "production.json"))
 	}

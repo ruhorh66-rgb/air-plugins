@@ -146,11 +146,17 @@ func replaceUpdatePairTransactional(
 	snapshotDir, home, stagedCLI, stagedTray string,
 	m updateManifest,
 	accept func(liveCLI string) error,
+	beforeRestore ...func() error,
 ) error {
 	binDir := filepath.Join(home, "bin")
 	dstCLI := filepath.Join(binDir, "air-worker.exe")
 	dstTray := filepath.Join(binDir, "air-worker-tray.exe")
 	fail := func(cause error) error {
+		for _, guard := range beforeRestore {
+			if err := guard(); err != nil {
+				return fmt.Errorf("%v; rollback refused: %w", cause, err)
+			}
+		}
 		if restoreErr := restoreUpdateSnapshot(snapshotDir, home); restoreErr != nil {
 			return fmt.Errorf("%v; %w", cause, restoreErr)
 		}
@@ -235,12 +241,31 @@ func cmdUpdateApply(argv []string) int {
 	}
 
 	lock, ok := acquireLock(`Local\air-worker-install`)
-	if !ok {
-		fmt.Fprintln(os.Stderr, "another AirWorker install/update is running")
+	if !ok || lock == nil || lock.h == 0 {
+		fmt.Fprintln(os.Stderr, "AirWorker install lock unavailable or busy")
 		return 1
 	}
 	defer lock.release()
+	if !samePath(*home, updateInstallHome()) {
+		fmt.Fprintln(os.Stderr, "update home differs from native installation")
+		return 2
+	}
+	if recovered, err := recoverNativeRuntimeUpdate(*home); err != nil {
+		fmt.Fprintln(os.Stderr, "runtime recovery:", err)
+		return 2
+	} else if recovered {
+		fmt.Fprintln(os.Stderr, "Interrupted runtime update restored; rerun the signed update")
+		return 1
+	}
+	runtimeUpdate, err := preflightNativeRuntimeUpdate(m, *stage, *home)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "runtime acceptance preflight:", err)
+		return 2
+	}
 
+	if runtimeUpdate != nil {
+		defer runtimeUpdate.releaseRoot()
+	}
 	if asked, gone := stopTray(); asked && !gone {
 		fmt.Fprintln(os.Stderr, "tray did not stop; update aborted before replacing files")
 		return 1
@@ -303,7 +328,34 @@ func cmdUpdateApply(argv []string) int {
 	}
 	defer releaseCachePins()
 
+	if runtimeUpdate != nil {
+		if err := runtimeUpdate.Begin(snapshotDir, cacheSnapshot); err != nil {
+			if !trayDisabled() {
+				_ = startTrayDetached(dstTray)
+			}
+			fmt.Fprintln(os.Stderr, "runtime durable intent:", err)
+			return 2
+		}
+	}
+	guardRuntimeRollback := func() error {
+		if runtimeUpdate == nil {
+			return nil
+		}
+		return validateNativeRuntimeRecoveryState(runtimeUpdate.root, *home, runtimeUpdate.intent)
+	}
 	rollback := func(cause error) int {
+		if err := guardRuntimeRollback(); err != nil {
+			fmt.Fprintln(os.Stderr, "runtime rollback conflict; intent retained without restoring binaries/caches:", err)
+			return 2
+		}
+		var runtimeRestoreErr error
+		if runtimeUpdate != nil {
+			runtimeRestoreErr = runtimeUpdate.tx.Rollback()
+			if runtimeRestoreErr != nil {
+				fmt.Fprintln(os.Stderr, "runtime pointer rollback failed; binaries/caches left untouched:", runtimeRestoreErr)
+				return 2
+			}
+		}
 		restoreErr := restoreUpdateSnapshot(snapshotDir, *home)
 		// Reconcile own host caches even if binary restoration itself fails.
 		// A stale newest Codex cache must never count as a successful rollback.
@@ -318,6 +370,9 @@ func cmdUpdateApply(argv []string) int {
 			StageDir:       *stage,
 			Error:          cause.Error(),
 		}
+		if runtimeRestoreErr != nil {
+			st.Error += "; runtime pointer: " + runtimeRestoreErr.Error()
+		}
 		if restoreErr != nil {
 			st.Error += "; " + restoreErr.Error()
 		}
@@ -330,8 +385,14 @@ func cmdUpdateApply(argv []string) int {
 			_ = startTrayDetached(dstTray)
 		}
 		fmt.Fprintln(os.Stderr, st.Error)
-		if restoreErr != nil || cacheRestoreErr != nil {
+		if restoreErr != nil || cacheRestoreErr != nil || runtimeRestoreErr != nil {
 			return 2
+		}
+		if runtimeUpdate != nil {
+			if err := runtimeUpdate.Clear(); err != nil {
+				fmt.Fprintln(os.Stderr, "retain runtime recovery intent:", err)
+				return 2
+			}
 		}
 		return 1
 	}
@@ -349,10 +410,16 @@ func cmdUpdateApply(argv []string) int {
 			}
 			return runUpdateSelfcheck(liveCLI)
 		},
+		guardRuntimeRollback,
 	); err != nil {
 		return rollback(err)
 	}
 
+	if runtimeUpdate != nil {
+		if err := runtimeUpdate.Publish(); err != nil {
+			return rollback(fmt.Errorf("runtime promotion: %w", err))
+		}
+	}
 	if !trayDisabled() {
 		if err := startTrayDetached(dstTray); err != nil {
 			return rollback(fmt.Errorf("restart tray: %w", err))
@@ -370,6 +437,15 @@ func cmdUpdateApply(argv []string) int {
 	}
 	if err := writeUpdateState(st); err != nil {
 		return rollback(fmt.Errorf("write installed update state: %w", err))
+	}
+	if runtimeUpdate != nil {
+		if err := runtimeUpdate.Commit(); err != nil {
+			fmt.Fprintln(os.Stderr, "runtime commit outcome requires recovery; durable intent retained:", err)
+			return 2
+		}
+		if err := runtimeUpdate.Clear(); err != nil {
+			fmt.Fprintln(os.Stderr, "installed; committed runtime intent retained for cleanup:", err)
+		}
 	}
 	writeUpdateReceipt("update-result.json", st)
 	return 0
