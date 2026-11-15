@@ -76,17 +76,22 @@ func ownCLIFailureAction(argv []string) (string, bool) {
 	}
 }
 
-func autoCaptureOwnCLIExit(argv []string, rc int) error {
+// ownCLIRunID names one CLI process. The same id goes to the invocation
+// counter line and to a failure receipt, so the two join by run_id.
+func ownCLIRunID(argv []string) string {
+	class, _ := ownCLIInvocationCommand(argv)
+	return "AW-CLI-" + learnSHA([]byte(class + "|" + strconv.Itoa(os.Getpid()) + "|" + time.Now().UTC().Format(time.RFC3339Nano)))[:24]
+}
+
+func autoCaptureOwnCLIExit(argv []string, rc int, runID string) error {
 	// A validated, measured native-preflight defer is already an immutable
 	// procedure_used result, not a new generic CLI defect to learn twice.
 	if nativePreflightDeferred.Swap(false) {
 		return nil
 	}
-	action, ok := ownCLIFailureAction(argv)
-	if rc == 0 || !ok {
+	if _, ok := ownCLIFailureAction(argv); rc == 0 || !ok {
 		return nil
 	}
-	runID := "AW-CLI-" + learnSHA([]byte(action + "|" + strconv.Itoa(os.Getpid()) + "|" + time.Now().UTC().Format(time.RFC3339Nano)))[:24]
 	start := startSharedLearningReviewBatchProcess
 	if shouldDeferOwnCLIReviewForR02(argv, rc) {
 		start = nil
@@ -115,7 +120,7 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 	// always authenticated and completed below, even if its precondition has
 	// since changed on disk.
 	cause := ownCLITrustedFailureCause(argv, rc)
-	if ownCLISignalSkipReason(argv, action, rc, cause) != "" {
+	if ownCLISignalSkipReason(rc, cause) != "" {
 		if _, err := os.Lstat(recPath); errors.Is(err, os.ErrNotExist) {
 			return nil
 		}

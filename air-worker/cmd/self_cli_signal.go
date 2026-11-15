@@ -12,22 +12,20 @@ import (
 	"time"
 )
 
-// A bare nonzero exit without a typed native cause carries no lesson: the
-// observation would be the same template for every failure. Such exits and
-// ordinary judge FAIL verdicts are counted, never learned from. A help
+// A bare exit 2 without a typed native cause carries no lesson: the
+// observation would be the same template for every failure, so it is counted
+// and not learned from. A judge FAIL (exit 1) is a failed check and still
+// creates an event: AIR_VIBECODING invariant 15 requires review on a failed
+// check; giving that event the failed check names is a later step. A help
 // request (-h) makes Go's flag parser return ErrHelp, which every captured
 // action turns into exit 2 without a typed cause, so it is covered by the
 // same rule (only `learn` maps ErrHelp to 0, and `learn` is never captured);
 // re-deriving help from argv would mean re-implementing each command's flags.
-func ownCLISignalSkipReason(argv []string, action string, rc int, cause string) string {
-	switch {
-	case action == "judge" && rc == 1:
-		return "judge-verdict"
-	case rc == 2 && cause == "":
+func ownCLISignalSkipReason(rc int, cause string) string {
+	if rc == 2 && cause == "" {
 		return "untyped-exit-2"
-	default:
-		return ""
 	}
+	return ""
 }
 
 // Recorded as a plain fact, never used to exclude a call from any number:
@@ -90,6 +88,7 @@ func knownCLICommand(name string) bool {
 
 type ownCLIInvocation struct {
 	Schema     string `json:"schema"`
+	RunID      string `json:"run_id"`
 	At         string `json:"at"`
 	Command    string `json:"command"`
 	ExitCode   int    `json:"exit_code"`
@@ -126,8 +125,9 @@ func ownCLIInvocationPath(runtimeRoot string, at time.Time) string {
 // changes its exit code. The selector's runtime root is used whether learning
 // is enabled or disabled, so `learn self disable` and calls made while
 // learning is off still enter the denominator; with no selector at all there
-// is nowhere to count.
-func recordOwnCLIInvocation(argv []string, rc int) error {
+// is nowhere to count. run_id is the one also given to a failure receipt of
+// the same process (AIR_VIBECODING invariant 15: run_id and outcome per run).
+func recordOwnCLIInvocation(argv []string, rc int, runID string) error {
 	command, ok := ownCLIInvocationCommand(argv)
 	if !ok {
 		return nil
@@ -139,7 +139,7 @@ func recordOwnCLIInvocation(argv []string, rc int) error {
 	now := time.Now().UTC()
 	host, hostSource := ownCLIInvocationHost()
 	line, err := json.Marshal(ownCLIInvocation{
-		Schema: ownCLIInvocationSchema, At: now.Format(time.RFC3339), Command: command,
+		Schema: ownCLIInvocationSchema, RunID: runID, At: now.Format(time.RFC3339), Command: command,
 		ExitCode: rc, HelpToken: ownCLIHelpTokenPresent(argv), Host: host, HostSource: hostSource, Version: version,
 	})
 	if err != nil {

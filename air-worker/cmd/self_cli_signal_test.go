@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,7 +18,6 @@ func TestA1NoLearningEventForContentlessExits(t *testing.T) {
 	}{
 		{"untyped exit 2", []string{"plan", "node", "new", "-parent", "N-999_missing"}, 2},
 		{"invalid plan action exit 2", []string{"plan", "node", "bogus"}, 2},
-		{"judge FAIL verdict", []string{"judge", "-product", product}, 1},
 		{"judge untyped exit 2", []string{"judge", "-product", product}, 2},
 		// Help needs no rule of its own: flag.ErrHelp ends as untyped exit 2,
 		// and the trusted-cause parser rejects -help, so no typed cause exists.
@@ -54,6 +54,8 @@ func TestA1TypedCauseAndOtherFailuresStillLearn(t *testing.T) {
 	}{
 		{"validate run-config missing", "AW-CLI-A1-keep-001", "air-worker-cli-preflight", []string{"validate", "-product", product}, 2},
 		{"judge internal error", "AW-CLI-A1-keep-002", "air-worker-cli-failure", []string{"judge", "-product", product}, 3},
+		// AIR_VIBECODING invariant 15: a failed check is reviewed.
+		{"judge FAIL verdict", "AW-CLI-A1-keep-004", "air-worker-cli-failure", []string{"judge", "-product", product}, 1},
 		{"plan node new exit 1", "AW-CLI-A1-keep-003", "air-worker-cli-failure", []string{"plan", "node", "new"}, 1},
 	}
 	for _, tc := range cases {
@@ -87,7 +89,7 @@ func TestA1InvocationCounterGivesStableExit2Rate(t *testing.T) {
 	}
 	for _, c := range calls {
 		t.Setenv("AIR_WORKER_HOST", c.host)
-		if err := recordOwnCLIInvocation(c.argv, c.rc); err != nil {
+		if err := recordOwnCLIInvocation(c.argv, c.rc, ownCLIRunID(c.argv)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -200,7 +202,7 @@ func TestA1HelpTokenNeverExcludesACall(t *testing.T) {
 		{"plan", "-all", "-h"},
 		{"tool", "--", "-h"},
 	} {
-		if err := recordOwnCLIInvocation(argv, 2); err != nil {
+		if err := recordOwnCLIInvocation(argv, 2, ownCLIRunID(argv)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -226,7 +228,7 @@ func TestA1CounterRecordsWhileLearningDisabled(t *testing.T) {
 	if err := writeAirWorkerSelfLearningSelector(sel); err != nil {
 		t.Fatal(err)
 	}
-	if err := recordOwnCLIInvocation([]string{"learn", "self", "disable"}, 0); err != nil {
+	if err := recordOwnCLIInvocation([]string{"learn", "self", "disable"}, 0, "AW-CLI-A1-disabled-001"); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now().UTC()
@@ -243,7 +245,7 @@ func TestA1CounterRecordsWhileLearningDisabled(t *testing.T) {
 func TestA1ReleaseSliceChildNotCounted(t *testing.T) {
 	_, settings, _ := selfLearningFixture(t)
 	t.Setenv(releaseSliceReviewDeferEnv, "1")
-	if err := recordOwnCLIInvocation([]string{"validate", "-product", "x", "-json"}, 2); err != nil {
+	if err := recordOwnCLIInvocation([]string{"validate", "-product", "x", "-json"}, 2, "AW-CLI-A1-r02-child-001"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(ownCLIInvocationPath(settings.RuntimeRoot, time.Now())); !os.IsNotExist(err) {
@@ -251,9 +253,37 @@ func TestA1ReleaseSliceChildNotCounted(t *testing.T) {
 	}
 }
 
+// Invariant 15: each measurable run carries run_id and outcome. The counter
+// line and the failure receipt of one process share the same run_id.
+func TestA1CounterAndReceiptJoinByRunID(t *testing.T) {
+	_, settings, _ := selfLearningFixture(t)
+	argv := n110CLIArgs()
+	run := ownCLIRunID(argv)
+	if err := recordOwnCLIInvocation(argv, n110CLIExit, run); err != nil {
+		t.Fatal(err)
+	}
+	if err := autoCaptureOwnCLIExitWithRunID(argv, n110CLIExit, run, nil); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(ownCLIInvocationPath(settings.RuntimeRoot, time.Now()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var inv ownCLIInvocation
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(raw))), &inv); err != nil {
+		t.Fatal(err)
+	}
+	if inv.RunID != run || inv.ExitCode != n110CLIExit || inv.Command != "plan node new" {
+		t.Fatalf("counter line lacks run identity or outcome: %+v", inv)
+	}
+	if _, err := os.Stat(filepath.Join(settings.RuntimeRoot, "cli-failures", run+".json")); err != nil {
+		t.Fatalf("failure receipt for the same run_id missing: %v", err)
+	}
+}
+
 func TestA1CounterKeepsNoArguments(t *testing.T) {
 	_, settings, _ := selfLearningFixture(t)
-	if err := recordOwnCLIInvocation(n110CLIArgs(), 2); err != nil {
+	if err := recordOwnCLIInvocation(n110CLIArgs(), 2, "AW-CLI-A1-privacy-001"); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := os.ReadFile(ownCLIInvocationPath(settings.RuntimeRoot, time.Now()))
