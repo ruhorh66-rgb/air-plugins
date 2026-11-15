@@ -39,6 +39,7 @@ func learningFailureReason(stderr []byte) string {
 	if !native {
 		return "detail withheld"
 	}
+	stage, message := cutReviewerStage(message)
 	if strings.HasPrefix(message, "ОТКАЗ: job ") &&
 		strings.Contains(message, "duplicate start внутри owned scope запрещён") {
 		return "reviewer_job_busy"
@@ -74,6 +75,9 @@ func learningFailureReason(stderr []byte) string {
 		if strings.HasPrefix(message, diagnostic.prefix) {
 			return diagnostic.reason
 		}
+	}
+	if stage != "" {
+		return "reviewer_" + stage + "_failed; detail withheld"
 	}
 	return "reviewer_failed; detail withheld"
 }

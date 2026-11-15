@@ -129,12 +129,12 @@ func cmdLearningReviewerAdapter(argv []string) int {
 	}
 	root, err := normalizeLearnProduct(product)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "learning reviewer:", err)
+		reviewerStageFailure("product", err)
 		return 2
 	}
 	settings, on, err := readSharedLearningSettings(root)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "learning reviewer:", err)
+		reviewerStageFailure("settings", err)
 		return 2
 	}
 	if !on {
@@ -144,7 +144,7 @@ func cmdLearningReviewerAdapter(argv []string) int {
 
 	input, err := ioReadAllBounded(os.Stdin, sharedLearningMaxBytes)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "learning reviewer:", err)
+		reviewerStageFailure("input", err)
 		return 2
 	}
 	var packet map[string]any
@@ -167,7 +167,7 @@ func cmdLearningReviewerAdapter(argv []string) int {
 	classTarget := learningProcedureTarget(settings.ManagedSkillPrefix, class)
 	skills, err := reviewerCatalog(root, settings, classTarget)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "learning reviewer:", err)
+		reviewerStageFailure("catalog", err)
 		return 2
 	}
 	selfOwner, selfOn, ownerErr := activeAirWorkerSelfLearningOwner()
@@ -180,7 +180,7 @@ func cmdLearningReviewerAdapter(argv []string) int {
 	prompt := buildLearningReviewerPromptWithSettings(classTarget, skills, packetJSON, settings)
 	raw, err := learningReviewerInvoke(root, prompt, reviewerOutputSchema(skills, settings), strings.TrimSpace(*model), strings.TrimSpace(*effort))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "learning reviewer:", err)
+		reviewerStageFailure("invoke", err)
 		return 2
 	}
 	var answer learningReviewerAnswer
@@ -254,7 +254,7 @@ func cmdLearningReviewerAdapter(argv []string) int {
 	}
 	answer.Content, err = bindNativeFeedbackProof(class, answer.Content)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "learning reviewer:", err)
+		reviewerStageFailure("answer", err)
 		return 2
 	}
 	if answer.UpdateTarget != "" {
