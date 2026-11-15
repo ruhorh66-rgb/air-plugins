@@ -23,6 +23,14 @@
 | Б4 | N-125 | B4 attempt journal and budget | Journal readable by a native command; the budget limit stops the cycle with a receipt |
 | Б5 | N-125 | B5 weekly LPR control number | Share of new violations in classes with an applied rule, included in the A5 summary |
 
+**Заявка P3 · пробел покрытия А1.** Захват кода 2 с проверенной причиной
+(`validate-run-config-missing`, `validate-plan-missing`) проверен на запись, приватность,
+HMAC, повтор и подмену квитанции (`TestN117TypedCausePersistedAndReplayStaysImmutable`,
+`TestA1TypedCauseAndOtherFailuresStillLearn`, `TestA1ReplayAfterPreconditionChangeStaysAuthenticated`),
+но **повтор в новом Go-процессе и потеря/порча ключа** проверены только на коде 1
+(`TestN110PrivateKeyReplayAcrossFreshGoProcesses`, `TestN110LostPrivateKeyAndVersionMismatchFailClosed`).
+Добавить те же два сценария для типизированного кода 2. Родитель — N-121, вместе с А1.
+
 **Замечание к Б1.** В исходниках AirWorker код 2 — общий код отказа: 702 места
 `return 2`, из них рядом с разбором аргументов — около 112. Число «доля вызовов с
 кодом 2» поэтому измеряет все отказы, а не ошибки синтаксиса. Определение метрики
