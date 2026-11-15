@@ -25,8 +25,10 @@ var deterministicReviewerStages = map[string]bool{
 // A deterministic failure is not retried at once, but it is not dropped
 // either: a repaired configuration or a changed catalogue makes the same event
 // reviewable again, and the stored review carries no configuration identity to
-// prove that. One later retry after this delay keeps both properties.
-const deterministicReviewerRetryDelay = 24 * time.Hour
+// prove that. One later retry after this delay keeps both properties; one
+// hour removes the burst of immediate retries while delaying a transient
+// failure only briefly (curator decision 15.11.2026).
+const deterministicReviewerRetryDelay = time.Hour
 
 func reviewerStageFailure(stage string, err error) {
 	if !reviewerStages[stage] {

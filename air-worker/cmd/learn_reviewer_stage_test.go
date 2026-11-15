@@ -85,7 +85,7 @@ func TestA2DeterministicReviewerFailureClassification(t *testing.T) {
 // offered at once.
 func TestA2RecoveryDelaysDeterministicFailure(t *testing.T) {
 	product, s := sharedProductFixture(t, false)
-	recent := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339Nano)
+	recent := time.Now().UTC().Add(-deterministicReviewerRetryDelay / 2).Format(time.RFC3339Nano)
 	old := time.Now().UTC().Add(-deterministicReviewerRetryDelay - time.Hour).Format(time.RFC3339Nano)
 	events := []struct{ id, run, reviewError, at string }{
 		{"EV-a2-settings-00000001", "AW-CLI-A2-settings-001", "learning adapter failed (reviewer_settings_failed; detail withheld): exit status 2", recent},
@@ -144,6 +144,16 @@ func TestA2RetryDueKeepsEventWhenTimestampUnreadable(t *testing.T) {
 	}
 	if !reviewerRetryDue(det, now.Add(30*24*time.Hour).Format(time.RFC3339Nano), now) {
 		t.Fatal("future timestamp hid the event")
+	}
+	if deterministicReviewerRetryDelay != time.Hour {
+		t.Fatalf("retry delay is %v, decided 1h", deterministicReviewerRetryDelay)
+	}
+	// Boundary: just before the delay the event waits, at the delay it is due.
+	if reviewerRetryDue(det, now.Add(-deterministicReviewerRetryDelay+time.Second).Format(time.RFC3339Nano), now) {
+		t.Fatal("deterministic failure retried before the delay elapsed")
+	}
+	if !reviewerRetryDue(det, now.Add(-deterministicReviewerRetryDelay).Format(time.RFC3339Nano), now) {
+		t.Fatal("deterministic failure not retried exactly at the delay")
 	}
 	if !reviewerRetryDue("learning adapter failed: exit status 2", now.Format(time.RFC3339Nano), now) {
 		t.Fatal("unclassified failure not retried")
