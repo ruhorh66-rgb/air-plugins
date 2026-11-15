@@ -46,21 +46,26 @@ type sourceReviewVerdict struct {
 }
 
 type sourceReviewReport struct {
-	Schema       string               `json:"schema"`
-	SourceCommit string               `json:"source_commit"`
-	NodeID       string               `json:"node_id"`
-	NodeProduct  string               `json:"node_product,omitempty"`
-	NodeCommit   string               `json:"node_commit,omitempty"`
-	NodeSHA256   string               `json:"node_sha256,omitempty"`
-	TaskFile     string               `json:"task_file"`
-	TaskSHA256   string               `json:"task_sha256"`
-	Executor     string               `json:"executor"`
-	Reviewer     runnerSpec           `json:"reviewer"`
-	Receipt      string               `json:"receipt,omitempty"`
-	Session      string               `json:"session_id,omitempty"`
-	State        string               `json:"state"`
-	Verdict      *sourceReviewVerdict `json:"verdict,omitempty"`
-	Error        string               `json:"error,omitempty"`
+	Schema          string               `json:"schema"`
+	SourceCommit    string               `json:"source_commit"`
+	NodeID          string               `json:"node_id"`
+	NodeProduct     string               `json:"node_product,omitempty"`
+	NodeCommit      string               `json:"node_commit,omitempty"`
+	NodeSHA256      string               `json:"node_sha256,omitempty"`
+	WikiRef         string               `json:"wiki_ref,omitempty"`
+	WikiRepo        string               `json:"wiki_repo,omitempty"`
+	SourceRepo      string               `json:"source_repo,omitempty"`
+	AuthoritySHA256 string               `json:"authority_sha256,omitempty"`
+	WikiTaskPath    string               `json:"wiki_task_path,omitempty"`
+	TaskFile        string               `json:"task_file"`
+	TaskSHA256      string               `json:"task_sha256"`
+	Executor        string               `json:"executor"`
+	Reviewer        runnerSpec           `json:"reviewer"`
+	Receipt         string               `json:"receipt,omitempty"`
+	Session         string               `json:"session_id,omitempty"`
+	State           string               `json:"state"`
+	Verdict         *sourceReviewVerdict `json:"verdict,omitempty"`
+	Error           string               `json:"error,omitempty"`
 }
 
 func sourceReviewNode(root, requested string) (planNode, error) {
@@ -477,6 +482,8 @@ var invokeNativeSourceReviewWithNode = func(scope sessionScope, prompt string, r
 	if binding != nil {
 		meta.ReviewNodeID, meta.ReviewNodeCommit, meta.ReviewNodeSHA256 = binding.Node.ID, binding.Head, binding.SHA256
 		meta.ReviewNodeProduct = binding.Root
+		meta.ReviewWikiRef, meta.ReviewWikiRepo, meta.ReviewSourceRepo = binding.VaultRef, binding.VaultRepo, binding.SourceRepo
+		meta.ReviewAuthoritySHA256, meta.ReviewWikiTaskPath = binding.AuthoritySHA256, binding.VaultTaskPath
 	}
 	out, runErr := runReceiptedWithMeta(context.Background(), scope, step, "semantic-reviewer", cmd, meta)
 	if runErr == nil {
@@ -496,6 +503,10 @@ func cmdSourceReview(argv []string) int {
 	nodeID := fs.String("node", "", "required native PLAN node ID, e.g. N-130")
 	nodeProduct := fs.String("node-product", "", "optional separate clean checkout of the same product containing the node")
 	nodeHead := fs.String("node-head", "", "required exact node checkout SHA when -node-product is provided")
+	wikiRef := fs.String("wiki-ref", "", "explicit pinned Wiki refs/heads/... or refs/tags/... for cross-repository review")
+	wikiRepo := fs.String("wiki-repo", "", "expected canonical HTTPS GitHub Wiki repository")
+	wikiTask := fs.String("wiki-task", "", "tracked canonical task in the pinned Wiki")
+	wikiTaskSHA := fs.String("wiki-task-sha", "", "expected SHA-256 of the canonical Wiki task")
 	executor := fs.String("executor", "codex", "must be codex")
 	class := fs.String("class", "default", "Anthropic judge class: default|complex")
 	principal := fs.String("principal", "", "declared session principal")
@@ -556,12 +567,23 @@ func cmdSourceReview(argv []string) int {
 	} else if strings.TrimSpace(*nodeHead) != "" {
 		return emit(errors.New("node-head requires node-product"), 2)
 	}
-	binding, err := bindSourceReviewNode(root, head, nodeRoot, expectedNodeHead, *nodeID)
+	crossVault := *wikiRef != "" || *wikiRepo != "" || *wikiTask != "" || *wikiTaskSHA != ""
+	var binding sourceReviewNodeBinding
+	if crossVault {
+		if *nodeProduct == "" || *wikiRef == "" || *wikiRepo == "" || *wikiTask == "" || *wikiTaskSHA == "" || !strings.EqualFold(*wikiTaskSHA, sha256Hex(rawTask)) || jobOwnedEvidencePath(root, taskFile) != nil {
+			return emit(errors.New("cross-repository review requires pinned node-product, node-head, wiki-ref, wiki-repo, wiki-task, wiki-task-sha and a matching owned task copy"), 2)
+		}
+		binding, err = bindSourceReviewVaultNode(root, head, nodeRoot, expectedNodeHead, *wikiRef, *wikiRepo, *nodeID, *wikiTask, sha256Hex(rawTask))
+	} else {
+		binding, err = bindSourceReviewNode(root, head, nodeRoot, expectedNodeHead, *nodeID)
+	}
 	if err != nil {
 		return emit(err, 2)
 	}
 	node := binding.Node
 	report.NodeID, report.NodeProduct, report.NodeCommit, report.NodeSHA256 = node.ID, binding.Root, binding.Head, binding.SHA256
+	report.WikiRef, report.WikiRepo, report.SourceRepo = binding.VaultRef, binding.VaultRepo, binding.SourceRepo
+	report.AuthoritySHA256, report.WikiTaskPath = binding.AuthoritySHA256, binding.VaultTaskPath
 	reviewer, err := judgeLaneRunner(cfg, *class)
 	if err == nil {
 		err = enforceIndependentAnthropicReviewer(cfg, runnerSpec{Kind: "codex"}, reviewer)
@@ -580,6 +602,9 @@ func cmdSourceReview(argv []string) int {
 	if binding.Head != head {
 		nodeContext = "NATIVE_NODE_ID: " + node.ID + "\nNATIVE_NODE_COMMIT: " + binding.Head + "\nNATIVE_NODE_FILE_SHA256: " + binding.SHA256 + "\nNATIVE_NODE_DONE_WHEN: " + node.DoneWhen + "\n"
 	}
+	if crossVault {
+		nodeContext += "WIKI_REPOSITORY: " + binding.VaultRepo + "\nWIKI_REF: " + binding.VaultRef + "\nWIKI_AUTHORITY_SHA256: " + binding.AuthoritySHA256 + "\nWIKI_TASK_SHA256: " + binding.VaultTaskSHA256 + "\n"
+	}
 	prompt := sourceReviewPrompt("TASK_FILE_PATH: "+filepath.ToSlash(taskFile)+"\n"+nodeContext+string(rawTask), head, report.TaskSHA256)
 	reply, session, err := invokeNativeSourceReviewWithNode(scope, prompt, reviewer, step, report.TaskSHA256, &binding)
 	report.Session = session
@@ -590,8 +615,13 @@ func cmdSourceReview(argv []string) int {
 	if err != nil || afterHead != head {
 		return emit(errors.New("source changed during reviewer execution"), 2)
 	}
-	afterBinding, err := bindSourceReviewNode(root, head, binding.Root, binding.Head, *nodeID)
-	if err != nil || afterBinding.Path != binding.Path || afterBinding.SHA256 != binding.SHA256 {
+	var afterBinding sourceReviewNodeBinding
+	if crossVault {
+		afterBinding, err = bindSourceReviewVaultNode(root, head, binding.Root, binding.Head, *wikiRef, *wikiRepo, *nodeID, *wikiTask, report.TaskSHA256)
+	} else {
+		afterBinding, err = bindSourceReviewNode(root, head, binding.Root, binding.Head, *nodeID)
+	}
+	if err != nil || afterBinding.Path != binding.Path || afterBinding.SHA256 != binding.SHA256 || afterBinding.AuthoritySHA256 != binding.AuthoritySHA256 || afterBinding.VaultTaskPath != binding.VaultTaskPath || afterBinding.VaultRepo != binding.VaultRepo || afterBinding.SourceRepo != binding.SourceRepo {
 		return emit(errors.New("native node changed during reviewer execution"), 2)
 	}
 	afterTask, err := os.ReadFile(taskFile)

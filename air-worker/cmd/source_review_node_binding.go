@@ -20,11 +20,17 @@ func sameReviewPath(a, b string) bool {
 }
 
 type sourceReviewNodeBinding struct {
-	Root   string
-	Head   string
-	Path   string
-	SHA256 string
-	Node   planNode
+	Root            string
+	Head            string
+	Path            string
+	SHA256          string
+	Node            planNode
+	VaultRef        string
+	VaultRepo       string
+	SourceRepo      string
+	AuthoritySHA256 string
+	VaultTaskPath   string
+	VaultTaskSHA256 string
 }
 
 // bindSourceReviewNode binds a later plan node to the same product history as

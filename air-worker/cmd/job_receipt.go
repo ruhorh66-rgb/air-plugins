@@ -33,45 +33,50 @@ const (
 // jobReceipt — durable запись о долгой команде: всё необходимое, чтобы прочитать финал по
 // output_path, не удерживая сам процесс/сессию, которая её запустила.
 type jobReceipt struct {
-	JobID               string    `json:"job_id"`
-	PID                 int       `json:"pid"`
-	StartedAt           time.Time `json:"started_at"`
-	Status              string    `json:"status"`
-	OutputPath          string    `json:"output_path"`
-	StderrPath          string    `json:"stderr_path,omitempty"`
-	Product             string    `json:"product"`
-	Principal           string    `json:"principal"`
-	Session             string    `json:"session"`
-	Step                string    `json:"step"`
-	Operation           string    `json:"operation"`
-	Runner              string    `json:"runner,omitempty"`
-	Provider            string    `json:"provider,omitempty"`
-	Model               string    `json:"model,omitempty"`
-	Effort              string    `json:"effort,omitempty"`
-	Role                string    `json:"role,omitempty"`
-	Sandbox             string    `json:"sandbox,omitempty"`
-	ToolPath            string    `json:"tool_path,omitempty"`
-	ToolVersion         string    `json:"tool_version,omitempty"`
-	ToolRestrictions    []string  `json:"tool_restrictions,omitempty"`
-	ReviewTaskSHA256    string    `json:"review_task_sha256,omitempty"`
-	ReviewNodeID        string    `json:"review_node_id,omitempty"`
-	ReviewNodeProduct   string    `json:"review_node_product,omitempty"`
-	ReviewNodeCommit    string    `json:"review_node_commit,omitempty"`
-	ReviewNodeSHA256    string    `json:"review_node_sha256,omitempty"`
-	ProcessStarted      bool      `json:"process_started"`
-	ProcessTreeVerified bool      `json:"process_tree_verified,omitempty"`
-	RequestStarted      bool      `json:"request_started,omitempty"`
-	Cost                *float64  `json:"cost,omitempty"`
-	OutputSHA256        string    `json:"output_sha256,omitempty"`
-	OutputBytes         int64     `json:"output_bytes,omitempty"`
-	StderrSHA256        string    `json:"stderr_sha256,omitempty"`
-	StderrBytes         int64     `json:"stderr_bytes,omitempty"`
-	SourceHead          string    `json:"source_head,omitempty"`
-	ArgsSHA256          string    `json:"args_sha256,omitempty"`
-	StdinSHA256         string    `json:"stdin_sha256,omitempty"`
-	ExitCode            *int      `json:"exit_code,omitempty"`
-	RecoveryRef         string    `json:"recovery_ref,omitempty"`
-	DeadlineUTC         string    `json:"deadline_utc,omitempty"`
+	JobID                 string    `json:"job_id"`
+	PID                   int       `json:"pid"`
+	StartedAt             time.Time `json:"started_at"`
+	Status                string    `json:"status"`
+	OutputPath            string    `json:"output_path"`
+	StderrPath            string    `json:"stderr_path,omitempty"`
+	Product               string    `json:"product"`
+	Principal             string    `json:"principal"`
+	Session               string    `json:"session"`
+	Step                  string    `json:"step"`
+	Operation             string    `json:"operation"`
+	Runner                string    `json:"runner,omitempty"`
+	Provider              string    `json:"provider,omitempty"`
+	Model                 string    `json:"model,omitempty"`
+	Effort                string    `json:"effort,omitempty"`
+	Role                  string    `json:"role,omitempty"`
+	Sandbox               string    `json:"sandbox,omitempty"`
+	ToolPath              string    `json:"tool_path,omitempty"`
+	ToolVersion           string    `json:"tool_version,omitempty"`
+	ToolRestrictions      []string  `json:"tool_restrictions,omitempty"`
+	ReviewTaskSHA256      string    `json:"review_task_sha256,omitempty"`
+	ReviewNodeID          string    `json:"review_node_id,omitempty"`
+	ReviewNodeProduct     string    `json:"review_node_product,omitempty"`
+	ReviewNodeCommit      string    `json:"review_node_commit,omitempty"`
+	ReviewNodeSHA256      string    `json:"review_node_sha256,omitempty"`
+	ReviewWikiRef         string    `json:"review_wiki_ref,omitempty"`
+	ReviewWikiRepo        string    `json:"review_wiki_repo,omitempty"`
+	ReviewSourceRepo      string    `json:"review_source_repo,omitempty"`
+	ReviewAuthoritySHA256 string    `json:"review_authority_sha256,omitempty"`
+	ReviewWikiTaskPath    string    `json:"review_wiki_task_path,omitempty"`
+	ProcessStarted        bool      `json:"process_started"`
+	ProcessTreeVerified   bool      `json:"process_tree_verified,omitempty"`
+	RequestStarted        bool      `json:"request_started,omitempty"`
+	Cost                  *float64  `json:"cost,omitempty"`
+	OutputSHA256          string    `json:"output_sha256,omitempty"`
+	OutputBytes           int64     `json:"output_bytes,omitempty"`
+	StderrSHA256          string    `json:"stderr_sha256,omitempty"`
+	StderrBytes           int64     `json:"stderr_bytes,omitempty"`
+	SourceHead            string    `json:"source_head,omitempty"`
+	ArgsSHA256            string    `json:"args_sha256,omitempty"`
+	StdinSHA256           string    `json:"stdin_sha256,omitempty"`
+	ExitCode              *int      `json:"exit_code,omitempty"`
+	RecoveryRef           string    `json:"recovery_ref,omitempty"`
+	DeadlineUTC           string    `json:"deadline_utc,omitempty"`
 }
 
 // jobLockKind — duplicate-start guard именует замок по (step, operation) внутри scope: тот
@@ -321,21 +326,26 @@ type jobCmdResult struct {
 // того же job в том же scope должен продолжать отказывать, пока ПЕРВЫЙ процесс жив, даже
 // если caller этого первого уже перестал ждать.
 type jobReceiptMeta struct {
-	SeparateStderr    bool
-	ToolPath          string
-	ToolVersion       string
-	ToolRestrictions  []string
-	ReviewTaskSHA256  string
-	ReviewNodeID      string
-	ReviewNodeProduct string
-	ReviewNodeCommit  string
-	ReviewNodeSHA256  string
-	Runner            string
-	Provider          string
-	Model             string
-	Effort            string
-	Role              string
-	Sandbox           string
+	SeparateStderr        bool
+	ToolPath              string
+	ToolVersion           string
+	ToolRestrictions      []string
+	ReviewTaskSHA256      string
+	ReviewNodeID          string
+	ReviewNodeProduct     string
+	ReviewNodeCommit      string
+	ReviewNodeSHA256      string
+	ReviewWikiRef         string
+	ReviewWikiRepo        string
+	ReviewSourceRepo      string
+	ReviewAuthoritySHA256 string
+	ReviewWikiTaskPath    string
+	Runner                string
+	Provider              string
+	Model                 string
+	Effort                string
+	Role                  string
+	Sandbox               string
 }
 
 func runReceipted(ctx context.Context, scope sessionScope, step, operation string, cmd *exec.Cmd) ([]byte, error) {
@@ -452,6 +462,8 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 	r.ReviewNodeProduct = meta.ReviewNodeProduct
 	r.ReviewNodeCommit = meta.ReviewNodeCommit
 	r.ReviewNodeSHA256 = meta.ReviewNodeSHA256
+	r.ReviewWikiRef, r.ReviewWikiRepo, r.ReviewSourceRepo = meta.ReviewWikiRef, meta.ReviewWikiRepo, meta.ReviewSourceRepo
+	r.ReviewAuthoritySHA256, r.ReviewWikiTaskPath = meta.ReviewAuthoritySHA256, meta.ReviewWikiTaskPath
 	if meta.SeparateStderr {
 		r.StderrPath = outputPath + ".stderr"
 	}
