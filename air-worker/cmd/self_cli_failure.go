@@ -103,15 +103,22 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 		strings.IndexFunc(runID, func(c rune) bool { return c == 32 || c == 13 || c == 10 || c == 47 || c == 92 }) >= 0 {
 		return errors.New("self-learning CLI failure requires a bounded native exit and stable safe run_id")
 	}
-	if ownCLISignalSkipReason(argv, action, rc, ownCLITrustedFailureCause(argv, rc)) != "" {
-		return nil
-	}
 	owner, on, err := activeAirWorkerSelfLearningOwner()
 	if err != nil {
 		return err
 	}
 	if !on {
 		return nil
+	}
+	recPath := filepath.Join(owner.Settings.RuntimeRoot, "cli-failures", runID+".json")
+	// Only a first capture is filtered. A run that already has a receipt is
+	// always authenticated and completed below, even if its precondition has
+	// since changed on disk.
+	cause := ownCLITrustedFailureCause(argv, rc)
+	if ownCLISignalSkipReason(argv, action, rc, cause) != "" {
+		if _, err := os.Lstat(recPath); errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
 	}
 	lock, locked := acquireLock(lockName("self-cli-failure", owner.Settings.RuntimeRoot))
 	if !locked {
@@ -129,7 +136,6 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 		}
 	}()
 
-	recPath := filepath.Join(owner.Settings.RuntimeRoot, "cli-failures", runID+".json")
 	var rec ownCLIFailureReceipt
 	previous, readErr := readLearningBounded(recPath, 32*1024)
 	replay := readErr == nil
@@ -152,7 +158,7 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 			Source: "air-worker-cli", Principal: "air-worker", Version: version,
 			ProcessID: os.Getpid(), CapturedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		}
-		rec.CauseCode = ownCLITrustedFailureCause(argv, rc)
+		rec.CauseCode = cause
 		rec.Observed = ownCLIFailureObservation(action, rc, rec.CauseCode)
 		rec.ReceiptMAC = ownCLIReceiptMAC(key, rec)
 		raw, err := json.MarshalIndent(rec, "", "  ")

@@ -28,17 +28,33 @@ func ownCLISignalSkipReason(argv []string, action string, rc int, cause string) 
 	}
 }
 
+// A help token counts only where Go's flag parser would read it as a flag:
+// not after "--" and not as the value of a preceding "-name" flag. Boolean
+// flags never take a separate value, so a help token after them still counts.
 func ownCLIHelpRequested(argv []string) bool {
-	for _, a := range argv {
+	for i, a := range argv {
 		if a == "--" {
 			return false
 		}
 		switch a {
 		case "-h", "-help", "--h", "--help":
-			return true
+			if i == 0 || !ownCLIFlagTakesNextValue(argv[i-1]) {
+				return true
+			}
 		}
 	}
 	return false
+}
+
+func ownCLIFlagTakesNextValue(prev string) bool {
+	if !strings.HasPrefix(prev, "-") || prev == "-" || strings.Contains(prev, "=") {
+		return false
+	}
+	switch strings.TrimLeft(prev, "-") {
+	case "json", "open", "no-owner", "h", "help", "v", "version":
+		return false
+	}
+	return true
 }
 
 const ownCLIInvocationSchema = "air-worker.self-learning.cli-invocation/v1"
@@ -47,6 +63,11 @@ const ownCLIInvocationSchema = "air-worker.self-learning.cli-invocation/v1"
 // Host hooks, reviewer adapters and internal replays are machine traffic and
 // would dilute the denominator of operator-facing calls.
 func ownCLIInvocationCommand(argv []string) (string, bool) {
+	// The R02 release slice runs a disposable validate child on purpose to
+	// produce exit 2; it is a machine check, not an operator call.
+	if os.Getenv(releaseSliceReviewDeferEnv) == "1" {
+		return "", false
+	}
 	if len(argv) == 0 {
 		return "usage", true
 	}
@@ -113,27 +134,30 @@ func ownCLIInvocationPath(runtimeRoot string, at time.Time) string {
 	return filepath.Join(runtimeRoot, "cli-invocations", at.UTC().Format("2006-01-02")+".jsonl")
 }
 
-// One short O_APPEND line per call. It runs after the command, never changes
-// its exit code and is skipped when the self-learning owner is not enabled.
+// One short O_APPEND line per call. It runs after the command and never
+// changes its exit code. The selector's runtime root is used whether learning
+// is enabled or disabled, so `learn self disable` and calls made while
+// learning is off still enter the denominator; with no selector at all there
+// is nowhere to count.
 func recordOwnCLIInvocation(argv []string, rc int) error {
 	command, ok := ownCLIInvocationCommand(argv)
 	if !ok {
 		return nil
 	}
-	owner, on, err := activeAirWorkerSelfLearningOwner()
-	if err != nil || !on {
+	sel, found, err := readAirWorkerSelfLearningSelector()
+	if err != nil || !found || !filepath.IsAbs(sel.RuntimeRoot) {
 		return err
 	}
 	now := time.Now().UTC()
 	host, hostSource := ownCLIInvocationHost()
 	line, err := json.Marshal(ownCLIInvocation{
-		Schema: ownCLIInvocationSchema, At: now.Format(time.RFC3339Nano), Command: command,
+		Schema: ownCLIInvocationSchema, At: now.Format(time.RFC3339), Command: command,
 		ExitCode: rc, Help: ownCLIHelpRequested(argv), Host: host, HostSource: hostSource, Version: version,
 	})
 	if err != nil {
 		return err
 	}
-	path := ownCLIInvocationPath(owner.Settings.RuntimeRoot, now)
+	path := ownCLIInvocationPath(sel.RuntimeRoot, now)
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
@@ -228,16 +252,16 @@ func cmdLearnSelfCLIStats(argv []string) int {
 		fmt.Fprintln(os.Stderr, "usage: air-worker learn self cli-stats [-days 1..366]")
 		return 2
 	}
-	owner, on, err := activeAirWorkerSelfLearningOwner()
-	if err != nil || !on {
-		if err == nil {
-			err = errors.New("self-learning owner is not enabled")
-		}
+	sel, found, err := readAirWorkerSelfLearningSelector()
+	if err == nil && (!found || !filepath.IsAbs(sel.RuntimeRoot)) {
+		err = errors.New("self-learning selector is not configured")
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "learn self cli-stats:", err)
 		return 2
 	}
 	to := time.Now().UTC()
-	st, err := readOwnCLIStats(owner.Settings.RuntimeRoot, to.AddDate(0, 0, -(*days-1)), to)
+	st, err := readOwnCLIStats(sel.RuntimeRoot, to.AddDate(0, 0, -(*days-1)), to)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "learn self cli-stats:", err)
 		return 2

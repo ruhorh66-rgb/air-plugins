@@ -140,6 +140,106 @@ func TestA1HostIsDeclaredNotGuessed(t *testing.T) {
 	}
 }
 
+// Codex review P1: a typed first capture whose precondition is later restored
+// must still go through receipt authentication on replay, not the filter.
+func TestA1ReplayAfterPreconditionChangeStaysAuthenticated(t *testing.T) {
+	product, settings, _ := selfLearningFixture(t)
+	config := filepath.Join(product, "run-config.json")
+	saved, readErr := os.ReadFile(config)
+	if err := os.Remove(config); err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	argv := []string{"validate", "-product", product}
+	run := "AW-CLI-A1-replay-001"
+	if err := autoCaptureOwnCLIExitWithRunID(argv, 2, run, nil); err != nil {
+		t.Fatal(err)
+	}
+	if readErr != nil {
+		saved = []byte("{}\n")
+	}
+	if err := os.WriteFile(config, saved, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := autoCaptureOwnCLIExitWithRunID(argv, 2, run, nil); err != nil {
+		t.Fatalf("exact replay after restored precondition failed: %v", err)
+	}
+	if n, _ := n110CountFailureEvents(t, settings.RuntimeRoot, run); n != 1 {
+		t.Fatalf("replay changed event count: %d", n)
+	}
+	path := filepath.Join(settings.RuntimeRoot, "cli-failures", run+".json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered := strings.Replace(string(raw), "Trusted read-only precondition", "Tampered precondition", 1)
+	if tampered == string(raw) {
+		t.Fatal("fixture receipt has no typed observation to tamper")
+	}
+	if err := os.WriteFile(path, []byte(tampered), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := autoCaptureOwnCLIExitWithRunID(argv, 2, run, nil); err == nil {
+		t.Fatal("tampered receipt accepted once the precondition no longer holds")
+	}
+}
+
+// Codex review P2: a help token used as a flag value is not a help request.
+func TestA1HelpTokenAsFlagValueIsNotHelp(t *testing.T) {
+	cases := []struct {
+		argv []string
+		help bool
+	}{
+		{[]string{"validate", "-product", "--help"}, false},
+		{[]string{"plan", "node", "new", "-title", "-h"}, false},
+		{[]string{"validate", "-product=x", "-h"}, true},
+		{[]string{"plan", "node", "list", "-json", "-h"}, true},
+		{[]string{"plan", "-help"}, true},
+		{[]string{"tool", "--", "-h"}, false},
+	}
+	for _, c := range cases {
+		if got := ownCLIHelpRequested(c.argv); got != c.help {
+			t.Fatalf("%v: help=%v, want %v", c.argv, got, c.help)
+		}
+	}
+}
+
+// Codex review P2: calls made while learning is disabled still count.
+func TestA1CounterRecordsWhileLearningDisabled(t *testing.T) {
+	_, settings, _ := selfLearningFixture(t)
+	t.Setenv("AIR_WORKER_HOST", "claude")
+	sel, found, err := readAirWorkerSelfLearningSelector()
+	if err != nil || !found {
+		t.Fatalf("fixture selector: found=%v err=%v", found, err)
+	}
+	sel.Enabled = false
+	if err := writeAirWorkerSelfLearningSelector(sel); err != nil {
+		t.Fatal(err)
+	}
+	if err := recordOwnCLIInvocation([]string{"learn", "self", "disable"}, 0); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	st, err := readOwnCLIStats(settings.RuntimeRoot, now, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Calls != 1 || st.ByCommand["learn"].Calls != 1 {
+		t.Fatalf("disabled-owner call not counted: %+v", st)
+	}
+}
+
+// Codex review P2: the R02 disposable validate child is machine traffic.
+func TestA1ReleaseSliceChildNotCounted(t *testing.T) {
+	_, settings, _ := selfLearningFixture(t)
+	t.Setenv(releaseSliceReviewDeferEnv, "1")
+	if err := recordOwnCLIInvocation([]string{"validate", "-product", "x", "-json"}, 2); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(ownCLIInvocationPath(settings.RuntimeRoot, time.Now())); !os.IsNotExist(err) {
+		t.Fatalf("R02 child entered the operator denominator: %v", err)
+	}
+}
+
 func TestA1CounterKeepsNoArguments(t *testing.T) {
 	_, settings, _ := selfLearningFixture(t)
 	if err := recordOwnCLIInvocation(n110CLIArgs(), 2); err != nil {
