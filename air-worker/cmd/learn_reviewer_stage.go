@@ -60,8 +60,8 @@ func storedReviewerReason(reviewError string) string {
 	if !ok {
 		return ""
 	}
-	inner, _, ok = strings.Cut(inner, "): ")
-	if !ok {
+	inner, exit, ok := strings.Cut(inner, "): ")
+	if !ok || !strings.HasPrefix(exit, "exit status ") {
 		return ""
 	}
 	if code, suffix, withheld := strings.Cut(inner, "; "); withheld {
@@ -96,13 +96,14 @@ func reviewerFailureIsDeterministic(reviewError string) bool {
 
 // reviewerRetryDue: transient failures are offered again at once, a
 // deterministic one only after deterministicReviewerRetryDelay. An unreadable
-// timestamp keeps the old behaviour (retry) rather than dropping the event.
+// timestamp, or one in the future (clock skew or correction), keeps the old
+// behaviour (retry) rather than hiding the event.
 func reviewerRetryDue(reviewError, at string, now time.Time) bool {
 	if !reviewerFailureIsDeterministic(reviewError) {
 		return true
 	}
 	reviewed, err := time.Parse(time.RFC3339Nano, at)
-	if err != nil {
+	if err != nil || reviewed.After(now) {
 		return true
 	}
 	return now.Sub(reviewed) >= deterministicReviewerRetryDelay

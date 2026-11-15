@@ -62,6 +62,7 @@ func TestA2DeterministicReviewerFailureClassification(t *testing.T) {
 		{"other failure (reviewer_context_limit; syntheticSECRET): exit status 2", false},
 		{"learning adapter failed (reviewer_context_limit; syntheticSECRET): exit status 2", false},
 		{"learning adapter failed (reviewer_context_limit)", false},
+		{"learning adapter failed (reviewer_context_limit): ", false},
 		{"learning adapter failed (reviewer_Context_limit): exit status 2", false},
 		{"learning adapter failed (reviewer_invoke_failed; detail withheld): exit status 2", false},
 		{"learning adapter failed (reviewer_answer_failed; detail withheld): exit status 2", false},
@@ -140,6 +141,9 @@ func TestA2RetryDueKeepsEventWhenTimestampUnreadable(t *testing.T) {
 	}
 	if !reviewerRetryDue(det, "not-a-time", now) {
 		t.Fatal("unreadable timestamp dropped the event")
+	}
+	if !reviewerRetryDue(det, now.Add(30*24*time.Hour).Format(time.RFC3339Nano), now) {
+		t.Fatal("future timestamp hid the event")
 	}
 	if !reviewerRetryDue("learning adapter failed: exit status 2", now.Format(time.RFC3339Nano), now) {
 		t.Fatal("unclassified failure not retried")
