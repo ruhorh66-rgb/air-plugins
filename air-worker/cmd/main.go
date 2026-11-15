@@ -252,6 +252,11 @@ func main() {
 	setConsoleUTF8()
 	argv := os.Args[1:]
 	code := run(argv)
+	// The denominator for the exit-2 rate: every operator-facing call, success
+	// included. Counting never changes the exit code.
+	if err := recordOwnCLIInvocation(argv, code); err != nil {
+		fmt.Fprintln(os.Stderr, "air-worker self-learning counter incomplete:", err)
+	}
 	if code != 0 {
 		// The process's ORIGINAL exit code always wins. Only the native
 		// AirWorker self-owner may record a bounded factual CLI failure;

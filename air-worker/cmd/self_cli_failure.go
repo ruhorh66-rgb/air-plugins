@@ -103,6 +103,9 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 		strings.IndexFunc(runID, func(c rune) bool { return c == 32 || c == 13 || c == 10 || c == 47 || c == 92 }) >= 0 {
 		return errors.New("self-learning CLI failure requires a bounded native exit and stable safe run_id")
 	}
+	if ownCLISignalSkipReason(argv, action, rc, ownCLITrustedFailureCause(argv, rc)) != "" {
+		return nil
+	}
 	owner, on, err := activeAirWorkerSelfLearningOwner()
 	if err != nil {
 		return err

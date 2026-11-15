@@ -208,7 +208,7 @@ func writeAirWorkerSelfLearningSelector(s airWorkerSelfLearningSelector) error {
 
 func cmdLearnSelf(argv []string) int {
 	if len(argv) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: air-worker learn self enable|status|load|disable|rollback ...")
+		fmt.Fprintln(os.Stderr, "usage: air-worker learn self enable|status|cli-stats|load|disable|rollback ...")
 		return 2
 	}
 	switch argv[0] {
@@ -218,6 +218,8 @@ func cmdLearnSelf(argv []string) int {
 		return cmdLearnSelfTransferOwner(argv[1:])
 	case "status":
 		return cmdLearnSelfStatus(argv[1:])
+	case "cli-stats":
+		return cmdLearnSelfCLIStats(argv[1:])
 	case "load":
 		return cmdLearnSelfLoad(argv[1:])
 	case "disable":
