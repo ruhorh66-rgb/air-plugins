@@ -50,11 +50,20 @@ func ownCLIFlagTakesNextValue(prev string) bool {
 	if !strings.HasPrefix(prev, "-") || prev == "-" || strings.Contains(prev, "=") {
 		return false
 	}
-	switch strings.TrimLeft(prev, "-") {
-	case "json", "open", "no-owner", "h", "help", "v", "version":
-		return false
-	}
-	return true
+	name := strings.TrimLeft(prev, "-")
+	return !ownCLIBoolFlags[name] && name != "h" && name != "help" && name != "v" && name != "version"
+}
+
+// Every boolean flag the CLI declares. Boolean flags never consume the next
+// argument; TestA1BoolFlagListMatchesSource keeps this set equal to the source.
+var ownCLIBoolFlags = map[string]bool{
+	"active": true, "all": true, "apply": true, "autostart": true, "cached": true,
+	"dry-run": true, "enabled": true, "ensure": true, "fix": true, "force": true,
+	"if-stale": true, "informational": true, "json": true, "legacy": true,
+	"no-fail": true, "no-judge": true, "no-owner": true, "no-start": true,
+	"open": true, "orchestrate": true, "plan-only": true, "preflight": true,
+	"quiet": true, "record": true, "status": true, "stop": true,
+	"uninstall": true, "whatif": true,
 }
 
 const ownCLIInvocationSchema = "air-worker.self-learning.cli-invocation/v1"
@@ -197,11 +206,21 @@ func (r *ownCLIStatsRow) add(inv ownCLIInvocation) {
 	r.Exit2Rate = float64(r.Exit2) / float64(r.Calls)
 }
 
+// The B1 pilot target counts only classes where exit 2 means a wrong call,
+// not a correct fail-closed gate refusal (curator decision 15.11.2026):
+// lowering the overall number by weakening a gate would game the metric.
+var ownCLIPilotClasses = map[string]bool{
+	"plan": true, "plan node": true, "plan node new": true, "plan node close": true,
+	"plan node reparent": true, "plan node list": true, "plan node invalid-action": true,
+	"plan-lint": true, "unknown": true,
+}
+
 type ownCLIStats struct {
 	Schema string `json:"schema"`
 	From   string `json:"from"`
 	To     string `json:"to"`
 	ownCLIStatsRow
+	Pilot     ownCLIStatsRow            `json:"pilot"`
 	Skipped   int                       `json:"unreadable_lines"`
 	ByHost    map[string]ownCLIStatsRow `json:"by_host"`
 	ByCommand map[string]ownCLIStatsRow `json:"by_command"`
@@ -229,6 +248,9 @@ func readOwnCLIStats(runtimeRoot string, from, to time.Time) (ownCLIStats, error
 				continue
 			}
 			st.add(inv)
+			if ownCLIPilotClasses[inv.Command] {
+				st.Pilot.add(inv)
+			}
 			host := inv.Host
 			if host == "" {
 				host = "unknown"
@@ -271,6 +293,7 @@ func cmdLearnSelfCLIStats(argv []string) int {
 		return 0
 	}
 	fmt.Printf("%s..%s calls=%d exit_2=%d rate=%.4f nonzero=%d help=%d\n", st.From, st.To, st.Calls, st.Exit2, st.Exit2Rate, st.Nonzero, st.Help)
+	fmt.Printf("  pilot    wrong-call classes           calls=%d exit_2=%d rate=%.4f\n", st.Pilot.Calls, st.Pilot.Exit2, st.Pilot.Exit2Rate)
 	for _, group := range []struct {
 		title string
 		rows  map[string]ownCLIStatsRow

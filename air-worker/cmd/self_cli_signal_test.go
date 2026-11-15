@@ -1,6 +1,9 @@
 package main
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
@@ -105,6 +108,11 @@ func TestA1InvocationCounterGivesStableExit2Rate(t *testing.T) {
 	if first.ByCommand["unknown"].Exit2 != 1 || first.ByCommand["plan node new"].Help != 1 {
 		t.Fatalf("per-command breakdown wrong: %+v", first.ByCommand)
 	}
+	// Pilot classes: plan node list (0), plan node new (2), unknown (2);
+	// validate and judge are gate classes and stay out of the pilot target.
+	if p := first.Pilot; p.Calls != 3 || p.Exit2 != 2 || p.Help != 1 {
+		t.Fatalf("pilot row wrong: %+v", p)
+	}
 	if c := first.ByHost["codex"]; c.Calls != 2 || c.Exit2 != 1 || c.Exit2Rate != 0.5 {
 		t.Fatalf("codex host row wrong: %+v", first.ByHost)
 	}
@@ -199,6 +207,61 @@ func TestA1HelpTokenAsFlagValueIsNotHelp(t *testing.T) {
 	for _, c := range cases {
 		if got := ownCLIHelpRequested(c.argv); got != c.help {
 			t.Fatalf("%v: help=%v, want %v", c.argv, got, c.help)
+		}
+	}
+}
+
+// Codex review round 2: any declared boolean flag before -h keeps it a help
+// request. The set is checked against the source, not maintained by memory.
+func TestA1BoolFlagListMatchesSource(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	found := map[string]bool{}
+	for _, name := range files {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, name, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || (sel.Sel.Name != "Bool" && sel.Sel.Name != "BoolVar") {
+				return true
+			}
+			idx := 0
+			if sel.Sel.Name == "BoolVar" {
+				idx = 1
+			}
+			if len(call.Args) > idx {
+				if lit, ok := call.Args[idx].(*ast.BasicLit); ok && lit.Kind == token.STRING {
+					found[strings.Trim(lit.Value, `"`)] = true
+				}
+			}
+			return true
+		})
+	}
+	for name := range found {
+		if !ownCLIBoolFlags[name] {
+			t.Errorf("boolean flag -%s declared in source but missing from ownCLIBoolFlags", name)
+		}
+	}
+	for name := range ownCLIBoolFlags {
+		if !found[name] {
+			t.Errorf("ownCLIBoolFlags lists -%s, which no source file declares", name)
+		}
+	}
+	for _, argv := range [][]string{{"drift", "-all", "-h"}, {"update", "-dry-run", "--help"}} {
+		if !ownCLIHelpRequested(argv) {
+			t.Fatalf("%v must be a help request", argv)
 		}
 	}
 }
