@@ -121,9 +121,9 @@ func pendingSharedLearningReviewRuns(product string) ([]string, error) {
 			pending = append(pending, ev.RunID)
 		case "complete":
 			// The shared module caps retry attempts and controls proposal identity.
-			// A failure that repeats identically for the same event is not offered
-			// again: its single receipt already records the outcome.
-			if review.Outcome == "error" && review.Attempt < 2 && !reviewerFailureIsDeterministic(review.Error) {
+			// A failure that would repeat on an immediate retry is offered again
+			// only after a delay, so it neither triples the load nor is dropped.
+			if review.Outcome == "error" && review.Attempt < 2 && reviewerRetryDue(review.Error, review.At, time.Now()) {
 				pending = append(pending, ev.RunID)
 			}
 		case "reviewing":

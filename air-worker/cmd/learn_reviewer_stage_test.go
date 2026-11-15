@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestA2ReviewerStageIsRecordedWithoutDetail(t *testing.T) {
@@ -54,6 +55,14 @@ func TestA2DeterministicReviewerFailureClassification(t *testing.T) {
 		{"learning adapter failed (reviewer_catalog_failed; detail withheld): exit status 2", true},
 		{"learning adapter failed (reviewer_context_limit): exit status 2", true},
 		{"learning adapter failed (reviewer_learning_disabled): exit status 2", true},
+		// stdin can fail transiently, so the input stage is retried at once.
+		{"learning adapter failed (reviewer_input_failed; detail withheld): exit status 2", false},
+		// Only the exact stored shape is trusted.
+		{"wrapper (x) learning adapter failed (reviewer_context_limit): exit status 2", false},
+		{"other failure (reviewer_context_limit; syntheticSECRET): exit status 2", false},
+		{"learning adapter failed (reviewer_context_limit; syntheticSECRET): exit status 2", false},
+		{"learning adapter failed (reviewer_context_limit)", false},
+		{"learning adapter failed (reviewer_Context_limit): exit status 2", false},
 		{"learning adapter failed (reviewer_invoke_failed; detail withheld): exit status 2", false},
 		{"learning adapter failed (reviewer_answer_failed; detail withheld): exit status 2", false},
 		{"learning adapter failed (reviewer_failed; detail withheld): exit status 2", false},
@@ -70,15 +79,19 @@ func TestA2DeterministicReviewerFailureClassification(t *testing.T) {
 	}
 }
 
-// A2.2: a review that failed for a reason that repeats identically is not
-// offered for another attempt; a transient one still is.
-func TestA2RecoveryDoesNotRetryDeterministicFailure(t *testing.T) {
+// A2.2: a review that failed for a reason that would repeat on an immediate
+// retry is held back for a delay, then offered once more; a transient one is
+// offered at once.
+func TestA2RecoveryDelaysDeterministicFailure(t *testing.T) {
 	product, s := sharedProductFixture(t, false)
-	events := []struct{ id, run, reviewError string }{
-		{"EV-a2-settings-00000001", "AW-CLI-A2-settings-001", "learning adapter failed (reviewer_settings_failed; detail withheld): exit status 2"},
-		{"EV-a2-context-000000002", "AW-CLI-A2-context-0002", "learning adapter failed (reviewer_context_limit): exit status 2"},
-		{"EV-a2-invoke-0000000003", "AW-CLI-A2-invoke-00003", "learning adapter failed (reviewer_invoke_failed; detail withheld): exit status 2"},
-		{"EV-a2-legacy-0000000004", "AW-CLI-A2-legacy-00004", "learning adapter failed (reviewer_failed; detail withheld): exit status 2"},
+	recent := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339Nano)
+	old := time.Now().UTC().Add(-deterministicReviewerRetryDelay - time.Hour).Format(time.RFC3339Nano)
+	events := []struct{ id, run, reviewError, at string }{
+		{"EV-a2-settings-00000001", "AW-CLI-A2-settings-001", "learning adapter failed (reviewer_settings_failed; detail withheld): exit status 2", recent},
+		{"EV-a2-context-000000002", "AW-CLI-A2-context-0002", "learning adapter failed (reviewer_context_limit): exit status 2", recent},
+		{"EV-a2-invoke-0000000003", "AW-CLI-A2-invoke-00003", "learning adapter failed (reviewer_invoke_failed; detail withheld): exit status 2", recent},
+		{"EV-a2-legacy-0000000004", "AW-CLI-A2-legacy-00004", "learning adapter failed (reviewer_failed; detail withheld): exit status 2", recent},
+		{"EV-a2-settings-old00005", "AW-CLI-A2-settings-old5", "learning adapter failed (reviewer_settings_failed; detail withheld): exit status 2", old},
 	}
 	if err := os.MkdirAll(filepath.Join(s.RuntimeRoot, "reviews"), 0700); err != nil {
 		t.Fatal(err)
@@ -92,7 +105,7 @@ func TestA2RecoveryDoesNotRetryDeterministicFailure(t *testing.T) {
 		if _, err := journal.Write(append(line, '\n')); err != nil {
 			t.Fatal(err)
 		}
-		review, _ := json.Marshal(map[string]any{"schema": "air.learning.review/v1", "event_id": ev.id, "run_id": ev.run, "phase": "complete", "outcome": "error", "attempt": 1, "error": ev.reviewError, "at": "2026-11-15T00:00:00Z"})
+		review, _ := json.Marshal(map[string]any{"schema": "air.learning.review/v1", "event_id": ev.id, "run_id": ev.run, "phase": "complete", "outcome": "error", "attempt": 1, "error": ev.reviewError, "at": ev.at})
 		if err := os.WriteFile(filepath.Join(s.RuntimeRoot, "reviews", ev.id+".json"), review, 0600); err != nil {
 			t.Fatal(err)
 		}
@@ -109,9 +122,26 @@ func TestA2RecoveryDoesNotRetryDeterministicFailure(t *testing.T) {
 		got[run] = true
 	}
 	if got["AW-CLI-A2-settings-001"] || got["AW-CLI-A2-context-0002"] {
-		t.Fatalf("deterministic failures offered for retry: %v", pending)
+		t.Fatalf("recent deterministic failures offered for immediate retry: %v", pending)
 	}
 	if !got["AW-CLI-A2-invoke-00003"] || !got["AW-CLI-A2-legacy-00004"] {
 		t.Fatalf("transient or unclassified failures no longer retried: %v", pending)
+	}
+	if !got["AW-CLI-A2-settings-old5"] {
+		t.Fatalf("deterministic failure dropped instead of retried after the delay: %v", pending)
+	}
+}
+
+func TestA2RetryDueKeepsEventWhenTimestampUnreadable(t *testing.T) {
+	det := "learning adapter failed (reviewer_settings_failed; detail withheld): exit status 2"
+	now := time.Now()
+	if reviewerRetryDue(det, now.Add(-time.Minute).Format(time.RFC3339Nano), now) {
+		t.Fatal("recent deterministic failure retried at once")
+	}
+	if !reviewerRetryDue(det, "not-a-time", now) {
+		t.Fatal("unreadable timestamp dropped the event")
+	}
+	if !reviewerRetryDue("learning adapter failed: exit status 2", now.Format(time.RFC3339Nano), now) {
+		t.Fatal("unclassified failure not retried")
 	}
 }
