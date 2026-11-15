@@ -13,12 +13,14 @@ import (
 )
 
 // A bare nonzero exit without a typed native cause carries no lesson: the
-// observation would be the same template for every failure. Such exits, help
-// requests and ordinary judge FAIL verdicts are counted, never learned from.
+// observation would be the same template for every failure. Such exits and
+// ordinary judge FAIL verdicts are counted, never learned from. A help
+// request (-h) makes Go's flag parser return ErrHelp, which every captured
+// action turns into exit 2 without a typed cause, so it is covered by the
+// same rule (only `learn` maps ErrHelp to 0, and `learn` is never captured);
+// re-deriving help from argv would mean re-implementing each command's flags.
 func ownCLISignalSkipReason(argv []string, action string, rc int, cause string) string {
 	switch {
-	case ownCLIHelpRequested(argv):
-		return "help"
 	case action == "judge" && rc == 1:
 		return "judge-verdict"
 	case rc == 2 && cause == "":
@@ -28,42 +30,19 @@ func ownCLISignalSkipReason(argv []string, action string, rc int, cause string) 
 	}
 }
 
-// A help token counts only where Go's flag parser would read it as a flag:
-// not after "--" and not as the value of a preceding "-name" flag. Boolean
-// flags never take a separate value, so a help token after them still counts.
-func ownCLIHelpRequested(argv []string) bool {
-	for i, a := range argv {
-		if a == "--" {
-			return false
-		}
+// Recorded as a plain fact, never used to exclude a call from any number:
+// a help token may also be a flag value, and guessing which would let a
+// misclassification move calls out of the denominator.
+func ownCLIHelpTokenPresent(argv []string) bool {
+	for _, a := range argv {
 		switch a {
+		case "--":
+			return false
 		case "-h", "-help", "--h", "--help":
-			if i == 0 || !ownCLIFlagTakesNextValue(argv[i-1]) {
-				return true
-			}
+			return true
 		}
 	}
 	return false
-}
-
-func ownCLIFlagTakesNextValue(prev string) bool {
-	if !strings.HasPrefix(prev, "-") || prev == "-" || strings.Contains(prev, "=") {
-		return false
-	}
-	name := strings.TrimLeft(prev, "-")
-	return !ownCLIBoolFlags[name] && name != "h" && name != "help" && name != "v" && name != "version"
-}
-
-// Every boolean flag the CLI declares. Boolean flags never consume the next
-// argument; TestA1BoolFlagListMatchesSource keeps this set equal to the source.
-var ownCLIBoolFlags = map[string]bool{
-	"active": true, "all": true, "apply": true, "autostart": true, "cached": true,
-	"dry-run": true, "enabled": true, "ensure": true, "fix": true, "force": true,
-	"if-stale": true, "informational": true, "json": true, "legacy": true,
-	"no-fail": true, "no-judge": true, "no-owner": true, "no-start": true,
-	"open": true, "orchestrate": true, "plan-only": true, "preflight": true,
-	"quiet": true, "record": true, "status": true, "stop": true,
-	"uninstall": true, "whatif": true,
 }
 
 const ownCLIInvocationSchema = "air-worker.self-learning.cli-invocation/v1"
@@ -114,7 +93,7 @@ type ownCLIInvocation struct {
 	At         string `json:"at"`
 	Command    string `json:"command"`
 	ExitCode   int    `json:"exit_code"`
-	Help       bool   `json:"help,omitempty"`
+	HelpToken  bool   `json:"help_token,omitempty"`
 	Host       string `json:"host"`
 	HostSource string `json:"host_source"`
 	Version    string `json:"version"`
@@ -161,7 +140,7 @@ func recordOwnCLIInvocation(argv []string, rc int) error {
 	host, hostSource := ownCLIInvocationHost()
 	line, err := json.Marshal(ownCLIInvocation{
 		Schema: ownCLIInvocationSchema, At: now.Format(time.RFC3339), Command: command,
-		ExitCode: rc, Help: ownCLIHelpRequested(argv), Host: host, HostSource: hostSource, Version: version,
+		ExitCode: rc, HelpToken: ownCLIHelpTokenPresent(argv), Host: host, HostSource: hostSource, Version: version,
 	})
 	if err != nil {
 		return err
@@ -181,20 +160,20 @@ func recordOwnCLIInvocation(argv []string, rc int) error {
 	return f.Close()
 }
 
-// Calls exclude help requests in every row: asking for usage is not a call
-// that can fail, so it enters neither numerator nor denominator.
+// Every recorded call is in the denominator. help_token is shown beside the
+// rate as a fact; it is never subtracted, so no classification can move a
+// call out of the number.
 type ownCLIStatsRow struct {
 	Calls     int     `json:"calls"`
 	Exit2     int     `json:"exit_2"`
 	Nonzero   int     `json:"nonzero"`
-	Help      int     `json:"help"`
+	HelpToken int     `json:"help_token"`
 	Exit2Rate float64 `json:"exit_2_rate"`
 }
 
 func (r *ownCLIStatsRow) add(inv ownCLIInvocation) {
-	if inv.Help {
-		r.Help++
-		return
+	if inv.HelpToken {
+		r.HelpToken++
 	}
 	r.Calls++
 	if inv.ExitCode == 2 {
@@ -292,7 +271,7 @@ func cmdLearnSelfCLIStats(argv []string) int {
 		_ = json.NewEncoder(os.Stdout).Encode(st)
 		return 0
 	}
-	fmt.Printf("%s..%s calls=%d exit_2=%d rate=%.4f nonzero=%d help=%d\n", st.From, st.To, st.Calls, st.Exit2, st.Exit2Rate, st.Nonzero, st.Help)
+	fmt.Printf("%s..%s calls=%d exit_2=%d rate=%.4f nonzero=%d help_token=%d\n", st.From, st.To, st.Calls, st.Exit2, st.Exit2Rate, st.Nonzero, st.HelpToken)
 	fmt.Printf("  pilot    wrong-call classes           calls=%d exit_2=%d rate=%.4f\n", st.Pilot.Calls, st.Pilot.Exit2, st.Pilot.Exit2Rate)
 	for _, group := range []struct {
 		title string
@@ -305,7 +284,7 @@ func cmdLearnSelfCLIStats(argv []string) int {
 		sort.Strings(names)
 		for _, k := range names {
 			r := group.rows[k]
-			fmt.Printf("  %-8s %-28s calls=%d exit_2=%d rate=%.4f nonzero=%d help=%d\n", group.title, k, r.Calls, r.Exit2, r.Exit2Rate, r.Nonzero, r.Help)
+			fmt.Printf("  %-8s %-28s calls=%d exit_2=%d rate=%.4f nonzero=%d help_token=%d\n", group.title, k, r.Calls, r.Exit2, r.Exit2Rate, r.Nonzero, r.HelpToken)
 		}
 	}
 	return 0

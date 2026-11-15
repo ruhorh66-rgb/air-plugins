@@ -1,9 +1,6 @@
 package main
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,8 +19,10 @@ func TestA1NoLearningEventForContentlessExits(t *testing.T) {
 		{"invalid plan action exit 2", []string{"plan", "node", "bogus"}, 2},
 		{"judge FAIL verdict", []string{"judge", "-product", product}, 1},
 		{"judge untyped exit 2", []string{"judge", "-product", product}, 2},
+		// Help needs no rule of its own: flag.ErrHelp ends as untyped exit 2,
+		// and the trusted-cause parser rejects -help, so no typed cause exists.
 		{"help request", []string{"plan", "node", "new", "-h"}, 2},
-		{"help on validate with trusted cause", []string{"validate", "-product", product, "-help"}, 2},
+		{"help on validate with missing run-config", []string{"validate", "-product", product, "-help"}, 2},
 	}
 	for i, tc := range cases {
 		run := "AW-CLI-A1-skip-00" + string(rune('0'+i))
@@ -97,26 +96,26 @@ func TestA1InvocationCounterGivesStableExit2Rate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Operator calls without help: list, new, validate, judge, unknown = 5;
-	// exit 2: new, unknown = 2; the help call is counted apart.
-	if first.Calls != 5 || first.Exit2 != 2 || first.Nonzero != 3 || first.Help != 1 || first.Exit2Rate != 0.4 {
+	// Operator calls: list, new, validate, judge, new -h, unknown = 6; every
+	// one stays in the denominator. exit 2: new, new -h, unknown = 3.
+	if first.Calls != 6 || first.Exit2 != 3 || first.Nonzero != 4 || first.HelpToken != 1 || first.Exit2Rate != 0.5 {
 		t.Fatalf("unexpected counters: %+v", first)
 	}
 	if _, ok := first.ByCommand["hook"]; ok {
 		t.Fatal("host hook traffic entered the operator denominator")
 	}
-	if first.ByCommand["unknown"].Exit2 != 1 || first.ByCommand["plan node new"].Help != 1 {
+	if first.ByCommand["unknown"].Exit2 != 1 || first.ByCommand["plan node new"].Calls != 2 || first.ByCommand["plan node new"].HelpToken != 1 {
 		t.Fatalf("per-command breakdown wrong: %+v", first.ByCommand)
 	}
-	// Pilot classes: plan node list (0), plan node new (2), unknown (2);
+	// Pilot classes: plan node list (0), plan node new (2, 2), unknown (2);
 	// validate and judge are gate classes and stay out of the pilot target.
-	if p := first.Pilot; p.Calls != 3 || p.Exit2 != 2 || p.Help != 1 {
+	if p := first.Pilot; p.Calls != 4 || p.Exit2 != 3 || p.HelpToken != 1 {
 		t.Fatalf("pilot row wrong: %+v", p)
 	}
 	if c := first.ByHost["codex"]; c.Calls != 2 || c.Exit2 != 1 || c.Exit2Rate != 0.5 {
 		t.Fatalf("codex host row wrong: %+v", first.ByHost)
 	}
-	if first.ByHost["claude"].Calls != 1 || first.ByHost["claude"].Help != 1 ||
+	if first.ByHost["claude"].Calls != 2 || first.ByHost["claude"].HelpToken != 1 ||
 		first.ByHost["hermes"].Nonzero != 1 || first.ByHost["unknown"].Exit2 != 1 {
 		t.Fatalf("per-host breakdown wrong: %+v", first.ByHost)
 	}
@@ -191,78 +190,27 @@ func TestA1ReplayAfterPreconditionChangeStaysAuthenticated(t *testing.T) {
 	}
 }
 
-// Codex review P2: a help token used as a flag value is not a help request.
-func TestA1HelpTokenAsFlagValueIsNotHelp(t *testing.T) {
-	cases := []struct {
-		argv []string
-		help bool
-	}{
-		{[]string{"validate", "-product", "--help"}, false},
-		{[]string{"plan", "node", "new", "-title", "-h"}, false},
-		{[]string{"validate", "-product=x", "-h"}, true},
-		{[]string{"plan", "node", "list", "-json", "-h"}, true},
-		{[]string{"plan", "-help"}, true},
-		{[]string{"tool", "--", "-h"}, false},
-	}
-	for _, c := range cases {
-		if got := ownCLIHelpRequested(c.argv); got != c.help {
-			t.Fatalf("%v: help=%v, want %v", c.argv, got, c.help)
+// Codex review rounds 1-3: help is never inferred, so a help token used as a
+// flag value cannot move a call out of the denominator.
+func TestA1HelpTokenNeverExcludesACall(t *testing.T) {
+	_, settings, _ := selfLearningFixture(t)
+	for _, argv := range [][]string{
+		{"validate", "-product", "--help"},
+		{"plan", "-product", "-foo", "-h"},
+		{"plan", "-all", "-h"},
+		{"tool", "--", "-h"},
+	} {
+		if err := recordOwnCLIInvocation(argv, 2); err != nil {
+			t.Fatal(err)
 		}
 	}
-}
-
-// Codex review round 2: any declared boolean flag before -h keeps it a help
-// request. The set is checked against the source, not maintained by memory.
-func TestA1BoolFlagListMatchesSource(t *testing.T) {
-	files, err := filepath.Glob("*.go")
+	now := time.Now().UTC()
+	st, err := readOwnCLIStats(settings.RuntimeRoot, now, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fset := token.NewFileSet()
-	found := map[string]bool{}
-	for _, name := range files {
-		if strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-		f, err := parser.ParseFile(fset, name, nil, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
-		ast.Inspect(f, func(n ast.Node) bool {
-			call, ok := n.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || (sel.Sel.Name != "Bool" && sel.Sel.Name != "BoolVar") {
-				return true
-			}
-			idx := 0
-			if sel.Sel.Name == "BoolVar" {
-				idx = 1
-			}
-			if len(call.Args) > idx {
-				if lit, ok := call.Args[idx].(*ast.BasicLit); ok && lit.Kind == token.STRING {
-					found[strings.Trim(lit.Value, `"`)] = true
-				}
-			}
-			return true
-		})
-	}
-	for name := range found {
-		if !ownCLIBoolFlags[name] {
-			t.Errorf("boolean flag -%s declared in source but missing from ownCLIBoolFlags", name)
-		}
-	}
-	for name := range ownCLIBoolFlags {
-		if !found[name] {
-			t.Errorf("ownCLIBoolFlags lists -%s, which no source file declares", name)
-		}
-	}
-	for _, argv := range [][]string{{"drift", "-all", "-h"}, {"update", "-dry-run", "--help"}} {
-		if !ownCLIHelpRequested(argv) {
-			t.Fatalf("%v must be a help request", argv)
-		}
+	if st.Calls != 4 || st.Exit2 != 4 || st.HelpToken != 3 || st.Pilot.Calls != 2 || st.Pilot.Exit2 != 2 {
+		t.Fatalf("help tokens changed the numbers: %+v", st)
 	}
 }
 
