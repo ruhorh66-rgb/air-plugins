@@ -519,6 +519,10 @@ func validLearningProcedureMarkdown(content string) bool {
 func invokeLearningReviewerCodex(eventSHA, product, prompt, outputSchema, model, effort string) (string, error) {
 	step := learningReviewerStep(eventSHA)
 	scope := legacyScope(product)
+	// Retention never blocks a review: its outcome is in reviewer-job-archive.jsonl.
+	if s, on, err := readSharedLearningSettings(product); err == nil && on {
+		_ = archiveSettledReviewerJobs(product, s.RuntimeRoot)
+	}
 	var out []byte
 	var runErr error
 	if recovered, found, err := recoverLearningReviewerJob(scope, step, eventSHA); err != nil {
