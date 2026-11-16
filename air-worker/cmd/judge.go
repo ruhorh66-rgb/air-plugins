@@ -947,8 +947,9 @@ func publishVerdict(root string, code int, text string, r judgeResult) machineVe
 	mv.GitHead = r.SourceHead
 	mv.SourceClean = r.SourceClean
 	if b, err := json.MarshalIndent(mv, "", "  "); err == nil {
-		_ = writeFileAtomic(filepath.Join(root, ".goal-verdict.json"), b)
-		notePublishedVerdict(root, mv, b)
+		if writeFileAtomic(filepath.Join(root, ".goal-verdict.json"), b) == nil {
+			notePublishedVerdict(root, mv, b)
+		}
 	}
 	return mv
 }

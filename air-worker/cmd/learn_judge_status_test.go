@@ -57,7 +57,7 @@ func publishTestVerdict(t *testing.T, root string, code int, failed []string) {
 	mv := machineVerdict{Code: code, ChecksFailed: len(failed), CriteriaFailed: failed}
 	raw, _ := json.Marshal(mv)
 	notePublishedVerdict(root, mv, raw)
-	t.Cleanup(func() { notePublishedVerdict("", machineVerdict{}, nil); publishedVerdict.sha = "" })
+	t.Cleanup(resetPublishedVerdict)
 }
 
 // A3.4: a judge FAIL of this process carries the failed criterion IDs and the
@@ -93,8 +93,7 @@ func TestA34JudgeFailureIsTypedFromThisRunsVerdict(t *testing.T) {
 	if cause := ownCLITrustedFailureCause(argv, 1); cause != "" {
 		t.Fatalf("passing verdict typed as %q", cause)
 	}
-	notePublishedVerdict("", machineVerdict{}, nil)
-	publishedVerdict.sha = ""
+	resetPublishedVerdict()
 	b, _ := json.Marshal(machineVerdict{Code: 1, CriteriaFailed: []string{"K9"}})
 	if err := os.WriteFile(filepath.Join(product, ".goal-verdict.json"), b, 0o644); err != nil {
 		t.Fatal(err)

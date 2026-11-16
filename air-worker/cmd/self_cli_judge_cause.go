@@ -12,17 +12,29 @@ import (
 // so the verdict this process published is exactly this run's verdict. It is
 // kept in memory instead of being read back from .goal-verdict.json: no other
 // process's verdict and no file swapped in between can be taken for it.
+// The first detail computed from it is kept, so the failure cause and the
+// observation of one capture describe the same snapshot.
 var publishedVerdict struct {
 	sync.Mutex
-	root string
-	mv   machineVerdict
-	sha  string
+	root   string
+	mv     machineVerdict
+	sha    string
+	memo   map[string]judgeFailure
+	memoOK map[string]bool
 }
 
 func notePublishedVerdict(root string, mv machineVerdict, raw []byte) {
 	publishedVerdict.Lock()
 	defer publishedVerdict.Unlock()
 	publishedVerdict.root, publishedVerdict.mv, publishedVerdict.sha = root, mv, learnSHA(raw)
+	publishedVerdict.memo, publishedVerdict.memoOK = nil, nil
+}
+
+func resetPublishedVerdict() {
+	publishedVerdict.Lock()
+	defer publishedVerdict.Unlock()
+	publishedVerdict.root, publishedVerdict.mv, publishedVerdict.sha = "", machineVerdict{}, ""
+	publishedVerdict.memo, publishedVerdict.memoOK = nil, nil
 }
 
 type judgeFailure struct {
@@ -53,21 +65,28 @@ func judgeFailureDetail(argv []string) (judgeFailure, bool) {
 		return judgeFailure{}, false
 	}
 	publishedVerdict.Lock()
-	vRoot, mv, sha := publishedVerdict.root, publishedVerdict.mv, publishedVerdict.sha
-	publishedVerdict.Unlock()
-	if sha == "" || !sameLearningPath(vRoot, root) || mv.Code != 1 {
-		return judgeFailure{}, false
+	defer publishedVerdict.Unlock()
+	if d, done := publishedVerdict.memo[root]; done {
+		return d, publishedVerdict.memoOK[root]
 	}
-	d := judgeFailure{ChecksFailed: mv.ChecksFailed, Ref: ".goal-verdict.json#sha256=" + sha}
-	for _, c := range mv.CriteriaFailed {
-		if len(d.IDs) == 16 {
-			break
-		}
-		if id := sanitizedCriterionID(c); id != "" {
-			d.IDs = append(d.IDs, id)
+	d, ok := judgeFailure{}, false
+	mv, sha := publishedVerdict.mv, publishedVerdict.sha
+	if sha != "" && sameLearningPath(publishedVerdict.root, root) && mv.Code == 1 {
+		d, ok = judgeFailure{ChecksFailed: mv.ChecksFailed, Ref: ".goal-verdict.json#sha256=" + sha}, true
+		for _, c := range mv.CriteriaFailed {
+			if len(d.IDs) == 16 {
+				break
+			}
+			if id := sanitizedCriterionID(c); id != "" {
+				d.IDs = append(d.IDs, id)
+			}
 		}
 	}
-	return d, true
+	if publishedVerdict.memo == nil {
+		publishedVerdict.memo, publishedVerdict.memoOK = map[string]judgeFailure{}, map[string]bool{}
+	}
+	publishedVerdict.memo[root], publishedVerdict.memoOK[root] = d, ok
+	return d, ok
 }
 
 // The first token of a criterion entry, restricted to letters, digits, '.',
