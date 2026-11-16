@@ -196,8 +196,10 @@ func TestHLP06UserPromptCannotMintSessionStartDelivery(t *testing.T) {
 	if err != nil || strings.Contains(res.Context, "VERIFIED AUTOMATIC DELIVERY") {
 		t.Fatalf("untrusted non-start lifecycle minted automatic delivery: %v %s", err, res.Context)
 	}
+	// A4: a prompt that matches no procedure writes no receipt at all; any
+	// receipt that exists must be unsigned.
 	rec, _, found, err := readSelfLearningContextReceipt(in)
-	if err != nil || !found || rec.DeliveryMAC != "" || n104Events(t, settings.RuntimeRoot, "procedure_used") != 0 {
+	if err != nil || (found && rec.DeliveryMAC != "") || n104Events(t, settings.RuntimeRoot, "procedure_used") != 0 {
 		t.Fatalf("prompt context minted signed machine action: %v found=%v", err, found)
 	}
 }
