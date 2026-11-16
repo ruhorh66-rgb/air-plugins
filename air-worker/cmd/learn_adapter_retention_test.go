@@ -82,7 +82,12 @@ func TestN102LearningAutoReviewerPatchesClassProcedureWithRollback(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	code, text := invokeN102Reviewer(t, product, n102Answer(n102NewCLI))
+	// A separate lesson that ignores the class procedure is refused.
+	if code, text := invokeN102Reviewer(t, product, n102Answer(n102NewCLI)); code != 2 || strings.Contains(text, `"kind"`) {
+		t.Fatalf("lesson ignoring the class procedure was not refused: %d %s", code, text)
+	}
+	merged := n102PriorCLI + "\n" + strings.TrimSpace(n102NewCLI) + "\n"
+	code, text := invokeN102Reviewer(t, product, reuseAnswer(merged, oldTarget, learnSHA(originalBytes)))
 	if code != 0 {
 		t.Fatalf("reviewer failed: %s", text)
 	}
@@ -90,8 +95,8 @@ func TestN102LearningAutoReviewerPatchesClassProcedureWithRollback(t *testing.T)
 	if err := json.Unmarshal([]byte(text), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got["target"] != oldTarget || got["pre_sha256"] != learnSHA(originalBytes) {
-		t.Fatalf("lesson of the same class did not patch the class procedure: %#v", got)
+	if got["target"] != oldTarget || got["pre_sha256"] != learnSHA(originalBytes) || !strings.Contains(got["content"], "Define one CLI contract") {
+		t.Fatalf("class update lost its target, SHA or old guidance: %#v", got)
 	}
 	result, err := executeSharedLearning(product, config, "propose", map[string]string{
 		"proposal_id": "LP-n102-patch", "kind": "procedure", "target": got["target"],
@@ -143,11 +148,13 @@ func TestN102NoTraceOverwriteOfExistingProcedureIsImpossible(t *testing.T) {
 			t.Fatalf("%s: procedure bytes changed", name)
 		}
 	}
-	// The reviewer adapter itself never emits a patch without pre_sha256.
-	code, text := invokeN102Reviewer(t, product, n102Answer(n102NewCLI))
-	var got map[string]string
-	if code != 0 || json.Unmarshal([]byte(text), &got) != nil || got["target"] != target || got["pre_sha256"] != learnSHA(before) {
-		t.Fatalf("adapter patch lacks the current pre_sha256: %d %s", code, text)
+	// The reviewer adapter never emits a change of the procedure without its
+	// current pre_sha256: a lesson without it is refused, a stale SHA too.
+	if code, text := invokeN102Reviewer(t, product, n102Answer(n102NewCLI)); code != 2 || strings.Contains(text, `"kind"`) {
+		t.Fatalf("adapter accepted a lesson without the class pre_sha256: %d %s", code, text)
+	}
+	if code, text := invokeN102Reviewer(t, product, reuseAnswer(n102PriorCLI+"\nx\n", target, strings.Repeat("0", 64))); code != 2 || strings.Contains(text, `"kind"`) {
+		t.Fatalf("adapter accepted a stale pre_sha256: %d %s", code, text)
 	}
 }
 func TestN102NoCandidateLeavesPriorKnowledgeUnchanged(t *testing.T) {

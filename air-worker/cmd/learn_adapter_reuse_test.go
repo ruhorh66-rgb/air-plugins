@@ -28,10 +28,11 @@ func TestLearningReviewerAppliedReuse(t *testing.T) {
 		{"same", `{"apply":false,"content":"","update_target":"","update_pre_sha256":""}`, "", "", 0},
 		{"refine", reuseAnswer(n102PriorCLI+"\nCheck parser errors before publishing help.\n", target, sha), target, sha, 0},
 		{"wrong-sha", reuseAnswer(n102PriorCLI+"\nCheck parser errors.\n", target, strings.Repeat("0", 64)), "", "", 2},
-		// A distinct lesson of the same class patches the class procedure
-		// (LPR decision 04.11.2026: update the existing skill first); a new
-		// class still gets a new file (TestA3NewLessonOfExistingClassPatchesProcedure).
-		{"distinct", reuseAnswer(n102NewCLI, "", ""), target, sha, 0},
+		// A distinct lesson of the same class must update the class procedure
+		// (LPR decision 04.11.2026: update the existing skill first): an answer
+		// that adds it as a separate file is refused. A new class still gets a
+		// new file (TestA3NewLessonOfExistingClassPatchesProcedure).
+		{"distinct", reuseAnswer(n102NewCLI, "", ""), "", "", 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			saved := learningReviewerInvoke
