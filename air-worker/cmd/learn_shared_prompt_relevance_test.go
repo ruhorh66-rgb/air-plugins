@@ -68,6 +68,10 @@ func TestSharedPromptRelevanceIgnoresFunctionWords(t *testing.T) {
 	if !reflect.DeepEqual(got, []sharedLearningCatalogSkill{unknown}) {
 		t.Fatalf("a function word pulled an unrelated procedure: %+v", got)
 	}
+	logs := sharedLearningCatalogSkill{Target: "skills/learned/incident.md", Title: "Collect logs during incident recovery"}
+	if got := selectSharedSkillsForTurn([]sharedLearningCatalogSkill{logs}, "What happened during the release?"); len(got) != 0 {
+		t.Fatalf("'during' alone matched: %+v", got)
+	}
 	ru := sharedLearningCatalogSkill{Target: "skills/learned/ru.md", Title: "Проверить отчёт перед отправкой"}
 	if got := selectSharedSkillsForTurn([]sharedLearningCatalogSkill{ru}, "сделай это перед обедом"); len(got) != 0 {
 		t.Fatalf("Russian function word matched: %+v", got)

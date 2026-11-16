@@ -27,20 +27,35 @@ var genericLearningTerms = map[string]bool{
 	"error": true, "failure": true, "failures": true,
 	"проверка": true, "ошибка": true, "навык": true,
 	"процедура": true, "модуль": true,
-	// Function words: one of them alone must not pull a procedure of another
-	// task class into a turn (A4).
-	"about": true, "after": true, "again": true, "also": true, "before": true,
-	"been": true, "does": true, "done": true, "each": true, "from": true,
-	"have": true, "into": true, "just": true, "make": true, "more": true,
-	"must": true, "next": true, "only": true, "over": true, "should": true,
-	"than": true, "that": true, "them": true, "then": true, "there": true,
-	"these": true, "they": true, "this": true, "what": true, "when": true,
-	"where": true, "which": true, "while": true, "will": true, "with": true,
-	"without": true, "your": true,
-	"перед": true, "после": true, "если": true, "когда": true, "чтобы": true,
-	"только": true, "снова": true, "этот": true, "эта": true, "это": true,
-	"нужно": true, "надо": true, "через": true, "также": true, "тоже": true,
-	"потом": true, "затем": true, "сейчас": true, "можно": true, "нельзя": true,
+}
+
+// Function words (NLTK-style English and Russian stop words of 4+ letters):
+// one of them alone must not pull a procedure of another task class into a
+// turn (A4). Content-word overlap is the accepted lexical bound.
+const learningStopWords = `
+about above across after again against along also among another anything around
+because been before being below between both cannot could didn does doesn doing
+done down during each either else every few from further going have having here
+hers herself himself into itself just least less like made make many more most
+much must myself need neither never next none nothing once only onto other ours
+ourselves over please quite rather same shall should since some something such
+than that their theirs them themselves then there these they this those though
+through thus till under unless until upon very want were what whatever when
+where whether which while whom whose will with within without would your yours
+yourself yourselves
+более больше будет будто была были было быть вдруг ведь везде весь впрочем
+всегда всего всех всею всем вместо вокруг где говорил даже другой другие если
+есть ещё еще здесь иногда именно какая какой когда кроме куда лишь лучше
+между менее меня много может можно надо наконец него нельзя нибудь никогда ничего
+нужно однако около опять перед после потом потому почти пока при про разве
+свою своей своих свой себе себя сейчас совсем снова также такой теперь тогда того
+тоже только тот через чтоб чтобы чуть этого этой этом этот эти эту затем
+`
+
+func init() {
+	for _, w := range strings.Fields(learningStopWords) {
+		genericLearningTerms[w] = true
+	}
 }
 
 // learningRelevanceTerms is bounded and lexical, not a model or a policy
