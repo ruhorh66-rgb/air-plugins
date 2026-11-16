@@ -39,6 +39,15 @@ func archiveSettledReviewerJobs(product, runtimeRoot string) error {
 }
 
 func archiveSettledReviewerJobsAt(scope sessionScope, runtimeRoot string, keep int, now time.Time) error {
+	rt, err := os.OpenRoot(scope.Root)
+	if err != nil {
+		return err
+	}
+	err = reconcileReviewerJobArchiveTrace(rt, runtimeRoot, now)
+	rt.Close()
+	if err != nil {
+		return err
+	}
 	jobs := filepath.Join(scope.Root, ".woody", "jobs")
 	paths, err := filepath.Glob(filepath.Join(jobs, "*learning-*learning-reviewer.receipt.json"))
 	if err != nil {
@@ -132,32 +141,91 @@ func archiveReviewerJobLocked(scope sessionScope, runtimeRoot, receiptPath strin
 	return true, archiveReviewerJob(scope.Root, runtimeRoot, receiptPath, r, now)
 }
 
+// All archive file operations go through an os.Root opened at the product
+// root: path resolution can then never leave it, even if a level is swapped
+// for a symlink or junction between a check and its use.
+
 // mkdirPlain creates one archive level or accepts an existing ordinary
-// directory. A symlink or junction there would send evidence outside the
-// product root, so it is refused instead of followed.
-func mkdirPlain(path string) error {
-	st, err := os.Lstat(path)
+// directory; anything else is refused instead of followed.
+func mkdirPlain(rt *os.Root, rel string) error {
+	st, err := rt.Lstat(rel)
 	if errors.Is(err, os.ErrNotExist) {
-		return os.Mkdir(path, 0o700)
+		return rt.Mkdir(rel, 0o700)
 	}
 	if err != nil {
 		return err
 	}
 	if !st.IsDir() || st.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
-		return fmt.Errorf("reviewer job archive path is not a plain directory: %s", path)
+		return fmt.Errorf("reviewer job archive path is not a plain directory: %s", rel)
 	}
 	return nil
 }
 
 // moveNoReplace links the file at dst and then drops the old name, as
 // publishNewPlanNode does: os.Rename on Windows replaces an existing target,
-// os.Link never does. If dropping the old name fails both names remain; no
+// a link never does. If dropping the old name fails both names remain; no
 // data is lost.
-func moveNoReplace(src, dst string) error {
-	if err := os.Link(src, dst); err != nil {
+func moveNoReplace(rt *os.Root, src, dst string) error {
+	if err := rt.Link(src, dst); err != nil {
 		return err
 	}
-	return os.Remove(src)
+	return rt.Remove(src)
+}
+
+func outputNameForReceipt(receipt string) string {
+	return strings.TrimSuffix(receipt, ".receipt.json") + ".out"
+}
+
+// reconcileReviewerJobArchiveTrace gives every attempt left at "moving" (for
+// example after a failed final trace append) a terminal line that states
+// where its two files actually are. It only reads file metadata.
+func reconcileReviewerJobArchiveTrace(rt *os.Root, runtimeRoot string, now time.Time) error {
+	raw, err := os.ReadFile(filepath.Join(runtimeRoot, "reviewer-job-archive.jsonl"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	last := map[string]reviewerJobArchiveTrace{}
+	var order []string
+	for _, line := range strings.Split(string(raw), "\n") {
+		var t reviewerJobArchiveTrace
+		if json.Unmarshal([]byte(line), &t) != nil || t.Receipt == "" {
+			continue
+		}
+		key := t.To + "|" + t.Receipt
+		if _, seen := last[key]; !seen {
+			order = append(order, key)
+		}
+		last[key] = t
+	}
+	where := func(name, archived string) string {
+		jobs, _ := rt.Lstat(filepath.Join(".woody", "jobs", name))
+		arch, _ := rt.Lstat(filepath.Join(archived, name))
+		switch {
+		case jobs != nil && arch != nil:
+			return "both"
+		case jobs != nil:
+			return "jobs"
+		case arch != nil:
+			return "archive"
+		}
+		return "missing"
+	}
+	for _, key := range order {
+		t := last[key]
+		if t.Outcome != "moving" {
+			continue
+		}
+		archived := filepath.Join(".woody", "jobs-archive", filepath.Base(t.To))
+		t.At = now.Format(time.RFC3339)
+		t.Outcome = fmt.Sprintf("reconciled: receipt in %s, output in %s", where(t.Receipt, archived), where(outputNameForReceipt(t.Receipt), archived))
+		if err := appendReviewerJobArchiveTrace(runtimeRoot, t); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // completedReviewEventSHAs maps the event SHA the adapter uses as job identity
@@ -203,24 +271,32 @@ func completedReviewEventSHAs(runtimeRoot string) (map[string]bool, error) {
 // otherwise both files are moved back, and a failed restore is reported with
 // where each file actually is instead of being called restored.
 func archiveReviewerJob(root, runtimeRoot, receiptPath string, r *jobReceipt, now time.Time) error {
-	dir := filepath.Join(root, ".woody", "jobs-archive", now.Format("200601"))
-	if err := mkdirPlain(filepath.Dir(dir)); err != nil {
+	rt, err := os.OpenRoot(root)
+	if err != nil {
 		return err
 	}
-	if err := mkdirPlain(dir); err != nil {
+	defer rt.Close()
+	archRel := filepath.Join(".woody", "jobs-archive")
+	dirRel := filepath.Join(archRel, now.Format("200601"))
+	if err := mkdirPlain(rt, archRel); err != nil {
 		return err
 	}
-	toReceipt := filepath.Join(dir, filepath.Base(receiptPath))
-	toOutput := filepath.Join(dir, filepath.Base(r.OutputPath))
+	if err := mkdirPlain(rt, dirRel); err != nil {
+		return err
+	}
+	// The caller verified both paths are this job's canonical files under
+	// .woody/jobs, so their base names locate them inside the root.
+	fromReceipt := filepath.Join(".woody", "jobs", filepath.Base(receiptPath))
+	fromOutput := filepath.Join(".woody", "jobs", filepath.Base(r.OutputPath))
+	toReceipt := filepath.Join(dirRel, filepath.Base(receiptPath))
+	toOutput := filepath.Join(dirRel, filepath.Base(r.OutputPath))
 	trace := reviewerJobArchiveTrace{Schema: "air-worker.reviewer-job-archive/v1", At: now.Format(time.RFC3339),
-		Receipt: filepath.Base(receiptPath), From: filepath.Dir(receiptPath), To: dir, OutputSHA256: r.OutputSHA256, Outcome: "moving"}
+		Receipt: filepath.Base(receiptPath), From: filepath.Dir(receiptPath), To: filepath.Join(root, dirRel), OutputSHA256: r.OutputSHA256, Outcome: "moving"}
 	if err := appendReviewerJobArchiveTrace(runtimeRoot, trace); err != nil {
 		return err
 	}
-	// ponytail: if the final trace append itself fails, the returned error is
-	// the only signal (the caller does not block the review on it); the files
-	// are still in the state the outcome names. Add a stderr report if that
-	// ever needs to be visible in production.
+	// A failed final append leaves "moving"; the next run reconciles it from
+	// the actual file locations (reconcileReviewerJobArchiveTrace).
 	finish := func(outcome string, err error) error {
 		trace.Outcome = outcome
 		if terr := appendReviewerJobArchiveTrace(runtimeRoot, trace); err == nil {
@@ -229,25 +305,29 @@ func archiveReviewerJob(root, runtimeRoot, receiptPath string, r *jobReceipt, no
 		return err
 	}
 	for _, dst := range []string{toReceipt, toOutput} {
-		if _, err := os.Lstat(dst); !errors.Is(err, os.ErrNotExist) {
+		if _, err := rt.Lstat(dst); !errors.Is(err, os.ErrNotExist) {
 			return finish("skipped-destination-exists", fmt.Errorf("reviewer job archive already holds %s", filepath.Base(dst)))
 		}
 	}
-	if err := moveNoReplace(r.OutputPath, toOutput); err != nil {
+	if err := moveNoReplace(rt, fromOutput, toOutput); err != nil {
 		return finish("skipped-move-failed", err)
 	}
-	if err := moveNoReplace(receiptPath, toReceipt); err != nil {
-		if rerr := moveNoReplace(toOutput, r.OutputPath); rerr != nil {
+	if err := moveNoReplace(rt, fromReceipt, toReceipt); err != nil {
+		if rerr := moveNoReplace(rt, toOutput, fromOutput); rerr != nil {
 			return finish("restore-failed: output in archive, receipt in jobs", fmt.Errorf("%v; restore failed: %v", err, rerr))
 		}
 		return finish("restored-after-move-failed", err)
 	}
-	out, err := readLearningBounded(toOutput, 32<<20)
-	if _, rerr := os.Lstat(toReceipt); err == nil && rerr == nil && learnSHA(out) == r.OutputSHA256 {
+	var out []byte
+	st, err := rt.Lstat(toOutput)
+	if err == nil && st.Mode().IsRegular() && st.Size() <= 32<<20 {
+		out, err = rt.ReadFile(toOutput)
+	}
+	if _, rerr := rt.Lstat(toReceipt); err == nil && rerr == nil && out != nil && learnSHA(out) == r.OutputSHA256 {
 		return finish("archived", nil)
 	}
-	backReceipt := moveNoReplace(toReceipt, receiptPath)
-	backOutput := moveNoReplace(toOutput, r.OutputPath)
+	backReceipt := moveNoReplace(rt, toReceipt, fromReceipt)
+	backOutput := moveNoReplace(rt, toOutput, fromOutput)
 	if backReceipt != nil || backOutput != nil {
 		return finish(fmt.Sprintf("restore-failed: receipt back=%t, output back=%t", backReceipt == nil, backOutput == nil),
 			errors.New("reviewer job archive readback failed and restore failed"))

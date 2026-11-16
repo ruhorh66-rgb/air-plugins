@@ -227,6 +227,32 @@ func TestA24RetentionRefusesNonPlainArchivePath(t *testing.T) {
 	}
 }
 
+// An attempt left at "moving" (final trace append failed) gets a terminal line
+// naming where its files actually are on the next run.
+func TestA24RetentionReconcilesDanglingMovingTrace(t *testing.T) {
+	scope, runtime, receipt, _, now := settledReviewerJobFixture(t)
+	dir := filepath.Join(scope.Root, ".woody", "jobs-archive", now.Format("200601"))
+	dangling := reviewerJobArchiveTrace{Schema: "air-worker.reviewer-job-archive/v1", At: now.Format(time.RFC3339),
+		Receipt: filepath.Base(receipt), From: filepath.Dir(receipt), To: dir, Outcome: "moving"}
+	if err := appendReviewerJobArchiveTrace(runtime, dangling); err != nil {
+		t.Fatal(err)
+	}
+	if err := archiveSettledReviewerJobsAt(scope, runtime, 10, now); err != nil {
+		t.Fatal(err)
+	}
+	trace, _ := os.ReadFile(filepath.Join(runtime, "reviewer-job-archive.jsonl"))
+	if !strings.Contains(string(trace), `reconciled: receipt in jobs, output in jobs`) {
+		t.Fatalf("dangling moving trace not reconciled:\n%s", trace)
+	}
+	if err := archiveSettledReviewerJobsAt(scope, runtime, 10, now); err != nil {
+		t.Fatal(err)
+	}
+	again, _ := os.ReadFile(filepath.Join(runtime, "reviewer-job-archive.jsonl"))
+	if strings.Count(string(again), "reconciled:") != 1 {
+		t.Fatalf("reconciliation repeated:\n%s", again)
+	}
+}
+
 // A job whose lock is held elsewhere is in use and is skipped, not moved.
 func TestA24RetentionSkipsJobWhoseLockIsHeld(t *testing.T) {
 	scope, runtime, receipt, output, now := settledReviewerJobFixture(t)
