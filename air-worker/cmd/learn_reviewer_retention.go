@@ -132,6 +132,23 @@ func archiveReviewerJobLocked(scope sessionScope, runtimeRoot, receiptPath strin
 	return true, archiveReviewerJob(scope.Root, runtimeRoot, receiptPath, r, now)
 }
 
+// mkdirPlain creates one archive level or accepts an existing ordinary
+// directory. A symlink or junction there would send evidence outside the
+// product root, so it is refused instead of followed.
+func mkdirPlain(path string) error {
+	st, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return os.Mkdir(path, 0o700)
+	}
+	if err != nil {
+		return err
+	}
+	if !st.IsDir() || st.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+		return fmt.Errorf("reviewer job archive path is not a plain directory: %s", path)
+	}
+	return nil
+}
+
 // moveNoReplace links the file at dst and then drops the old name, as
 // publishNewPlanNode does: os.Rename on Windows replaces an existing target,
 // os.Link never does. If dropping the old name fails both names remain; no
@@ -187,7 +204,10 @@ func completedReviewEventSHAs(runtimeRoot string) (map[string]bool, error) {
 // where each file actually is instead of being called restored.
 func archiveReviewerJob(root, runtimeRoot, receiptPath string, r *jobReceipt, now time.Time) error {
 	dir := filepath.Join(root, ".woody", "jobs-archive", now.Format("200601"))
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	if err := mkdirPlain(filepath.Dir(dir)); err != nil {
+		return err
+	}
+	if err := mkdirPlain(dir); err != nil {
 		return err
 	}
 	toReceipt := filepath.Join(dir, filepath.Base(receiptPath))

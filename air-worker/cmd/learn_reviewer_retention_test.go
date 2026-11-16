@@ -209,6 +209,24 @@ func TestA24RetentionIgnoresReceiptWithForeignPaths(t *testing.T) {
 	}
 }
 
+// An archive level that is not a plain directory is refused, not followed.
+// A file stands in for a link here: creating a symlink or junction needs
+// privileges the test fixture does not have on every machine.
+func TestA24RetentionRefusesNonPlainArchivePath(t *testing.T) {
+	scope, runtime, receipt, output, now := settledReviewerJobFixture(t)
+	if err := os.WriteFile(filepath.Join(scope.Root, ".woody", "jobs-archive"), []byte("not a dir"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := archiveSettledReviewerJobsAt(scope, runtime, 1, now); err == nil || !strings.Contains(err.Error(), "not a plain directory") {
+		t.Fatalf("non-plain archive path accepted: %v", err)
+	}
+	for _, p := range []string{receipt, output} {
+		if _, err := os.Stat(p); err != nil {
+			t.Fatalf("job moved despite a refused archive path: %v", err)
+		}
+	}
+}
+
 // A job whose lock is held elsewhere is in use and is skipped, not moved.
 func TestA24RetentionSkipsJobWhoseLockIsHeld(t *testing.T) {
 	scope, runtime, receipt, output, now := settledReviewerJobFixture(t)
