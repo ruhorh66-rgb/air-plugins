@@ -10,7 +10,7 @@ import (
 func runReviewerAdapterOnce(t *testing.T, product, packet, answer string, sawPrompt *string) (int, string) {
 	t.Helper()
 	saved := learningReviewerInvoke
-	learningReviewerInvoke = func(root, prompt, outputSchema, model, effort string) (string, error) {
+	learningReviewerInvoke = func(jobKey, root, prompt, outputSchema, model, effort string) (string, error) {
 		if sawPrompt != nil {
 			*sawPrompt = prompt
 		}
