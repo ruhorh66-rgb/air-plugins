@@ -740,7 +740,9 @@ func handlePostToolUseSelfLearning(in hookInput) (hookResult, error) {
 	if err != nil {
 		return hookResult{}, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
 	}
-	if !found {
+	// A snapshot written for another product or runtime proves no load here.
+	if !found || !sameLearningPath(contextRec.ProductRoot, owner.Selector.ProductRoot) ||
+		!sameLearningPath(contextRec.RuntimeRoot, owner.Settings.RuntimeRoot) {
 		return hookResult{}, nil
 	}
 	rule, hasRule := executionUnknownLoadedRule(contextRec)

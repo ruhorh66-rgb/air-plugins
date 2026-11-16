@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -122,6 +123,44 @@ func TestSharedUserPromptDeliversRelevantOldSkillFromExistingModuleIndex(t *test
 	}
 	if got := sharedUsageCount(t, settings.RuntimeRoot, "skill_loaded"); got != 1 {
 		t.Fatalf("unrelated turn recorded a load: %d", got)
+	}
+}
+
+// An unmatched turn keeps the receipt, so a receipt of another owner can
+// survive: PostToolUse must not treat its loads as this owner's.
+func TestA4ForeignOwnerReceiptProvesNoLoad(t *testing.T) {
+	_, _, stateDir := selfLearningFixture(t)
+	target := filepath.Join(t.TempDir(), "other-product")
+	if err := os.MkdirAll(target, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	in := declareLearningTestSession(t, stateDir, "claude", "a4-foreign-owner", target)
+	in.RunID = "a4-foreign-owner-run"
+	if _, err := handleLearningContext(in); err != nil {
+		t.Fatal(err)
+	}
+	rec, path, found, err := readSelfLearningContextReceipt(in)
+	if err != nil || !found || len(rec.Loaded) == 0 {
+		t.Fatalf("loaded context unavailable: %+v found=%v err=%v", rec, found, err)
+	}
+	for _, foreign := range []func(*selfLearningContextReceipt){
+		func(r *selfLearningContextReceipt) { r.ProductRoot = t.TempDir() },
+		func(r *selfLearningContextReceipt) { r.RuntimeRoot = t.TempDir() },
+	} {
+		other := rec
+		foreign(&other)
+		if err := writeSelfLearningContextReceipt(path, other); err != nil {
+			t.Fatal(err)
+		}
+		unknown := n093TestHook(in, "mcp__AIR_Commander_Test__start_process",
+			"{\"node\":\"SRVLM01\",\"command\":\"release mutation\"}",
+			"{\"error\":\"EXECUTION_UNKNOWN\",\"pid\":4242}")
+		if res, err := handlePostToolUseSelfLearning(unknown); err != nil || res.Context != "" {
+			t.Fatalf("foreign receipt drove PostToolUse: %+v %v", res, err)
+		}
+		if _, _, exists, err := readSelfLearningTriggerReceipt(in); err != nil || exists {
+			t.Fatalf("foreign receipt triggered: exists=%v err=%v", exists, err)
+		}
 	}
 }
 

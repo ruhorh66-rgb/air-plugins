@@ -471,7 +471,15 @@ func airWorkerSelfLearningContext(in hookInput) (string, string, bool, error) {
 	// A4: a turn that delivered nothing leaves the session's current snapshot
 	// as it is; a turn that delivered procedures adds them to it.
 	if in.HookEventName != "UserPromptSubmit" || len(res.LoadedSkills) > 0 {
-		if err := captureAirWorkerSelfLearningContextReceipt(owner, in, turnContextSnapshot(owner, in, res.LoadedSkills)); err != nil {
+		// The merge reads and rewrites the receipt: hold the receipt's existing
+		// cross-process lock so two hooks of one session cannot lose a load.
+		unlock, err := lockAutoSelfLearningSessionDelivery(in)
+		if err != nil {
+			return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
+		}
+		err = captureAirWorkerSelfLearningContextReceipt(owner, in, turnContextSnapshot(owner, in, res.LoadedSkills))
+		unlock()
+		if err != nil {
 			return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
 		}
 	}
