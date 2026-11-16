@@ -262,10 +262,23 @@ func cmdLearningReviewerAdapter(argv []string) int {
 	// shown; silently retargeting its answer would replace the old guidance
 	// with a body written as a separate lesson, so an answer that ignores the
 	// existing procedure is refused instead.
-	if answer.UpdateTarget == "" && !nativeMachineLesson(answer.Content) {
+	if !nativeMachineLesson(answer.Content) {
 		if target, _ := reviewerFamilyTarget(settings, classTarget, skills); target != "" {
-			fmt.Fprintln(os.Stderr, "learning reviewer: class procedure exists; update it instead of adding a new one")
-			return 2
+			// A no-update answer repeating an applied body is "nothing new";
+			// an explicit update keeps its own strict identity check below.
+			if answer.UpdateTarget == "" {
+				for _, skill := range skills {
+					if skill.Body == answer.Content {
+						fmt.Println("{}")
+						return 0
+					}
+				}
+			}
+			// The update must name a procedure of this class, not another one.
+			if answer.UpdateTarget == "" || !reviewerSameClass(classTarget, answer.UpdateTarget) {
+				fmt.Fprintln(os.Stderr, "learning reviewer: class procedure exists; update it instead of adding a new one")
+				return 2
+			}
 		}
 	}
 	if answer.UpdateTarget != "" {

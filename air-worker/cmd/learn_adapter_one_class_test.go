@@ -55,6 +55,22 @@ func TestA3NewLessonOfExistingClassPatchesProcedure(t *testing.T) {
 		t.Fatalf("reason %q", reason)
 	}
 
+	// The exact text already applied is "nothing new", not a refusal.
+	if code, out := runReviewerAdapterOnce(t, product, `{"event":{"class":"feedback-error"}}`, reuseAnswer(n102PriorCLI, "", ""), nil); code != 0 || strings.TrimSpace(out) != "{}" {
+		t.Fatalf("identical lesson not suppressed as duplicate: %d %s", code, out)
+	}
+	// An update naming a procedure of another class is refused while this
+	// class has its own procedure.
+	other := learningProcedureTarget(settings.ManagedSkillPrefix, "other-topic")
+	if res, err := executeSharedLearning(product, settings, "propose", map[string]string{
+		"proposal_id": "LP-a3-other", "kind": "procedure", "target": other, "pre_sha256": "", "content": n102SelfOwnerLesson,
+	}); err != nil || res.Status != "applied" {
+		t.Fatalf("seed other: %+v %v", res, err)
+	}
+	if code, out := runReviewerAdapterOnce(t, product, `{"event":{"class":"feedback-error"}}`, reuseAnswer(n102SelfOwnerLesson+"\nx\n", other, learnSHA([]byte(n102SelfOwnerLesson))), nil); code != 2 || strings.Contains(out, `"kind"`) {
+		t.Fatalf("update of another class's procedure accepted: %d %s", code, out)
+	}
+
 	merged := n102PriorCLI + "\n" + strings.TrimSpace(n102NewCLI) + "\n"
 	code, out = runReviewerAdapterOnce(t, product, `{"event":{"class":"feedback-error"}}`, reuseAnswer(merged, target, sha), nil)
 	if code != 0 {
