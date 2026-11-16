@@ -197,6 +197,32 @@ func TestA4ForeignOwnerReceiptProvesNoLoad(t *testing.T) {
 	}
 }
 
+// The owner changing while a turn waits for the receipt lock records nothing.
+func TestA4OwnerChangeBeforeReceiptWriteRecordsNothing(t *testing.T) {
+	selfLearningFixture(t)
+	in := hookInput{Principal: "claude", SessionID: "a4-owner-change", HookEventName: "UserPromptSubmit",
+		Prompt: "EXECUTION_UNKNOWN: reconcile before retry"}
+	saved := autoSelfDeliveryAcquire
+	t.Cleanup(func() { autoSelfDeliveryAcquire = saved })
+	autoSelfDeliveryAcquire = func(name string) (*osLock, bool) {
+		sel, found, err := readAirWorkerSelfLearningSelector()
+		if err != nil || !found {
+			t.Fatalf("selector: %v", err)
+		}
+		sel.ConfigSHA256 = strings.Repeat("0", 64)
+		if err := writeAirWorkerSelfLearningSelector(sel); err != nil {
+			t.Fatal(err)
+		}
+		return saved(name)
+	}
+	if _, _, _, err := airWorkerSelfLearningContext(in); err == nil {
+		t.Fatal("delivery for a stale owner was not refused")
+	}
+	if _, _, found, err := readSelfLearningContextReceipt(in); err != nil || found {
+		t.Fatalf("receipt written for a stale owner: found=%v err=%v", found, err)
+	}
+}
+
 // A4 load accounting: a later turn adds to the session snapshot that
 // SessionStart wrote and an unrelated turn leaves it untouched.
 func TestA4TurnDeliveryKeepsSessionLoadAccounting(t *testing.T) {

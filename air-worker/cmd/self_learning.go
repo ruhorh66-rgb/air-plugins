@@ -477,6 +477,15 @@ func airWorkerSelfLearningContext(in hookInput) (string, string, bool, error) {
 		if err != nil {
 			return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
 		}
+		// The owner may have changed while this hook read the catalogue or
+		// waited for the lock: record nothing for a stale owner.
+		if current, active, checkErr := activeAirWorkerSelfLearningOwner(); checkErr != nil || !active ||
+			current.Selector.ConfigSHA256 != owner.Selector.ConfigSHA256 ||
+			!sameLearningPath(current.Selector.ProductRoot, owner.Selector.ProductRoot) ||
+			!sameLearningPath(current.Settings.RuntimeRoot, owner.Settings.RuntimeRoot) {
+			unlock()
+			return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context-receipt", selfLearningRunID(in), errors.New("self-learning owner changed during delivery"))
+		}
 		err = captureAirWorkerSelfLearningContextReceipt(owner, in, turnContextSnapshot(owner, in, res.LoadedSkills))
 		unlock()
 		if err != nil {
