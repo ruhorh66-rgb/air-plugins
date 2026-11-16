@@ -17,6 +17,12 @@ import (
 // from a bare nonzero exit code. It does not parse stderr/model prose or claim
 // a causal repair; it observes the filesystem after the native CLI returns.
 func ownCLITrustedFailureCause(argv []string, rc int) string {
+	if rc == 1 && len(argv) > 0 && argv[0] == "judge" {
+		if _, ok := judgeFailureDetail(argv); ok {
+			return "judge-criteria-failed"
+		}
+		return ""
+	}
 	if rc != 2 || len(argv) < 2 || argv[0] != "validate" {
 		return ""
 	}

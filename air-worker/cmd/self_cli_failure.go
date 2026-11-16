@@ -150,7 +150,7 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 			ProcessID: os.Getpid(), CapturedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		}
 		rec.CauseCode = ownCLITrustedFailureCause(argv, rc)
-		rec.Observed = ownCLIFailureObservation(action, rc, rec.CauseCode)
+		rec.Observed = ownCLIFailureObservationFor(argv, action, rc, rec.CauseCode)
 		rec.ReceiptMAC = ownCLIReceiptMAC(key, rec)
 		raw, err := json.MarshalIndent(rec, "", "  ")
 		if err != nil {
