@@ -123,7 +123,24 @@ func archiveReviewerJobLocked(scope sessionScope, runtimeRoot, receiptPath strin
 	if err != nil || !reviewerJobSettled(receiptPath, r, complete, now) {
 		return false, nil
 	}
+	// Like recovery, act only on a receipt whose own fields name this job's
+	// canonical files: a modified receipt must not steer a move elsewhere.
+	canonReceipt, canonOutput := jobReceiptPaths(scope, r.Step, r.Operation)
+	if !sameLearningPath(r.Product, scope.Root) || !sameLearningPath(receiptPath, canonReceipt) || !sameLearningPath(r.OutputPath, canonOutput) {
+		return false, nil
+	}
 	return true, archiveReviewerJob(scope.Root, runtimeRoot, receiptPath, r, now)
+}
+
+// moveNoReplace links the file at dst and then drops the old name, as
+// publishNewPlanNode does: os.Rename on Windows replaces an existing target,
+// os.Link never does. If dropping the old name fails both names remain; no
+// data is lost.
+func moveNoReplace(src, dst string) error {
+	if err := os.Link(src, dst); err != nil {
+		return err
+	}
+	return os.Remove(src)
 }
 
 // completedReviewEventSHAs maps the event SHA the adapter uses as job identity
@@ -180,6 +197,10 @@ func archiveReviewerJob(root, runtimeRoot, receiptPath string, r *jobReceipt, no
 	if err := appendReviewerJobArchiveTrace(runtimeRoot, trace); err != nil {
 		return err
 	}
+	// ponytail: if the final trace append itself fails, the returned error is
+	// the only signal (the caller does not block the review on it); the files
+	// are still in the state the outcome names. Add a stderr report if that
+	// ever needs to be visible in production.
 	finish := func(outcome string, err error) error {
 		trace.Outcome = outcome
 		if terr := appendReviewerJobArchiveTrace(runtimeRoot, trace); err == nil {
@@ -192,11 +213,11 @@ func archiveReviewerJob(root, runtimeRoot, receiptPath string, r *jobReceipt, no
 			return finish("skipped-destination-exists", fmt.Errorf("reviewer job archive already holds %s", filepath.Base(dst)))
 		}
 	}
-	if err := os.Rename(r.OutputPath, toOutput); err != nil {
+	if err := moveNoReplace(r.OutputPath, toOutput); err != nil {
 		return finish("skipped-move-failed", err)
 	}
-	if err := os.Rename(receiptPath, toReceipt); err != nil {
-		if rerr := os.Rename(toOutput, r.OutputPath); rerr != nil {
+	if err := moveNoReplace(receiptPath, toReceipt); err != nil {
+		if rerr := moveNoReplace(toOutput, r.OutputPath); rerr != nil {
 			return finish("restore-failed: output in archive, receipt in jobs", fmt.Errorf("%v; restore failed: %v", err, rerr))
 		}
 		return finish("restored-after-move-failed", err)
@@ -205,8 +226,8 @@ func archiveReviewerJob(root, runtimeRoot, receiptPath string, r *jobReceipt, no
 	if _, rerr := os.Lstat(toReceipt); err == nil && rerr == nil && learnSHA(out) == r.OutputSHA256 {
 		return finish("archived", nil)
 	}
-	backReceipt := os.Rename(toReceipt, receiptPath)
-	backOutput := os.Rename(toOutput, r.OutputPath)
+	backReceipt := moveNoReplace(toReceipt, receiptPath)
+	backOutput := moveNoReplace(toOutput, r.OutputPath)
 	if backReceipt != nil || backOutput != nil {
 		return finish(fmt.Sprintf("restore-failed: receipt back=%t, output back=%t", backReceipt == nil, backOutput == nil),
 			errors.New("reviewer job archive readback failed and restore failed"))

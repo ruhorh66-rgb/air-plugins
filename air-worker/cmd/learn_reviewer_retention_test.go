@@ -184,6 +184,31 @@ func TestA24RetentionNeverReplacesArchivedEvidence(t *testing.T) {
 	}
 }
 
+// A receipt whose own fields do not name this job's canonical files is not
+// acted on: a modified output_path cannot steer a move elsewhere.
+func TestA24RetentionIgnoresReceiptWithForeignPaths(t *testing.T) {
+	scope, runtime, receipt, output, now := settledReviewerJobFixture(t)
+	elsewhere := filepath.Join(t.TempDir(), "victim.out")
+	if err := os.WriteFile(elsewhere, []byte("out one"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	setReviewerJobAge(t, now.Add(-10*24*time.Hour), elsewhere)
+	r, _ := readJobReceipt(receipt)
+	r.OutputPath = elsewhere
+	if err := writeJobReceipt(receipt, r); err != nil {
+		t.Fatal(err)
+	}
+	setReviewerJobAge(t, now.Add(-10*24*time.Hour), receipt)
+	if err := archiveSettledReviewerJobsAt(scope, runtime, 1, now); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{receipt, output, elsewhere} {
+		if _, err := os.Stat(p); err != nil {
+			t.Fatalf("file moved through a receipt with a foreign output path: %v", err)
+		}
+	}
+}
+
 // A job whose lock is held elsewhere is in use and is skipped, not moved.
 func TestA24RetentionSkipsJobWhoseLockIsHeld(t *testing.T) {
 	scope, runtime, receipt, output, now := settledReviewerJobFixture(t)
