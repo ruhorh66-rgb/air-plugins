@@ -188,6 +188,35 @@ func loadedRulesFromObserved(observed string) []selfLearningLoadedRule {
 	return out
 }
 
+// turnContextSnapshot keeps load accounting whole under per-turn delivery
+// (A4): a UserPromptSubmit adds what it delivered to the session's current
+// unsigned snapshot instead of replacing it, so procedures the host received
+// at SessionStart stay recorded as loaded. This turn's SHA wins for a target
+// delivered again. A signed delivery keeps the earlier refresh semantics: the
+// new context replaces it and its authority ends.
+func turnContextSnapshot(in hookInput, delivered []sharedLearningCatalogSkill) []sharedLearningCatalogSkill {
+	if in.HookEventName != "UserPromptSubmit" {
+		return delivered
+	}
+	prev, _, found, err := readSelfLearningContextReceipt(in)
+	if err != nil || !found || prev.DeliveryMAC != "" {
+		return delivered
+	}
+	key := func(target string) string { return strings.ToLower(filepath.ToSlash(strings.TrimSpace(target))) }
+	out := append([]sharedLearningCatalogSkill(nil), delivered...)
+	seen := map[string]bool{}
+	for _, s := range delivered {
+		seen[key(s.Target)] = true
+	}
+	for _, r := range prev.Loaded {
+		if !seen[key(r.Target)] {
+			seen[key(r.Target)] = true
+			out = append(out, sharedLearningCatalogSkill{Target: r.Target, SHA256: r.SHA256})
+		}
+	}
+	return out
+}
+
 func captureAirWorkerSelfLearningContextReceipt(owner selfLearningOwner, in hookInput, skills []sharedLearningCatalogSkill) error {
 	_, err := captureSelfLearningContext(owner, in, skills, false)
 	return err

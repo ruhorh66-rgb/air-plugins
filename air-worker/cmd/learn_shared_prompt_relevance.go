@@ -50,22 +50,24 @@ func learningRelevanceTerms(input string, maxBytes int) map[string]struct{} {
 	return terms
 }
 
-// prioritizeSharedSkillsForPrompt moves relevant existing APPLIED procedures
-// ahead of the prior newest-first list for an ordinary UserPromptSubmit event.
-// Ties preserve recency; nonmatches remain eligible under the existing 8-skill
-// and 16 KiB host-context bounds. No body/ledger is read and no event is minted.
-func prioritizeSharedSkillsForPrompt(skills []sharedLearningCatalogSkill, prompt string) []sharedLearningCatalogSkill {
+// selectSharedSkillsForTurn is the per-turn delivery of A4: an ordinary
+// UserPromptSubmit gets only the existing APPLIED procedures whose index
+// title or target matches the prompt, most relevant first, ties in the prior
+// newest-first order. A prompt that matches nothing gets no procedure, so a
+// turn never carries procedures of an unrelated task class. The caller's
+// 8-procedure and 16 KiB context limit still applies. No body or ledger is
+// read and no event is minted here.
+func selectSharedSkillsForTurn(skills []sharedLearningCatalogSkill, prompt string) []sharedLearningCatalogSkill {
 	promptTerms := learningRelevanceTerms(prompt, maxLearningRelevancePromptBytes)
-	if len(promptTerms) == 0 || len(skills) < 2 {
-		return skills
+	if len(promptTerms) == 0 {
+		return nil
 	}
 	type ranked struct {
 		skill sharedLearningCatalogSkill
 		score int
 	}
-	ordered := make([]ranked, len(skills))
-	anyMatch := false
-	for i, skill := range skills {
+	var matched []ranked
+	for _, skill := range skills {
 		titleTerms := learningRelevanceTerms(skill.Title, maxLearningRelevanceTitleBytes)
 		targetTerms := learningRelevanceTerms(filepath.Base(filepath.FromSlash(skill.Target)), maxLearningRelevanceTargetBytes)
 		score := 0
@@ -76,17 +78,13 @@ func prioritizeSharedSkillsForPrompt(skills []sharedLearningCatalogSkill, prompt
 				score++
 			}
 		}
-		ordered[i] = ranked{skill: skill, score: score}
 		if score > 0 {
-			anyMatch = true
+			matched = append(matched, ranked{skill: skill, score: score})
 		}
 	}
-	if !anyMatch {
-		return skills
-	}
-	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].score > ordered[j].score })
-	result := make([]sharedLearningCatalogSkill, len(ordered))
-	for i, entry := range ordered {
+	sort.SliceStable(matched, func(i, j int) bool { return matched[i].score > matched[j].score })
+	result := make([]sharedLearningCatalogSkill, len(matched))
+	for i, entry := range matched {
 		result[i] = entry.skill
 	}
 	return result

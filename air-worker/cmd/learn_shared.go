@@ -745,11 +745,14 @@ func sharedLearningContext(product string, in hookInput) (bool, hookResult, erro
 	if orderErr != nil {
 		return true, hookResult{}, sharedHookFailure("context-recency", runID, orderErr)
 	}
-	// SessionStart has no task text and keeps newest-first delivery. Once a
-	// normal user prompt arrives, prioritize matching current index metadata
-	// before loading full SHA-checked bodies. Do not create a second catalog.
+	// SessionStart has no task text and keeps newest-first delivery. A normal
+	// user prompt gets only the procedures its text matches in the current
+	// index metadata (A4), before full SHA-checked bodies are loaded; no match
+	// means no procedure for this turn. Do not create a second catalog.
 	if in.HookEventName == "UserPromptSubmit" {
-		ordered = prioritizeSharedSkillsForPrompt(ordered, in.Prompt)
+		if ordered = selectSharedSkillsForTurn(ordered, in.Prompt); len(ordered) == 0 {
+			return true, hookResult{}, nil
+		}
 	}
 	res, err := sharedLearningContextFromCatalog(product, s, in, runID, ordered)
 	return true, res, err

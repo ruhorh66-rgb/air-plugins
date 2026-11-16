@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -18,33 +20,42 @@ func TestSharedPromptRelevancePrefersMatchingOldSkill(t *testing.T) {
 		SHA256: strings.Repeat("a", 64),
 	}
 	input := []sharedLearningCatalogSkill{recent, older}
-	got := prioritizeSharedSkillsForPrompt(input, "A command returned EXECUTION_UNKNOWN. Check before retry.")
-	if got[0] != older || got[1] != recent {
-		t.Fatalf("matching older skill not preferred: %+v", got)
+	got := selectSharedSkillsForTurn(input, "A command returned EXECUTION_UNKNOWN. Check before retry.")
+	if !reflect.DeepEqual(got, []sharedLearningCatalogSkill{older}) {
+		t.Fatalf("turn must carry only the matching procedure: %+v", got)
 	}
 	if !reflect.DeepEqual(input, []sharedLearningCatalogSkill{recent, older}) {
-		t.Fatal("relevance ranking modified the original newest-first list")
+		t.Fatal("relevance selection modified the original newest-first list")
+	}
+}
+
+func TestSharedPromptRelevanceRanksByScoreThenRecency(t *testing.T) {
+	newest := sharedLearningCatalogSkill{Target: "skills/learned/a.md", Title: "Retry policy"}
+	middle := sharedLearningCatalogSkill{Target: "skills/learned/b.md", Title: "Encoding retry policy"}
+	oldest := sharedLearningCatalogSkill{Target: "skills/learned/c.md", Title: "Retry policy notes"}
+	got := selectSharedSkillsForTurn([]sharedLearningCatalogSkill{newest, middle, oldest}, "fix encoding retry policy")
+	if !reflect.DeepEqual(got, []sharedLearningCatalogSkill{middle, newest, oldest}) {
+		t.Fatalf("higher score first, ties newest first: %+v", got)
 	}
 }
 
 func TestSharedPromptRelevanceFallsBackToTargetSlug(t *testing.T) {
 	latest := sharedLearningCatalogSkill{Target: "skills/learned/other.md", Title: "General task"}
 	older := sharedLearningCatalogSkill{Target: "skills/learned/encoding-gb2312.md", Title: ""}
-	got := prioritizeSharedSkillsForPrompt([]sharedLearningCatalogSkill{latest, older},
+	got := selectSharedSkillsForTurn([]sharedLearningCatalogSkill{latest, older},
 		"Inspect encoding GB2312 before the next import")
-	if got[0] != older {
+	if !reflect.DeepEqual(got, []sharedLearningCatalogSkill{older}) {
 		t.Fatalf("target metadata not used when title absent: %+v", got)
 	}
 }
 
-func TestSharedPromptRelevancePreservesRecencyForEmptyOrGenericInput(t *testing.T) {
+func TestSharedPromptRelevanceDeliversNothingForEmptyGenericOrUnrelatedInput(t *testing.T) {
 	latest := sharedLearningCatalogSkill{Target: "skills/learned/first.md", Title: "First skill"}
 	older := sharedLearningCatalogSkill{Target: "skills/learned/second.md", Title: "Second skill"}
 	input := []sharedLearningCatalogSkill{latest, older}
 	for _, prompt := range []string{"", "air worker native skill failure", "a task with no matching detail"} {
-		got := prioritizeSharedSkillsForPrompt(input, prompt)
-		if !reflect.DeepEqual(got, input) {
-			t.Fatalf("unexpected reordering for %q: %+v", prompt, got)
+		if got := selectSharedSkillsForTurn(input, prompt); len(got) != 0 {
+			t.Fatalf("unrelated turn got procedures for %q: %+v", prompt, got)
 		}
 	}
 }
@@ -53,21 +64,20 @@ func TestSharedPromptRelevanceSupportsRussianTitleAndBoundedPrompt(t *testing.T)
 	first := sharedLearningCatalogSkill{Target: "skills/learned/other.md", Title: "Проверка стоимости"}
 	older := sharedLearningCatalogSkill{Target: "skills/learned/encoding.md", Title: "Исправление кодировки отчёта"}
 	input := []sharedLearningCatalogSkill{first, older}
-	if got := prioritizeSharedSkillsForPrompt(input, "Перепроверь кодировки в отчёте"); got[0] != older {
+	if got := selectSharedSkillsForTurn(input, "Перепроверь кодировки в отчёте"); !reflect.DeepEqual(got, []sharedLearningCatalogSkill{older}) {
 		t.Fatalf("Cyrillic title not selected: %+v", got)
 	}
 	// A very long untrusted prompt cannot force scanning arbitrary trailing
 	// text after the deliberately bounded prefix.
 	long := strings.Repeat("x", maxLearningRelevancePromptBytes) + " кодировки"
-	if got := prioritizeSharedSkillsForPrompt(input, long); !reflect.DeepEqual(got, input) {
+	if got := selectSharedSkillsForTurn(input, long); len(got) != 0 {
 		t.Fatalf("unbounded prompt tail changed selection: %+v", got)
 	}
 }
 
-func TestSharedUserPromptDeliversRelevantOldSkillFromExistingModuleIndex(t *testing.T) {
-	product, settings := sharedProductFixture(t, false)
-	target := "skills/learned/older-guidance.md"
-	for i := 0; i < 11; i++ {
+func seedPromptRelevanceSkills(t *testing.T, product string, settings sharedLearningSettings, target string, n int) {
+	t.Helper()
+	for i := 0; i < n; i++ {
 		name := fmt.Sprintf("skills/learned/recent-workflow-%02d.md", i)
 		body := fmt.Sprintf("# Generic workflow %d\n\n## When to apply\nWhen handling generic step %d.\n\n## Procedure\n1. Check step %d.\n\n## Pitfalls\nDo not invent results.\n", i, i, i)
 		if i == 0 {
@@ -82,6 +92,12 @@ func TestSharedUserPromptDeliversRelevantOldSkillFromExistingModuleIndex(t *test
 			t.Fatalf("seed %d: %+v %v", i, res, err)
 		}
 	}
+}
+
+func TestSharedUserPromptDeliversRelevantOldSkillFromExistingModuleIndex(t *testing.T) {
+	product, settings := sharedProductFixture(t, false)
+	target := "skills/learned/older-guidance.md"
+	seedPromptRelevanceSkills(t, product, settings, target, 11)
 	in := hookInput{
 		Principal: "claude", SessionID: "prompt-relevance", RunID: "relevant-session",
 		HookEventName: "UserPromptSubmit", Prompt: "EXECUTION_UNKNOWN: reconcile before retry",
@@ -90,13 +106,71 @@ func TestSharedUserPromptDeliversRelevantOldSkillFromExistingModuleIndex(t *test
 	if !handled || err != nil {
 		t.Fatalf("UserPromptSubmit context unavailable: handled=%v err=%v", handled, err)
 	}
-	if len(res.LoadedSkills) == 0 || res.LoadedSkills[0].Target != target {
-		t.Fatalf("older matching skill was excluded by 8-skill window: %+v", res.LoadedSkills)
+	if len(res.LoadedSkills) != 1 || res.LoadedSkills[0].Target != target {
+		t.Fatalf("turn must carry only the matching older skill: %+v", res.LoadedSkills)
 	}
-	if !strings.Contains(res.Context, "Resolve execution unknown before retry") {
-		t.Fatal("matching skill body was not delivered from existing native index")
+	if !strings.Contains(res.Context, "Resolve execution unknown before retry") || strings.Contains(res.Context, "Generic workflow") {
+		t.Fatalf("turn context is not limited to the task class:\n%s", res.Context)
 	}
 	if got := sharedUsageCount(t, settings.RuntimeRoot, "skill_loaded"); got != 1 {
 		t.Fatalf("context did not record one native loaded receipt: %d", got)
+	}
+	in.Prompt = "rename the release notes heading"
+	handled, res, err = sharedLearningContext(product, in)
+	if !handled || err != nil || res.Context != "" || len(res.LoadedSkills) != 0 {
+		t.Fatalf("unrelated turn got procedures: handled=%v err=%v %+v", handled, err, res)
+	}
+	if got := sharedUsageCount(t, settings.RuntimeRoot, "skill_loaded"); got != 1 {
+		t.Fatalf("unrelated turn recorded a load: %d", got)
+	}
+}
+
+// A4 load accounting: a later turn adds to the session snapshot that
+// SessionStart wrote and an unrelated turn leaves it untouched.
+func TestA4TurnDeliveryKeepsSessionLoadAccounting(t *testing.T) {
+	product, settings, _ := selfLearningFixture(t)
+	target := "skills/learned/older-guidance.md"
+	// Nine procedures: SessionStart delivers the 8 newest, not the oldest.
+	seedPromptRelevanceSkills(t, product, settings, target, 9)
+	in := hookInput{Principal: "claude", SessionID: "a4-turn-accounting", HookEventName: "SessionStart"}
+	if _, ctx, on, err := airWorkerSelfLearningContext(in); err != nil || !on || strings.Contains(ctx, "Resolve execution unknown") {
+		t.Fatalf("SessionStart: on=%v err=%v oldest delivered=%v", on, err, strings.Contains(ctx, "Resolve execution unknown"))
+	}
+	start, path, found, err := readSelfLearningContextReceipt(in)
+	if err != nil || !found || len(start.Loaded) != 8 {
+		t.Fatalf("SessionStart snapshot: found=%v err=%v %+v", found, err, start.Loaded)
+	}
+	before, _ := os.ReadFile(path)
+
+	in.HookEventName, in.Prompt = "UserPromptSubmit", "rename the release notes heading"
+	if _, ctx, _, err := airWorkerSelfLearningContext(in); err != nil || ctx != "" {
+		t.Fatalf("unrelated turn: err=%v ctx=%q", err, ctx)
+	}
+	if after, _ := os.ReadFile(path); !bytes.Equal(before, after) {
+		t.Fatal("unrelated turn rewrote the session snapshot")
+	}
+
+	in.Prompt = "EXECUTION_UNKNOWN: reconcile before retry"
+	_, ctx, _, err := airWorkerSelfLearningContext(in)
+	if err != nil || !strings.Contains(ctx, "Resolve execution unknown") || strings.Contains(ctx, "Generic workflow") {
+		t.Fatalf("matching turn: err=%v ctx=%q", err, ctx)
+	}
+	turn, _, _, err := readSelfLearningContextReceipt(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[selfLearningLoadedRule]bool{}
+	hasTarget := false
+	for _, r := range turn.Loaded {
+		got[r] = true
+		hasTarget = hasTarget || r.Target == target
+	}
+	for _, r := range start.Loaded {
+		if !got[r] {
+			t.Fatalf("turn dropped SessionStart load %+v: %+v", r, turn.Loaded)
+		}
+	}
+	if !hasTarget || len(turn.Loaded) <= len(start.Loaded) {
+		t.Fatalf("turn delivery not added: %+v", turn.Loaded)
 	}
 }

@@ -468,8 +468,12 @@ func airWorkerSelfLearningContext(in hookInput) (string, string, bool, error) {
 	if !handled {
 		return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context", strings.TrimSpace(in.RunID), errors.New("enabled AirWorker self-learning owner did not select shared learning"))
 	}
-	if err := captureAirWorkerSelfLearningContextReceipt(owner, in, res.LoadedSkills); err != nil {
-		return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
+	// A4: a turn that delivered nothing leaves the session's current snapshot
+	// as it is; a turn that delivered procedures adds them to it.
+	if in.HookEventName != "UserPromptSubmit" || len(res.LoadedSkills) > 0 {
+		if err := captureAirWorkerSelfLearningContextReceipt(owner, in, turnContextSnapshot(in, res.LoadedSkills)); err != nil {
+			return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
+		}
 	}
 	if strings.TrimSpace(res.Context) == "" {
 		return owner.Selector.ProductRoot, "", true, nil
