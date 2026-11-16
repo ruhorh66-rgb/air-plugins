@@ -277,7 +277,13 @@ func cmdSharedLearn(root string, s sharedLearningSettings, argv []string) int {
 		operation = "load"
 	case "paths":
 		operation = "status"
-	case "status", "pending", "diff", "apply", "approve", "reject", "rollback", "review", "effect", "summary", "load", "index", "events":
+	case "events":
+		res, err := executeSharedLearning(root, s, operation, data)
+		if err == nil {
+			res = annotateUnconfiguredJudgeVerdicts(res)
+		}
+		return printSharedLearning(res, err)
+	case "status", "pending", "diff", "apply", "approve", "reject", "rollback", "review", "effect", "summary", "load", "index":
 	default:
 		return printSharedLearning(learning.Response{}, fmt.Errorf("shared learning: operation %q is not supported; legacy state will not be mutated", operation))
 	}
