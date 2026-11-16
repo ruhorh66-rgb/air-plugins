@@ -78,7 +78,16 @@ func TestSharedPromptRelevanceIgnoresFunctionWords(t *testing.T) {
 	}
 	ru := sharedLearningCatalogSkill{Target: "skills/learned/ru.md", Title: "Проверить отчёт перед отправкой"}
 	why := sharedLearningCatalogSkill{Target: "skills/learned/why.md", Title: "Зачем это нужно"}
-	for _, prompt := range []string{"сделай это перед обедом", "Зачем?"} {
+	who := sharedLearningCatalogSkill{Target: "skills/learned/who.md", Title: "Чего ждать от тебя тебе"}
+	for _, w := range strings.Fields(learningStopWords) {
+		if got := selectSharedSkillsForTurn([]sharedLearningCatalogSkill{{Target: "skills/learned/x.md", Title: w}}, w); len(got) != 0 {
+			t.Fatalf("stop word %q matched", w)
+		}
+	}
+	for _, prompt := range []string{"сделай это перед обедом", "Зачем?", "чего тебе тебя"} {
+		if got := selectSharedSkillsForTurn([]sharedLearningCatalogSkill{who}, prompt); len(got) != 0 {
+			t.Fatalf("Russian function word matched for %q: %+v", prompt, got)
+		}
 		if got := selectSharedSkillsForTurn([]sharedLearningCatalogSkill{ru, why}, prompt); len(got) != 0 {
 			t.Fatalf("Russian function word matched for %q: %+v", prompt, got)
 		}
