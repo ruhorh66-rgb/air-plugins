@@ -130,6 +130,31 @@ func TestA24ForeignOrTamperedEvidenceIsRefused(t *testing.T) {
 	}
 }
 
+// A2.5: a sealed FAILED attempt with exit code and tree proof is passed over
+// only on Windows, where the owned tree produces that proof.
+func TestA25TerminalFailureIsPassedOverOnlyOnWindows(t *testing.T) {
+	scope := legacyScope(t.TempDir())
+	sha := learnSHA([]byte("a25-platform"))
+	receipt, _ := writeReviewerJob(t, scope, learningReviewerStep(sha), sha, jobStatusFailed, "failed")
+	r, err := readJobReceipt(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := 3
+	r.ExitCode, r.ProcessTreeVerified = &code, true
+	if err := writeJobReceipt(receipt, r); err != nil {
+		t.Fatal(err)
+	}
+	_, found, step, err := recoverLearningReviewerJob(scope, sha)
+	if runtime.GOOS == "windows" {
+		if err != nil || found || step != learningReviewerAttemptStep(sha, 2) {
+			t.Fatalf("windows: next attempt not offered: found=%v step=%q err=%v", found, step, err)
+		}
+	} else if err == nil || found {
+		t.Fatalf("%s: failed attempt was passed over: found=%v step=%q", runtime.GOOS, found, step)
+	}
+}
+
 // A running job is not taken over: the start guard in job_receipt.go still
 // refuses a second start, so the evidence protection is unchanged.
 func TestA24RunningJobKeepsDuplicateStartGuard(t *testing.T) {

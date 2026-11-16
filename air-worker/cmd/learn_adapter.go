@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -158,7 +159,9 @@ func recoverLearningReviewerJob(scope sessionScope, eventSHA string) (out []byte
 		switch {
 		case r.Status == jobStatusDone:
 			return body, true, step, nil
-		case r.Status == jobStatusFailed && r.ProcessStarted && r.ExitCode != nil && r.ProcessTreeVerified:
+		// Tree proof exists only where the owned tree runs (Windows); elsewhere
+		// a FAILED attempt is never passed over.
+		case runtime.GOOS == "windows" && r.Status == jobStatusFailed && r.ProcessStarted && r.ExitCode != nil && r.ProcessTreeVerified:
 			continue
 		default:
 			return nil, false, "", mismatch
