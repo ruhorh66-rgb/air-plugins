@@ -71,6 +71,9 @@ func learningFailureReason(stderr []byte) string {
 		{"Codex learning reviewer ended without a successful terminal event", "reviewer_terminal_missing"},
 		{"Ponytail:", "reviewer_skill_unavailable"},
 		{"job ещё RUNNING:", "reviewer_job_running"},
+		{"ОТКАЗ: existing job evidence", "reviewer_job_evidence_exists"},
+		{"learning reviewer job evidence does not match this event", "reviewer_job_evidence_mismatch"},
+		{"learning reviewer job evidence is unreadable", "reviewer_job_evidence_mismatch"},
 	} {
 		if strings.HasPrefix(message, diagnostic.prefix) {
 			return diagnostic.reason

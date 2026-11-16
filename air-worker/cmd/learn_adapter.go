@@ -97,6 +97,46 @@ func reviewerCatalog(root string, settings sharedLearningSettings, classTarget s
 
 var learningReviewerInvoke = invokeLearningReviewerCodex
 
+// Each reviewed event gets its own job name. With one fixed name the receipt
+// of the first completed review refused every later one ("existing job
+// evidence"), so no review reached the model after 09.11.2026. The name comes
+// from the event, not the prompt: the prompt changes with the catalogue, and
+// a retry of the same event must find its own receipt.
+func learningReviewerStep(eventSHA string) string {
+	if len(eventSHA) != 64 || strings.Trim(eventSHA, "0123456789abcdef") != "" {
+		return "learning"
+	}
+	return "learning-" + eventSHA[:16]
+}
+
+// recoverLearningReviewerJob returns the sealed output of a completed review of
+// this same event instead of starting a second one. Anything that does not
+// prove identity and integrity is refused, never overwritten; a job that is not
+// terminal yet is left to runReceipted, which keeps refusing duplicate starts.
+func recoverLearningReviewerJob(scope sessionScope, step, eventSHA string) ([]byte, bool, error) {
+	receiptPath, outputPath := jobReceiptPaths(scope, step, "learning-reviewer")
+	r, err := readJobReceipt(receiptPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("learning reviewer job evidence is unreadable: %w", err)
+	}
+	if r.Status == jobStatusRunning {
+		return nil, false, nil
+	}
+	if r.Status != jobStatusDone || r.Step != step || r.Operation != "learning-reviewer" || r.Role != "learning-reviewer" ||
+		eventSHA == "" || r.ReviewTaskSHA256 != eventSHA || !sameLearningPath(r.Product, scope.Root) ||
+		filepath.Clean(r.OutputPath) != filepath.Clean(outputPath) || r.OutputSHA256 == "" {
+		return nil, false, errors.New("learning reviewer job evidence does not match this event")
+	}
+	out, err := readLearningBounded(outputPath, 32<<20)
+	if err != nil || learnSHA(out) != r.OutputSHA256 {
+		return nil, false, errors.New("learning reviewer job evidence does not match this event")
+	}
+	return out, true, nil
+}
+
 func cmdLearningAdapter(argv []string) int {
 	if len(argv) == 0 {
 		fmt.Fprintln(os.Stderr, "usage: air-worker learning-adapter reviewer")
@@ -178,7 +218,8 @@ func cmdLearningReviewerAdapter(argv []string) int {
 	}
 	packetJSON, _ := json.MarshalIndent(packet, "", "  ")
 	prompt := buildLearningReviewerPromptWithSettings(classTarget, skills, packetJSON, settings)
-	raw, err := learningReviewerInvoke(root, prompt, reviewerOutputSchema(skills, settings), strings.TrimSpace(*model), strings.TrimSpace(*effort))
+	eventJSON, _ := json.Marshal(event)
+	raw, err := learningReviewerInvoke(learnSHA(eventJSON), root, prompt, reviewerOutputSchema(skills, settings), strings.TrimSpace(*model), strings.TrimSpace(*effort))
 	if err != nil {
 		reviewerStageFailure("invoke", err)
 		return 2
@@ -475,33 +516,43 @@ func validLearningProcedureMarkdown(content string) bool {
 	return len([]byte(content)) <= 64*1024
 }
 
-func invokeLearningReviewerCodex(product, prompt, outputSchema, model, effort string) (string, error) {
-	if err := requirePonytailSkill(); err != nil {
-		return "", fmt.Errorf("Ponytail: %w", err)
-	}
-	exePath, err := resolveRunnerTool("codex")
-	if err != nil {
+func invokeLearningReviewerCodex(eventSHA, product, prompt, outputSchema, model, effort string) (string, error) {
+	step := learningReviewerStep(eventSHA)
+	scope := legacyScope(product)
+	var out []byte
+	var runErr error
+	if recovered, found, err := recoverLearningReviewerJob(scope, step, eventSHA); err != nil {
 		return "", err
+	} else if found {
+		out = recovered
+	} else {
+		if err := requirePonytailSkill(); err != nil {
+			return "", fmt.Errorf("Ponytail: %w", err)
+		}
+		exePath, err := resolveRunnerTool("codex")
+		if err != nil {
+			return "", err
+		}
+		schema, err := os.CreateTemp("", "air-worker-learning-review-schema-*.json")
+		if err != nil {
+			return "", err
+		}
+		schemaPath := schema.Name()
+		defer os.Remove(schemaPath)
+		if _, err := schema.WriteString(outputSchema); err != nil {
+			_ = schema.Close()
+			return "", err
+		}
+		if err := schema.Close(); err != nil {
+			return "", err
+		}
+		reviewer := runnerSpec{Kind: "codex", Model: model, Effort: effort}
+		cmd := semanticCodexCommand(exePath, product, prompt, reviewer, schemaPath)
+		out, runErr = runReceiptedWithMeta(context.Background(), scope, step, "learning-reviewer", cmd, jobReceiptMeta{
+			Runner: reviewer.Kind, Provider: reviewer.Kind, Model: reviewer.Model, Effort: reviewer.Effort,
+			Role: "learning-reviewer", Sandbox: "read-only", ReviewTaskSHA256: eventSHA,
+		})
 	}
-	schema, err := os.CreateTemp("", "air-worker-learning-review-schema-*.json")
-	if err != nil {
-		return "", err
-	}
-	schemaPath := schema.Name()
-	defer os.Remove(schemaPath)
-	if _, err := schema.WriteString(outputSchema); err != nil {
-		_ = schema.Close()
-		return "", err
-	}
-	if err := schema.Close(); err != nil {
-		return "", err
-	}
-	reviewer := runnerSpec{Kind: "codex", Model: model, Effort: effort}
-	cmd := semanticCodexCommand(exePath, product, prompt, reviewer, schemaPath)
-	out, runErr := runReceiptedWithMeta(context.Background(), legacyScope(product), "learning", "learning-reviewer", cmd, jobReceiptMeta{
-		Runner: reviewer.Kind, Provider: reviewer.Kind, Model: reviewer.Model, Effort: reviewer.Effort,
-		Role: "learning-reviewer", Sandbox: "read-only",
-	})
 	completed, failed := false, false
 	var messages, failures []string
 	for _, line := range strings.Split(strings.ReplaceAll(decodeOutput(out), "\r\n", "\n"), "\n") {
