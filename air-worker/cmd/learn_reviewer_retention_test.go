@@ -62,6 +62,7 @@ func TestA24RetentionArchivesOnlySettledJobsOverLimit(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		setReviewerJobAge(t, now.Add(-j.age), receipt, output)
 		paths[j.name] = [2]string{receipt, output}
 	}
 	if err := os.WriteFile(filepath.Join(runtime, "events.jsonl"), []byte(strings.Join(journal, "\n")+"\n"), 0o600); err != nil {
@@ -105,6 +106,97 @@ func TestA24RetentionArchivesOnlySettledJobsOverLimit(t *testing.T) {
 	}
 	if strings.Count(string(trace), `"outcome":"moving"`) != 2 || strings.Count(string(trace), `"outcome":"archived"`) != 2 {
 		t.Fatalf("trace must record each move before and after:\n%s", trace)
+	}
+}
+
+func setReviewerJobAge(t *testing.T, at time.Time, paths ...string) {
+	t.Helper()
+	for _, p := range paths {
+		if err := os.Chtimes(p, at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// One settled job ready to archive, plus a second receipt so the limit of 1
+// is exceeded.
+func settledReviewerJobFixture(t *testing.T) (sessionScope, string, string, string, time.Time) {
+	t.Helper()
+	product, runtime := t.TempDir(), t.TempDir()
+	scope := legacyScope(product)
+	now := time.Now().UTC()
+	old := now.Add(-10 * 24 * time.Hour)
+	if err := os.MkdirAll(filepath.Join(runtime, "reviews"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	var journal []string
+	var receipt, output string
+	for _, name := range []string{"one", "two"} {
+		line, _ := json.Marshal(map[string]any{"schema": "air.learning.event/v1", "event_id": "EV-" + name, "run_id": "AW-CLI-" + name})
+		journal = append(journal, string(line))
+		sha := learnSHA(line)
+		review, _ := json.Marshal(map[string]string{"event_id": "EV-" + name, "phase": "complete"})
+		if err := os.WriteFile(filepath.Join(runtime, "reviews", "EV-"+name+".json"), review, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		rc, out := writeReviewerJob(t, scope, learningReviewerStep(sha), sha, jobStatusDone, "out "+name)
+		r, _ := readJobReceipt(rc)
+		r.StartedAt = old.Add(time.Duration(len(journal)) * time.Hour)
+		if err := writeJobReceipt(rc, r); err != nil {
+			t.Fatal(err)
+		}
+		setReviewerJobAge(t, old, rc, out)
+		if name == "one" {
+			receipt, output = rc, out
+		}
+	}
+	if err := os.WriteFile(filepath.Join(runtime, "events.jsonl"), []byte(strings.Join(journal, "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return scope, runtime, receipt, output, now
+}
+
+// Evidence already in the archive is never replaced, and the attempt is traced.
+func TestA24RetentionNeverReplacesArchivedEvidence(t *testing.T) {
+	scope, runtime, receipt, output, now := settledReviewerJobFixture(t)
+	archive := filepath.Join(scope.Root, ".woody", "jobs-archive", now.Format("200601"))
+	if err := os.MkdirAll(archive, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	existing := filepath.Join(archive, filepath.Base(output))
+	if err := os.WriteFile(existing, []byte("older evidence"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := archiveSettledReviewerJobsAt(scope, runtime, 1, now); err == nil {
+		t.Fatal("archiving over existing evidence was not refused")
+	}
+	if b, _ := os.ReadFile(existing); string(b) != "older evidence" {
+		t.Fatal("archived evidence was replaced")
+	}
+	for _, p := range []string{receipt, output} {
+		if _, err := os.Stat(p); err != nil {
+			t.Fatalf("job left its place after a refused move: %v", err)
+		}
+	}
+	trace, _ := os.ReadFile(filepath.Join(runtime, "reviewer-job-archive.jsonl"))
+	if !strings.Contains(string(trace), `"outcome":"skipped-destination-exists"`) {
+		t.Fatalf("refused move has no terminal trace:\n%s", trace)
+	}
+}
+
+// A job whose lock is held elsewhere is in use and is skipped, not moved.
+func TestA24RetentionSkipsJobWhoseLockIsHeld(t *testing.T) {
+	scope, runtime, receipt, output, now := settledReviewerJobFixture(t)
+	saved := jobReceiptAcquireLock
+	jobReceiptAcquireLock = func(string) (*osLock, bool) { return nil, false }
+	defer func() { jobReceiptAcquireLock = saved }()
+	if err := archiveSettledReviewerJobsAt(scope, runtime, 1, now); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{receipt, output} {
+		if _, err := os.Stat(p); err != nil {
+			t.Fatalf("job under a held lock was moved: %v", err)
+		}
 	}
 }
 
