@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -77,6 +78,14 @@ func TestA24SameEventRecoversSealedResult(t *testing.T) {
 	got, err := invokeLearningReviewerCodex(sha, product, "prompt", "{}", "m", "e")
 	if err != nil || got != `{"apply":false,"content":""}` {
 		t.Fatalf("sealed result not recovered: %q %v", got, err)
+	}
+	// Windows paths are case-insensitive: the same product named with other
+	// letter case still recovers its own sealed result.
+	if runtime.GOOS == "windows" {
+		got, err = invokeLearningReviewerCodex(sha, strings.ToUpper(product), "prompt", "{}", "m", "e")
+		if err != nil || got != `{"apply":false,"content":""}` {
+			t.Fatalf("recovery refused for differently cased product path: %q %v", got, err)
+		}
 	}
 }
 

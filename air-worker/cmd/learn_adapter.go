@@ -127,7 +127,7 @@ func recoverLearningReviewerJob(scope sessionScope, step, eventSHA string) ([]by
 	}
 	if r.Status != jobStatusDone || r.Step != step || r.Operation != "learning-reviewer" || r.Role != "learning-reviewer" ||
 		eventSHA == "" || r.ReviewTaskSHA256 != eventSHA || !sameLearningPath(r.Product, scope.Root) ||
-		filepath.Clean(r.OutputPath) != filepath.Clean(outputPath) || r.OutputSHA256 == "" {
+		!sameLearningPath(r.OutputPath, outputPath) || r.OutputSHA256 == "" {
 		return nil, false, errors.New("learning reviewer job evidence does not match this event")
 	}
 	out, err := readLearningBounded(outputPath, 32<<20)
