@@ -1119,3 +1119,14 @@ Go клиент СОСЕДНЕГО продукта `llm-queue`, у которо
 - [closed] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 28 / SRVLM01 · [[N-137_n130-sbr-package-preflight-against-dev139-dev070]] · N130 SBR package preflight against DEV139 DEV070 install registry
 - [open] N-130_rc4-release-p0-source-reviewer-fixes-and-transac · owner:Dev Work 28 / SRVLM01 · [[N-138_n130-windows-installed-program-registration-and-s]] · N130 Windows installed-program registration and safe removal lifecycle
 - [open] N-136_prove-autonomous-plan-coding-factual-anthropic-c · owner:Dev Work 29 / SRVLM01 · [[N-139_n136-native-operational-goal-selector-for-real-a]] · N136 native operational goal selector for real AirWorker source
+- [open] N-121_p0-real-airworker-session-failures-automatically · owner:Dev Work32 · [[N-140_a1-cli-learning-signal-contentless-exits-counted]] · A1 CLI learning signal: contentless exits counted, not learned
+- [open] N-110_p0-auto-capture-persist-every-real-airworker-ses · owner:Dev Work32 · [[N-141_a2-reviewer-error-rate-below-10]] · A2 reviewer error rate below 10%
+- [open] N-110_p0-auto-capture-persist-every-real-airworker-ses · owner:Dev Work32 · [[N-142_a3-one-class-one-procedure]] · A3 one class, one procedure
+- [open] N-110_p0-auto-capture-persist-every-real-airworker-ses · owner:Dev Work32 · [[N-143_a4-prompt-relevant-procedure-delivery-with-a-byt]] · A4 prompt-relevant procedure delivery with a byte limit
+- [open] N-076_p0-self-owner-persistent-airworker-selector-dual · owner:Dev Work32 · [[N-144_a6-self-learning-owner-moved-to-the-installed-re]] · A6 self-learning owner moved to the installed release
+- [open] N-125_p0-causal-learned-use-effect-and-recurrence-prev · owner:Dev Work32 · [[N-145_b1-pilot-metric-exit-2-share-of-operator-calls]] · B1 pilot metric: exit-2 share of operator calls
+- [open] N-125_p0-causal-learned-use-effect-and-recurrence-prev · owner:Dev Work32 · [[N-146_b2-sealed-task-set-and-runner]] · B2 sealed task set and runner
+- [open] N-125_p0-causal-learned-use-effect-and-recurrence-prev · owner:Dev Work32 · [[N-147_b3-one-change-one-measurement]] · B3 one change, one measurement
+- [open] N-125_p0-causal-learned-use-effect-and-recurrence-prev · owner:Dev Work32 · [[N-148_b4-attempt-journal-and-budget]] · B4 attempt journal and budget
+- [open] N-125_p0-causal-learned-use-effect-and-recurrence-prev · owner:Dev Work32 · [[N-149_b5-weekly-lpr-control-number]] · B5 weekly LPR control number
+- [open] N-121_p0-real-airworker-session-failures-automatically · owner:Dev Work32 · [[N-150_p3-typed-exit-2-replay-and-key-loss-coverage]] · P3 typed exit-2 replay and key-loss coverage
