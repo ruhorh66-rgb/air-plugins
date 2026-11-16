@@ -1,5 +1,9 @@
 # CHANGELOG — air-worker
 
+## 1.0.0-rc.1 - integrated source candidate / NOT RELEASED
+
+- Renumber the integrated source candidate; no release or installation.
+
 ## 0.12.0-rc.1 - bounded runtime candidate renumbering - SOURCE CANDIDATE / NOT RELEASED
 
 - Owner-approved candidate renumbering from 0.11.11-rc.6; retained rc.6 source/distribution history and all historical evidence.

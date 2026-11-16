@@ -1,7 +1,7 @@
 {
   "name": "air-worker",
-  "version": "0.12.0-rc.1",
-  "description": "AirWorker 0.12.0-rc.1 SOURCE CANDIDATE: ChatGPT coordinator plus exactly two independent Codex code-writing workers in separate Git worktrees; no third Codex leader; GPT-6.1 ladder and independent Anthropic judge; release/install pending.",
+  "version": "1.0.0-rc.1",
+  "description": "AirWorker 1.0.0-rc.1 SOURCE CANDIDATE: ChatGPT coordinator plus exactly two independent Codex code-writing workers in separate Git worktrees; no third Codex leader; GPT-6.1 ladder and independent Anthropic judge; release/install pending.",
   "author": {
     "name": "AIR OS"
   },
