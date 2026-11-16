@@ -76,17 +76,22 @@ func ownCLIFailureAction(argv []string) (string, bool) {
 	}
 }
 
-func autoCaptureOwnCLIExit(argv []string, rc int) error {
+// ownCLIRunID names one CLI process. The same id goes to the invocation
+// counter line and to a failure receipt, so the two join by run_id.
+func ownCLIRunID(argv []string) string {
+	class, _ := ownCLIInvocationCommand(argv)
+	return "AW-CLI-" + learnSHA([]byte(class + "|" + strconv.Itoa(os.Getpid()) + "|" + time.Now().UTC().Format(time.RFC3339Nano)))[:24]
+}
+
+func autoCaptureOwnCLIExit(argv []string, rc int, runID string) error {
 	// A validated, measured native-preflight defer is already an immutable
 	// procedure_used result, not a new generic CLI defect to learn twice.
 	if nativePreflightDeferred.Swap(false) {
 		return nil
 	}
-	action, ok := ownCLIFailureAction(argv)
-	if rc == 0 || !ok {
+	if _, ok := ownCLIFailureAction(argv); rc == 0 || !ok {
 		return nil
 	}
-	runID := "AW-CLI-" + learnSHA([]byte(action + "|" + strconv.Itoa(os.Getpid()) + "|" + time.Now().UTC().Format(time.RFC3339Nano)))[:24]
 	start := startSharedLearningReviewBatchProcess
 	if shouldDeferOwnCLIReviewForR02(argv, rc) {
 		start = nil
@@ -110,6 +115,16 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 	if !on {
 		return nil
 	}
+	recPath := filepath.Join(owner.Settings.RuntimeRoot, "cli-failures", runID+".json")
+	// Only a first capture is filtered. A run that already has a receipt is
+	// always authenticated and completed below, even if its precondition has
+	// since changed on disk.
+	cause := ownCLITrustedFailureCause(argv, rc)
+	if ownCLISignalSkipReason(rc, cause) != "" {
+		if _, err := os.Lstat(recPath); errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+	}
 	lock, locked := acquireLock(lockName("self-cli-failure", owner.Settings.RuntimeRoot))
 	if !locked {
 		return errors.New("another own CLI learning event is already being recorded")
@@ -126,7 +141,6 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 		}
 	}()
 
-	recPath := filepath.Join(owner.Settings.RuntimeRoot, "cli-failures", runID+".json")
 	var rec ownCLIFailureReceipt
 	previous, readErr := readLearningBounded(recPath, 32*1024)
 	replay := readErr == nil
@@ -149,7 +163,7 @@ func autoCaptureOwnCLIExitWithRunID(argv []string, rc int, runID string, start f
 			Source: "air-worker-cli", Principal: "air-worker", Version: version,
 			ProcessID: os.Getpid(), CapturedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		}
-		rec.CauseCode = ownCLITrustedFailureCause(argv, rc)
+		rec.CauseCode = cause
 		rec.Observed = ownCLIFailureObservation(action, rc, rec.CauseCode)
 		rec.ReceiptMAC = ownCLIReceiptMAC(key, rec)
 		raw, err := json.MarshalIndent(rec, "", "  ")

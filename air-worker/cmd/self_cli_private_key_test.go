@@ -15,7 +15,7 @@ func TestN110PrivateHMACDoesNotExposeGuessableArguments(t *testing.T) {
 	_, settings, _ := selfLearningFixture(t)
 	args := n110CLIArgs()
 	runID := "AW-CLI-N110-DPAPI-PRIVACY-001"
-	if err := autoCaptureOwnCLIExitWithRunID(args, 2, runID, nil); err != nil {
+	if err := autoCaptureOwnCLIExitWithRunID(args, n110CLIExit, runID, nil); err != nil {
 		t.Fatal(err)
 	}
 	receiptPath := filepath.Join(settings.RuntimeRoot, "cli-failures", runID+".json")
@@ -74,7 +74,7 @@ func TestN110CrossProcessReplayHelper(t *testing.T) {
 	if mode == "changed" {
 		args = append(args, "-product", "different-isolated-product")
 	}
-	err := autoCaptureOwnCLIExitWithRunID(args, 2, run, nil)
+	err := autoCaptureOwnCLIExitWithRunID(args, n110CLIExit, run, nil)
 	if mode == "same" && err != nil {
 		t.Fatalf("same cross-process run must replay: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestN110PrivateKeyReplayAcrossFreshGoProcesses(t *testing.T) {
 	run := "AW-CLI-N110-XPROC-002"
 	args := n110CLIArgs()
 	count := 0
-	if err := autoCaptureOwnCLIExitWithRunID(args, 2, run, func([]sharedDeferredReviewJob) error {
+	if err := autoCaptureOwnCLIExitWithRunID(args, n110CLIExit, run, func([]sharedDeferredReviewJob) error {
 		count++
 		return nil
 	}); err != nil {
@@ -124,7 +124,7 @@ func TestN110LostPrivateKeyAndVersionMismatchFailClosed(t *testing.T) {
 	_, settings, _ := selfLearningFixture(t)
 	args := n110CLIArgs()
 	run := "AW-CLI-N110-TAMPER-003"
-	if err := autoCaptureOwnCLIExitWithRunID(args, 2, run, nil); err != nil {
+	if err := autoCaptureOwnCLIExitWithRunID(args, n110CLIExit, run, nil); err != nil {
 		t.Fatal(err)
 	}
 	recPath := filepath.Join(settings.RuntimeRoot, "cli-failures", run+".json")
@@ -141,7 +141,7 @@ func TestN110LostPrivateKeyAndVersionMismatchFailClosed(t *testing.T) {
 	if err := os.WriteFile(recPath, tampered, 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := autoCaptureOwnCLIExitWithRunID(args, 2, run, nil); err == nil ||
+	if err := autoCaptureOwnCLIExitWithRunID(args, n110CLIExit, run, nil); err == nil ||
 		!strings.Contains(err.Error(), "conflicting immutable evidence") {
 		t.Fatalf("different executable version accepted old run: %v", err)
 	}
@@ -152,13 +152,13 @@ func TestN110LostPrivateKeyAndVersionMismatchFailClosed(t *testing.T) {
 	if err := os.WriteFile(keyPath, []byte("corrupted DPAPI envelope"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := autoCaptureOwnCLIExitWithRunID(args, 2, run, nil); err == nil {
+	if err := autoCaptureOwnCLIExitWithRunID(args, n110CLIExit, run, nil); err == nil {
 		t.Fatal("corrupt protected key accepted in replay")
 	}
 	if err := os.Remove(keyPath); err != nil {
 		t.Fatal(err)
 	}
-	if err := autoCaptureOwnCLIExitWithRunID(args, 2, run, nil); err == nil ||
+	if err := autoCaptureOwnCLIExitWithRunID(args, n110CLIExit, run, nil); err == nil ||
 		!strings.Contains(err.Error(), "key missing with prior receipts") {
 		t.Fatalf("missing key was silently regenerated: %v", err)
 	}

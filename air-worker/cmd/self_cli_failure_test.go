@@ -9,6 +9,10 @@ import (
 	"testing"
 )
 
+// An untyped exit 2 is counted, not learned from; capture mechanics are
+// exercised on a failure class that still produces an event.
+const n110CLIExit = 1
+
 func n110CLIArgs() []string {
 	return []string{"plan", "node", "new", "-parent", "N-999_missing", "private-password-WORKER-SECRET-DO-NOT-RECORD"}
 }
@@ -49,7 +53,7 @@ func TestN110OwnCLIFailureDurablyCapturedAndPrivate(t *testing.T) {
 		}
 		return nil
 	}
-	if err := autoCaptureOwnCLIExitWithRunID(n110CLIArgs(), 2, run, trigger); err != nil {
+	if err := autoCaptureOwnCLIExitWithRunID(n110CLIArgs(), n110CLIExit, run, trigger); err != nil {
 		t.Fatal(err)
 	}
 	if started != 1 {
@@ -84,7 +88,7 @@ func TestN110OwnCLIFailureDurablyCapturedAndPrivate(t *testing.T) {
 		key[i] = 0
 	}
 	if receipt.Schema != ownCLIFailureSchema || receipt.RunID != run ||
-		receipt.Action != "plan node new" || receipt.ExitCode != 2 ||
+		receipt.Action != "plan node new" || receipt.ExitCode != n110CLIExit ||
 		receipt.InvocationMAC != wantMAC ||
 		len(receipt.InvocationMAC) != 64 ||
 		receipt.Principal != "air-worker" ||
@@ -109,7 +113,7 @@ func TestN110ExactIdempotencyAndConflictingRunFailClosed(t *testing.T) {
 	calls := 0
 	starter := func([]sharedDeferredReviewJob) error { calls++; return nil }
 	args := n110CLIArgs()
-	if err := autoCaptureOwnCLIExitWithRunID(args, 2, run, starter); err != nil {
+	if err := autoCaptureOwnCLIExitWithRunID(args, n110CLIExit, run, starter); err != nil {
 		t.Fatal(err)
 	}
 	original := filepath.Join(settings.RuntimeRoot, "cli-failures", run+".json")
@@ -117,7 +121,7 @@ func TestN110ExactIdempotencyAndConflictingRunFailClosed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := autoCaptureOwnCLIExitWithRunID(args, 2, run, starter); err != nil {
+	if err := autoCaptureOwnCLIExitWithRunID(args, n110CLIExit, run, starter); err != nil {
 		t.Fatalf("same native run replay failed: %v", err)
 	}
 	after, err := os.ReadFile(original)
@@ -131,14 +135,14 @@ func TestN110ExactIdempotencyAndConflictingRunFailClosed(t *testing.T) {
 	if err := autoCaptureOwnCLIExitWithRunID(args, 3, run, starter); err == nil {
 		t.Fatal("same stable run accepted conflicting native exit code")
 	}
-	if err := autoCaptureOwnCLIExitWithRunID([]string{"validate", "-product", "other"}, 2, run, starter); err == nil {
+	if err := autoCaptureOwnCLIExitWithRunID([]string{"validate", "-product", "other"}, n110CLIExit, run, starter); err == nil {
 		t.Fatal("same stable run accepted different CLI action")
 	}
 	// Distinct invocations of the SAME command class and exit status cannot
 	// silently reuse a previous run_id. Otherwise one failure receipt could
 	// falsely describe a different product or command with private arguments.
 	otherArgs := append(append([]string{}, args...), "-product", "another-synthetic-product")
-	if err := autoCaptureOwnCLIExitWithRunID(otherArgs, 2, run, starter); err == nil {
+	if err := autoCaptureOwnCLIExitWithRunID(otherArgs, n110CLIExit, run, starter); err == nil {
 		t.Fatal("same action/exit with different argv reused the original immutable run")
 	}
 	if calls != 1 {
