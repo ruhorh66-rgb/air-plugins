@@ -32,7 +32,7 @@ func TestLearningReviewerAppliedReuse(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			saved := learningReviewerInvoke
-			learningReviewerInvoke = func(root, prompt, outputSchema, model, effort string) (string, error) {
+			learningReviewerInvoke = func(jobKey, root, prompt, outputSchema, model, effort string) (string, error) {
 				if !strings.Contains(prompt, "Target: "+target) || !strings.Contains(prompt, "SHA256: "+sha) || !strings.Contains(prompt, n102PriorCLI) {
 					t.Fatal("missing trusted applied body")
 				}
@@ -133,7 +133,7 @@ func reuseSeed(t *testing.T, product string, s sharedLearningSettings, id, targe
 func reuseReview(t *testing.T, product, packet, answer string, inspect func(string)) (int, string) {
 	t.Helper()
 	prior := learningReviewerInvoke
-	learningReviewerInvoke = func(root, prompt, outputSchema, model, effort string) (string, error) {
+	learningReviewerInvoke = func(jobKey, root, prompt, outputSchema, model, effort string) (string, error) {
 		if root != product {
 			t.Fatalf("wrong reviewer root %q", root)
 		}

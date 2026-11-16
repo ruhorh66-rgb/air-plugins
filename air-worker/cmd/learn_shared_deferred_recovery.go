@@ -107,6 +107,7 @@ func pendingSharedLearningReviewRuns(product string) ([]string, error) {
 			Outcome string `json:"outcome"`
 			Attempt int    `json:"attempt"`
 			At      string `json:"at"`
+			Error   string `json:"error"`
 		}
 		if err := json.Unmarshal(raw, &review); err != nil {
 			return nil, err
@@ -120,7 +121,9 @@ func pendingSharedLearningReviewRuns(product string) ([]string, error) {
 			pending = append(pending, ev.RunID)
 		case "complete":
 			// The shared module caps retry attempts and controls proposal identity.
-			if review.Outcome == "error" && review.Attempt < 2 {
+			// A failure that would repeat on an immediate retry is offered again
+			// only after a delay, so it neither triples the load nor is dropped.
+			if review.Outcome == "error" && review.Attempt < 2 && reviewerRetryDue(review.Error, review.At, time.Now()) {
 				pending = append(pending, ev.RunID)
 			}
 		case "reviewing":
