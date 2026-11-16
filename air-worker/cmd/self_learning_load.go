@@ -89,7 +89,15 @@ func cmdLearnSelfLoad(argv []string) int {
 		fmt.Fprintln(os.Stderr, "learn self load: owner changed during delivery")
 		return 2
 	}
+	// Same per-receipt lock as hook writers, so a concurrent turn merge
+	// cannot overwrite this signed delivery or be lost to it.
+	unlock, err := lockAutoSelfLearningSessionDelivery(in)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "learn self load:", err)
+		return 2
+	}
 	contextSHA, err := captureSelfLearningContext(owner, in, result.LoadedSkills, true)
+	unlock()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "learn self load:", err)
 		return 2
