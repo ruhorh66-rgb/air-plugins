@@ -273,7 +273,12 @@ func writeJobReceipt(path string, r *jobReceipt) error {
 }
 
 func readJobReceipt(path string) (*jobReceipt, error) {
-	data, err := os.ReadFile(path)
+	root, err := os.OpenRoot(filepath.Dir(path))
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	data, err := root.ReadFile(filepath.Base(path))
 	if err != nil {
 		return nil, err
 	}
