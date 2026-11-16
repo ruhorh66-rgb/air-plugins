@@ -58,7 +58,7 @@ func TestA24LegacyReceiptDoesNotBlockNewReview(t *testing.T) {
 	scope := legacyScope(t.TempDir())
 	writeReviewerJob(t, scope, "learning", "", jobStatusDone, a24ReviewerOut)
 	sha := learnSHA([]byte("new-event"))
-	out, found, err := recoverLearningReviewerJob(scope, learningReviewerStep(sha), sha)
+	out, found, _, err := recoverLearningReviewerJob(scope, sha)
 	if err != nil || found || out != nil {
 		t.Fatalf("legacy receipt blocked or answered a new review: found=%v err=%v", found, err)
 	}
@@ -100,7 +100,7 @@ func TestA24ForeignOrTamperedEvidenceIsRefused(t *testing.T) {
 		{"other event", func(s sessionScope) {
 			writeReviewerJob(t, s, learningReviewerStep(sha), other, jobStatusDone, a24ReviewerOut)
 		}, true},
-		{"failed job", func(s sessionScope) {
+		{"failed job without tree proof", func(s sessionScope) {
 			writeReviewerJob(t, s, learningReviewerStep(sha), sha, jobStatusFailed, a24ReviewerOut)
 		}, true},
 		{"tampered output", func(s sessionScope) {
@@ -120,7 +120,7 @@ func TestA24ForeignOrTamperedEvidenceIsRefused(t *testing.T) {
 	for _, tc := range cases {
 		scope := legacyScope(t.TempDir())
 		tc.setup(scope)
-		_, found, err := recoverLearningReviewerJob(scope, learningReviewerStep(sha), sha)
+		_, found, _, err := recoverLearningReviewerJob(scope, sha)
 		if found || (err == nil) == tc.refuse {
 			t.Fatalf("%s: found=%v err=%v", tc.name, found, err)
 		}
@@ -137,7 +137,7 @@ func TestA24RunningJobKeepsDuplicateStartGuard(t *testing.T) {
 	sha := learnSHA([]byte("running"))
 	step := learningReviewerStep(sha)
 	writeReviewerJob(t, scope, step, sha, jobStatusRunning, "")
-	if _, found, err := recoverLearningReviewerJob(scope, step, sha); found || err != nil {
+	if _, found, got, err := recoverLearningReviewerJob(scope, sha); found || err != nil || got != step {
 		t.Fatalf("running job recovered or refused early: found=%v err=%v", found, err)
 	}
 	_, err := runReceiptedWithMeta(t.Context(), scope, step, "learning-reviewer", exec.Command("cmd", "/c", "exit", "0"), jobReceiptMeta{Role: "learning-reviewer"})

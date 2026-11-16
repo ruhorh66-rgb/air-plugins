@@ -275,7 +275,7 @@ func TestA24LockHeldElsewhereStillJobBusy(t *testing.T) {
 	scope := legacyScope(t.TempDir())
 	sha := learnSHA([]byte("busy"))
 	step := learningReviewerStep(sha)
-	if _, found, err := recoverLearningReviewerJob(scope, step, sha); found || err != nil {
+	if _, found, got, err := recoverLearningReviewerJob(scope, sha); found || err != nil || got != step {
 		t.Fatalf("no receipt yet: found=%v err=%v", found, err)
 	}
 	saved := jobReceiptAcquireLock

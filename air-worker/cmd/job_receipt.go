@@ -500,7 +500,10 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 		}
 	}
 	codingOwned := runtime.GOOS == "windows" && meta.Role == "coding-subagent/worker"
-	owned := runtime.GOOS == "windows" && (meta.Role == "factual-judge" || codingOwned)
+	// A2.5: a learning review is retried only after its receipt proves the
+	// whole process tree ended, so it runs in the same owned tree.
+	reviewerOwned := runtime.GOOS == "windows" && meta.Role == "learning-reviewer"
+	owned := runtime.GOOS == "windows" && (meta.Role == "factual-judge" || codingOwned || reviewerOwned)
 	var tree *routerOwnedTree
 	var stopMu sync.Mutex
 	var stopErr error
@@ -616,11 +619,11 @@ func runReceiptedWithMetaAndPreflight(ctx context.Context, scope sessionScope, s
 				resultCh <- jobCmdResult{err: errors.Join(waitErr, cleanupErr, errors.New("owned process cleanup or exit not verified"))}
 				return
 			}
-			if codingOwned {
+			if codingOwned || reviewerOwned {
 				r.ProcessTreeVerified = true
 				if err := writeJobReceiptFunc(receiptPath, r); err != nil {
 					closeOutputs()
-					resultCh <- jobCmdResult{err: fmt.Errorf("coding process tree receipt: %w", err)}
+					resultCh <- jobCmdResult{err: fmt.Errorf("owned process tree receipt: %w", err)}
 					return
 				}
 			}

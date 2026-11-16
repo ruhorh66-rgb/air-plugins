@@ -74,6 +74,7 @@ func learningFailureReason(stderr []byte) string {
 		{"ОТКАЗ: existing job evidence", "reviewer_job_evidence_exists"},
 		{"learning reviewer job evidence does not match this event", "reviewer_job_evidence_mismatch"},
 		{"learning reviewer job evidence is unreadable", "reviewer_job_evidence_mismatch"},
+		{"learning reviewer attempts exhausted", "reviewer_attempts_exhausted"},
 	} {
 		if strings.HasPrefix(message, diagnostic.prefix) {
 			return diagnostic.reason
