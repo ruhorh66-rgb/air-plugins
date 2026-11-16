@@ -56,6 +56,7 @@ func publishTestVerdict(t *testing.T, root string, code int, failed []string) {
 	t.Helper()
 	mv := machineVerdict{Code: code, ChecksFailed: len(failed), CriteriaFailed: failed}
 	raw, _ := json.Marshal(mv)
+	resetPublishedVerdict()
 	notePublishedVerdict(root, mv, raw)
 	t.Cleanup(resetPublishedVerdict)
 }

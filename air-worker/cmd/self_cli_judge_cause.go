@@ -12,8 +12,10 @@ import (
 // so the verdict this process published is exactly this run's verdict. It is
 // kept in memory instead of being read back from .goal-verdict.json: no other
 // process's verdict and no file swapped in between can be taken for it.
-// The first detail computed from it is kept, so the failure cause and the
-// observation of one capture describe the same snapshot.
+// The first detail computed from it is kept until resetPublishedVerdict, so the
+// failure cause and the observation of one capture always describe the same
+// snapshot even if something published again in between. The CLI captures once,
+// after the command returned, so later publications have no capture to serve.
 var publishedVerdict struct {
 	sync.Mutex
 	root   string
@@ -27,7 +29,14 @@ func notePublishedVerdict(root string, mv machineVerdict, raw []byte) {
 	publishedVerdict.Lock()
 	defer publishedVerdict.Unlock()
 	publishedVerdict.root, publishedVerdict.mv, publishedVerdict.sha = root, mv, learnSHA(raw)
-	publishedVerdict.memo, publishedVerdict.memoOK = nil, nil
+}
+
+// forgetPublishedVerdict drops the record after a failed write, so an earlier
+// verdict is never attributed to a run whose own verdict was not written.
+func forgetPublishedVerdict() {
+	publishedVerdict.Lock()
+	defer publishedVerdict.Unlock()
+	publishedVerdict.root, publishedVerdict.mv, publishedVerdict.sha = "", machineVerdict{}, ""
 }
 
 func resetPublishedVerdict() {
