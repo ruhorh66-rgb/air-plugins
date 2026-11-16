@@ -179,6 +179,8 @@ func TestA4ForeignOwnerReceiptProvesNoLoad(t *testing.T) {
 	for _, foreign := range []func(*selfLearningContextReceipt){
 		func(r *selfLearningContextReceipt) { r.ProductRoot = t.TempDir() },
 		func(r *selfLearningContextReceipt) { r.RuntimeRoot = t.TempDir() },
+		func(r *selfLearningContextReceipt) { r.ConfigSHA = strings.Repeat("0", 64) },
+		func(r *selfLearningContextReceipt) { r.ConfigSHA = "" },
 	} {
 		other := rec
 		foreign(&other)

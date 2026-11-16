@@ -200,9 +200,7 @@ func turnContextSnapshot(owner selfLearningOwner, in hookInput, delivered []shar
 		return delivered
 	}
 	prev, _, found, err := readSelfLearningContextReceipt(in)
-	if err != nil || !found || prev.DeliveryMAC != "" ||
-		!sameLearningPath(prev.ProductRoot, owner.Selector.ProductRoot) ||
-		!sameLearningPath(prev.RuntimeRoot, owner.Settings.RuntimeRoot) {
+	if err != nil || !found || prev.DeliveryMAC != "" || !selfLearningReceiptOfOwner(prev, owner) {
 		return delivered
 	}
 	key := func(target string) string { return strings.ToLower(filepath.ToSlash(strings.TrimSpace(target))) }
@@ -218,6 +216,15 @@ func turnContextSnapshot(owner selfLearningOwner, in hookInput, delivered []shar
 		}
 	}
 	return out
+}
+
+// selfLearningReceiptOfOwner: written for this product, runtime and owner
+// configuration. A receipt without a configuration SHA predates A4 and proves
+// nothing for the current owner.
+func selfLearningReceiptOfOwner(rec selfLearningContextReceipt, owner selfLearningOwner) bool {
+	return rec.ConfigSHA != "" && rec.ConfigSHA == owner.Selector.ConfigSHA256 &&
+		sameLearningPath(rec.ProductRoot, owner.Selector.ProductRoot) &&
+		sameLearningPath(rec.RuntimeRoot, owner.Settings.RuntimeRoot)
 }
 
 func captureAirWorkerSelfLearningContextReceipt(owner selfLearningOwner, in hookInput, skills []sharedLearningCatalogSkill) error {
@@ -257,6 +264,9 @@ func captureSelfLearningContext(owner selfLearningOwner, in hookInput, skills []
 		Schema: selfLearningContextReceiptSchema, Principal: hookPrincipal(in), Session: in.SessionID,
 		RunID: selfLearningRunID(in), ProductRoot: owner.Selector.ProductRoot, RuntimeRoot: owner.Settings.RuntimeRoot,
 		Loaded: loaded, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		// Every snapshot names the owner configuration it was written under,
+		// so a consumer can refuse one left over from another configuration.
+		ConfigSHA: owner.Selector.ConfigSHA256,
 	}
 	if explicit {
 		if len(loaded) != 1 {
@@ -267,7 +277,6 @@ func captureSelfLearningContext(owner selfLearningOwner, in hookInput, skills []
 			return "", err
 		}
 		rec.DeliveryID = hex.EncodeToString(nonce[:])
-		rec.ConfigSHA = owner.Selector.ConfigSHA256
 		key, err := ownCLIPrivateKey(owner.Settings.RuntimeRoot)
 		if err != nil {
 			return "", err
@@ -741,8 +750,7 @@ func handlePostToolUseSelfLearning(in hookInput) (hookResult, error) {
 		return hookResult{}, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
 	}
 	// A snapshot written for another product or runtime proves no load here.
-	if !found || !sameLearningPath(contextRec.ProductRoot, owner.Selector.ProductRoot) ||
-		!sameLearningPath(contextRec.RuntimeRoot, owner.Settings.RuntimeRoot) {
+	if !found || !selfLearningReceiptOfOwner(contextRec, owner) {
 		return hookResult{}, nil
 	}
 	rule, hasRule := executionUnknownLoadedRule(contextRec)
