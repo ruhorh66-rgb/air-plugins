@@ -360,6 +360,7 @@ func cmdLearnSelfStatus(argv []string) int {
 			ownerStatus = map[string]any{
 				"product_id": owner.Settings.ProductID, "runtime_root": owner.Settings.RuntimeRoot,
 				"managed_skill_prefix": owner.Settings.ManagedSkillPrefix,
+				"judge":                learningJudgeStatus(owner.Settings),
 			}
 		}
 	}
