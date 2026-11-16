@@ -157,6 +157,7 @@ func cmdLearningReviewerAdapter(argv []string) int {
 		fmt.Fprintln(os.Stderr, "learning reviewer: event is required")
 		return 2
 	}
+	neutralizeUnconfiguredJudgeVerdict(packet)
 	class := strings.TrimSpace(jsonString(event["class"]))
 	if class == "" {
 		class = strings.TrimSpace(jsonString(event["kind"]))
@@ -256,6 +257,9 @@ func cmdLearningReviewerAdapter(argv []string) int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "learning reviewer:", err)
 		return 2
+	}
+	if answer.UpdateTarget == "" && !nativeMachineLesson(answer.Content) {
+		answer.UpdateTarget, answer.UpdatePreSHA256 = reviewerFamilyTarget(settings, classTarget, skills)
 	}
 	if answer.UpdateTarget != "" {
 		for _, skill := range skills {
@@ -438,6 +442,34 @@ func nativeMachineLesson(body string) bool {
 
 func reviewerUpdateEligible(s sharedLearningSettings, target, body string) bool {
 	return !reviewerProtectedTarget(s, target) && !nativeMachineLesson(body)
+}
+
+// air-modules writes "unjudged / judge not configured" for every completed
+// run while no judge is configured. That is a property of the configuration,
+// not an observation of the run; passed through, the reviewer turned it into
+// lessons about unconfigured judges. The reviewer keeps only the fact.
+func neutralizeUnconfiguredJudgeVerdict(packet map[string]any) {
+	verdict, _ := packet["verdict"].(map[string]any)
+	if verdict == nil || jsonString(verdict["status"]) != "unjudged" || jsonString(verdict["reason"]) != "judge not configured" {
+		return
+	}
+	packet["verdict"] = map[string]any{"status": "unjudged", "configured": false}
+}
+
+// One class, one procedure: a new lesson for a class that already has an
+// update-eligible procedure patches the first one (reviewerCatalog sorts the
+// family first, then by target) instead of adding another digest file. This
+// is enforced here, not left to the model, because an empty update_target
+// produced 32 files of one class.
+func reviewerFamilyTarget(s sharedLearningSettings, classTarget string, skills []reviewerSkill) (string, string) {
+	family := strings.TrimSuffix(classTarget, ".md")
+	for _, skill := range skills {
+		if (skill.Target == classTarget || strings.HasPrefix(skill.Target, family+"-")) &&
+			reviewerUpdateEligible(s, skill.Target, skill.Body) {
+			return skill.Target, skill.SHA256
+		}
+	}
+	return "", ""
 }
 
 func buildLearningReviewerPrompt(target string, skills []reviewerSkill, packet []byte) string {
