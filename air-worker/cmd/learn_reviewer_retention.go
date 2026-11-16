@@ -200,15 +200,27 @@ func reconcileReviewerJobArchiveTrace(rt *os.Root, runtimeRoot string, now time.
 		}
 		last[key] = t
 	}
+	// "" means the location cannot be known (access error, path escaping the
+	// root): such an attempt keeps "moving" and is retried on the next run
+	// instead of getting a false terminal line.
+	present := func(rel string) (bool, bool) {
+		_, err := rt.Lstat(rel)
+		if err == nil {
+			return true, true
+		}
+		return false, errors.Is(err, os.ErrNotExist)
+	}
 	where := func(name, archived string) string {
-		jobs, _ := rt.Lstat(filepath.Join(".woody", "jobs", name))
-		arch, _ := rt.Lstat(filepath.Join(archived, name))
+		inJobs, okJobs := present(filepath.Join(".woody", "jobs", name))
+		inArch, okArch := present(filepath.Join(archived, name))
 		switch {
-		case jobs != nil && arch != nil:
+		case !okJobs || !okArch:
+			return ""
+		case inJobs && inArch:
 			return "both"
-		case jobs != nil:
+		case inJobs:
 			return "jobs"
-		case arch != nil:
+		case inArch:
 			return "archive"
 		}
 		return "missing"
@@ -219,8 +231,12 @@ func reconcileReviewerJobArchiveTrace(rt *os.Root, runtimeRoot string, now time.
 			continue
 		}
 		archived := filepath.Join(".woody", "jobs-archive", filepath.Base(t.To))
+		receiptAt, outputAt := where(t.Receipt, archived), where(outputNameForReceipt(t.Receipt), archived)
+		if receiptAt == "" || outputAt == "" {
+			continue
+		}
 		t.At = now.Format(time.RFC3339)
-		t.Outcome = fmt.Sprintf("reconciled: receipt in %s, output in %s", where(t.Receipt, archived), where(outputNameForReceipt(t.Receipt), archived))
+		t.Outcome = fmt.Sprintf("reconciled: receipt in %s, output in %s", receiptAt, outputAt)
 		if err := appendReviewerJobArchiveTrace(runtimeRoot, t); err != nil {
 			return err
 		}
