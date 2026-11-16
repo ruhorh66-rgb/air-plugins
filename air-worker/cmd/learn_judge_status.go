@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 
 	"github.com/ruhorh66-rgb/air-modules/learning"
@@ -44,8 +45,11 @@ func annotateUnconfiguredJudgeVerdicts(res learning.Response) learning.Response 
 	if !changed {
 		return res
 	}
-	if b, err := json.Marshal(rows); err == nil {
-		res.Data = b
+	// Joined by hand: json.Marshal would compact every raw row.
+	parts := make([][]byte, len(rows))
+	for i := range rows {
+		parts[i] = rows[i]
 	}
+	res.Data = append(append([]byte("["), bytes.Join(parts, []byte(","))...), ']')
 	return res
 }
