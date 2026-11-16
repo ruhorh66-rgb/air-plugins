@@ -72,9 +72,16 @@ func TestSharedPromptRelevanceIgnoresFunctionWords(t *testing.T) {
 	if got := selectSharedSkillsForTurn([]sharedLearningCatalogSkill{logs}, "What happened during the release?"); len(got) != 0 {
 		t.Fatalf("'during' alone matched: %+v", got)
 	}
+	start := sharedLearningCatalogSkill{Target: "skills/learned/start.md", Title: "Couldn't start service"}
+	if got := selectSharedSkillsForTurn([]sharedLearningCatalogSkill{start}, "We couldn't reproduce it"); len(got) != 0 {
+		t.Fatalf("contraction stem matched: %+v", got)
+	}
 	ru := sharedLearningCatalogSkill{Target: "skills/learned/ru.md", Title: "Проверить отчёт перед отправкой"}
-	if got := selectSharedSkillsForTurn([]sharedLearningCatalogSkill{ru}, "сделай это перед обедом"); len(got) != 0 {
-		t.Fatalf("Russian function word matched: %+v", got)
+	why := sharedLearningCatalogSkill{Target: "skills/learned/why.md", Title: "Зачем это нужно"}
+	for _, prompt := range []string{"сделай это перед обедом", "Зачем?"} {
+		if got := selectSharedSkillsForTurn([]sharedLearningCatalogSkill{ru, why}, prompt); len(got) != 0 {
+			t.Fatalf("Russian function word matched for %q: %+v", prompt, got)
+		}
 	}
 }
 

@@ -43,6 +43,7 @@ than that their theirs them themselves then there these they this those though
 through thus till under unless until upon very want were what whatever when
 where whether which while whom whose will with within without would your yours
 yourself yourselves
+aren couldn hadn hasn haven mightn mustn needn shan shouldn wasn weren wouldn
 более больше будет будто была были было быть вдруг ведь везде весь впрочем
 всегда всего всех всею всем вместо вокруг где говорил даже другой другие если
 есть ещё еще здесь иногда именно какая какой когда кроме куда лишь лучше
@@ -50,6 +51,7 @@ yourself yourselves
 нужно однако около опять перед после потом потому почти пока при про разве
 свою своей своих свой себе себя сейчас совсем снова также такой теперь тогда того
 тоже только тот через чтоб чтобы чуть этого этой этом этот эти эту затем
+зачем один хоть хорошо конечно
 `
 
 func init() {
