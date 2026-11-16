@@ -471,7 +471,7 @@ func airWorkerSelfLearningContext(in hookInput) (string, string, bool, error) {
 	// A4: a turn that delivered nothing leaves the session's current snapshot
 	// as it is; a turn that delivered procedures adds them to it.
 	if in.HookEventName != "UserPromptSubmit" || len(res.LoadedSkills) > 0 {
-		if err := captureAirWorkerSelfLearningContextReceipt(owner, in, turnContextSnapshot(in, res.LoadedSkills)); err != nil {
+		if err := captureAirWorkerSelfLearningContextReceipt(owner, in, turnContextSnapshot(owner, in, res.LoadedSkills)); err != nil {
 			return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
 		}
 	}

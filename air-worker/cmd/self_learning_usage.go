@@ -193,13 +193,16 @@ func loadedRulesFromObserved(observed string) []selfLearningLoadedRule {
 // unsigned snapshot instead of replacing it, so procedures the host received
 // at SessionStart stay recorded as loaded. This turn's SHA wins for a target
 // delivered again. A signed delivery keeps the earlier refresh semantics: the
-// new context replaces it and its authority ends.
-func turnContextSnapshot(in hookInput, delivered []sharedLearningCatalogSkill) []sharedLearningCatalogSkill {
+// new context replaces it and its authority ends. A snapshot written for
+// another product or runtime is never carried over.
+func turnContextSnapshot(owner selfLearningOwner, in hookInput, delivered []sharedLearningCatalogSkill) []sharedLearningCatalogSkill {
 	if in.HookEventName != "UserPromptSubmit" {
 		return delivered
 	}
 	prev, _, found, err := readSelfLearningContextReceipt(in)
-	if err != nil || !found || prev.DeliveryMAC != "" {
+	if err != nil || !found || prev.DeliveryMAC != "" ||
+		!sameLearningPath(prev.ProductRoot, owner.Selector.ProductRoot) ||
+		!sameLearningPath(prev.RuntimeRoot, owner.Settings.RuntimeRoot) {
 		return delivered
 	}
 	key := func(target string) string { return strings.ToLower(filepath.ToSlash(strings.TrimSpace(target))) }

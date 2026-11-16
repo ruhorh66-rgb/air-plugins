@@ -173,4 +173,34 @@ func TestA4TurnDeliveryKeepsSessionLoadAccounting(t *testing.T) {
 	if !hasTarget || len(turn.Loaded) <= len(start.Loaded) {
 		t.Fatalf("turn delivery not added: %+v", turn.Loaded)
 	}
+
+	// A snapshot of another product or runtime under the same session/run is
+	// never merged into this owner's snapshot.
+	owner, on, err := activeAirWorkerSelfLearningOwner()
+	if err != nil || !on {
+		t.Fatalf("owner: %v %v", on, err)
+	}
+	foreignRule := selfLearningLoadedRule{Target: "skills/learned/foreign.md", SHA256: strings.Repeat("f", 64)}
+	for _, foreign := range []selfLearningContextReceipt{
+		{ProductRoot: t.TempDir(), RuntimeRoot: owner.Settings.RuntimeRoot},
+		{ProductRoot: owner.Selector.ProductRoot, RuntimeRoot: t.TempDir()},
+	} {
+		foreign.Schema, foreign.Principal, foreign.Session, foreign.RunID = selfLearningContextReceiptSchema, hookPrincipal(in), in.SessionID, selfLearningRunID(in)
+		foreign.Loaded = []selfLearningLoadedRule{foreignRule}
+		if err := writeSelfLearningContextReceipt(path, foreign); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, _, err := airWorkerSelfLearningContext(in); err != nil {
+			t.Fatal(err)
+		}
+		mixed, _, _, err := readSelfLearningContextReceipt(in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range mixed.Loaded {
+			if r == foreignRule {
+				t.Fatalf("foreign owner snapshot merged: %+v", mixed.Loaded)
+			}
+		}
+	}
 }
