@@ -54,7 +54,14 @@ func n102Answer(content string) string {
 	b, _ := json.Marshal(map[string]any{"apply": true, "content": content})
 	return string(b)
 }
-func TestN102LearningAutoReviewerNeverOverwritesPriorSkill(t *testing.T) {
+// Before A3.1 this test asserted that a new lesson of an existing class was
+// always a NEW file (the reviewer never touched a prior skill). LPR decision
+// 04.11.2026 ("при совпадающей теме сначала обновить существующий навык") and
+// AIR_VIBECODING invariant 15 (apply with ledger SHA before/after, one-command
+// rollback) replace that: the lesson patches the class procedure through the
+// standard propose with pre_sha256, the prior version stays in the ledger, and
+// rollback restores it. Skills of other classes are never touched.
+func TestN102LearningAutoReviewerPatchesClassProcedureWithRollback(t *testing.T) {
 	product, config, _ := selfLearningFixture(t)
 	seedTarget := "skills/learned/execution-unknown-no-blind-retry-6b72186f.md"
 	seedPath := filepath.Join(product, filepath.FromSlash(seedTarget))
@@ -63,7 +70,6 @@ func TestN102LearningAutoReviewerNeverOverwritesPriorSkill(t *testing.T) {
 		t.Fatal(err)
 	}
 	oldTarget := learningProcedureTarget(config.ManagedSkillPrefix, "feedback-error")
-	wantTargets := map[string]bool{seedTarget: true, oldTarget: true}
 	old, err := executeSharedLearning(product, config, "propose", map[string]string{
 		"proposal_id": "LP-n102-legacy", "kind": "procedure", "target": oldTarget,
 		"pre_sha256": "", "content": n102PriorCLI,
@@ -76,70 +82,79 @@ func TestN102LearningAutoReviewerNeverOverwritesPriorSkill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, candidate := range []string{n102SelfOwnerLesson, n102NewCLI} {
-		code, text := invokeN102Reviewer(t, product, n102Answer(candidate))
-		if code != 0 {
-			t.Fatalf("reviewer #%d failed: %s", i, text)
-		}
-		var got map[string]string
-		if err := json.Unmarshal([]byte(text), &got); err != nil {
-			t.Fatal(err)
-		}
-		wantSHA := learnSHA([]byte(strings.TrimSpace(candidate) + "\n"))
-		if got["target"] == oldTarget || got["pre_sha256"] != "" ||
-			!strings.Contains(got["target"], wantSHA[:16]) {
-			t.Fatalf("unsafe proposed overwrite: %#v", got)
-		}
-		result, err := executeSharedLearning(product, config, "propose", map[string]string{
-			"proposal_id": "LP-n102-new-" + string(rune('a'+i)),
-			"kind":        "procedure", "target": got["target"],
-			"pre_sha256": got["pre_sha256"], "content": got["content"],
-		})
-		if err != nil || result.Status != "applied" {
-			t.Fatalf("new distinct procedure failed: %#v %v", result, err)
-		}
-		if wantTargets[got["target"]] {
-			t.Fatalf("candidate target reuses known skill: %q", got["target"])
-		}
-		wantTargets[got["target"]] = true
-		retained, err := os.ReadFile(oldPath)
-		if err != nil || string(retained) != string(originalBytes) {
-			t.Fatalf("prior guidance erased in review #%d", i)
-		}
-		repeatCode, repeatText := invokeN102Reviewer(t, product, n102Answer(candidate))
-		if repeatCode != 0 || strings.TrimSpace(repeatText) != "{}" {
-			t.Fatalf("duplicate proposal not suppressed: %d %s", repeatCode, repeatText)
-		}
+	// A separate lesson that ignores the class procedure is refused.
+	if code, text := invokeN102Reviewer(t, product, n102Answer(n102NewCLI)); code != 2 || strings.Contains(text, `"kind"`) {
+		t.Fatalf("lesson ignoring the class procedure was not refused: %d %s", code, text)
+	}
+	merged := n102PriorCLI + "\n" + strings.TrimSpace(n102NewCLI) + "\n"
+	code, text := invokeN102Reviewer(t, product, reuseAnswer(merged, oldTarget, learnSHA(originalBytes)))
+	if code != 0 {
+		t.Fatalf("reviewer failed: %s", text)
+	}
+	var got map[string]string
+	if err := json.Unmarshal([]byte(text), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["target"] != oldTarget || got["pre_sha256"] != learnSHA(originalBytes) || !strings.Contains(got["content"], "Define one CLI contract") {
+		t.Fatalf("class update lost its target, SHA or old guidance: %#v", got)
+	}
+	result, err := executeSharedLearning(product, config, "propose", map[string]string{
+		"proposal_id": "LP-n102-patch", "kind": "procedure", "target": got["target"],
+		"pre_sha256": got["pre_sha256"], "content": got["content"],
+	})
+	if err != nil || result.Status != "applied" {
+		t.Fatalf("patch of the class procedure failed: %#v %v", result, err)
+	}
+	patched, err := os.ReadFile(oldPath)
+	if err != nil || string(patched) != got["content"] {
+		t.Fatalf("patch not applied: %v", err)
+	}
+	if roll, err := executeSharedLearning(product, config, "rollback", map[string]string{"proposal_id": "LP-n102-patch"}); err != nil || roll.Status == "" {
+		t.Fatalf("one-command rollback failed: %+v %v", roll, err)
+	}
+	restored, err := os.ReadFile(oldPath)
+	if err != nil || string(restored) != string(originalBytes) {
+		t.Fatalf("rollback did not restore the prior procedure: %v", err)
 	}
 	seedAfter, err := os.ReadFile(seedPath)
 	if err != nil || string(seedBefore) != string(seedAfter) {
-		t.Fatalf("self-owner safety lesson overwritten: %v", err)
+		t.Fatalf("procedure of another class was touched: %v", err)
 	}
-	skills, err := executeSharedLearning(product, config, "index", nil)
-	if err != nil {
-		t.Fatal(err)
+}
+
+// What N102 protected against stays impossible: an existing procedure cannot
+// be replaced without the exact pre_sha256 of its current bytes, and every
+// accepted change is a ledger transaction.
+func TestN102NoTraceOverwriteOfExistingProcedureIsImpossible(t *testing.T) {
+	product, config, _ := selfLearningFixture(t)
+	target := learningProcedureTarget(config.ManagedSkillPrefix, "feedback-error")
+	if res, err := executeSharedLearning(product, config, "propose", map[string]string{
+		"proposal_id": "LP-n102-base", "kind": "procedure", "target": target, "pre_sha256": "", "content": n102PriorCLI,
+	}); err != nil || res.Status != "applied" {
+		t.Fatalf("seed: %+v %v", res, err)
 	}
-	var catalog struct {
-		Skills []struct {
-			Target string `json:"target"`
-		} `json:"skills"`
-	}
-	if err := json.Unmarshal(skills.Data, &catalog); err != nil {
-		t.Fatal(err)
-	}
-	// selfLearningFixture installs one independent owner safety lesson;
-	// this test then adds exactly one historical and two distinct new skills.
-	if len(catalog.Skills) != 4 {
-		t.Fatalf("expected self-owner safety lesson, prior and 2 distinct skills, got %d", len(catalog.Skills))
-	}
-	for _, skill := range catalog.Skills {
-		if !wantTargets[skill.Target] {
-			t.Fatalf("unexpected or duplicate learned target: %q", skill.Target)
+	path := filepath.Join(product, filepath.FromSlash(target))
+	before, _ := os.ReadFile(path)
+	for name, pre := range map[string]string{"no pre_sha256": "", "wrong pre_sha256": strings.Repeat("0", 64)} {
+		res, err := executeSharedLearning(product, config, "propose", map[string]string{
+			"proposal_id": "LP-n102-blind-" + strings.ReplaceAll(name, " ", "-"), "kind": "procedure",
+			"target": target, "pre_sha256": pre, "content": n102NewCLI,
+		})
+		if err == nil && res.Status == "applied" {
+			t.Fatalf("%s: existing procedure overwritten without proof of its bytes: %+v", name, res)
 		}
-		delete(wantTargets, skill.Target)
+		after, _ := os.ReadFile(path)
+		if string(after) != string(before) {
+			t.Fatalf("%s: procedure bytes changed", name)
+		}
 	}
-	if len(wantTargets) != 0 {
-		t.Fatalf("previous or new learned targets missing from index: %v", wantTargets)
+	// The reviewer adapter never emits a change of the procedure without its
+	// current pre_sha256: a lesson without it is refused, a stale SHA too.
+	if code, text := invokeN102Reviewer(t, product, n102Answer(n102NewCLI)); code != 2 || strings.Contains(text, `"kind"`) {
+		t.Fatalf("adapter accepted a lesson without the class pre_sha256: %d %s", code, text)
+	}
+	if code, text := invokeN102Reviewer(t, product, reuseAnswer(n102PriorCLI+"\nx\n", target, strings.Repeat("0", 64))); code != 2 || strings.Contains(text, `"kind"`) {
+		t.Fatalf("adapter accepted a stale pre_sha256: %d %s", code, text)
 	}
 }
 func TestN102NoCandidateLeavesPriorKnowledgeUnchanged(t *testing.T) {

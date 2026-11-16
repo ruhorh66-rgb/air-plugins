@@ -61,6 +61,7 @@ func learningFailureReason(stderr []byte) string {
 		{"update requires apply", "reviewer_invalid_update"},
 		{"update target is unavailable or protected", "reviewer_invalid_update"},
 		{"model output is not the required JSON object", "reviewer_invalid_model_output"},
+		{"class procedure exists; update it", "reviewer_class_update_required"},
 		{"proposed procedure is missing required Markdown sections", "reviewer_invalid_procedure"},
 		{"unsupported native action origin/format", "reviewer_invalid_native_origin"},
 		{"unregistered or changed native action", "reviewer_invalid_native_action"},
