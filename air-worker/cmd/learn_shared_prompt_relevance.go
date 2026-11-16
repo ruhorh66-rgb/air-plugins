@@ -27,6 +27,20 @@ var genericLearningTerms = map[string]bool{
 	"error": true, "failure": true, "failures": true,
 	"проверка": true, "ошибка": true, "навык": true,
 	"процедура": true, "модуль": true,
+	// Function words: one of them alone must not pull a procedure of another
+	// task class into a turn (A4).
+	"about": true, "after": true, "again": true, "also": true, "before": true,
+	"been": true, "does": true, "done": true, "each": true, "from": true,
+	"have": true, "into": true, "just": true, "make": true, "more": true,
+	"must": true, "next": true, "only": true, "over": true, "should": true,
+	"than": true, "that": true, "them": true, "then": true, "there": true,
+	"these": true, "they": true, "this": true, "what": true, "when": true,
+	"where": true, "which": true, "while": true, "will": true, "with": true,
+	"without": true, "your": true,
+	"перед": true, "после": true, "если": true, "когда": true, "чтобы": true,
+	"только": true, "снова": true, "этот": true, "эта": true, "это": true,
+	"нужно": true, "надо": true, "через": true, "также": true, "тоже": true,
+	"потом": true, "затем": true, "сейчас": true, "можно": true, "нельзя": true,
 }
 
 // learningRelevanceTerms is bounded and lexical, not a model or a policy

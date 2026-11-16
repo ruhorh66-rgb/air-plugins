@@ -61,6 +61,19 @@ func TestSharedPromptRelevanceDeliversNothingForEmptyGenericOrUnrelatedInput(t *
 	}
 }
 
+func TestSharedPromptRelevanceIgnoresFunctionWords(t *testing.T) {
+	config := sharedLearningCatalogSkill{Target: "skills/learned/run-config.md", Title: "Create Run Configuration Before Retrying"}
+	unknown := sharedLearningCatalogSkill{Target: "skills/learned/unknown.md", Title: "Reconcile execution unknown"}
+	got := selectSharedSkillsForTurn([]sharedLearningCatalogSkill{config, unknown}, "EXECUTION_UNKNOWN: reconcile before retry")
+	if !reflect.DeepEqual(got, []sharedLearningCatalogSkill{unknown}) {
+		t.Fatalf("a function word pulled an unrelated procedure: %+v", got)
+	}
+	ru := sharedLearningCatalogSkill{Target: "skills/learned/ru.md", Title: "Проверить отчёт перед отправкой"}
+	if got := selectSharedSkillsForTurn([]sharedLearningCatalogSkill{ru}, "сделай это перед обедом"); len(got) != 0 {
+		t.Fatalf("Russian function word matched: %+v", got)
+	}
+}
+
 func TestSharedPromptRelevanceSupportsRussianTitleAndBoundedPrompt(t *testing.T) {
 	first := sharedLearningCatalogSkill{Target: "skills/learned/other.md", Title: "Проверка стоимости"}
 	older := sharedLearningCatalogSkill{Target: "skills/learned/encoding.md", Title: "Исправление кодировки отчёта"}
