@@ -19,23 +19,27 @@ func TestA33JudgeStatusAndEventsNote(t *testing.T) {
 	if st := learningJudgeStatus(sharedLearningSettings{Judge: &learningProcessAdapter{Executable: "@self"}}); st["configured"] != true || st["note"] != nil {
 		t.Fatalf("configured judge status: %v", st)
 	}
-	rows := `[{"schema":"air.learning.event/v1","event_id":"EV-1","kind":"run_completed"},` +
+	unrelated := `{"schema":"air.learning.event/v1","event_id":"EV-0","n":12345678901234567890,"dup":1,"dup":2}`
+	rows := `[` + unrelated + `,{"schema":"air.learning.event/v1","event_id":"EV-1","kind":"run_completed"},` +
 		`{"schema":"air.learning.verdict/v1","status":"unjudged","reason":"judge not configured","event_id":"EV-1"},` +
 		`{"schema":"air.learning.verdict/v1","status":"unjudged","reason":"judge unavailable","event_id":"EV-2"},` +
 		`{"schema":"air.learning.verdict/v1","status":"fail","reason":"K1","event_id":"EV-3"}]`
 	got := annotateUnconfiguredJudgeVerdicts(learning.Response{Status: "ok", Data: json.RawMessage(rows)})
+	if !strings.Contains(string(got.Data), unrelated) {
+		t.Fatalf("an unrelated row was rewritten:\n%s", got.Data)
+	}
 	var out []map[string]any
-	if err := json.Unmarshal(got.Data, &out); err != nil || len(out) != 4 {
+	if err := json.Unmarshal(got.Data, &out); err != nil || len(out) != 5 {
 		t.Fatalf("annotated events unreadable: %v %s", err, got.Data)
 	}
 	for i, row := range out {
 		_, has := row["note"]
-		if has != (i == 1) {
+		if has != (i == 2) {
 			t.Fatalf("row %d note=%v: %v", i, has, row)
 		}
 	}
-	if out[1]["note"] != unconfiguredJudgeNote || out[1]["reason"] != "judge not configured" {
-		t.Fatalf("unconfigured verdict lost its fields or note: %v", out[1])
+	if out[2]["note"] != unconfiguredJudgeNote || out[2]["reason"] != "judge not configured" {
+		t.Fatalf("unconfigured verdict lost its fields or note: %v", out[2])
 	}
 	other := learning.Response{Status: "ok", Data: json.RawMessage(`{"skills":[]}`)}
 	if string(annotateUnconfiguredJudgeVerdicts(other).Data) != `{"skills":[]}` {
@@ -64,8 +68,9 @@ func TestA34JudgeFailureIsTypedFromFreshVerdict(t *testing.T) {
 		t.Fatalf("fresh FAIL verdict not typed: %q", cause)
 	}
 	obs := ownCLIFailureObservationFor(argv, "judge", 1, "judge-criteria-failed")
-	if !strings.Contains(obs, "failed criteria К1, K2rm") || !strings.Contains(obs, ".goal-verdict.json#sha256=") ||
-		strings.Contains(obs, "probe failed") || strings.Contains(obs, "secret") || strings.Contains(obs, "K2;rm") {
+	if !strings.Contains(obs, "failed criteria К1, K2rm") || !strings.Contains(obs, "verdict .goal-verdict.json#sha256=") ||
+		strings.Contains(obs, "probe failed") || strings.Contains(obs, "secret") || strings.Contains(obs, "K2;rm") ||
+		strings.Contains(obs, filepath.ToSlash(product)) || strings.Contains(obs, product) {
 		t.Fatalf("observation carries free text or lacks facts: %s", obs)
 	}
 	if cause := ownCLITrustedFailureCause([]string{"judge", "-product=" + product}, 1); cause != "judge-criteria-failed" {
@@ -73,8 +78,16 @@ func TestA34JudgeFailureIsTypedFromFreshVerdict(t *testing.T) {
 	}
 
 	for name, setup := range map[string]func(){
-		"stale verdict": func() { writeGoalVerdict(t, product, 1, cliProcessStarted.Add(-time.Hour), []string{"K1"}) },
-		"pass verdict":  func() { writeGoalVerdict(t, product, 0, time.Now(), nil) },
+		"stale verdict":  func() { writeGoalVerdict(t, product, 1, cliProcessStarted.Add(-time.Hour), []string{"K1"}) },
+		"future verdict": func() { writeGoalVerdict(t, product, 1, time.Now().Add(time.Hour), []string{"K1"}) },
+		"old file": func() {
+			writeGoalVerdict(t, product, 1, time.Now(), []string{"K1"})
+			old := cliProcessStarted.Add(-time.Hour)
+			if err := os.Chtimes(filepath.Join(product, ".goal-verdict.json"), old, old); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"pass verdict": func() { writeGoalVerdict(t, product, 0, time.Now(), nil) },
 		"not a file": func() {
 			_ = os.Remove(filepath.Join(product, ".goal-verdict.json"))
 			if err := os.Mkdir(filepath.Join(product, ".goal-verdict.json"), 0o700); err != nil {

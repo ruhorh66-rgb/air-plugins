@@ -22,15 +22,22 @@ func learningJudgeStatus(s sharedLearningSettings) map[string]any {
 // configured". Rows are otherwise returned unchanged; an answer of another
 // shape is passed through as is.
 func annotateUnconfiguredJudgeVerdicts(res learning.Response) learning.Response {
-	var rows []map[string]any
+	// Rows stay raw: only a matching verdict row is rebuilt, every other row
+	// keeps its exact bytes (numbers, key order, duplicates).
+	var rows []json.RawMessage
 	if json.Unmarshal(res.Data, &rows) != nil {
 		return res
 	}
 	changed := false
-	for _, row := range rows {
-		if jsonString(row["schema"]) == "air.learning.verdict/v1" && jsonString(row["status"]) == "unjudged" &&
-			jsonString(row["reason"]) == "judge not configured" {
-			row["note"] = unconfiguredJudgeNote
+	for i, raw := range rows {
+		var row map[string]any
+		if json.Unmarshal(raw, &row) != nil || jsonString(row["schema"]) != "air.learning.verdict/v1" ||
+			jsonString(row["status"]) != "unjudged" || jsonString(row["reason"]) != "judge not configured" {
+			continue
+		}
+		row["note"] = unconfiguredJudgeNote
+		if b, err := json.Marshal(row); err == nil {
+			rows[i] = b
 			changed = true
 		}
 	}
