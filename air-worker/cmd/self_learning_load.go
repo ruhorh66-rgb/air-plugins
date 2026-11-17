@@ -85,11 +85,21 @@ func cmdLearnSelfLoad(argv []string) int {
 		fmt.Fprintln(os.Stderr, "learn self load: requested procedure was not delivered", err)
 		return 2
 	}
+	// Same per-receipt lock as hook writers, so a concurrent turn merge
+	// cannot overwrite this signed delivery or be lost to it. The owner is
+	// re-checked after the (bounded) wait, right before signing.
+	unlock, err := lockAutoSelfLearningSessionDelivery(in)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "learn self load:", err)
+		return 2
+	}
 	if current, active, checkErr := activeAirWorkerSelfLearningOwner(); checkErr != nil || !active || current.Selector.ConfigSHA256 != owner.Selector.ConfigSHA256 || !sameLearningPath(current.Selector.ProductRoot, owner.Selector.ProductRoot) {
+		unlock()
 		fmt.Fprintln(os.Stderr, "learn self load: owner changed during delivery")
 		return 2
 	}
 	contextSHA, err := captureSelfLearningContext(owner, in, result.LoadedSkills, true)
+	unlock()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "learn self load:", err)
 		return 2

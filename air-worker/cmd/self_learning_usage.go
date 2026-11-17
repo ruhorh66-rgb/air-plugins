@@ -188,6 +188,45 @@ func loadedRulesFromObserved(observed string) []selfLearningLoadedRule {
 	return out
 }
 
+// turnContextSnapshot keeps load accounting whole under per-turn delivery
+// (A4): a UserPromptSubmit adds what it delivered to the session's current
+// unsigned snapshot instead of replacing it, so procedures the host received
+// at SessionStart stay recorded as loaded. This turn's SHA wins for a target
+// delivered again. A signed delivery keeps the earlier refresh semantics: the
+// new context replaces it and its authority ends. A snapshot written for
+// another product or runtime is never carried over.
+func turnContextSnapshot(owner selfLearningOwner, in hookInput, delivered []sharedLearningCatalogSkill) []sharedLearningCatalogSkill {
+	if in.HookEventName != "UserPromptSubmit" {
+		return delivered
+	}
+	prev, _, found, err := readSelfLearningContextReceipt(in)
+	if err != nil || !found || prev.DeliveryMAC != "" || !selfLearningReceiptOfOwner(prev, owner) {
+		return delivered
+	}
+	key := func(target string) string { return strings.ToLower(filepath.ToSlash(strings.TrimSpace(target))) }
+	out := append([]sharedLearningCatalogSkill(nil), delivered...)
+	seen := map[string]bool{}
+	for _, s := range delivered {
+		seen[key(s.Target)] = true
+	}
+	for _, r := range prev.Loaded {
+		if !seen[key(r.Target)] {
+			seen[key(r.Target)] = true
+			out = append(out, sharedLearningCatalogSkill{Target: r.Target, SHA256: r.SHA256})
+		}
+	}
+	return out
+}
+
+// selfLearningReceiptOfOwner: written for this product, runtime and owner
+// configuration. A receipt without a configuration SHA predates A4 and proves
+// nothing for the current owner.
+func selfLearningReceiptOfOwner(rec selfLearningContextReceipt, owner selfLearningOwner) bool {
+	return rec.ConfigSHA != "" && rec.ConfigSHA == owner.Selector.ConfigSHA256 &&
+		sameLearningPath(rec.ProductRoot, owner.Selector.ProductRoot) &&
+		sameLearningPath(rec.RuntimeRoot, owner.Settings.RuntimeRoot)
+}
+
 func captureAirWorkerSelfLearningContextReceipt(owner selfLearningOwner, in hookInput, skills []sharedLearningCatalogSkill) error {
 	_, err := captureSelfLearningContext(owner, in, skills, false)
 	return err
@@ -225,6 +264,9 @@ func captureSelfLearningContext(owner selfLearningOwner, in hookInput, skills []
 		Schema: selfLearningContextReceiptSchema, Principal: hookPrincipal(in), Session: in.SessionID,
 		RunID: selfLearningRunID(in), ProductRoot: owner.Selector.ProductRoot, RuntimeRoot: owner.Settings.RuntimeRoot,
 		Loaded: loaded, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		// Every snapshot names the owner configuration it was written under,
+		// so a consumer can refuse one left over from another configuration.
+		ConfigSHA: owner.Selector.ConfigSHA256,
 	}
 	if explicit {
 		if len(loaded) != 1 {
@@ -235,7 +277,6 @@ func captureSelfLearningContext(owner selfLearningOwner, in hookInput, skills []
 			return "", err
 		}
 		rec.DeliveryID = hex.EncodeToString(nonce[:])
-		rec.ConfigSHA = owner.Selector.ConfigSHA256
 		key, err := ownCLIPrivateKey(owner.Settings.RuntimeRoot)
 		if err != nil {
 			return "", err
@@ -708,7 +749,8 @@ func handlePostToolUseSelfLearning(in hookInput) (hookResult, error) {
 	if err != nil {
 		return hookResult{}, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
 	}
-	if !found {
+	// A snapshot written for another product or runtime proves no load here.
+	if !found || !selfLearningReceiptOfOwner(contextRec, owner) {
 		return hookResult{}, nil
 	}
 	rule, hasRule := executionUnknownLoadedRule(contextRec)

@@ -471,8 +471,29 @@ func airWorkerSelfLearningContext(in hookInput) (string, string, bool, error) {
 	if !handled {
 		return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context", strings.TrimSpace(in.RunID), errors.New("enabled AirWorker self-learning owner did not select shared learning"))
 	}
-	if err := captureAirWorkerSelfLearningContextReceipt(owner, in, res.LoadedSkills); err != nil {
-		return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
+	// A4: a turn that delivered nothing leaves the session's current snapshot
+	// as it is; a turn that delivered procedures adds them to it.
+	if in.HookEventName != "UserPromptSubmit" || len(res.LoadedSkills) > 0 {
+		// The merge reads and rewrites the receipt: hold the receipt's existing
+		// cross-process lock so two hooks of one session cannot lose a load.
+		unlock, err := lockAutoSelfLearningSessionDelivery(in)
+		if err != nil {
+			return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
+		}
+		// The owner may have changed while this hook read the catalogue or
+		// waited for the lock: record nothing for a stale owner.
+		if current, active, checkErr := activeAirWorkerSelfLearningOwner(); checkErr != nil || !active ||
+			current.Selector.ConfigSHA256 != owner.Selector.ConfigSHA256 ||
+			!sameLearningPath(current.Selector.ProductRoot, owner.Selector.ProductRoot) ||
+			!sameLearningPath(current.Settings.RuntimeRoot, owner.Settings.RuntimeRoot) {
+			unlock()
+			return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context-receipt", selfLearningRunID(in), errors.New("self-learning owner changed during delivery"))
+		}
+		err = captureAirWorkerSelfLearningContextReceipt(owner, in, turnContextSnapshot(owner, in, res.LoadedSkills))
+		unlock()
+		if err != nil {
+			return owner.Selector.ProductRoot, "", true, sharedHookFailure("self-context-receipt", selfLearningRunID(in), err)
+		}
 	}
 	if strings.TrimSpace(res.Context) == "" {
 		return owner.Selector.ProductRoot, "", true, nil

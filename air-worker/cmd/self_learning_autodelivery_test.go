@@ -192,12 +192,15 @@ func TestHLP06UserPromptCannotMintSessionStartDelivery(t *testing.T) {
 	state := os.Getenv(hookStateDirEnv)
 	in := declareLearningTestSession(t, state, "gpt", "hlp06-userprompt", product)
 	in.HookEventName = "UserPromptSubmit"
+	// A4: only a prompt that matches a procedure delivers and writes a
+	// receipt; this one matches the fixture's execution-unknown procedure.
+	in.Prompt = "EXECUTION_UNKNOWN: reconcile before retry"
 	res, err := handleLearningContextWithReviewBatchStarter(in, nil)
 	if err != nil || strings.Contains(res.Context, "VERIFIED AUTOMATIC DELIVERY") {
 		t.Fatalf("untrusted non-start lifecycle minted automatic delivery: %v %s", err, res.Context)
 	}
 	rec, _, found, err := readSelfLearningContextReceipt(in)
-	if err != nil || !found || rec.DeliveryMAC != "" || n104Events(t, settings.RuntimeRoot, "procedure_used") != 0 {
+	if err != nil || !found || len(rec.Loaded) == 0 || rec.DeliveryMAC != "" || n104Events(t, settings.RuntimeRoot, "procedure_used") != 0 {
 		t.Fatalf("prompt context minted signed machine action: %v found=%v", err, found)
 	}
 }

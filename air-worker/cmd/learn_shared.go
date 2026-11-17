@@ -558,6 +558,9 @@ type sharedLearningCatalogSkill struct {
 	SkillID string `json:"skill_id"`
 	Target  string `json:"target"`
 	SHA256  string `json:"sha256"`
+	// The existing native index already supplies this metadata; do not read
+	// every procedure body just to rank skills for a host prompt.
+	Title string `json:"title,omitempty"`
 }
 
 func recordSharedContextEvent(product string, s sharedLearningSettings, runID, kind, observed, class, outcome string, in hookInput) error {
@@ -750,6 +753,15 @@ func sharedLearningContext(product string, in hookInput) (bool, hookResult, erro
 	ordered, orderErr := prioritizeSharedSkills(s.RuntimeRoot, catalog.Skills)
 	if orderErr != nil {
 		return true, hookResult{}, sharedHookFailure("context-recency", runID, orderErr)
+	}
+	// SessionStart has no task text and keeps newest-first delivery. A normal
+	// user prompt gets only the procedures its text matches in the current
+	// index metadata (A4), before full SHA-checked bodies are loaded; no match
+	// means no procedure for this turn. Do not create a second catalog.
+	if in.HookEventName == "UserPromptSubmit" {
+		if ordered = selectSharedSkillsForTurn(ordered, in.Prompt); len(ordered) == 0 {
+			return true, hookResult{}, nil
+		}
 	}
 	res, err := sharedLearningContextFromCatalog(product, s, in, runID, ordered)
 	return true, res, err
