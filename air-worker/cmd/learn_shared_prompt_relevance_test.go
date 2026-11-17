@@ -304,3 +304,26 @@ func TestA4TurnDeliveryKeepsSessionLoadAccounting(t *testing.T) {
 		}
 	}
 }
+
+func TestSharedPromptRelevanceTechnicalTermsAndGenericActions(t *testing.T) {
+	cli := sharedLearningCatalogSkill{Target: "skills/learned/cli.md", Title: "CLI"}
+	api := sharedLearningCatalogSkill{Target: "skills/learned/api.md", Title: "API"}
+	deployment := sharedLearningCatalogSkill{Target: "skills/learned/deployment.md", Title: "Retry failed deployment"}
+	payment := sharedLearningCatalogSkill{Target: "skills/learned/payment.md", Title: "Retry failed payment"}
+	database := sharedLearningCatalogSkill{Target: "skills/learned/database.md", Title: "Repair database"}
+	network := sharedLearningCatalogSkill{Target: "skills/learned/network.md", Title: "Repair network"}
+	for _, tc := range []struct {
+		prompt       string
+		skills, want []sharedLearningCatalogSkill
+	}{
+		{"CLI", []sharedLearningCatalogSkill{cli, api}, []sharedLearningCatalogSkill{cli}},
+		{"API", []sharedLearningCatalogSkill{cli, api}, []sharedLearningCatalogSkill{api}},
+		{"retry failed payment", []sharedLearningCatalogSkill{deployment, payment}, []sharedLearningCatalogSkill{payment}},
+		{"repair network", []sharedLearningCatalogSkill{database, network}, []sharedLearningCatalogSkill{network}},
+		{"retry failed", []sharedLearningCatalogSkill{deployment, payment}, nil},
+	} {
+		if got := selectSharedSkillsForTurn(tc.skills, tc.prompt); !reflect.DeepEqual(got, tc.want) && !(len(got) == 0 && len(tc.want) == 0) {
+			t.Errorf("%q: got %+v, want %+v", tc.prompt, got, tc.want)
+		}
+	}
+}

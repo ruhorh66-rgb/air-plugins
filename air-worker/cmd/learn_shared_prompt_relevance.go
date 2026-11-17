@@ -25,6 +25,7 @@ var genericLearningTerms = map[string]bool{
 	"handle": true, "handling": true, "native": true,
 	"procedure": true, "procedures": true, "reviewer": true,
 	"error": true, "failure": true, "failures": true,
+	"retry": true, "failed": true, "repair": true,
 	"проверка": true, "ошибка": true, "навык": true,
 	"процедура": true, "модуль": true,
 }
@@ -61,7 +62,7 @@ func init() {
 }
 
 // learningRelevanceTerms is bounded and lexical, not a model or a policy
-// decision. Empty/generic requests keep the existing recency ordering.
+// decision. Empty or generic requests do not select a procedure.
 func learningRelevanceTerms(input string, maxBytes int) map[string]struct{} {
 	if len(input) > maxBytes {
 		input = input[:maxBytes]
@@ -70,7 +71,7 @@ func learningRelevanceTerms(input string, maxBytes int) map[string]struct{} {
 		func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
 	terms := make(map[string]struct{})
 	for _, field := range fields {
-		if utf8.RuneCountInString(field) < 4 || genericLearningTerms[field] {
+		if (utf8.RuneCountInString(field) < 4 && field != "cli" && field != "api") || genericLearningTerms[field] {
 			continue
 		}
 		terms[field] = struct{}{}
@@ -84,8 +85,8 @@ func learningRelevanceTerms(input string, maxBytes int) map[string]struct{} {
 // selectSharedSkillsForTurn is the per-turn delivery of A4: an ordinary
 // UserPromptSubmit gets only the existing APPLIED procedures whose index
 // title or target matches the prompt, most relevant first, ties in the prior
-// newest-first order. A prompt that matches nothing gets no procedure, so a
-// turn never carries procedures of an unrelated task class. The caller's
+// newest-first order. A prompt that matches nothing gets no procedure;
+// lexical overlap can still select a procedure from another task class. The caller's
 // 8-procedure and 16 KiB context limit still applies. No body or ledger is
 // read and no event is minted here.
 func selectSharedSkillsForTurn(skills []sharedLearningCatalogSkill, prompt string) []sharedLearningCatalogSkill {
