@@ -58,7 +58,7 @@ func TestA24LegacyReceiptDoesNotBlockNewReview(t *testing.T) {
 	scope := legacyScope(t.TempDir())
 	writeReviewerJob(t, scope, "learning", "", jobStatusDone, a24ReviewerOut)
 	sha := learnSHA([]byte("new-event"))
-	out, found, err := recoverLearningReviewerJob(scope, learningReviewerStep(sha), sha)
+	out, found, _, err := recoverLearningReviewerJob(scope, sha)
 	if err != nil || found || out != nil {
 		t.Fatalf("legacy receipt blocked or answered a new review: found=%v err=%v", found, err)
 	}
@@ -100,7 +100,7 @@ func TestA24ForeignOrTamperedEvidenceIsRefused(t *testing.T) {
 		{"other event", func(s sessionScope) {
 			writeReviewerJob(t, s, learningReviewerStep(sha), other, jobStatusDone, a24ReviewerOut)
 		}, true},
-		{"failed job", func(s sessionScope) {
+		{"failed job without tree proof", func(s sessionScope) {
 			writeReviewerJob(t, s, learningReviewerStep(sha), sha, jobStatusFailed, a24ReviewerOut)
 		}, true},
 		{"tampered output", func(s sessionScope) {
@@ -120,13 +120,38 @@ func TestA24ForeignOrTamperedEvidenceIsRefused(t *testing.T) {
 	for _, tc := range cases {
 		scope := legacyScope(t.TempDir())
 		tc.setup(scope)
-		_, found, err := recoverLearningReviewerJob(scope, learningReviewerStep(sha), sha)
+		_, found, _, err := recoverLearningReviewerJob(scope, sha)
 		if found || (err == nil) == tc.refuse {
 			t.Fatalf("%s: found=%v err=%v", tc.name, found, err)
 		}
 		if reason := learningFailureReason([]byte("learning reviewer: stage=invoke: " + err.Error() + "\n")); reason != "reviewer_job_evidence_mismatch" {
 			t.Fatalf("%s: reason %q", tc.name, reason)
 		}
+	}
+}
+
+// A2.5: a sealed FAILED attempt with exit code and tree proof is passed over
+// only on Windows, where the owned tree produces that proof.
+func TestA25TerminalFailureIsPassedOverOnlyOnWindows(t *testing.T) {
+	scope := legacyScope(t.TempDir())
+	sha := learnSHA([]byte("a25-platform"))
+	receipt, _ := writeReviewerJob(t, scope, learningReviewerStep(sha), sha, jobStatusFailed, "failed")
+	r, err := readJobReceipt(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := 3
+	r.ExitCode, r.ProcessTreeVerified = &code, true
+	if err := writeJobReceipt(receipt, r); err != nil {
+		t.Fatal(err)
+	}
+	_, found, step, err := recoverLearningReviewerJob(scope, sha)
+	if runtime.GOOS == "windows" {
+		if err != nil || found || step != learningReviewerAttemptStep(sha, 2) {
+			t.Fatalf("windows: next attempt not offered: found=%v step=%q err=%v", found, step, err)
+		}
+	} else if err == nil || found {
+		t.Fatalf("%s: failed attempt was passed over: found=%v step=%q", runtime.GOOS, found, step)
 	}
 }
 
@@ -137,7 +162,7 @@ func TestA24RunningJobKeepsDuplicateStartGuard(t *testing.T) {
 	sha := learnSHA([]byte("running"))
 	step := learningReviewerStep(sha)
 	writeReviewerJob(t, scope, step, sha, jobStatusRunning, "")
-	if _, found, err := recoverLearningReviewerJob(scope, step, sha); found || err != nil {
+	if _, found, got, err := recoverLearningReviewerJob(scope, sha); found || err != nil || got != step {
 		t.Fatalf("running job recovered or refused early: found=%v err=%v", found, err)
 	}
 	_, err := runReceiptedWithMeta(t.Context(), scope, step, "learning-reviewer", exec.Command("cmd", "/c", "exit", "0"), jobReceiptMeta{Role: "learning-reviewer"})
