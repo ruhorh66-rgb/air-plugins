@@ -308,6 +308,8 @@ func TestA4TurnDeliveryKeepsSessionLoadAccounting(t *testing.T) {
 func TestSharedPromptRelevanceTechnicalTermsAndGenericActions(t *testing.T) {
 	cli := sharedLearningCatalogSkill{Target: "skills/learned/cli.md", Title: "CLI"}
 	api := sharedLearningCatalogSkill{Target: "skills/learned/api.md", Title: "API"}
+	sdk := sharedLearningCatalogSkill{Target: "skills/learned/sdk.md", Title: "SDK"}
+	mcp := sharedLearningCatalogSkill{Target: "skills/learned/mcp.md", Title: "MCP"}
 	deployment := sharedLearningCatalogSkill{Target: "skills/learned/deployment.md", Title: "Retry failed deployment"}
 	payment := sharedLearningCatalogSkill{Target: "skills/learned/payment.md", Title: "Retry failed payment"}
 	database := sharedLearningCatalogSkill{Target: "skills/learned/database.md", Title: "Repair database"}
@@ -318,6 +320,8 @@ func TestSharedPromptRelevanceTechnicalTermsAndGenericActions(t *testing.T) {
 	}{
 		{"CLI", []sharedLearningCatalogSkill{cli, api}, []sharedLearningCatalogSkill{cli}},
 		{"API", []sharedLearningCatalogSkill{cli, api}, []sharedLearningCatalogSkill{api}},
+		{"SDK", []sharedLearningCatalogSkill{sdk, mcp}, []sharedLearningCatalogSkill{sdk}},
+		{"MCP", []sharedLearningCatalogSkill{sdk, mcp}, []sharedLearningCatalogSkill{mcp}},
 		{"retry failed payment", []sharedLearningCatalogSkill{deployment, payment}, []sharedLearningCatalogSkill{payment}},
 		{"repair network", []sharedLearningCatalogSkill{database, network}, []sharedLearningCatalogSkill{network}},
 		{"retry failed", []sharedLearningCatalogSkill{deployment, payment}, nil},

@@ -71,7 +71,7 @@ func learningRelevanceTerms(input string, maxBytes int) map[string]struct{} {
 		func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
 	terms := make(map[string]struct{})
 	for _, field := range fields {
-		if (utf8.RuneCountInString(field) < 4 && field != "cli" && field != "api") || genericLearningTerms[field] {
+		if (utf8.RuneCountInString(field) < 4 && field != "cli" && field != "api" && field != "sdk" && field != "mcp") || genericLearningTerms[field] {
 			continue
 		}
 		terms[field] = struct{}{}
