@@ -21,6 +21,9 @@ from typing import Any, Mapping, Optional
 _LOCK = threading.RLock()
 _BINDINGS: set[tuple[str, str]] = set()
 _STATUS: dict[tuple[str, str], dict[str, Any]] = {}
+_PENDING: set[str] = set()
+_ACTIVE: set[str] = set()
+_GENERATION: dict[str, int] = {}
 _EVENTS: list[dict[str, Any]] = []
 _MAX = 128
 _ENFORCE_PROFILE = "airworker-hermes-v1-enforce"
@@ -139,7 +142,48 @@ def unbind_session(**kwargs: Any) -> None:
                 del _STATUS[key]
 
 
-def record_status(product: str, status: Mapping[str, Any], session_id: str = "") -> None:
+def generation(product: str) -> int:
+    with _LOCK:
+        return _GENERATION.get(product, 0)
+
+
+def invalidate_product(product: str) -> bool:
+    resolved = _canonical(product)
+    if resolved is None:
+        return False
+    key = str(resolved)
+    with _LOCK:
+        if key in _PENDING or key in _ACTIVE:
+            return False
+        _PENDING.add(key)
+        _GENERATION[key] = _GENERATION.get(key, 0) + 1
+        for bound in list(_STATUS):
+            if bound[1] == key:
+                del _STATUS[bound]
+        return True
+
+
+def finish_product(product: str) -> None:
+    with _LOCK:
+        if product in _PENDING:
+            _PENDING.remove(product)
+            _GENERATION[product] = _GENERATION.get(product, 0) + 1
+
+
+def begin_operation(product: str) -> bool:
+    with _LOCK:
+        if product in _PENDING or product in _ACTIVE:
+            return False
+        _ACTIVE.add(product)
+        return True
+
+
+def end_operation(product: str) -> None:
+    with _LOCK:
+        _ACTIVE.discard(product)
+
+
+def record_status(product: str, status: Mapping[str, Any], session_id: str = "", generation: Optional[int] = None) -> None:
     """Cache the latest adapter result as enforcement evidence, not binary state."""
     resolved = _canonical(product)
     if resolved is None:
@@ -152,6 +196,8 @@ def record_status(product: str, status: Mapping[str, Any], session_id: str = "")
         "workers", "detail_path", "log_path", "verified", "verification_action",
     )
     with _LOCK:
+        if product_key in _PENDING or (generation is not None and generation != _GENERATION.get(product_key, 0)):
+            return
         # Compatibility for direct callers: infer only when exactly one canonical
         # session is already bound to this product.  Never guess between sessions.
         if not sid:
@@ -299,7 +345,12 @@ def post_tool_call(**kwargs: Any) -> None:
     tool = _tool_leaf(kwargs.get("tool_name"))
     if tool == "air_worker":
         if parsed is not None:
-            record_status(str(parsed.get("product") or product), parsed, session_id=_sid(kwargs))
+            # The adapter records same-generation evidence itself. Never let a
+            # delayed callback restore verification from before a mutation.
+            if parsed.get("outcome") in {"error", "unknown"} or parsed.get("exit_code") not in (0, None):
+                record_status(product, {"action": "unknown", "outcome": "error", "exit_code": None, "stop_reason": "tool_failed"}, session_id=_sid(kwargs))
+            elif parsed.get("action") not in {"status", "run", "verify", "plan_new"}:
+                record_status(product, {"action": "unknown", "outcome": "error", "exit_code": None, "stop_reason": "tool_result_invalid"}, session_id=_sid(kwargs))
         else:
             args = _argument_map(kwargs)
             record_status(product, {
@@ -407,5 +458,8 @@ def _reset_for_tests() -> None:
     with _LOCK:
         _BINDINGS.clear()
         _STATUS.clear()
+        _PENDING.clear()
+        _ACTIVE.clear()
+        _GENERATION.clear()
         _EVENTS.clear()
         _ENFORCING = False

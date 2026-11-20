@@ -10,3 +10,5 @@ description: Operate AirWorker only through its native structured tool.
 4. After integration, require factual Go QA and independent Claude source/security review at the frozen SHA. Model `DONE` or handoff `READY_FOR_CHATGPT_COORDINATOR_INTEGRATION` is not product PASS.
 5. Use `action: verify` if `verified: true` is absent. Accept only `completed`, `waiting`, `running`; `continuity_violation` is failure. Report closed/total, next action, stop reason, receipt and log.
 6. Escalate tiers only for an evidenced failure/stall. Never use direct Codex/Claude, PAYG/custom routes, manual PLAN/LEARN edits, unauthorised release/install or foreign cleanup. Stop only for measured PASS, LPR gate or evidenced blocker.
+
+To create a node, call `air_worker` with `action: plan_new`, the product, title, existing parent, owner, done_when and a stable non-secret request_id. Reuse the same request_id only for the same request. If the outcome is UNKNOWN or a plan mismatch is reported, stop and reconcile the native node and plan before another attempt. A `plan_sources_disagree` status is not completion; report the discrepancy.

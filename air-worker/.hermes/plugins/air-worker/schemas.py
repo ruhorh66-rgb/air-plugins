@@ -6,7 +6,12 @@ AIR_WORKER = {
     "parameters": {
         "type": "object",
         "properties": {
-            "action": {"type": "string", "enum": ["status", "run", "verify"], "description": "status is read-only in shadow; in enforce it resumes pending work when no live worker exists and judges completion before returning."},
+            "action": {"type": "string", "enum": ["status", "run", "verify", "plan_new"], "description": "status is read-only in shadow; enforce may resume work. plan_new creates a native plan node; use a stable request_id and reconcile UNKNOWN before retry."},
+            "title": {"type": "string", "description": "plan_new: node title."},
+            "parent": {"type": "string", "description": "plan_new: existing parent or stage."},
+            "owner": {"type": "string", "description": "plan_new: node owner."},
+            "done_when": {"type": "string", "description": "plan_new: completion criterion."},
+            "request_id": {"type": "string", "description": "plan_new: stable non-secret request identifier."},
             "product": {"type": "string", "description": "AirWorker product root path."},
             "config": {"type": "string", "description": "Optional config file path resolved within the product root."},
         },

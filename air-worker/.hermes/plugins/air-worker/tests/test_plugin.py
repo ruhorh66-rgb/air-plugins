@@ -68,7 +68,7 @@ class Tests(unittest.TestCase):
         self.p.register(ctx)
         self.assertEqual(["air_worker"], [item["name"] for item in ctx.tools])
         schema = ctx.tools[0]["schema"]["parameters"]
-        self.assertEqual({"status", "run", "verify"}, set(schema["properties"]["action"]["enum"]))
+        self.assertEqual({"status", "run", "verify", "plan_new"}, set(schema["properties"]["action"]["enum"]))
         self.assertIn("config", schema["properties"])
         self.assertEqual(["action", "product"], schema["required"])
         self.assertFalse(schema["additionalProperties"])
