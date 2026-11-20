@@ -92,6 +92,41 @@ class NativeIntegration(unittest.TestCase):
         self.assertEqual("plan_sources_disagree", result.get("stop_reason"), result)
         self.assertNotIn("progress", result)
 
+    def test_alternate_config_cannot_mutate_wrong_plan(self):
+        (self.root / "alternate.md").write_text("# Alternate\n\n## Stage\n", encoding="utf-8")
+        (self.root / "alternate.json").write_text('{"plan":"alternate.md"}', encoding="utf-8")
+        paths = [self.root / "PLAN.md", self.root / "alternate.md", self.root / "alternate.json"]
+        before = [p.read_bytes() for p in paths]
+        args = dict(self.request(), config="alternate.json")
+        result = json.loads(self.plugin.execute(args, session_id="s"))
+        self.assertEqual("plan_sources_disagree", result.get("stop_reason"), result)
+        self.assertEqual(before, [p.read_bytes() for p in paths])
+        self.assertFalse((self.root / ".air-worker" / "hermes-plan-requests").exists())
+        self.assertFalse(list((self.root / "plan").glob("N-*.md")))
+
+    def test_default_config_cannot_mutate_wrong_plan(self):
+        (self.root / "alternate.md").write_text("# Alternate\n\n## Stage\n", encoding="utf-8")
+        (self.root / "run-config.json").write_text('{"plan":"alternate.md"}', encoding="utf-8")
+        paths = [self.root / "PLAN.md", self.root / "alternate.md", self.root / "run-config.json"]
+        before = [p.read_bytes() for p in paths]
+        result = json.loads(self.plugin.execute(self.request(), session_id="s"))
+        self.assertEqual("plan_sources_disagree", result.get("stop_reason"), result)
+        self.assertEqual(before, [p.read_bytes() for p in paths])
+        self.assertFalse((self.root / ".air-worker" / "hermes-plan-requests").exists())
+        self.assertFalse(list((self.root / "plan").glob("N-*.md")))
+
+    def test_successful_request_with_alternate_config_does_not_replay_or_mutate(self):
+        first = json.loads(self.plugin.execute(self.request(), session_id="s"))
+        self.assertEqual("created", first.get("outcome"), first)
+        (self.root / "alternate.md").write_text("# Alternate\n\n## Stage\n", encoding="utf-8")
+        (self.root / "alternate.json").write_text('{"plan":"alternate.md"}', encoding="utf-8")
+        paths = [self.root / "PLAN.md", self.root / "alternate.md", self.root / "alternate.json"]
+        before = [p.read_bytes() for p in paths]
+        result = json.loads(self.plugin.execute(dict(self.request(), config="alternate.json"), session_id="s"))
+        self.assertEqual("plan_sources_disagree", result.get("stop_reason"), result)
+        self.assertEqual(before, [p.read_bytes() for p in paths])
+        self.assertEqual(1, len(list((self.root / "plan").glob("N-*.md"))))
+
     def test_busy_operation_does_not_leave_mutation_lock(self):
         self.assertTrue(self.plugin.hooks.begin_operation(str(self.root)))
         try:

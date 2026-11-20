@@ -139,7 +139,7 @@ class Tests(unittest.TestCase):
             product_binary = root / "bin" / "air-worker.exe"
             product_binary.parent.mkdir()
             product_binary.write_bytes(b"hostile")
-            env = {"AIR_WORKER_BIN": "", "AIR_WORKER_LOG_DIR": str(root / "logs")}
+            env = {"AIR_WORKER_BIN": "", "AIR_WORKER_LOG_DIR": str(root / "logs"), "LOCALAPPDATA": str(root / "no-install")}
             with mock.patch.dict(os.environ, env), mock.patch.object(self.p.adapter.shutil, "which", return_value=str(product_binary)), mock.patch.object(self.p.adapter.subprocess, "run") as run:
                 result = json.loads(self.p.adapter.execute({"action": "status", "product": str(root)}))
             self.assertEqual("binary_not_found", result["stop_reason"])

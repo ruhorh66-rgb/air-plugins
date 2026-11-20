@@ -28,6 +28,22 @@ _LOG_LIMIT = 8192
 _LOG = logging.getLogger(__name__)
 
 
+class ProfileContextError(Exception):
+    pass
+
+
+def _profile_value(name: str) -> str:
+    """Use Hermes' context-local profile scope when hosted by Hermes."""
+    try:
+        from agent.secret_scope import get_secret
+    except ImportError:
+        return os.environ.get(name, "").strip()
+    try:
+        return str(get_secret(name) or "").strip()
+    except RuntimeError as exc:
+        raise ProfileContextError("Hermes profile scope is unavailable") from exc
+
+
 def _is_within(path: Path, root: Path) -> bool:
     try:
         path.relative_to(root)
@@ -37,12 +53,18 @@ def _is_within(path: Path, root: Path) -> bool:
 
 
 def _binary(product: Path) -> str:
-    configured = os.environ.get("AIR_WORKER_BIN", "").strip()
+    configured = _profile_value("AIR_WORKER_BIN")
     if configured:
         path = Path(configured).expanduser()
         if not path.is_absolute() or not path.is_file():
             raise FileNotFoundError("AIR_WORKER_BIN must name an absolute file")
         return str(path.resolve())
+    # rc.5's native Windows installer owns this version-independent path.
+    # It is shared runtime identity, not another profile's environment.
+    localappdata = os.environ.get("LOCALAPPDATA", "").strip()
+    installed = Path(localappdata) / "air-worker" / "bin" / "air-worker.exe" if os.name == "nt" and localappdata else None
+    if installed is not None and installed.is_file() and not _is_within(installed.resolve(), product):
+        return str(installed.resolve())
     found = shutil.which("air-worker")
     if not found:
         raise FileNotFoundError("air-worker binary not found; set AIR_WORKER_BIN")
@@ -66,8 +88,13 @@ def _config(raw: Any, product: Path) -> Optional[Path]:
 
 
 def _log_dir() -> Path:
-    configured = os.environ.get("AIR_WORKER_LOG_DIR", "").strip()
-    path = Path(configured).expanduser() if configured else Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))) / "plugin-data" / "air-worker" / "logs"
+    configured = _profile_value("AIR_WORKER_LOG_DIR")
+    try:
+        from hermes_constants import get_hermes_home
+        profile_home = get_hermes_home()
+    except ImportError:
+        profile_home = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
+    path = Path(configured).expanduser() if configured else profile_home / "plugin-data" / "air-worker" / "logs"
     path.mkdir(parents=True, exist_ok=True)
     try:
         os.chmod(path, 0o700)
@@ -164,7 +191,7 @@ def _save(action: str, runs: list[dict[str, Any]]) -> Optional[Path]:
         except OSError:
             pass
         return path
-    except OSError:
+    except (OSError, ProfileContextError):
         _LOG.error("air-worker transport log write failed")
         return None
 
@@ -289,12 +316,24 @@ def _readback_created(product: Path, binary: str, node_id: str, values: Mapping[
         return False
 
 
-def _plan_new(args: Mapping[str, Any], product: Path, binary: str, session_id: str) -> str:
+def _plan_new(args: Mapping[str, Any], product: Path, binary: str, session_id: str, config: Optional[Path]) -> str:
     """Use the prototype's native mutation with a durable fail-closed request record."""
     from . import hooks
     fields = ("title", "parent", "owner", "done_when", "request_id")
     if any(not isinstance(args.get(k), str) or not args[k].strip() for k in fields):
         return _envelope("plan_new", stop_reason="plan_fields_required")
+    # The rc.5 native node mutation always writes product/PLAN.md. Refuse a
+    # different configured plan before creating request records or invoking it.
+    try:
+        settings_path = config or product / "run-config.json"
+        if settings_path.exists():
+            settings = json.loads(settings_path.read_text(encoding="utf-8"))
+            configured = Path(settings.get("plan") or "PLAN.md")
+            configured = (configured if configured.is_absolute() else product / configured).resolve()
+            if configured != (product / "PLAN.md").resolve():
+                return _envelope("plan_new", product=str(product), stop_reason="plan_sources_disagree")
+    except (OSError, UnicodeError, ValueError, TypeError, AttributeError):
+        return _envelope("plan_new", product=str(product), stop_reason="config_invalid")
     request_id = args["request_id"].strip()
     if len(request_id.encode("utf-8")) > 256 or _redact_text(request_id) != request_id:
         return _envelope("plan_new", stop_reason="request_id_invalid")
@@ -442,13 +481,15 @@ def _execute(args: Mapping[str, Any], **kwargs: Any) -> str:
         binary = _binary(product)
     except OSError:
         return _envelope(action, stop_reason="binary_not_found")
+    except ProfileContextError:
+        return _envelope(action, stop_reason="profile_context_unavailable")
     try:
         config = _config(args.get("config"), product)
     except (OSError, ValueError):
         return _envelope(action, stop_reason="config_invalid")
 
     if action == "plan_new":
-        return _plan_new(args, product, binary, session_id)
+        return _plan_new(args, product, binary, session_id, config)
 
     from . import hooks
     status_generation = hooks.generation(str(product))
