@@ -478,6 +478,16 @@ def _execute(args: Mapping[str, Any], **kwargs: Any) -> str:
         product = Path(raw).expanduser().resolve()
         if not product.is_dir():
             return _envelope(action, stop_reason="product_not_found")
+        if action in {"status", "run", "verify"}:
+            lock_path = product / ".air-worker" / "hermes-plan-requests" / "product-mutation.lock"
+            try:
+                lock_path.lstat()
+            except FileNotFoundError:
+                pass
+            except OSError:
+                return _envelope(action, product=str(product), outcome="unknown", stop_reason="product_mutation_state_unreadable")
+            else:
+                return _envelope(action, product=str(product), outcome="unknown", stop_reason="product_mutation_unresolved")
         binary = _binary(product)
     except OSError:
         return _envelope(action, stop_reason="binary_not_found")

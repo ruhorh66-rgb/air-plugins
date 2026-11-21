@@ -139,6 +139,21 @@ class NativeIntegration(unittest.TestCase):
         self.assertEqual("created", followup.get("outcome"), followup)
         self.assertEqual(1, len(list((self.root / "plan").glob("N-*.md"))))
 
+    def test_persistent_unknown_lock_blocks_status_run_and_verify_after_restart(self):
+        requests = self.root / ".air-worker" / "hermes-plan-requests"
+        requests.mkdir(parents=True)
+        lock = requests / "product-mutation.lock"
+        lock.write_text("unknown-fixture", encoding="utf-8")
+        fresh = load()
+        fresh.hooks._reset_for_tests()
+        with mock.patch.object(fresh.adapter, "_invoke") as invoke:
+            for action in ("status", "run", "verify"):
+                result = json.loads(fresh.execute({"action": action, "product": str(self.root)}, session_id="s"))
+                self.assertEqual("unknown", result.get("outcome"), result)
+                self.assertEqual("product_mutation_unresolved", result.get("stop_reason"), result)
+            invoke.assert_not_called()
+        self.assertTrue(lock.exists())
+
     def test_simultaneous_processes_and_restart(self):
         ctx = multiprocessing.get_context("spawn")
         barrier, queue = ctx.Barrier(2), ctx.Queue()
