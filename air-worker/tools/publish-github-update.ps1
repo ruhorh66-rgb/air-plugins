@@ -6,7 +6,7 @@ param(
     [Parameter(Mandatory=$true)][string]$Verifier,
     [Parameter(Mandatory=$true)][string]$Version,
     [Parameter(Mandatory=$true)][ValidateSet('stable','prerelease')][string]$Channel,
-    [Parameter(Mandatory=$true)][string]$PrivateKey,
+    [string]$PrivateKey = '',
     [string]$GitHubRepo = 'ruhorh66-rgb/air-plugins',
     [string]$FeedBranch = 'air-worker-update-feed',
     [string]$PublicKey = '',
@@ -16,8 +16,22 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$feedDirectory = $Channel
+$useWindowsCredential = $SigningKeyId -ceq 'air-worker-update-2026-02'
+if ($useWindowsCredential) {
+    if ($Channel -cne 'prerelease' -or -not [string]::IsNullOrWhiteSpace($PrivateKey)) {
+        throw 'AirWorker prerelease v2 requires the scoped Windows credential and prerelease channel'
+    }
+    if ($GitHubRepo -cne 'ruhorh66-rgb/air-plugins' -or $FeedBranch -cne 'air-worker-update-feed') {
+        throw 'AirWorker prerelease v2 is bound to the canonical update feed repository and branch'
+    }
+    $feedDirectory = 'prerelease-v2'
+} elseif ($SigningKeyId -cne 'air-worker-update-2026-01' -or [string]::IsNullOrWhiteSpace($PrivateKey)) {
+    throw 'Legacy release signing requires the existing key ID and private key file'
+}
 if ([string]::IsNullOrWhiteSpace($PublicKey)) {
-    $PublicKey = Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\update-public-key.b64'
+    $name = if ($useWindowsCredential) { 'update-prerelease-v2-public-key.b64' } else { 'update-public-key.b64' }
+    $PublicKey = Join-Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs') $name
 }
 
 function Write-Utf8NoBom([string]$Path, [string]$Text) {
@@ -100,7 +114,7 @@ function Ensure-FeedBranch {
 
 function Publish-Manifest([string]$ManifestPath) {
     Ensure-FeedBranch
-    $feedPath = "updates/air-worker/$Channel/update-manifest.json"
+    $feedPath = "updates/air-worker/$feedDirectory/update-manifest.json"
     $existingSha = Get-FeedContentSha $feedPath
     $body = [ordered]@{
         message = "air-worker update feed: $Channel $Version"
@@ -128,7 +142,9 @@ function Publish-Manifest([string]$ManifestPath) {
     return $feedPath
 }
 
-foreach ($p in @($SourceDir,$PluginRoot,$Verifier,$PrivateKey,$PublicKey)) {
+$requiredPaths = @($SourceDir,$PluginRoot,$Verifier,$PublicKey)
+if (-not $useWindowsCredential) { $requiredPaths += $PrivateKey }
+foreach ($p in $requiredPaths) {
     if (-not (Test-Path -LiteralPath $p)) { throw "required path missing: $p" }
 }
 if ($Channel -eq 'stable' -and -not $PromoteStable -and -not $VerifyOnly) {
@@ -263,7 +279,8 @@ $manifest = [ordered]@{
 }
 Write-Utf8NoBom $manifestPath (($manifest | ConvertTo-Json -Depth 7) + [Environment]::NewLine)
 
-& $python (Join-Path $PSScriptRoot 'sign-update-manifest.py') --manifest $manifestPath --private-key $PrivateKey --public-key $PublicKey --key-id $SigningKeyId
+$keyArgs = if ($useWindowsCredential) { @('--windows-prerelease-credential') } else { @('--private-key', $PrivateKey) }
+& $python (Join-Path $PSScriptRoot 'sign-update-manifest.py') --manifest $manifestPath @keyArgs --public-key $PublicKey --key-id $SigningKeyId
 if ($LASTEXITCODE -ne 0) { throw 'manifest signing failed' }
 
 $verify = @(& $Verifier update verify -manifest $manifestPath -asset-dir $SourceDir -current 0.0.0 -channel $Channel -json 2>&1)
@@ -292,6 +309,9 @@ if (-not $VerifyOnly) {
         $probeJson = (($probe -join [Environment]::NewLine) | ConvertFrom-Json)
         if ([string]$probeJson.latest_version -ne $Version) {
             throw "clean-client feed latest version=$($probeJson.latest_version), want=$Version"
+        }
+        if ($useWindowsCredential -and [string]$probeJson.manifest_url -cne "https://raw.githubusercontent.com/$GitHubRepo/$FeedBranch/$feedPath") {
+            throw 'clean client did not select the prerelease-v2 manifest'
         }
     } finally {
         $env:AIR_WORKER_HOME = $oldHome
