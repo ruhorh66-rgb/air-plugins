@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -342,5 +343,60 @@ func TestPlanReviewHistoryReadFailureKeepsLastVerdict(t *testing.T) {
 	after, err := os.ReadFile(latest)
 	if run.State != "NOT_PROVEN" || !strings.Contains(run.Record.Error, "token too long") || err != nil || string(before) != string(after) {
 		t.Fatalf("history read failure overwrote latest: %#v, %v", run, err)
+	}
+}
+
+func TestPlanReviewLatestRestoreFailureKeepsEvidence(t *testing.T) {
+	root, cfg, planPath, steps := writePlanReviewFixture(t)
+	plan, err := os.ReadFile(planPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	executor := runnerSpec{Kind: "codex"}
+	release := activeProductReleaseVersion(root)
+	reviewer, override, err := cfg.SemanticJudge.Resolve(executor, release)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sha, comp := sha256Hex(plan), planCompositionSHA(steps)
+	req := planReviewRequest{PlanSHA256: sha, CompositionSHA256: comp}
+	verdict, err := parsePlanReviewVerdict(planReviewPASS(req), sha, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publishPlanReview(root, planReviewRecord{Schema: planReviewSchemaVersion, Subject: "plan", Plan: planPath,
+		PlanSHA256: sha, CompositionSHA256: comp, ExecutorVendor: executor.Kind, ReviewerVendor: reviewer.Kind,
+		ReviewerModel: reviewer.Model, ReviewerEffort: reviewer.Effort, ReviewerOverride: override,
+		ReleaseVersion: release, ReviewerSandbox: "read-only", Verdict: &verdict})
+	latest, history := planReviewPaths(root)
+	before, err := os.ReadFile(history)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Occupy the latest path with a directory that atomic file replacement
+	// cannot overwrite. The valid historical verdict must stay intact.
+	if err := os.Remove(latest); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(latest, 0700); err != nil {
+		t.Fatal(err)
+	}
+	sentinel := filepath.Join(latest, "preserve")
+	if err := os.WriteFile(sentinel, []byte("unchanged"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	old := planReviewInvoke
+	defer func() { planReviewInvoke = old }()
+	planReviewInvoke = func(req planReviewRequest) (string, string, *float64, *int, error) {
+		t.Fatal("latest restore failure must not start a reviewer")
+		return "", "", nil, nil, nil
+	}
+	run := runPlanReview(root, planPath, steps, legacyScope(root), executor, cfg)
+	after, err := os.ReadFile(history)
+	if run.State != "NOT_PROVEN" || run.Record.Error == "" || err != nil || string(before) != string(after) {
+		t.Fatalf("latest restore failure modified original evidence: %#v, %v", run, err)
+	}
+	if b, err := os.ReadFile(sentinel); err != nil || string(b) != "unchanged" {
+		t.Fatalf("latest path changed: %q, %v", b, err)
 	}
 }
