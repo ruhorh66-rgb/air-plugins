@@ -221,8 +221,12 @@ func TestPlanReviewInterruptedAttemptRequiresOriginalEvidence(t *testing.T) {
 }
 
 func TestPlanReviewReconcilesSealedReceiptWithoutReplay(t *testing.T) {
-	for _, tamper := range []bool{false, true} {
-		t.Run(fmt.Sprint("tamper=", tamper), func(t *testing.T) {
+	for _, tc := range []struct {
+		vendor string
+		tamper bool
+	}{{"claude", false}, {"claude", true}, {"codex", false}, {"codex", true}} {
+		tamper := tc.tamper
+		t.Run(fmt.Sprint(tc.vendor, "/tamper=", tamper), func(t *testing.T) {
 			root, cfg, planPath, steps := writePlanReviewFixture(t)
 			plan, err := os.ReadFile(planPath)
 			if err != nil {
@@ -230,9 +234,15 @@ func TestPlanReviewReconcilesSealedReceiptWithoutReplay(t *testing.T) {
 			}
 			executor := runnerSpec{Kind: "codex"}
 			release := activeProductReleaseVersion(root)
+			if tc.vendor == "codex" {
+				cfg.SemanticJudge = semanticJudgePolicy{ReleaseVersion: release, Kind: "codex", Model: "gpt-6-sol", Effort: "medium"}
+			}
 			reviewer, override, err := cfg.SemanticJudge.Resolve(executor, release)
 			if err != nil {
 				t.Fatal(err)
+			}
+			if reviewer.Kind != tc.vendor {
+				t.Fatalf("wrong reviewer: %s", reviewer.Kind)
 			}
 			expected := planReviewExpectation{Executor: executor, Reviewer: reviewer, ExplicitOverride: override, ReleaseVersion: release}
 			sha, comp := sha256Hex(plan), planCompositionSHA(steps)
@@ -255,13 +265,27 @@ func TestPlanReviewReconcilesSealedReceiptWithoutReplay(t *testing.T) {
 			defer lock.release()
 			receipt.Provider, receipt.Runner, receipt.Model, receipt.Effort = reviewer.Kind, reviewer.Kind, reviewer.Model, reviewer.Effort
 			receipt.Role, receipt.Sandbox, receipt.ProcessStarted = op, "read-only", true
-			receipt.StdinSHA256 = sha256Hex([]byte(req.Prompt))
+			reviewerInput := req.Prompt
+			if tc.vendor == "codex" {
+				reviewerInput = ponytailPrompt(reviewerInput)
+			}
+			receipt.StdinSHA256 = sha256Hex([]byte(reviewerInput))
 			if err := writeJobReceipt(path, receipt); err != nil {
 				t.Fatal(err)
 			}
-			payload, err := json.Marshal(map[string]string{"type": "result", "result": planReviewPASS(req), "session_id": "original-review"})
-			if err != nil {
-				t.Fatal(err)
+			var payload []byte
+			if tc.vendor == "codex" {
+				message, e := json.Marshal(map[string]any{"type": "item.completed", "item": map[string]string{"type": "agent_message", "text": planReviewPASS(req)}})
+				if e != nil {
+					t.Fatal(e)
+				}
+				payload = []byte("{\"type\":\"thread.started\",\"thread_id\":\"original-review\"}\n{\"type\":\"turn.started\"}\n" + string(message) + "\n{\"type\":\"turn.completed\"}\n")
+			} else {
+				var e error
+				payload, e = json.Marshal(map[string]string{"type": "result", "result": planReviewPASS(req), "session_id": "original-review"})
+				if e != nil {
+					t.Fatal(e)
+				}
 			}
 			if err := writeOwnedJobOutput(root, out, payload); err != nil {
 				t.Fatal(err)
