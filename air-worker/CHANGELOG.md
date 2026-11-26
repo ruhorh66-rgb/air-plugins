@@ -1,5 +1,11 @@
 # CHANGELOG — air-worker
 
+## 1.0.0-rc.2 - Windows prerelease
+
+- Recover verified terminal plan-review receipts without invoking Claude or Codex again. Reject stale, unsealed, or changed evidence.
+- Keep the existing verdict when history cannot be read or an earlier verdict cannot be restored. WhatIf remains read-only.
+- Align packaged Windows and plugin versions. This release does not assert that an existing installation or update channel has been changed.
+
 ## 1.0.0-rc.1 - integrated source candidate / NOT RELEASED
 
 - Renumber the integrated source candidate; no release or installation.
