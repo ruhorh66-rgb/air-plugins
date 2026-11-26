@@ -507,7 +507,7 @@ func cmdLoopWithReleaseSliceRunner(argv []string, releaseRunner func(string, run
 	// рабочей итерации. Повторный дорогой вызов зависит только от composition_sha256:
 	// add/remove/reorder/tier. Текст шага и отметка Done не меняют состав и не вызывают
 	// reviewer заново. Сохранённый DRIFT/NOT_PROVEN того же composition не оплачивается
-	// повторно; человек может явно повторить командой plan-review -force.
+	// повторно; прерванную попытку сначала сверяют с исходной квитанцией.
 	if state, reviewCode := ensurePlanReview(c, planPath, steps); reviewCode != 0 {
 		switch reviewCode {
 		case 1:

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -88,14 +89,51 @@ type planReviewRequest struct {
 	CompositionSHA256 string
 	Reviewer          runnerSpec
 	Prompt            string
+	AttemptKey        string
 }
 
 type planReviewRun struct {
 	Record planReviewRecord
 	State  string // PASS | COMMENTS | DRIFT | NOT_PROVEN
+	Cached bool
 }
 
 var planReviewInvoke = invokePlanReviewModel
+
+func planReviewJobStep(req planReviewRequest) string {
+	return "plan-" + req.PlanSHA256 + "-" + req.CompositionSHA256 + "-" + req.AttemptKey
+}
+
+func reservePlanReviewAttempt(req planReviewRequest) error {
+	if err := ensureOwnedJobsDir(req.Scope.Root); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(req.Scope.Root)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	step := planReviewJobStep(req)
+	name := filepath.Join(".woody", "jobs", step+".started")
+	f, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("plan review %s already attempted; reconcile original evidence before retry", step)
+	}
+	if err != nil {
+		return err
+	}
+	// Preserve the original session-scoped job references across interruptions.
+	operation := "semantic-reviewer"
+	if req.Reviewer.Kind == "codex" {
+		operation = "semantic-plan-reviewer"
+	}
+	receipt, _ := jobReceiptPaths(req.Scope, step, operation)
+	_, writeErr := fmt.Fprintln(f, filepath.Base(receipt))
+	if writeErr == nil {
+		writeErr = f.Sync()
+	}
+	return errors.Join(writeErr, f.Close())
+}
 
 func sha256Hex(data []byte) string {
 	sum := sha256.Sum256(data)
@@ -183,13 +221,19 @@ func planReviewPaths(root string) (latest, history string) {
 func publishPlanReview(root string, rec planReviewRecord) {
 	latest, history := planReviewPaths(root)
 	_ = os.MkdirAll(filepath.Dir(latest), 0o755)
-	if b, err := json.MarshalIndent(rec, "", "  "); err == nil {
-		_ = writeFileAtomic(latest, append(b, '\n'))
-	}
+	_ = writePlanReviewLatest(latest, rec)
 	if f, err := os.OpenFile(history, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); err == nil {
 		_ = json.NewEncoder(f).Encode(rec)
 		_ = f.Close()
 	}
+}
+
+func writePlanReviewLatest(path string, rec planReviewRecord) error {
+	b, err := json.MarshalIndent(rec, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeFileAtomic(path, append(b, '\n'))
 }
 
 type planReviewExpectation struct {
@@ -199,10 +243,51 @@ type planReviewExpectation struct {
 	ReleaseVersion   string
 }
 
+func planReviewAttemptKey(e planReviewExpectation) string {
+	route, _ := json.Marshal([]string{
+		strings.ToLower(e.Executor.Kind), strings.ToLower(e.Reviewer.Kind),
+		strings.ToLower(e.Reviewer.Model), strings.ToLower(e.Reviewer.Effort),
+		fmt.Sprint(e.ExplicitOverride), strings.ToLower(e.ReleaseVersion),
+	})
+	return sha256Hex(route)
+}
+
 func readCurrentPlanReview(root, planSHA, compositionSHA string, expectations ...planReviewExpectation) (planReviewRecord, string, bool) {
 	latest, _ := planReviewPaths(root)
 	var rec planReviewRecord
-	if readJSON(latest, &rec) != nil || rec.Schema != planReviewSchemaVersion || rec.Subject != "plan" {
+	if readJSON(latest, &rec) != nil {
+		return planReviewRecord{}, "", false
+	}
+	return matchPlanReview(rec, planSHA, compositionSHA, expectations...)
+}
+
+func readHistoricalPlanReview(root, planSHA, compositionSHA string, expected planReviewExpectation) (planReviewRecord, string, bool, error) {
+	_, history := planReviewPaths(root)
+	f, err := os.Open(history)
+	if errors.Is(err, os.ErrNotExist) {
+		return planReviewRecord{}, "", false, nil
+	}
+	if err != nil {
+		return planReviewRecord{}, "", false, err
+	}
+	defer f.Close()
+	var record planReviewRecord
+	var state string
+	var found bool
+	scan := bufio.NewScanner(f)
+	for scan.Scan() {
+		var rec planReviewRecord
+		if json.Unmarshal(scan.Bytes(), &rec) == nil {
+			if rec, stat, ok := matchPlanReview(rec, planSHA, compositionSHA, expected); ok {
+				record, state, found = rec, stat, true
+			}
+		}
+	}
+	return record, state, found, scan.Err()
+}
+
+func matchPlanReview(rec planReviewRecord, planSHA, compositionSHA string, expectations ...planReviewExpectation) (planReviewRecord, string, bool) {
+	if rec.Schema != planReviewSchemaVersion || rec.Subject != "plan" {
 		return planReviewRecord{}, "", false
 	}
 	if !strings.EqualFold(rec.PlanSHA256, planSHA) || !strings.EqualFold(rec.CompositionSHA256, compositionSHA) {
@@ -280,7 +365,7 @@ func invokePlanReviewCodex(req planReviewRequest, exePath string) (string, strin
 		return "", "", nil, nil, err
 	}
 	cmd := semanticCodexCommand(exePath, req.Scope.Root, req.Prompt, req.Reviewer, schemaPath)
-	out, runErr := runReceiptedWithMeta(context.Background(), req.Scope, "plan", "semantic-plan-reviewer", cmd, jobReceiptMeta{
+	out, runErr := runReceiptedWithMeta(context.Background(), req.Scope, planReviewJobStep(req), "semantic-plan-reviewer", cmd, jobReceiptMeta{
 		Runner: req.Reviewer.Kind, Provider: req.Reviewer.Kind, Model: req.Reviewer.Model, Effort: req.Reviewer.Effort,
 		Role: "semantic-plan-reviewer", Sandbox: "read-only",
 	})
@@ -294,7 +379,7 @@ func invokePlanReviewModel(req planReviewRequest) (string, string, *float64, *in
 	}
 	switch req.Reviewer.Kind {
 	case "claude":
-		return invokeSemanticClaude(req.Scope, exePath, req.Prompt, req.Reviewer, "plan")
+		return invokeSemanticClaude(req.Scope, exePath, req.Prompt, req.Reviewer, planReviewJobStep(req))
 	case "codex":
 		return invokePlanReviewCodex(req, exePath)
 	default:
@@ -313,13 +398,14 @@ func runPlanReview(root, planPath string, steps []workStep, scope sessionScope, 
 	if len(policies) > 0 {
 		cfg = policies[0]
 	}
-	reviewer, explicitOverride, reviewerErr := cfg.SemanticJudge.Resolve(executor, activeProductReleaseVersion(root))
+	release := activeProductReleaseVersion(root)
+	reviewer, explicitOverride, reviewerErr := cfg.SemanticJudge.Resolve(executor, release)
 	rec := planReviewRecord{
 		Schema: planReviewSchemaVersion, At: time.Now().UTC().Format(time.RFC3339Nano), Subject: "plan",
 		Plan: planPath, PlanSHA256: planSHA, CompositionSHA256: compositionSHA,
 		ExecutorVendor: executor.Kind, ReviewerVendor: reviewer.Kind, ReviewerModel: reviewer.Model,
 		ReviewerEffort: reviewer.Effort, ReviewerOverride: explicitOverride,
-		ReleaseVersion: activeProductReleaseVersion(root),
+		ReleaseVersion: release,
 		ReviewerRole:   "semantic-plan-reviewer", ReviewerSandbox: "read-only",
 	}
 	fail := func(e error) planReviewRun {
@@ -339,9 +425,36 @@ func runPlanReview(root, planPath string, steps []workStep, scope sessionScope, 
 	if reviewer.Kind == executor.Kind && !explicitOverride || reviewer.Kind == "" {
 		return fail(fmt.Errorf("plan reviewer must be opposite vendor unless explicitly configured: executor=%s reviewer=%s", executor.Kind, reviewer.Kind))
 	}
+	// Lock the published verdict across sessions on Windows; the exclusive
+	// durable reservation below prevents duplicate matching attempts after a crash.
+	lock, ok := acquireLock(lockName("plan-review", root))
+	if !ok {
+		rec.Error = "plan review already in progress for product"
+		return planReviewRun{Record: rec, State: "NOT_PROVEN"}
+	}
+	defer lock.release()
+	expected := planReviewExpectation{Executor: executor, Reviewer: reviewer, ExplicitOverride: explicitOverride, ReleaseVersion: release}
+	if saved, state, ok := readCurrentPlanReview(root, planSHA, compositionSHA, expected); ok {
+		return planReviewRun{Record: saved, State: state, Cached: true}
+	}
+	if saved, state, ok, err := readHistoricalPlanReview(root, planSHA, compositionSHA, expected); err != nil {
+		return fail(err)
+	} else if ok {
+		latest, _ := planReviewPaths(root)
+		if err := writePlanReviewLatest(latest, saved); err != nil {
+			return fail(err)
+		}
+		return planReviewRun{Record: saved, State: state, Cached: true}
+	}
 	req := planReviewRequest{
 		Scope: scope, PlanPath: planPath, PlanSHA256: planSHA, CompositionSHA256: compositionSHA,
 		Reviewer: reviewer, Prompt: planReviewPrompt(planPath, planSHA, compositionSHA),
+		AttemptKey: planReviewAttemptKey(expected),
+	}
+	if err := reservePlanReviewAttempt(req); err != nil {
+		// Do not publish a rejected attempt over an in-flight/recoverable result.
+		rec.Error = err.Error()
+		return planReviewRun{Record: rec, State: "NOT_PROVEN"}
 	}
 	output, session, cost, turns, invokeErr := planReviewInvoke(req)
 	rec.Session, rec.CostUSD, rec.Turns = session, cost, turns
@@ -435,7 +548,7 @@ func cmdPlanReview(argv []string) int {
 	product := fs.String("product", ".", "корень продукта")
 	configPath := fs.String("config", "", "путь к run-config.json")
 	executorName := fs.String("executor", "auto", "кто будет исполнять model-step: auto|claude|codex|chatgpt|router")
-	force := fs.Bool("force", false, "повторить review текущего composition даже при сохранённом verdict")
+	force := fs.Bool("force", false, "перепроверить запись текущей редакции без повторного запуска уже начатого review")
 	asJSON := fs.Bool("json", false, "машинный вывод")
 	if err := fs.Parse(argv); err != nil {
 		return 2
@@ -530,7 +643,7 @@ func cmdPlanReview(argv []string) int {
 	}
 	run := runPlanReview(root, planPath, steps, legacyScope(root), executor, cfg)
 	if *asJSON {
-		b, _ := json.MarshalIndent(map[string]any{"state": run.State, "cached": false, "record": run.Record}, "", "  ")
+		b, _ := json.MarshalIndent(map[string]any{"state": run.State, "cached": run.Cached, "record": run.Record}, "", "  ")
 		fmt.Println(string(b))
 	} else {
 		fmt.Printf("plan-review: %s · composition %s · reviewer %s%s",
