@@ -100,8 +100,32 @@ func TestValidateUpdateArtifactRequiresImmutableGitHubTag(t *testing.T) {
 
 func TestPrereleaseChannelAlsoChecksStableFeed(t *testing.T) {
 	got := manifestURLsForChannel("prerelease")
-	if len(got) != 2 || got[0] != updateStableManifestURL || got[1] != updatePrereleaseManifestURL {
+	if len(got) != 3 || got[0] != updateStableManifestURL || got[1] != updatePrereleaseManifestURL || got[2] != updatePrereleaseV2ManifestURL {
 		t.Fatalf("prerelease feeds=%#v", got)
+	}
+}
+
+func TestPrereleaseV2TrustDoesNotCrossFeeds(t *testing.T) {
+	got := manifestURLsForChannel("stable")
+	if len(got) != 1 || got[0] != updateStableManifestURL {
+		t.Fatalf("stable feeds=%#v", got)
+	}
+	m, _ := signedUpdateManifestForTest(t, "1.0.0-rc.3", "prerelease")
+	m.SigningKeyID = updatePrereleaseKeyID
+	for _, source := range []string{updateStableManifestURL, updatePrereleaseManifestURL} {
+		if _, err := verifyUpdateManifestFrom(m, "0.11.11-rc.5", "prerelease", source); err == nil || !strings.Contains(err.Error(), "unexpected update signing key") {
+			t.Fatalf("wrong feed accepted the new key or failed for an unexpected reason: %v", err)
+		}
+	}
+	if _, err := verifyUpdateManifestFrom(m, "0.11.11-rc.5", "stable", updatePrereleaseV2ManifestURL); err == nil || !strings.Contains(err.Error(), "only for prerelease") {
+		t.Fatalf("stable client did not reject the v2 feed: %v", err)
+	}
+	if _, err := verifyUpdateManifestFrom(m, "0.11.11-rc.5", "prerelease", updatePrereleaseV2ManifestURL); err == nil || !strings.Contains(err.Error(), "signature verification failed") {
+		t.Fatalf("wrong Ed25519 signature did not fail on the v2 feed: %v", err)
+	}
+	m.SigningKeyID = updateKeyID
+	if _, err := verifyUpdateManifestFrom(m, "0.11.11-rc.5", "prerelease", updatePrereleaseV2ManifestURL); err == nil || !strings.Contains(err.Error(), "unexpected update signing key") {
+		t.Fatalf("v2 feed did not reject the legacy key ID: %v", err)
 	}
 }
 
