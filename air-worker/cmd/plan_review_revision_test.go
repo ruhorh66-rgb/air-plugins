@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -103,6 +104,16 @@ func TestPlanReviewRevisionCreatesIndependentReceipts(t *testing.T) {
 	if err := os.WriteFile(planPath, beforePlan, 0600); err != nil {
 		t.Fatal(err)
 	}
+	c.WhatIf = true
+	if state, code := ensurePlanReview(c, planPath, readPlanSteps(planPath)); state != "PASS" || code != 0 || calls != 2 {
+		t.Fatalf("WhatIf must reuse historical A without replay: %s rc=%d calls=%d", state, code, calls)
+	}
+	current, _ := planReviewPaths(root)
+	var afterWhatIf planReviewRecord
+	if err := readJSON(current, &afterWhatIf); err != nil || afterWhatIf.PlanSHA256 != sha256Hex(revised) {
+		t.Fatalf("WhatIf changed latest verdict: %#v %v", afterWhatIf, err)
+	}
+	c.WhatIf = false
 	if state, code := ensurePlanReview(c, planPath, readPlanSteps(planPath)); state != "PASS" || code != 0 || calls != 2 {
 		t.Fatalf("A→B→A should restore authentic verdict without provider replay: %s rc=%d calls=%d", state, code, calls)
 	}
@@ -205,5 +216,107 @@ func TestPlanReviewInterruptedAttemptRequiresOriginalEvidence(t *testing.T) {
 	latest, _ := planReviewPaths(root)
 	if _, err := os.Stat(latest); !os.IsNotExist(err) {
 		t.Fatalf("interrupted attempt must not publish a verdict: %v", err)
+	}
+}
+
+func TestPlanReviewReconcilesSealedReceiptWithoutReplay(t *testing.T) {
+	for _, tamper := range []bool{false, true} {
+		t.Run(fmt.Sprint("tamper=", tamper), func(t *testing.T) {
+			root, cfg, planPath, steps := writePlanReviewFixture(t)
+			plan, err := os.ReadFile(planPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			executor := runnerSpec{Kind: "codex"}
+			release := activeProductReleaseVersion(root)
+			reviewer, override, err := cfg.SemanticJudge.Resolve(executor, release)
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected := planReviewExpectation{Executor: executor, Reviewer: reviewer, ExplicitOverride: override, ReleaseVersion: release}
+			sha, comp := sha256Hex(plan), planCompositionSHA(steps)
+			source, err := parseIdentity("original", "review-session")
+			if err != nil {
+				t.Fatal(err)
+			}
+			scope := newScope(root, source)
+			req := planReviewRequest{Scope: scope, PlanPath: planPath, PlanSHA256: sha, CompositionSHA256: comp,
+				Reviewer: reviewer, Prompt: planReviewPrompt(planPath, sha, comp), AttemptKey: planReviewAttemptKey(expected)}
+			if err := reservePlanReviewAttempt(req); err != nil {
+				t.Fatal(err)
+			}
+			step, op := planReviewJobStep(req), planReviewOperation(reviewer)
+			path, out := jobReceiptPaths(scope, step, op)
+			receipt, lock, err := startJobReceipt(scope, step, op, path, out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer lock.release()
+			receipt.Provider, receipt.Runner, receipt.Model, receipt.Effort = reviewer.Kind, reviewer.Kind, reviewer.Model, reviewer.Effort
+			receipt.Role, receipt.Sandbox, receipt.ProcessStarted = op, "read-only", true
+			receipt.StdinSHA256 = sha256Hex([]byte(req.Prompt))
+			if err := writeJobReceipt(path, receipt); err != nil {
+				t.Fatal(err)
+			}
+			payload, err := json.Marshal(map[string]string{"type": "result", "result": planReviewPASS(req), "session_id": "original-review"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := writeOwnedJobOutput(root, out, payload); err != nil {
+				t.Fatal(err)
+			}
+			zero := 0
+			if err := finishJobReceiptWithExit(path, jobStatusDone, &zero); err != nil {
+				t.Fatal(err)
+			}
+			before, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tamper {
+				if err := os.WriteFile(out, append(payload, ' '), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			second, err := parseIdentity("other", "another-session")
+			if err != nil {
+				t.Fatal(err)
+			}
+			old := planReviewInvoke
+			defer func() { planReviewInvoke = old }()
+			planReviewInvoke = func(req planReviewRequest) (string, string, *float64, *int, error) {
+				t.Fatal("provider must not be called to reconcile the original attempt")
+				return "", "", nil, nil, nil
+			}
+			run := runPlanReview(root, planPath, steps, newScope(root, second), executor, cfg)
+			if tamper {
+				if run.State != "NOT_PROVEN" || !strings.Contains(run.Record.Error, "changed after completion") {
+					t.Fatalf("tampered: %#v", run)
+				}
+			} else {
+				if run.State != "PASS" || run.Record.Session != "original-review" || run.Record.Verdict.PlanSHA256 != sha {
+					t.Fatalf("not recovered: %#v", run)
+				}
+			}
+			after, err := os.ReadFile(path)
+			if err != nil || string(before) != string(after) {
+				t.Fatalf("original receipt changed: %v", err)
+			}
+		})
+	}
+}
+
+func TestPlanReviewEarlyFailureKeepsLastVerdict(t *testing.T) {
+	root, cfg, planPath, steps := writePlanReviewFixture(t)
+	latest, _ := planReviewPaths(root)
+	publishPlanReview(root, planReviewRecord{Schema: planReviewSchemaVersion, Subject: "plan", Plan: planPath})
+	before, err := os.ReadFile(latest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := runPlanReview(root, planPath+".missing", steps, legacyScope(root), runnerSpec{Kind: "codex"}, cfg)
+	after, err := os.ReadFile(latest)
+	if run.State != "NOT_PROVEN" || err != nil || string(before) != string(after) {
+		t.Fatalf("early failure overwrote latest: %#v, %v", run, err)
 	}
 }
