@@ -43,6 +43,11 @@ function Invoke-GhJson([string[]]$Arguments) {
     if ($LASTEXITCODE -ne 0) { throw "gh failed: gh $($Arguments -join ' ') :: $($out -join ' | ')" }
     $text = ($out -join [Environment]::NewLine).Trim()
     if ([string]::IsNullOrWhiteSpace($text)) { return $null }
+    # PowerShell 7.5+ converts ISO strings to locale-sensitive DateTime by
+    # default. Keep GitHub's canonical RFC3339 timestamp unchanged.
+    if ((Get-Command ConvertFrom-Json).Parameters.ContainsKey('DateKind')) {
+        return $text | ConvertFrom-Json -DateKind String
+    }
     return $text | ConvertFrom-Json
 }
 
@@ -279,8 +284,12 @@ $manifest = [ordered]@{
 }
 Write-Utf8NoBom $manifestPath (($manifest | ConvertTo-Json -Depth 7) + [Environment]::NewLine)
 
-$keyArgs = if ($useWindowsCredential) { @('--windows-prerelease-credential') } else { @('--private-key', $PrivateKey) }
-& $python (Join-Path $PSScriptRoot 'sign-update-manifest.py') --manifest $manifestPath @keyArgs --public-key $PublicKey --key-id $SigningKeyId
+$signer = Join-Path $PSScriptRoot 'sign-update-manifest.py'
+if ($useWindowsCredential) {
+    & $python $signer --manifest $manifestPath --windows-prerelease-credential --public-key $PublicKey --key-id $SigningKeyId
+} else {
+    & $python $signer --manifest $manifestPath --private-key $PrivateKey --public-key $PublicKey --key-id $SigningKeyId
+}
 if ($LASTEXITCODE -ne 0) { throw 'manifest signing failed' }
 
 $verify = @(& $Verifier update verify -manifest $manifestPath -asset-dir $SourceDir -current 0.0.0 -channel $Channel -json 2>&1)
