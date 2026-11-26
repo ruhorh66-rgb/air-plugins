@@ -25,10 +25,13 @@ const (
 	updateKeyID  = "air-worker-update-2026-01"
 
 	// Закрытый ключ хранится вне Git. В клиенте только ключ проверки.
-	updatePublicKeyB64 = "caOGBxSFSdnODzMsPtikaZKrc6qN/v6pGf8VOms2cUE="
+	updatePublicKeyB64           = "caOGBxSFSdnODzMsPtikaZKrc6qN/v6pGf8VOms2cUE="
+	updatePrereleaseKeyID        = "air-worker-update-2026-02"
+	updatePrereleasePublicKeyB64 = "KuKNNV5t39Fl6ISutu/MbhxJZ8nu31Op5OS4FL3QRng="
 
-	updateStableManifestURL     = "https://raw.githubusercontent.com/ruhorh66-rgb/air-plugins/air-worker-update-feed/updates/air-worker/stable/update-manifest.json"
-	updatePrereleaseManifestURL = "https://raw.githubusercontent.com/ruhorh66-rgb/air-plugins/air-worker-update-feed/updates/air-worker/prerelease/update-manifest.json"
+	updateStableManifestURL       = "https://raw.githubusercontent.com/ruhorh66-rgb/air-plugins/air-worker-update-feed/updates/air-worker/stable/update-manifest.json"
+	updatePrereleaseManifestURL   = "https://raw.githubusercontent.com/ruhorh66-rgb/air-plugins/air-worker-update-feed/updates/air-worker/prerelease/update-manifest.json"
+	updatePrereleaseV2ManifestURL = "https://raw.githubusercontent.com/ruhorh66-rgb/air-plugins/air-worker-update-feed/updates/air-worker/prerelease-v2/update-manifest.json"
 
 	maxUpdateManifestBytes = 1 << 20
 )
@@ -168,7 +171,7 @@ func manifestURLsForChannel(channel string) []string {
 	if strings.EqualFold(strings.TrimSpace(channel), "prerelease") {
 		// Как в AIRKS: prerelease смотрит и stable, иначе машина не увидит
 		// более новый стабильный выпуск.
-		return []string{updateStableManifestURL, updatePrereleaseManifestURL}
+		return []string{updateStableManifestURL, updatePrereleaseManifestURL, updatePrereleaseV2ManifestURL}
 	}
 	return []string{updateStableManifestURL}
 }
@@ -310,6 +313,18 @@ func verifyUpdateManifestWithKey(m updateManifest, currentVersion, selectedChann
 }
 
 func verifyUpdateManifest(m updateManifest, currentVersion, selectedChannel string) (bool, error) {
+	return verifyUpdateManifestFrom(m, currentVersion, selectedChannel, "")
+}
+
+func verifyUpdateManifestFrom(m updateManifest, currentVersion, selectedChannel, source string) (bool, error) {
+	// An empty source is used only for the offline update verify command.
+	if source == updatePrereleaseV2ManifestURL || (source == "" && m.SigningKeyID == updatePrereleaseKeyID) {
+		if !strings.EqualFold(strings.TrimSpace(selectedChannel), "prerelease") ||
+			!strings.EqualFold(strings.TrimSpace(m.Channel), "prerelease") {
+			return false, errors.New("prerelease-v2 trust is available only for prerelease manifests and clients")
+		}
+		return verifyUpdateManifestWithKey(m, currentVersion, selectedChannel, updatePrereleasePublicKeyB64, updatePrereleaseKeyID)
+	}
 	return verifyUpdateManifestWithKey(m, currentVersion, selectedChannel, updatePublicKeyB64, updateKeyID)
 }
 
@@ -381,7 +396,7 @@ func checkForAirWorkerUpdate(ctx context.Context) (updateManifest, updateState, 
 			lastErr = err
 			continue
 		}
-		if _, err = verifyUpdateManifest(m, version, cfg.Channel); err != nil {
+		if _, err = verifyUpdateManifestFrom(m, version, cfg.Channel, source); err != nil {
 			lastErr = err
 			continue
 		}
@@ -403,7 +418,7 @@ func checkForAirWorkerUpdate(ctx context.Context) (updateManifest, updateState, 
 		return updateManifest{}, st, lastErr
 	}
 
-	available, err := verifyUpdateManifest(best, version, cfg.Channel)
+	available, err := verifyUpdateManifestFrom(best, version, cfg.Channel, bestURL)
 	st := updateState{
 		CurrentVersion:  version,
 		Channel:         cfg.Channel,
