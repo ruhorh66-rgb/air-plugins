@@ -546,11 +546,11 @@ func runPlanReview(root, planPath string, steps []workStep, scope sessionScope, 
 		return planReviewRun{Record: saved, State: state, Cached: true}
 	}
 	if saved, state, ok, err := readHistoricalPlanReview(root, planSHA, compositionSHA, expected); err != nil {
-		return fail(err)
+		return blocked(err)
 	} else if ok {
 		latest, _ := planReviewPaths(root)
 		if err := writePlanReviewLatest(latest, saved); err != nil {
-			return fail(err)
+			return blocked(err)
 		}
 		return planReviewRun{Record: saved, State: state, Cached: true}
 	}

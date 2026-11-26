@@ -320,3 +320,27 @@ func TestPlanReviewEarlyFailureKeepsLastVerdict(t *testing.T) {
 		t.Fatalf("early failure overwrote latest: %#v, %v", run, err)
 	}
 }
+
+func TestPlanReviewHistoryReadFailureKeepsLastVerdict(t *testing.T) {
+	root, cfg, planPath, steps := writePlanReviewFixture(t)
+	latest, history := planReviewPaths(root)
+	publishPlanReview(root, planReviewRecord{Schema: planReviewSchemaVersion, Subject: "plan", Plan: planPath})
+	before, err := os.ReadFile(latest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(history, []byte(strings.Repeat("x", 70<<10)+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	old := planReviewInvoke
+	defer func() { planReviewInvoke = old }()
+	planReviewInvoke = func(req planReviewRequest) (string, string, *float64, *int, error) {
+		t.Fatal("history read failure should not start a reviewer")
+		return "", "", nil, nil, nil
+	}
+	run := runPlanReview(root, planPath, steps, legacyScope(root), runnerSpec{Kind: "codex"}, cfg)
+	after, err := os.ReadFile(latest)
+	if run.State != "NOT_PROVEN" || !strings.Contains(run.Record.Error, "token too long") || err != nil || string(before) != string(after) {
+		t.Fatalf("history read failure overwrote latest: %#v, %v", run, err)
+	}
+}
