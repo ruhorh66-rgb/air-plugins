@@ -13,13 +13,13 @@ func TestVersionCommandMatchesReleaseTarget(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("version exit code=%d, want 0", code)
 	}
-	if got, want := strings.TrimSpace(out), "air-worker 1.0.0-rc.2"; got != want {
+	if got, want := strings.TrimSpace(out), "air-worker 1.0.0-rc.3"; got != want {
 		t.Fatalf("version output=%q, want %q", got, want)
 	}
 }
 
 func TestReleaseMetadataMatches100RC1(t *testing.T) {
-	if version != "1.0.0-rc.2" {
+	if version != "1.0.0-rc.3" {
 		t.Fatalf("unexpected release target %q", version)
 	}
 	for _, name := range []string{".claude-plugin", ".codex-plugin"} {

@@ -14,7 +14,7 @@ import (
 // source. Current RC/v0.1.1 must reject those original release
 // checkpoints BEFORE any reviewer or measured-use code may run.
 func TestN044CurrentConsumerRejectsHistoricalR03R04ReleaseWork(t *testing.T) {
-	if version != "1.0.0-rc.2" || learning.Version != "0.1.1" {
+	if version != "1.0.0-rc.3" || learning.Version != "0.1.1" {
 		t.Fatalf("N044 wrong consumer identity: air-worker=%s learning=%s", version, learning.Version)
 	}
 	r02, err := n042HistoricalR02SourceBytes()
@@ -51,7 +51,7 @@ func TestN044CurrentConsumerRejectsHistoricalR03R04ReleaseWork(t *testing.T) {
 				t.Fatalf("legacy release step was not denied by exact version guard: %v", err)
 			}
 			if rc := cmdReleaseSliceLoop(root, runConfig{}, state); rc != 2 {
-				t.Fatalf("legacy runner executed under 1.0.0-rc.2, rc=%d", rc)
+				t.Fatalf("legacy runner executed under 1.0.0-rc.3, rc=%d", rc)
 			}
 			got, err := os.ReadFile(path)
 			if err != nil || !bytes.Equal(got, tc.plan) {

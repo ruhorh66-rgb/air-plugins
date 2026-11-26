@@ -1,5 +1,10 @@
 # CHANGELOG — air-worker
 
+## 1.0.0-rc.3 - Windows trust recovery candidate
+
+- Accept the replacement signer only on prerelease-v2, with legacy and stable trust unchanged.
+- Preserve signature, immutable release and package verification; see [update trust runbook](docs/UPDATE-TRUST-RUNBOOK.md).
+
 ## 1.0.0-rc.2 - Windows prerelease
 
 - Recover verified terminal plan-review receipts without invoking Claude or Codex again. Reject stale, unsealed, or changed evidence.
