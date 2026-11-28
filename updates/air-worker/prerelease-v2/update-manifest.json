@@ -4,7 +4,7 @@
   "version": "1.0.0-rc.3",
   "published_at": "2026-11-26T16:19:28Z",
   "vcs_revision": "7eb44013bf31f02d2e2cd4348a3b9e99b5c65652",
-  "payload_sha256": "863045d9686dd314bb5422109e48ac746c7f8a072dea604c24a371d76e0aa2a9",
+  "payload_sha256": "9cbf0fb47917a57c6b6f2e6aa2cf83e4a1965b9b141729660221088f84150e43",
   "cli": {
     "name": "air-worker-1.0.0-rc.3-windows-x64.exe",
     "url": "https://github.com/ruhorh66-rgb/air-plugins/releases/download/air-worker--v1.0.0-rc.3/air-worker-1.0.0-rc.3-windows-x64.exe",
@@ -18,6 +18,6 @@
     "size": 2527744
   },
   "signing_key_id": "air-worker-update-2026-02",
-  "manifest_signature": "LAsC00BUwpv774hC3ZLguFU5tZ9wWG2v+Vjvh/TSOL0qTUQUhulbT6KB2I3HDSsoAb85Jl7inp6Kfm0ED7voAA==",
+  "manifest_signature": "WhPo3ARauuKT6DFXgM7rIl+DpaPtOKVzxH1nVF5uUKw8M/gMTIK9F/muWtzsi7kviGkadvRz39t6hVGUkvg7DQ==",
   "release_notes_url": "https://github.com/ruhorh66-rgb/air-plugins/releases/tag/air-worker--v1.0.0-rc.3"
 }
